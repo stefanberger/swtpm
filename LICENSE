@@ -15,6 +15,8 @@ also under the GPL v2 license.
 The following include files are made available uder the LGPL v2.1 (or later)
 license whose license text can be found below under (2)
 
+include/swtpm/tpm_ioctl.h
+
 All other source files are made available under the 3-clause BSD license
 whose license text can be found below under (3).
 
