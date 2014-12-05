@@ -1,0 +1,86 @@
+=head1 NAME
+
+swtpm_setup.conf
+
+=head1 DESCRIPTION
+
+The file I</etc/swtpm_setup.conf> contains configuration information for
+the swtpm_setup and swtpm_setup.sh programs. It must only contain
+one configuration keywork per line, followed by an equals sign (=) and then
+followed by appropriate configuration information. A comment at the
+end of the line may be introduced by a hash (#) sign.
+
+The following keywords are recognized:
+
+=over 4
+
+=item B<create_certs_tool>
+
+This keyword is to be followed by the name of an executable or exectuable
+script used for creating various TPM certificates. The tool will be
+called with the following options
+
+=over 4
+
+=item B<--type type>
+
+This parameter indicates the type of certificate to create. The type parameter may
+be one of the following: I<ek>, or I<platform>
+
+=item B<--dir dir>
+
+This parameter indicates the directory into which the certificate is to be stored.
+It is expected that the EK certificate is stored in this directory under the name
+ek.cert and the platform certificate under the name platform.cert.
+
+=item B<--ek ek>
+
+This parameter indicates the modulus of the public key of the endorsement key
+(EK). The public key is provided as a sequence of ASCII hex digits.
+
+=item B<--vmid ID>
+
+This parameter indicates the ID of the VM for which to create the certificate.
+
+=item B<--logfile <logfile>>
+
+The log file to log output to; by default logging goes to stdout and stderr
+on the console.
+
+=item B<--configfile <configuration file>>
+
+The configuration file to use. This file typically contains configuration
+information for the invoked program. If omitted, the program must use
+its default configuration file.
+
+=item B<--optsfile <options file>>
+
+The options file to use. This file typically contains options that the
+invoked program uses. If omitted, the program must use its default
+options file.
+
+=back
+
+=item B<create_certs_tool_config>
+
+This keyword is to be followed by the name of a configuration file
+that will be passed to the invoked program using the --configfile
+option described above. If omitted, the invoked program will use
+the default configuration file.
+
+=item B<create_certs_tool_options>
+
+This keyword is to be followed by the name of an options file
+that will be passed to the invoked program using the --optsfile
+option described above. If omitted, the invoked program will use
+the default options file.
+
+=back
+
+=head1 SEE ALSO
+
+B<swtpm_setup>
+
+=head1 REPORTING BUGS
+
+Report bugs to Stefan Berger <stefanb@linux.vnet.ibm.com>

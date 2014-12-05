@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm_cuse
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+MAJOR=255
+MINOR=100
+VTPM_NAME=$(printf "vtpm-%d-%d" $MAJOR $MINOR)
+export TPM_PATH=/tmp
+STATE_FILE=$TPM_PATH/tpm-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+function cleanup()
+{
+	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+}
+
+trap "cleanup" EXIT
+
+modprobe cuse
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+$SWTPM_EXE -n $VTPM_NAME
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM did not start."
+	exit 1
+fi
+
+# Get the established bit before the TPM has been initialized
+# This should not work
+
+$CUSE_TPM_IOCTL -e /dev/$VTPM_NAME
+if [ $? -eq 0 ]; then
+	echo "Error: Could get established bit from CUSE TPM before init."
+	exit 1
+fi
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM must have crashed."
+	exit 1
+fi
+
+# Open access to the TPM
+exec 100<>/dev/$VTPM_NAME
+
+# Read PCR 17 -- this should give a fatal error response
+echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 0a 00 00 00 09'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+exec 100>&-
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM must have crashed."
+	exit 1
+fi
+
+# Init the TPM
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM not running anymore after INIT."
+	exit 1
+fi
+
+$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: CUSE TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

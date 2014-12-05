@@ -6,4 +6,8 @@
 
 SUBDIRS = \
 	selinux \
-	swtpm
+	swtpm \
+	swtpm_bios \
+	swtpm_cert \
+	swtpm_ioctl \
+	swtpm_setup

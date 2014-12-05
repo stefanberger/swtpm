@@ -1,0 +1,62 @@
+TPM { }
+
+DEFINITIONS IMPLICIT TAGS ::=
+
+BEGIN
+
+tcg OBJECT IDENTIFIER ::= {
+  joint-iso-itu-t(2) international-organizations(23) tcg(133)
+}
+
+tcg-attribute OBJECT IDENTIFIER ::= {tcg 2}
+
+tcg-at-tpmManufacturer OBJECT IDENTIFIER ::= {tcg-attribute 1}
+tcg-at-tpmModel OBJECT IDENTIFIER ::= {tcg-attribute 2}
+tcg-at-tpmVersion OBJECT IDENTIFIER ::= {tcg-attribute 3}
+tcg-at-platformManufacturer OBJECT IDENTIFIER ::= {tcg-attribute 4}
+tcg-at-platformModel OBJECT IDENTIFIER ::= {tcg-attribute 5}
+tcg-at-platformVersion OBJECT IDENTIFIER ::= {tcg-attribute 6}
+
+TPMManufacturerInfo ::= SEQUENCE {
+  tpmManufacturer TPMManufacturer,
+  tpmModel        TPMModel,
+  tpmVersion      TPMVersion
+}
+
+TPMManufacturer ::= SEQUENCE {
+  id OBJECT IDENTIFIER,
+  manufacturer UTF8String
+}
+
+TPMModel ::= SEQUENCE {
+  id OBJECT IDENTIFIER,
+  model UTF8String
+}
+
+TPMVersion ::= SEQUENCE {
+  id OBJECT IDENTIFIER,
+  version UTF8String
+}
+
+PlatformManufacturerInfo ::= SEQUENCE {
+  platformManufacturer PlatformManufacturer,
+  platformModel        PlatformModel,
+  platformVersion      PlatformVersion
+}
+
+PlatformManufacturer ::= SEQUENCE {
+  id OBJECT IDENTIFIER,
+  manufacturer UTF8String
+}
+
+PlatformModel ::= SEQUENCE {
+  id OBJECT IDENTIFIER,
+  model UTF8String
+}
+
+PlatformVersion ::= SEQUENCE {
+  id OBJECT IDENTIFIER,
+  version UTF8String
+}
+
+END

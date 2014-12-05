@@ -1,0 +1,65 @@
+=head1 NAME
+
+swtpm_ioctl
+
+=head1 SYNOPSIS
+
+B<swtpm_ioctl [COMMAND] E<lt>deviceE<gt>>
+
+=head1 DESCRIPTION
+
+B<swtpm_ioctl> implements a client tool for controlling the
+I<swtpm_cuse> TPM software emulator, such as for example its
+initialization and shutdown. Once the swtpm_cuse has been
+initialized, TPM commands can be sent to it.
+
+The full path to the swtpm_cuse's character device must be provided such 
+as for example /dev/vtpm-200.
+
+The following commands are supported:
+
+=over 4
+
+=item B<-c>
+
+Get the swtpm_cuse's capability flags indicating which commands
+are supported.
+
+=item B<-i>
+
+Send a hardware initialization signal to the swtpm_cuse. Volatile
+state previously written by the TPM will be read and the file automatically
+delete.
+
+=item B<-s>
+
+Gracefully shut the swtpm_cuse down.
+
+=item B<-e>
+
+Get the tpmEstablished bit.
+
+=item B<-l locality>
+
+Set the locality for the subsequent TPM commands.
+
+=item B<-v>
+
+Have the TPM write the volatile state to a file. Upon a TPM_Init (-i) the
+TPM state will be read and the TPM can then resume operation without further
+intialization.
+
+=item B<-C>
+
+Cancel an ongoing TPM command.
+
+=item B<-h data>
+
+Reset and extend PCR 17 with the hash of the given data. If data is the single
+character '-', then all data are read from stdin.
+
+=back
+
+=head1 SEE ALSO
+
+B<swtpm_cuse>

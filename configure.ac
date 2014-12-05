@@ -42,7 +42,6 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_LIBTOOL
 
-
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([foreign 1.6])
@@ -71,6 +70,14 @@ if test "$test_CFLAGS" != set; then
 elif test "$DEBUG" == "yes"; then
 	CFLAGS="$CFLAGS -O0 -g -DDEBUG"
 fi
+
+AC_HEADER_STDC
+AC_C_CONST
+AC_C_INLINE
+
+AC_TYPE_SIZE_T
+AC_TYPE_SIGNAL
+
 
 GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
 if test $? -ne 0; then
@@ -110,6 +117,11 @@ AC_PROG_INSTALL
 #AM_GNU_GETTEXT_VERSION([0.15])
 #AM_GNU_GETTEXT([external])
 
+AC_PATH_PROG([TPM_NVDEFINE], tpm_nvdefine)
+if test "x$TPM_NVDEFINE" == "x"; then
+	AC_MSG_ERROR([NVRAM area tools are need: tpm-tools package])
+fi
+
 AC_CHECK_LIB([tpms], [TPMLIB_MainInit], [],
              [AC_MSG_ERROR([TPM library not found: libtpms.so])])
 AC_CHECK_HEADER(libtpms/tpm_library.h, [], \
@@ -124,28 +136,69 @@ AC_CHECK_HEADER(cuse_lowlevel.h, [], \
              [AC_MSG_ERROR([FUSE library header not found: fuse/cuse_lowlevel.h])])
 CFLAGS="$saved_CFLAGS"
 
-AC_HEADER_STDC
-AC_C_CONST
-AC_C_INLINE
+if test "x$with_gnutls" != "xno"; then
+    GNUTLS_LDFLAGS=$(pkg-config --libs gnutls)
+    if test $? -ne 0; then
+        if "x$with_gnutls" == "xyes"; then
+            AC_MSG_ERROR("Is gnutls installed? -- could not get libs for gnutls")
+        else
+            with_gnutls=no
+        fi
+    fi
+fi
 
-AC_TYPE_SIZE_T
-AC_TYPE_SIGNAL
+saved_CFLAGS="$CFLAGS"
+if test "x$with_gnutls" != "xno"; then
+    CFLAGS=`pkg-config gnutls --cflags`
+    AC_CHECK_LIB([gnutls], [gnutls_x509_crt_set_key], [],
+             [if test "x$with_gnutls" == "xyes"; then
+                 AC_MSG_ERROR([GNUTLS >= 3.1.0 library not found: libgnutls.so])
+              else
+                 with_gnutls="no"
+              fi])
+fi
+
+if test "x$with_gnutls" != "xno"; then
+    AC_CHECK_HEADER(gnutls/abstract.h, [], \
+             [if test "x$with_gnutls" == "xyes"; then
+                 AC_MSG_ERROR([GNUTLS >= 3.1.0 library header not found: gnutls/abstract.h])
+              else
+                 with_gnutls="no"
+              fi])
+fi
+
+if test "x$with_gnutls" != "xno"; then
+    with_gnutls="yes"
+fi
+AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" == "xyes"])
+
+CFLAGS="$saved_CFLAGS"
 
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 
 AC_CONFIG_FILES(Makefile                    \
 		dist/swtpm.spec             \
+		etc/Makefile                \
+		samples/Makefile            \
 		include/Makefile            \
 		include/swtpm/Makefile      \
 		src/Makefile                \
 		src/selinux/Makefile        \
 		src/swtpm/Makefile          \
 		src/swtpm/swtpm.h           \
+		src/swtpm_bios/Makefile     \
+		src/swtpm_cert/Makefile     \
+		src/swtpm_ioctl/Makefile    \
+		src/swtpm_setup/Makefile    \
 		man/Makefile                \
 		man/man8/Makefile           \
+		tests/Makefile              \
 		)
 AC_OUTPUT
 
+echo
+echo "with_gnutls : $with_gnutls   (no = swtpm_cert will NOT be built)"
+echo
 echo "CFLAGS=$CFLAGS"
 echo "LDFLAGS=$LDFLAGS"

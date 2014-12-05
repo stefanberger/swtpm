@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+
+PARAMETERS=(
+	""
+	"--createek"
+	"--take-ownership"
+	"--createek --lock-nvram"
+	"--take-ownership --lock-nvram"
+	"--lock-nvram"
+	"--take-ownership --ownerpass OOO"
+	"--take-ownership --srkpass SSS"
+	"--take-ownership --ownerpass OO --srkpass SS"
+	"--take-ownership --lock-nvram --display"
+	"--display"
+	"--lock-nvram --display"
+	"--take-ownership --srk-well-known"
+	"--take-ownership --owner-well-known"
+	"--take-ownership --srk-well-known --owner-well-known"
+	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${DIR}/swtpm_setup.conf --vmid test --display"
+	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
+	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+)
+
+FILESIZES=(
+	1169
+	1589
+	2050
+	1589
+	2050
+	1169
+	2050
+	2050
+	2050
+	2050
+	1169
+	1169
+	2050
+	2050
+	2050
+	1705
+	1712
+	1712
+)
+
+SWTPM=swtpm
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+TCSD=`type -P tcsd`
+TPMDIR=`mktemp -d`
+SWTPM_SETUP_CONF=$ROOT/etc/swtpm_setup.conf
+# filesystem privileges require to run swtpm_setup as root during test
+TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --config ${SWTPM_SETUP_CONF} --runas root"
+PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
+PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+
+trap "cleanup" SIGTERM EXIT
+
+if test "$TCSD" = ""; then
+	echo "TCSD executable 'tcsd' was not found in path."
+	exit 1
+fi
+
+function cleanup()
+{
+	rm -rf $TPMDIR
+}
+
+chown tss:tss $TPMDIR 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Could not change ownership of $TPMDIR to tss:tss." \
+	     "You need to be root."
+	exit 1
+fi
+
+for (( i=0; i<${#PARAMETERS[*]}; i++)); do
+	rm -rf $TPMDIR/*
+	echo -n "Test $i: "
+	$TPMAUTHORING \
+		--tpm-state $TPMDIR \
+		--tpm "$SWTPM_EXE socket" \
+		${PARAMETERS[$i]} 2>&1 >/dev/null
+	
+	if [ $? -ne 0 ]; then
+		echo "ERROR: Test with parameters '${PARAMETERS[$i]}' failed."
+		exit 1
+	elif [ ! -f $TPMDIR/tpm-00.permall ]; then
+		echo "ERROR: Test with parameters '${PARAMETERS[$i]}' did not
+		      produce file $TPMDIR/tpm-00.permall."
+		exit 1
+	fi
+
+	FILESIZE=`stat -c%s $TPMDIR/tpm-00.permall`
+	if [ ${FILESIZE} -ne ${FILESIZES[$i]} ]; then
+		echo "ERROR: Unexpected file size of $FILESIZE, "\
+		     "expected ${FILESIZES[$i]}. Parameters: ${PARAMETERS[$i]}"
+		exit 1
+	fi
+
+	echo "SUCCESS with parameters '${PARAMETERS[$i]}'."
+done

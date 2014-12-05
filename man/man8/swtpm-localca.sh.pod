@@ -1,0 +1,69 @@
+=head1 NAME
+
+swtpm-localca.sh
+
+=head1 SYNOPSIS
+
+B<swtpm-localca.sh [OPTIONS]>
+
+=head1 DESCRIPTION
+
+B<swtpm-localca.sh> is a tool to create TPM Endorsement Key (EK) and platform
+certificates on the host. It uses the I<swtpm_cert> program to create
+the certificates.
+
+The program will typically be invoked by the I<swtpm_setup> program
+that uses the I</etc/swtpm_setup.conf> configuration file where
+a variable needs to be set that points to this program.
+It implements command line options that the I<swtpm_setup>
+program uses to provide the necessary parameters to it.
+
+The following options are supported:
+
+=over 4
+
+=item B<--type type>
+
+This parameter indicates the type of certificate to create. The type parameter may
+be one of the following: I<ek>, or I<platform>
+
+=item B<--dir dir>
+
+This parameter indicates the directory into which the certificate is to be stored.
+The EK certificate is stored in this directory under the name
+ek.cert and the platform certificate under the name platform.cert.
+
+=item B<--ek ek>
+
+This parameter indicates the modulus of the public key of the endorsement key
+(EK). The public key is provided as a sequence of ASCII hex digits.
+
+=item B<--vmid ID>
+
+This parameter indicates the ID of the VM for which to create the certificate.
+
+=item B<--logfile <logfile>>
+
+The log file to log output to; by default logging goes to stdout and stderr
+on the console.
+
+=item B<--configfile <configuration file>>
+
+The configuration file to use. If omitted, the default configuration
+file I</etc/swtpm-localca.conf> will be used.
+
+=item B<--optsfile <options file>>
+
+The options file to use. If omitted, the default options file
+I</etc/swtpm-localca.options> will be used.
+
+=back
+
+=head1 SEE ALSO
+
+B<swtpm-localca.conf>, B<swtpm-localca.options>, 
+B<swtpm_setup>, B<swtpm_setup.conf>
+
+=head1 REPORTING BUGS
+
+Report bugs to Stefan Berger <stefanb@linux.vnet.ibm.com>

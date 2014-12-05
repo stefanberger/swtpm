@@ -1,0 +1,93 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm_cuse
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+MAJOR=255
+MINOR=100
+VTPM_NAME=$(printf "vtpm-%d-%d" $MAJOR $MINOR)
+export TPM_PATH=/tmp
+STATE_FILE=$TPM_PATH/tpm-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+function cleanup()
+{
+	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+}
+
+trap "cleanup" EXIT
+
+modprobe cuse
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+$SWTPM_EXE -n $VTPM_NAME
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM did not start."
+	exit 1
+fi
+
+
+# Init the TPM
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM not running anymore after INIT."
+	exit 1
+fi
+
+# Get the capabilities flags from the TPM
+act=$($CUSE_TPM_IOCTL -c /dev/$VTPM_NAME)
+
+kill -0 $PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM not running anymore after getting capabilities."
+	exit 1
+fi
+
+exp="ptm capability is 0x([[:xdigit:]]+)"
+if ! [[ "$act" =~ ^${exp}$ ]]; then
+	echo "Error: Expected string following regular expression '$exp' from ioctl tool but got '$act'."
+	exit 1
+fi
+
+$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: CUSE TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

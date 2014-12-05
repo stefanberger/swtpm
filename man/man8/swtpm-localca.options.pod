@@ -1,0 +1,30 @@
+=head1 NAME
+
+swtpm-localca.options
+
+=head1 DESCRIPTION
+
+The file I</etc/swtpm-localca.options> contains command line options
+to pass to the I<swtpm_setup> program and should hold options
+that apply to the creation of all TPM Endorsement Key (EK) and platform
+certificates.
+
+=head1 EXAMPLE
+
+an example I<swtpm-localca.options> file may look as follows:
+
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 1.2
+--platform-manufacturer Fedora
+--platform-version 2.1
+--platform-model QEMU
+--subject "C=US,ST=NY,L=Yorktown"
+
+=head1 SEE ALSO
+
+B<swtpm-localca.sh>
+
+=head1 REPORTING BUGS
+
+Report bugs to Stefan Berger <stefanb@linux.vnet.ibm.com>

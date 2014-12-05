@@ -1,0 +1,6 @@
+The volatile state of this TPM instance has
+
+PCR[10] = 6edd3260501da32ade90a14ca310dfc3a74fa004
+
+The state is encrypted.
+The value of PCR 10 cannot easily be found in tpm-00.volatilestate.

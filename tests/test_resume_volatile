@@ -1,0 +1,169 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm_cuse
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+MAJOR=255
+MINOR=100
+VTPM_NAME=$(printf "vtpm-%d-%d" $MAJOR $MINOR)
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+function cleanup()
+{
+	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+}
+
+trap "cleanup" EXIT
+
+modprobe cuse
+
+export TPM_PATH=${PWD}/${DIR}/data/tpmstate1
+
+# make a backup of the volatile state
+VOLATILE_STATE=$TPM_PATH/tpm-00.volatilestate
+VOLATILE_STATE_BAK=${VOLATILE_STATE}.bak
+cp -f $VOLATILE_STATE $VOLATILE_STATE_BAK
+
+$SWTPM_EXE -n $VTPM_NAME
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM did not start."
+	# Restore the original volatile state
+	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+	exit 1
+fi
+
+# Init the TPM
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM not running anymore after INIT."
+	# Restore the original volatile state
+	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+	exit 1
+fi
+
+exec 100<>/dev/$VTPM_NAME
+
+# Read PCR 10
+/usr/bin/echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 1e 00 00 00 00 6e dd 32 60 50 1d a3 2a de 90 a1 4c a3 10 df c3 a7 4f a0 04'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	# Restore the original volatile state
+	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+	exit 1
+fi
+
+# Save the volatile state again
+$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+
+if [ ! -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	# Restore the original volatile state
+	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+	exit 1
+fi
+
+# Shut the TPM down
+exec 100>&-
+$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+
+# Restore the original volatile state
+mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+
+echo "Test 1: Ok"
+
+
+# 2nd test: with encrypted state
+
+export TPM_PATH=${PWD}/${DIR}/data/tpmstate2
+
+# make a backup of the volatile state
+VOLATILE_STATE=$TPM_PATH/tpm-00.volatilestate
+VOLATILE_STATE_BAK=${VOLATILE_STATE}.bak
+cp -f $VOLATILE_STATE $VOLATILE_STATE_BAK
+
+$SWTPM_EXE -n $VTPM_NAME --key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM did not start."
+	# Restore the original volatile state
+	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+	exit 1
+fi
+
+# Init the TPM
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM not running anymore after INIT."
+	# Restore the original volatile state
+	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+	exit 1
+fi
+
+exec 100<>/dev/$VTPM_NAME
+
+# Read PCR 10
+/usr/bin/echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 1e 00 00 00 00 6e dd 32 60 50 1d a3 2a de 90 a1 4c a3 10 df c3 a7 4f a0 04'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	# Restore the original volatile state
+	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+	exit 1
+fi
+
+# Save the volatile state again
+$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+
+if [ ! -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	# Restore the original volatile state
+	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+	exit 1
+fi
+
+# Shut the TPM down
+exec 100>&-
+$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+
+# Restore the original volatile state
+mv $VOLATILE_STATE_BAK $VOLATILE_STATE
+
+echo "Test 2: Ok"

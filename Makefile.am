@@ -5,9 +5,12 @@
 #
 
 SUBDIRS   = \
+	etc \
 	include \
+	man \
+	samples \
 	src \
-	man
+	tests
 
 ACLOCAL_AMFLAGS = -I m4
 

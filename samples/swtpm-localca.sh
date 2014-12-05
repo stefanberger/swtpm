@@ -1,0 +1,305 @@
+#!/bin/bash
+
+#
+# sample/swtpm-localca.sh
+#
+# Authors: Stefan Berger <stefanb@us.ibm.com>
+#
+# (c) Copyright IBM Corporation 2014.
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# Neither the names of the IBM Corporation nor the names of its contributors
+# may be used to endorse or promote products derived from this software
+# without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+LOCALCA_OPTIONS=/etc/swtpm-localca.options
+LOCALCA_CONFIG=/etc/swtpm-localca.conf
+
+# Default logging goes to stderr
+LOGFILE=""
+
+logit()
+{
+	if [ -z "$LOGFILE" ]; then
+		echo "$1" >&1
+	else
+		echo "$1" >> $LOGFILE
+	fi
+}
+
+logerr()
+{
+	if [ -z "$LOGFILE" ]; then
+		echo "Error: $1" >&2
+	else
+		echo "Error: $1" >> $LOGFILE
+	fi
+}
+
+# Get an configuration value from an configurations file
+# @param1: The file with the options
+# @param2: The name of the option
+get_config_value() {
+	local configfile="$1"
+	local configname="$(echo "$2" | sed 's/-/\\-/g')"
+	local defaultvalue="$3"
+	local tmp
+
+	if [ ! -r $configfile ]; then
+		logerr "Cannot read config file $configfile"
+		return 1
+	fi
+
+	tmp=$(sed -n "s/^${configname}[[:space:]]*=[[:space:]]*\([^ ]\+\)/\1/p" \
+		$configfile)
+	if [ -z "$tmp" ]; then
+		if [ -n "$defaultvalue" ]; then
+			echo "$defaultvalue"
+		else
+			return 1
+		fi
+	else
+		echo "$tmp"
+	fi
+
+	return 0
+}
+
+
+get_next_cert_serial() {
+	local serial
+
+	touch ${LOCK}
+	(
+		# Avoid concurrent creation of next serial
+		flock -e 200
+		if [ ! -r ${CERTSERIAL} ]; then
+			echo -n "0" > ${CERTSERIAL}
+		fi
+		serial=$(cat ${CERTSERIAL})
+		if ! [[ "$serial" =~ ^[0-9]+$ ]]; then
+			serial=1
+		else
+			serial=$((serial+1))
+		fi
+		echo -n $serial > ${CERTSERIAL}
+		echo $serial
+	) 200>${LOCK}
+}
+
+create_cert() {
+	local typ="$1"
+	local dir="$2"
+	local ek="$3"
+	local vmid="$4"
+
+	local serial=$(get_next_cert_serial)
+	local options
+	
+	if [ -r "${LOCALCA_OPTIONS}" ]; then
+		options=$(cat ${LOCALCA_OPTIONS})
+	fi
+
+	case "$typ" in
+	ek)
+		if [ -z "$(type -p swtpm_cert)" ]; then
+			echo "Missing swtpm_cert tool" > ${dir}/ek.cert
+		else
+			eval swtpm_cert \
+			$options \
+			--signkey ${SIGNKEY} \
+			--issuercert ${ISSUERCERT} \
+			--out-cert ${dir}/ek.cert \
+			--modulus "${ek}" \
+			--days $((10*365)) \
+			--serial $serial
+			if [ $? -eq 0 ]; then
+				logit "Successfully created EK certificate locally."
+			else
+				logerr "Could not create EK certificate locally."
+			fi
+		fi
+		;;
+	platform)
+		if [ -z "$(type -p swtpm_cert)" ]; then
+			echo "Missing swtpm_cert tool" > ${dir}/platform.cert
+		else
+			eval swtpm_cert \
+			$options \
+			--type platform \
+			--signkey ${SIGNKEY} \
+			--issuercert ${ISSUERCERT} \
+			--out-cert ${dir}/platform.cert \
+			--modulus "${ek}" \
+			--days $((10*365)) \
+			--serial $serial
+			if [ $? -eq 0 ]; then
+				logit "Successfully created platform certificate locally."
+			else
+				logerr "Could not create platform certificate locally."
+			fi
+		fi
+		;;
+	esac
+}
+
+# Create the local CA's (self signed) certificate if it doesn't already exist.
+#
+create_localca_cert() {
+	touch ${LOCK}
+	(
+		# Avoid concurrent creation of keys and certs
+		flock -e 200
+		if [ ! -d ${STATEDIR} ]; then
+			# RPM installation must have created this already ...
+			# so user tss can use it (user tss cannot create it)
+			mkdir -p ${STATEDIR}
+		fi
+		if [ ! -r ${SIGNKEY} ]; then
+			certtool --generate-privkey > ${SIGNKEY}
+
+			local tmp=$(mktemp)
+			echo "cn=swtpm-localca" > ${tmp}
+			echo "ca" >> ${tmp}
+			echo "cert_signing_key" >> ${tmp}
+
+			certtool \
+				--generate-self-signed \
+				--template ${tmp} \
+				--outfile ${ISSUERCERT} \
+				--load-privkey ${SIGNKEY}
+			rm -f ${tmp}
+		fi
+	) 200>${LOCK}
+}
+
+main() {
+	local typ ek dir vmid tmp
+
+	while [ $# -ne 0 ]; do
+		case "$1" in
+		--type)
+			shift
+			typ="$1"
+			;;
+		--ek)
+			shift
+			ek="$1"
+			;;
+		--dir)
+			shift
+			dir="$1"
+			;;
+		--vmid)
+			shift
+			vmid="$1"
+			;;
+		--optsfile)
+			shift
+			LOCALCA_OPTIONS="$1"
+			;;
+		--configfile)
+			shift
+			LOCALCA_CONFIG="$1"
+			;;
+		--logfile)
+			shift
+			LOGFILE="$1"
+		esac
+		shift
+	done
+
+	if [ -n "$LOGFILE" ]; then
+		touch $LOGFILE &>/dev/null
+		if [ ! -w "$LOGFILE" ]; then
+			logerr "Cannot write to logfile ${LOGFILE}."
+			exit 1
+		fi
+	fi
+
+	if [ ! -r "$LOCALCA_OPTIONS" ]; then
+		logerr "Cannot access options file ${LOCALCA_OPTIONS}."
+		exit 1
+	fi
+
+	if [ ! -r "$LOCALCA_CONFIG" ]; then
+		logerr "Cannot access config file ${LOCALCA_CONFIG}."
+		exit 1
+	fi
+
+	tmp=$(get_config_value "$LOCALCA_CONFIG" "statedir")
+	if [ -z "$tmp" ]; then
+		logerr "Missing 'statedir' config value in config file ${LOCALCA_CONFIG}"
+		exit 1
+	fi
+	STATEDIR="$tmp"
+	if [ ! -d "$STATEDIR" ]; then
+		mkdir -p "$STATEDIR"
+		if [ $? -ne 0 ]; then
+			logerr "Could not create directory '${STATEDIR}."
+			exit 1
+		fi
+	fi
+	LOCK="${STATEDIR}/.lock"
+	if [ ! -w ${LOCK} ]; then
+		touch $LOCK
+		if [ ! -w ${LOCK} ]; then
+			logerr "Could not create lock file ${LOCK}."
+			exit 1
+		fi
+	fi
+
+	SIGNKEY=$(get_config_value "$LOCALCA_CONFIG" "signingkey")
+	if [ -z "$SIGNKEY" ]; then
+		logerr "Missing signingkey variable in config file $LOCALCA_CONFIG."
+		exit 1
+	fi
+	if [ ! -r "$SIGNKEY" ]; then
+		logerr "Cannot access signing key ${SIGNKEY}."
+		exit 1
+	fi
+
+	ISSUERCERT=$(get_config_value "$LOCALCA_CONFIG" "issuercert")
+	if [ -z "$ISSUERCERT" ]; then
+		logerr "Missing issuercert variable in config file $LOCALCA_CONFIG."
+		exit 1
+	fi
+	if [ ! -r "$ISSUERCERT" ]; then
+		logerr "Cannot access issuer certificate ${ISSUERCERT}."
+		exit 1
+	fi
+
+	CERTSERIAL=$(get_config_value "$LOCALCA_CONFIG" "certserial" \
+	    "${STATEDIR}/certserial")
+
+	create_localca_cert
+
+	create_cert "$typ" "$dir" "$ek" "$vmid"
+}
+
+main "$@" # 2>&1 | tee -a /tmp/localca.log

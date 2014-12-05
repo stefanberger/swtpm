@@ -1,0 +1,50 @@
+=head1 NAME
+
+swtpm-localca.conf
+
+=head1 DESCRIPTION
+
+The file I</etc/swtpm-localca.conf> contains configuration variables
+for the I<swtpm-localca.sh> program.
+
+The following configuration variables must be set:
+
+=over 4
+
+=item B<statedir>
+
+The name of a directory where to store data into. A lock will be created
+in this directory.
+
+=item B<signinkey>
+
+The file containing the key used for signing the certificates. Provide
+a key in PEM format.
+
+=item B<issuercert>
+
+The file containing the certificate for this CA. Provide a certificate
+in PEM format.
+
+=item B<certserial>
+
+The name of file containing the serial number for the next certificate.
+
+=back
+
+=head1 EXAMPLE
+
+An example I<swtpm-localca.conf> file may look as follows:
+
+ statedir = /var/lib/swtpm_localca
+ signingkey = /var/lib/swtpm_localca/signkey.pem
+ issuercert = /var/lib/swtpm_localca/issuercert.pem
+ certserial = /var/lib/swtpm_localca/certserial
+
+=head1 SEE ALSO
+
+B<swtpm-localca.sh>
+
+=head1 REPORTING BUGS
+
+Report bugs to Stefan Berger <stefanb@linux.vnet.ibm.com>

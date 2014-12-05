@@ -1,0 +1,108 @@
+=head1 NAME
+
+swtpm_cert
+
+=head1 SYNOPSIS
+
+B<swtpm_cert [OPTIONS]>
+
+=head1 DESCRIPTION
+
+B<swtpm_cert> is a local CA tool for creating X.509v3 certificates for the TPM's
+Endorsement Key. The reason for this specific tool is that it works  without access
+to the Endorsement Key's private key. Typically tools require either a self-signed
+certificate request or access to the private key to issue a certificate.
+This tool works with only the public key part.
+
+
+The following options are supported:
+
+=over 4
+
+=item B<--type {ek|platform|aik}>
+
+The type of certificate to create; by default an EK certificate is created.
+
+=item B<--pubkey <filename>>
+
+The public key (EK) in PEM format.
+
+=item B<--modulus <hex digits>>
+
+The modulus of the public key as a string of hex digits. This option
+can be used in place of the --pubkey option.
+
+=item B<--exponent <exponent>>
+
+The exponent of the public key. By default 0x10001 is assumed.
+
+=item B<--signkey <filename>>
+
+The key used for signing the certificate. The file must be in PEM format.
+
+=item B<--signkey-password <password>>
+
+Optional password for the signing key.
+
+=item B<--issuercert <filename>>
+
+The X.509 certificate of this signer that takes on the role of a local CA.
+
+=item B<--out-cert <filename>>
+
+The name of the file to write the X.509v3 certificate into. The output will
+be in PEM format.
+
+=item B<--serial <serial number>>
+
+Optional 32bit serial number for the certificate.
+
+=item B<--days <number>>
+
+The number of days the certificate is valid; by default it is valid for 365 days.
+
+=item B<--pem>
+
+Write the resulting certificate in PEM format; DER format is the default.
+
+=item B<--tpm-manufacturer <name>>
+
+The name of the TPM manufacturer.
+
+=item B<--tpm-model <model>>
+
+The TPM model (part number).
+
+=item B<--tpm-version <version>>
+
+The TPM's firmware version.
+
+=item B<--platform-manufacturer <name>>
+
+The name of the platform manufacturer.
+
+=item B<--platform-model <model>>
+
+The platform model.
+
+=item B<--platform-version <version>>
+
+The platform's version.
+
+=item B<--subject <subject>>
+
+Subject to for example provide the location of the TPM in the format of
+C=<country>,ST=<state>,L=<location>.
+Note that the location must no contain any spaces.
+
+=item B<--help, -h>
+
+Display the help screen
+
+=back
+
+=head1 SEE ALSO
+
+=head1 REPORTING BUGS
+
+Report bugs to Stefan Berger <stefanb@linux.vnet.ibm.com>

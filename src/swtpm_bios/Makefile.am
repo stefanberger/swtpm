@@ -1,0 +1,12 @@
+#
+# src/swtpm_bios/Makefile.am
+#
+# For the license, see the LICENSE file in the root directory.
+#
+
+noinst_HEADERS =
+
+bin_PROGRAMS = \
+	swtpm_bios
+
+swtpm_bios_SOURCES = tpm_bios.c

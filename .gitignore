@@ -35,3 +35,10 @@ Makefile
 /src/swtpm/swtpm
 /src/swtpm/swtpm.h
 /src/swtpm/swtpm_cuse
+/src/swtpm_bios/swtpm_bios
+/src/swtpm_cert/swtpm_cert
+/src/swtpm_ioctl/swtpm_ioctl
+/src/swtpm_setup/swtpm_setup
+/test-driver
+tests/*.log
+tests/*.trs

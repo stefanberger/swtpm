@@ -1,0 +1,6 @@
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 1.2
+--platform-manufacturer Fedora
+--platform-version 2.1
+--platform-model QEMU

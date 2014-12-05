@@ -1,0 +1,202 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm_cuse
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+MAJOR=255
+MINOR=100
+VTPM_NAME=$(printf "vtpm-%d-%d" $MAJOR $MINOR)
+export TPM_PATH=/tmp
+STATE_FILE=$TPM_PATH/tpm-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+KEY=1234567890abcdef1234567890abcdef
+
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+keyfile=$(mktemp)
+logfile=$(mktemp)
+echo "$KEY" > $keyfile
+
+function cleanup()
+{
+	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -f $keyfile $logfile
+}
+
+trap "cleanup" EXIT
+
+modprobe cuse
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+$SWTPM_EXE -n $VTPM_NAME --key file=$keyfile,mode=aes-cbc,format=hex \
+	--log file=$logfile
+#sleep 20
+#echo "continuing"
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM did not start."
+	exit 1
+fi
+
+# Init the TPM
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM not running anymore after INIT."
+	exit 1
+fi
+
+
+export TPM_DUMP_COMMANDS=1
+export TPM_DEVICE=/dev/$VTPM_NAME
+#tpmbios -o
+
+# Startup the TPM
+exec 100<>/dev/$VTPM_NAME
+echo -en '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n)
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+$CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
+
+# Read PCR 17
+echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Save the volatile state
+$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+
+if [ ! -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	exit 1
+fi
+
+sleep 5
+# Shut the TPM down
+exec 100>&-
+$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+
+# Start the TPM again; have the keyfile removed
+$SWTPM_EXE -n $VTPM_NAME --key file=$keyfile,mode=aes-cbc,format=hex,remove \
+	--log file=$logfile
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM did not start."
+	exit 1
+fi
+
+if [ -r $keyfile ]; then
+	echo "Error: Keyfile $keyfile was not removed by swtpm_cuse."
+	exit 1
+fi
+
+# Init the TPM
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+
+# Volatile state must have been removed by TPM now
+if [ -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	exit 1
+fi
+
+# Read the PCR again ...
+exec 100<>/dev/$VTPM_NAME
+echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Save the volatile state again
+$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+
+if [ ! -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	exit 1
+fi
+
+# Send a new TPM_Init
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+
+# Volatile state must have been removed by TPM now
+if [ -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	exit 1
+fi
+
+# Read the PCR again ...
+exec 100<>/dev/$VTPM_NAME
+echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+
+# Finale shut down
+exec 100>&-
+$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: CUSE TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0
