@@ -1,0 +1,81 @@
+=head1 NAME
+
+swtpm
+
+=head1 SYNOPSIS
+
+B<swtpm_cuse [OPTIONS]>
+
+=head1 DESCRIPTION
+
+B<swtpm_cuse> implements a TPM software emulator built on libtpms.
+It provides access to TPM functionality over a Linux CUSE 
+(character device in user space) interface.
+
+The environment variable I<TPM_PATH> must be set and
+contain the name of a directory where the TPM can store its persistent
+data into.
+
+The B<swtpm_ioctl> command should be used for a graceful shutdown
+of the CUSE TPM.
+
+The following options are supported:
+
+=over 4
+
+=item B<-h | --help>
+
+Display help screen.
+
+=item B<-n E<lt>device nameE<gt> | --name=E<lt>device nameE<gt> (mandatory)>
+
+The name of the character device to create. To create /dev/vtpm-200, the
+given device name must be vtpm-200. The character device will be created
+automatically and use unused major and minor numbers unless they
+are explicitly requested through options.
+
+=item B<-M E<lt>majorE<gt> | --maj=E<lt>majorE<gt>>
+
+The device major number to use; can be omitted.
+
+=item B<-m E<lt>minorE<gt> | --min=E<lt>minorE<gt>>
+
+The device minor number to use; can be omitted.
+
+=item B<-r E<lt>userE<gt> | --runas=E<lt>userE<gt>>
+
+The user to switch to and drop privileges.
+
+=item B<--log fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>>
+
+Enable logging to a file given its file descriptor or its path. Use '-' for path to
+suppress the logging.
+
+=item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
+
+Enable encryption of the state files of the TPM. The keyfile must contain
+an AES key of supported size; currently only 128 bit (16 bytes) keys are
+supported.
+
+The key may be in binary format, in which case the file size must be 16 bytes.
+If the key is in hex format (default), the key may consist of 32 hex digits
+starting with an optional '0x'.
+
+The I<mode> parameter indicates which block chaining mode is to be used.
+Currently only aes-cbc is supported.
+
+The I<remove> parameter will attempt to remove the given keyfile once the key
+has been read.
+
+=item B<--key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc],[remove[=true|false]]>
+
+This variant of the key parameter allows to provide a passphrase in a file.
+A maximum of 32 bytes are read from the file and a key is derived from it using a
+SHA512 hash. Currently only 128 bit keys are supported.
+
+=back
+
+
+=head1 SEE ALSO
+
+B<swtpm_bios>, B<swtpm_ioctl>

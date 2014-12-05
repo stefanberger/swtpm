@@ -1,0 +1,18 @@
+
+module swtpmcuse_svirt 1.0;
+
+require {
+	type virtd_t;
+	type swtpmcuse_exec_t;
+	type svirt_t;
+	class process sigchld;
+	class capability { setuid setgid dac_override dac_read_search };
+	class file { read entrypoint };
+	class fifo_file write;
+}
+
+#============= svirt_t ==============
+allow svirt_t self:capability { setuid setgid dac_override dac_read_search };
+allow svirt_t swtpmcuse_exec_t:file { read entrypoint };
+allow svirt_t virtd_t:fifo_file write;
+allow svirt_t virtd_t:process sigchld;

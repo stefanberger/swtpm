@@ -1,0 +1,33 @@
+policy_module(swtpmcuse, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+attribute_role swtpmcuse_roles;
+roleattribute system_r swtpmcuse_roles;
+
+type swtpmcuse_t;
+type swtpmcuse_exec_t;
+application_domain(swtpmcuse_t, swtpmcuse_exec_t)
+role swtpmcuse_roles types swtpmcuse_t;
+
+permissive swtpmcuse_t;
+
+########################################
+#
+# swtpmcuse local policy
+#
+allow swtpmcuse_t self:capability { setgid setuid dac_override dac_read_search };
+
+allow swtpmcuse_t self:fifo_file manage_fifo_file_perms;
+allow swtpmcuse_t self:unix_stream_socket create_stream_socket_perms;
+
+domain_use_interactive_fds(swtpmcuse_t)
+
+files_read_etc_files(swtpmcuse_t)
+
+auth_use_nsswitch(swtpmcuse_t)
+
+miscfiles_read_localization(swtpmcuse_t)

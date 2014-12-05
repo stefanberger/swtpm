@@ -1,0 +1,16 @@
+Future capabilities needed
+--------------------------
+
+- flag indicating that cancellation of commands is supported
+   - patches for cancellation of key creation exists
+
+- improve on the logging
+
+- QEMU-like monitor for initiation of migration;
+  adds a capability flag
+
+   - only useful if migration error handling in QEMU can be properly
+     supported so that fall-back to original host can work
+     - either TPM or QEMU can cause the fall-back due to an error
+   - needs to allow suspend/resume in QEMU
+   - needs to prevent snapshotting in QEMU

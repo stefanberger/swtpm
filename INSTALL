@@ -1,0 +1,37 @@
+Building and running the swtpm has dependencies on the following packages:
+
+- automake
+- autoconf
+- bash
+- coreutils
+- libtool
+- sed
+- libtpms
+- libtpms-devel
+- fuse
+- fuse-devel
+- glib2
+- glib2-devel
+- gmp
+- gmp-devel
+- rpm-build (to build RPMs)
+
+Use 'yum install <package name(s)> to install these packages.
+
+Use the following sequence to build and install the Software TPM.
+
+./bootstrap.sh
+./configure --prefix=/usr
+make
+make check
+make install
+
+
+To build an rpm do:
+
+./bootstrap.sh
+./configure
+make dist
+mkdir -p ~/rpmbuild/SOURCES
+cp swtpm-0.x.y-tar.gz ~/rpmbuild/SOURCES
+rpmbuild -ba dist/swtpm.spec

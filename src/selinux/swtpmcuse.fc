@@ -1,0 +1,1 @@
+/usr/bin/swtpm_cuse		--	gen_context(system_u:object_r:swtpmcuse_exec_t,s0)

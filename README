@@ -1,0 +1,144 @@
+SWTPM - Software TPM Emulator
+      David Safford safford@us.ibm.com
+      Stefan Berger stefanb@us.ibm.com
+
+The SWTPM package provides TPM emulators with different front-end interfaces
+to libtpms. TPM emulators provide socket interfaces (TCP/IP) and the Linux
+CUSE interface for the creation of multiple native /dev/vtpm* devices.
+Those can be the targets of multiple QEMU cuse-tpm instances.
+
+The primary goal of this is to support running multiple QEMU guests,
+each having its own TPM emulator, without modifying QEMU, the kernel, or
+libtpms. The approach is to use the QEMU cuse-tpm driver, pointing it to
+/dev/vtpm? which is established as a CUSE frontend to libtpms.
+
+The CUSE frontend supports ioctls on the /dev/vtpm? device file, for
+handling hardware specific features, such as hardware reset, hardware
+shutdown, setting locality, and getting the tpmEstablished bit and 
+others. There is a getcapability ioctl to query which of these features
+are available on a given vtpm. 
+
+This has been tested on Fedora 20, as it has everything needed
+(cuse, QEMU with TPM passthrough driver, libtpms...) enabled by default.
+It is also known to work on RHEL-6.
+
+Building:
+	Please read INSTALL for how to build and install the package
+
+Running:
+	This installs all the CUSE server files.
+
+Notes: 	If you are running selinux in enforcing mode (the Fedora 20 default),
+	then you will get many (6?) rounds of errors, and everytime you have to
+	use the selinux troubleshooter to add policies to allow the vtpm
+	server to run. You only have to do this for the first VM.
+
+	(If you are running ima-appraisal, you will need to sign the
+        installed executables and libraries (/usr/bin/swtpm and
+	/usr/bin/swtpm_cuse and /usr/lib/libswtpm_libtpms.so)
+
+In the Guest:
+	If you are running a fedora20 guest, then you can start out with:
+		yum install tpm-tools
+		systemctl start tcsd.service
+		tpm_createek
+		tpm_takeown -u -y -z
+		tpm_getpubek -u -z
+
+-----------------------------------------------------------------------------
+Low level details on the executables:
+
+Starting virtual TPM instances:
+
+	On Fedora 20, CUSE is a module, so you may need to:
+		modprobe cuse
+	For each desired vtpm, as root you simply:
+		export TPM_PATH=<directory to keep vtpm state files>
+		./swtpm_cuse -M <major> -m <minor> -n <device name>
+	The process runs as a background daemon.
+
+For example, to start two instances, vtpm0 and vtpm1:
+
+	# export TPM_PATH=/home/dave/work/PTM/VM0
+	# cuse_tpm_server -n vtpm0
+
+	# export TPM_PATH=/home/dave/work/PTM/VM1
+	# cuse_tpm_server -n vtpm1
+
+If you want user level QEMU's to access the vtpm, you could
+	# chmod 666 /dev/vtpm*
+
+Initialize the vtpm instances:
+
+The vtpm instances are started, but not otherwise
+initialized. Normally after starting them the first
+time, you will want to create an endorsement key
+and take ownership. (This is shown using the swtpm package's
+libtpm utilities.) For two instances this would look like:
+
+        $ cuse_tpm_ioctl -i /dev/vtpm0   # Initialize the vTPM
+	$ export TPM_DEVICE=/dev/vtpm0
+	$ createek
+	$ takeown -pwdo ownerpass
+	$ getpubek -pwdo ownerpass
+	pubek.pem successfully written
+	Pubek keylength 256
+	Modulus:
+	A6 08 68 C5 CD 6F 58 EA CC 69 17 46 92 72 D8 AE 
+	48 44 66 7D 3B C6 C4 21 F0 1F 83 8A 5F 40 A0 A9 
+	B2 D6 61 A3 B1 30 91 F1 39 43 CA 8D C6 09 08 97 
+	3D 85 68 F7 73 2E 50 F1 20 03 85 27 50 75 2C A4 
+	E9 D9 FD CA 5C E2 27 66 1F 57 BB 8B 56 CA CB A3 
+	7F 82 2E 3B 64 2A C2 E9 DF 35 18 08 D5 A9 CB D9 
+	E5 5E 4F C7 00 78 04 AC 5C CC D1 E8 F2 15 00 F7 
+	5D 5C A7 35 E7 98 D1 BF 2D E0 31 78 FC 1C 03 E2 
+	BC BB F6 1B 04 95 36 C7 9D DA 82 3B 19 CD 20 28 
+	78 6B E4 61 28 99 27 BB 9B 1A 1C 07 10 6A AE 0B 
+	4D B2 F3 5E B5 B2 B4 74 40 D6 CA 2C 88 43 46 44 
+	6D 38 8C 11 AC E7 30 7E A2 C9 B6 02 02 B2 40 67 
+	61 23 E2 9A 6E 9A 3E 87 BC 16 D6 3F 68 0E 65 9A 
+	01 FE 45 D3 2A 5B FD 36 C9 76 AC 5C 44 3C D8 B5 
+	E7 9C D4 24 F0 F8 80 1C 19 40 1D 36 B9 6C CB 00 
+	47 48 DE C9 76 6F 30 6D 33 70 18 8F E0 3C 47 F5 
+
+        $ cuse_tpm_ioctl -i /dev/vtpm1   # Initialize the vTPM
+	$ export TPM_DEVICE=/dev/vtpm1
+	$ createek
+	$ takeown -pwdo ownerpass
+	$ getpubek -pwdo ownerpass
+	pubek.pem successfully written
+	Pubek keylength 256
+	Modulus:
+	C6 A9 A8 B9 D5 E7 49 E6 30 B8 40 87 C5 44 0B 97 
+	6A 23 EA A4 9A 0D 8D 96 51 74 83 F9 80 40 44 E3 
+	AD 0C 26 39 A2 CA 63 2A 10 0E 0F 2C 5E 65 BC 4C 
+	DC 12 E1 84 98 62 EA 53 CD 7A 8C A3 67 C7 50 DA 
+	42 4A 2A 56 4E 41 C1 24 27 28 8E 8C D9 1F 1B 33 
+	F1 FF 12 62 D8 6F BB DE A0 B6 BF F6 F9 A2 09 17 
+	69 41 DD 2A 76 6F C8 1B 59 17 E0 00 2A E8 A2 EA 
+	B9 FD B6 C2 48 C0 43 2C A1 B0 E4 9D 94 FA 30 E5 
+	91 1E A8 AF D3 5A E2 21 79 87 9A 64 08 15 68 A9 
+	AF 02 92 85 67 06 A3 F0 FB 54 AD 24 54 54 73 4B 
+	8A 35 11 6B 9E 4F 76 DA E8 9A 42 74 31 B9 16 5A 
+	28 35 39 41 0C 8B 16 A4 99 73 03 0A 53 6F 5E 5F 
+	53 41 66 0F B3 8C F1 6E 16 EA 89 8E 95 25 05 68 
+	D7 95 90 35 AB 5F 03 C4 1E 18 5A 54 77 58 72 A1 
+	50 78 9F D5 30 95 69 93 6B A9 B2 C4 9D 2A C7 09 
+	C2 E3 7E E8 32 1A 66 9C 84 50 F9 26 94 DE 0F B3 
+
+Running QEMU with the cuse-tpm:
+
+There are two needed options for the passthrough -tpmdev and -device
+as shown in these examples. Note that the "path" parameter points to the
+native (/dev/vtpm0...) path, while the id and tpmdev are the guest's view.
+
+    $ qemu-system-x86_64 -display sdl -enable-kvm -cdrom cdrom.iso \
+    -m 1024 -boot d -bios bios.bin -tpmdev \
+    cuse-tpm,id=tpm0,path=/dev/vtpm0 \
+    -device tpm-tis,tpmdev=tpm0 test.img
+
+    $ qemu-system-x86_64 -display sdl -enable-kvm -cdrom cdrom.iso \
+    -m 1024 -boot d -bios bios.bin -tpmdev \
+    cuse-tpm,id=tpm0,path=/dev/vtpm1 \
+    -device tpm-tis,tpmdev=tpm0 test2.img
+

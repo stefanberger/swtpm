@@ -1,0 +1,87 @@
+=head1 NAME
+
+swtpm
+
+=head1 SYNOPSIS
+
+B<swtpm socket [OPTIONS]>
+
+=head1 DESCRIPTION
+
+B<swtpm> implements a TPM software emulator built on libtpms.
+It provides access to TPM functionality over a TCP/IP socket interface.
+
+Unless corresponding command line parameters are used, the
+B<swtpm> program requires that the environment variable I<TPM_PORT>
+be set to the TCP/IP port the process is supposed to listen on for TPM
+request messages. 
+
+The environment variable I<TPM_PATH> must be set and
+contain the name of a directory where the TPM can store its persistent
+data into.
+
+The B<swtpm> process can be terminated by sending a
+I<SIGTERM> signal to it.
+
+The following options are supported if the I<socket> interface is chosen:
+
+=over 4
+
+=item B<-p|--port <port>>
+
+Use the given port rather than using the environment variable TPM_PORT.
+
+=item B<-i|--dir <dir>>
+
+Use the given path rather than using the environment variable TPM_PATH.
+
+=item B<-f|--fd <fd>>
+
+Use the given socket file descriptor for receiving TPM commands and sending
+responses. This option automatically assumes -t.
+
+=item B<-t|--terminate>
+
+Terminate the TPM after the client has closed the connection.
+
+=item B<--log fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>>
+
+Enable logging to a file given its file descriptor or its path. Use '-' for path to
+suppress the logging.
+
+=item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
+
+Enable encryption of the state files of the TPM. The keyfile must contain
+an AES key of supported size; currently only 128 bit (16 bytes) keys are
+supported.
+
+The key may be in binary format, in which case the file size must be 16 bytes.
+If the key is in hex format (default), the key may consist of 32 hex digits
+starting with an optional '0x'.
+
+The I<mode> parameter indicates which block chaining mode is to be used.
+Currently only aes-cbc is supported.
+
+The I<remove> parameter will attempt to remove the given keyfile once the key
+has been read.
+
+=item B<--key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc],[remove[=true|false]]>
+
+This variant of the key parameter allows to provide a passphrase in a file.
+A maximum of 32 bytes are read from the file and a key is derived from it using a
+SHA512 hash. Currently only 128 bit keys are supported.
+
+=item B<-d|--daemon>
+
+Daemonize the process.
+
+=item B<-h|--help>
+
+Display usage info.
+
+=back
+
+
+=head1 SEE ALSO
+
+B<swtpm_bios>
