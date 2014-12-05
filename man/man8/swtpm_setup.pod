@@ -29,7 +29,7 @@ certificates; see also B<swtpm_setup.conf>
 Path to a directory where the TPM's state will be written into;
 this is a mandatory argument
 
-=item B<--tpm-executable>
+=item B<--tpm>
 
 Path to the TPM executable; this is an optional argument and
 by default /usr/bin/swtpm is used
