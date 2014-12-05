@@ -14,6 +14,7 @@ ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST = \
 	CHANGES \
 	INSTALL \
+	LICENSE \
 	COPYING \
 	README \
 	bootstrap.sh
