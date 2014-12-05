@@ -10,3 +10,7 @@ bin_PROGRAMS = \
 	swtpm_bios
 
 swtpm_bios_SOURCES = tpm_bios.c
+
+
+EXTRA_DIST = \
+	README

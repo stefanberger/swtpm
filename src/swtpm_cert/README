@@ -1,0 +1,5 @@
+swtpm_cert is a tool that creates EK and platform certificates for a TPM.
+It does not require a certificate request to be self signed but works only
+with  the public key parameters of the EK.
+
+For further information, check the manpage 'man swtpm_cert'.

@@ -1,0 +1,4 @@
+swtpm_bios is a tool that sends those commands to a TPM that typically
+the firmware (BIOS) is supposed to send to it.
+
+For further information, check the manpage 'man swtpm_bios'.

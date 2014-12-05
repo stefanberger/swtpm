@@ -1,0 +1,4 @@
+swtpm_ioctl is a tool that sends out-of-band control commands to the
+CUSE TPM (swtpm_cuse).
+
+For further information, check the manpage 'man swtpm_ioctl'.

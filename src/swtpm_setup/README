@@ -1,0 +1,7 @@
+swtpm_setup is a tool that simulates the manufacturing of a TPM
+and allows a user to prepare the initial state of a TPM by having
+the TPM create an EK, creating the EK and platform certificates for it,
+and saving the certificates into the NVRAM of the TPM before it is used
+for the first time.
+
+For further information, check the manpage 'man swtpm_setup'.

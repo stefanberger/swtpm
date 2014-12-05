@@ -20,3 +20,6 @@ install-exec-hook:
 	chmod 750 $(DESTDIR)/$(bindir)/swtpm_setup.sh
 	
 #chmod 4755 $(DESTDIR)/$(bindir)/swtpm_tcsd_launcher
+
+EXTRA_DIST = \
+	README

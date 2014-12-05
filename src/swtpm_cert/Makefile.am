@@ -24,4 +24,5 @@ tpm_asn1.h : tpm.asn
 	asn1Parser -o $@ $^ 
 
 EXTRA_DIST = \
-	tpm.asn
+	tpm.asn \
+	README
