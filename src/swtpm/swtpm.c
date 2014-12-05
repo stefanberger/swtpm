@@ -174,9 +174,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             break;
 
         case 'p':
+            errno = 0;
             val = strtoul(optarg, &end_ptr, 0);
             if (val != (unsigned int)val || errno || end_ptr[0] != '\0') {
-                fprintf(stderr, "Cannot parse socket file descriptor.\n");
+                fprintf(stderr, "Cannot parse socket port number '%s'.\n",
+                        optarg);
                 exit(1);
             }
             if (val >= 0x10000) {
