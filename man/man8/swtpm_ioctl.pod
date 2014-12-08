@@ -43,7 +43,7 @@ Get the tpmEstablished bit.
 
 Reset the tpmEstablished bit using the given locality. Only localities 3 and 4 work.
 This operation will not permanently change the localty that was previously set
-using the <I>-l<I> option.
+using the I<-l> option.
 
 =item B<-l locality>
 
