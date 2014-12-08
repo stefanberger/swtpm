@@ -27,6 +27,8 @@ Makefile
 /swtpm-*.tar.gz
 /dist/swtpm.spec
 /m4/*
+/.pc/*
+/patches/*
 /src/selinux/swtpmcuse.pp
 /src/selinux/swtpmcuse_svirt.fc
 /src/selinux/swtpmcuse_svirt.if
