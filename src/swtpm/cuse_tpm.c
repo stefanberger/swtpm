@@ -43,6 +43,7 @@
 #include <ctype.h>
 #include <pwd.h>
 #include <grp.h>
+#include <arpa/inet.h>
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_tis.h>
@@ -150,6 +151,18 @@ const static unsigned char TPM_Resp_FatalError[] = {
     0x00, 0x00, 0x00, 0x0A,         /* length (10) */
     0x00, 0x00, 0x00, 0x09          /* TPM_FAIL */
 };
+
+const static unsigned char TPM_ResetEstablishmentBit[] = {
+    0x00, 0xC1,                     /* TPM Request */
+    0x00, 0x00, 0x00, 0x0A,         /* length (10) */
+    0x40, 0x00, 0x00, 0x0B          /* TPM_ORD_ResetEstablishmentBit */
+};
+
+typedef struct TPM_Response_Header {
+    uint16_t tag;
+    uint32_t paramSize;
+    uint32_t returnCode;
+} __attribute__ ((packed)) TPM_Response_Header;
 
 static TPM_RESULT
 ptm_io_getlocality(TPM_MODIFIER_INDICATOR *loc, uint32_t tpmnum)
@@ -260,6 +273,42 @@ static void worker_thread_end()
         g_thread_pool_free(pool, TRUE, TRUE);
         pool = NULL;
     }
+}
+
+/* _TPM_IO_TpmEstablished_Reset
+ *
+ * Reset the TPM Established bit
+ */
+static TPM_RESULT
+_TPM_IO_TpmEstablished_Reset(fuse_req_t req,
+                             struct fuse_file_info *fi,
+                             TPM_MODIFIER_INDICATOR locty)
+{
+    TPM_RESULT res = TPM_FAIL;
+    TPM_Response_Header *tpmrh;
+    TPM_MODIFIER_INDICATOR orig_locality = locality;
+
+    locality = locty;
+
+    ptm_req_len = sizeof(TPM_ResetEstablishmentBit);
+    memcpy(ptm_req, TPM_ResetEstablishmentBit, ptm_req_len);
+    msg.type = MESSAGE_TPM_CMD;
+    msg.req = req;
+
+    worker_thread_mark_busy();
+
+    g_thread_pool_push(pool, &msg, NULL);
+
+    worker_thread_wait_done();
+
+    if (ptm_res_len >= sizeof(TPM_Response_Header)) {
+        tpmrh = (TPM_Response_Header *)ptm_res;
+        res = ntohl(tpmrh->returnCode);
+    }
+
+    locality = orig_locality;
+
+    return res;
 }
 
 static int tpm_start(uint32_t flags)
@@ -455,6 +504,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     case PTM_INIT:
     case PTM_SHUTDOWN:
     case PTM_GET_TPMESTABLISHED:
+    case PTM_RESET_TPMESTABLISHED:
     case PTM_HASH_START:
     case PTM_HASH_DATA:
     case PTM_HASH_END:
@@ -479,7 +529,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                 | PTM_CAP_SET_LOCALITY
                 | PTM_CAP_HASHING 
                 | PTM_CAP_CANCEL_TPM_CMD
-                | PTM_CAP_STORE_VOLATILE;
+                | PTM_CAP_STORE_VOLATILE
+                | PTM_CAP_RESET_TPMESTABLISHED;
             fuse_reply_ioctl(req, 0, &ptm_caps, sizeof(ptm_caps));
         }
         break;
@@ -526,6 +577,24 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             ptmest_t te;
             te.tpm_result = TPM_IO_TpmEstablished_Get(&te.bit);
             fuse_reply_ioctl(req, 0, &te, sizeof(te));
+        }
+        break;
+
+    case PTM_RESET_TPMESTABLISHED:
+        if (!tpm_running)
+            goto error_not_running;
+
+        if (!in_bufsz) {
+            struct iovec iov = { arg, sizeof(uint32_t) };
+            fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
+        } else {
+            ptmreset_est_t *re = (ptmreset_est_t *)in_buf;
+            if (re->u.req.loc < 0 || re->u.req.loc > 4) {
+                res = TPM_BAD_LOCALITY;
+            } else {
+                res = _TPM_IO_TpmEstablished_Reset(req, fi, re->u.req.loc);
+                fuse_reply_ioctl(req, 0, &res, sizeof(res));
+            }
         }
         break;
 

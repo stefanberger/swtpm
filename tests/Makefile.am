@@ -11,6 +11,7 @@ TESTS = \
 	test_getcap \
 	test_locality \
 	test_hashing \
+	test_hashing2 \
 	test_volatilestate \
 	test_wrongorder \
 	test_encrypted_state \

@@ -1,0 +1,175 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm_cuse
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+MAJOR=255
+MINOR=100
+VTPM_NAME=$(printf "vtpm-%d-%d" $MAJOR $MINOR)
+export TPM_PATH=/tmp
+STATE_FILE=$TPM_PATH/tpm-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+function cleanup()
+{
+	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+}
+
+trap "cleanup" EXIT
+
+modprobe cuse
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+$SWTPM_EXE -n $VTPM_NAME
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM did not start."
+	exit 1
+fi
+
+# Init the TPM
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM not running anymore after INIT."
+	exit 1
+fi
+
+
+export TPM_DUMP_COMMANDS=1
+export TPM_DEVICE=/dev/$VTPM_NAME
+#tpmbios -o
+
+# Startup the TPM
+exec 100<>/dev/$VTPM_NAME
+echo -en '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n)
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Check the TPM Established bit before the hashing
+RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
+exp='tpmEstablished is 0'
+if [ "$RES" != "$exp" ]; then
+	echo "Error (1): TPM Established flag has wrong value."
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+$CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
+
+# Read PCR 17
+echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Check the TPM Established bit after the hashing
+RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
+exp='tpmEstablished is 1'
+if [ "$RES" != "$exp" ]; then
+	echo "Error (2): TPM Established flag has wrong value."
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Reset the establishment bit; we switch to locality 0 and reset via locality 3
+$CUSE_TPM_IOCTL -l 0 /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not set locality 0"
+	exit 1
+fi
+
+for ((l = 0; l <= 2; l++)); do
+	# Resetting via locality 2 must fail
+	$CUSE_TPM_IOCTL -r $l /dev/$VTPM_NAME
+	if [ $? -eq 0 ]; then
+		echo "Error: Could reset the establishment bit via locality 2"
+		exit 1
+	fi
+done
+
+# Resetting via locality 3 must work
+$CUSE_TPM_IOCTL -r 3 /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not reset the establishment bit via locality 3"
+	exit 1
+fi
+
+# Check the TPM Established bit after the reset
+RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
+exp='tpmEstablished is 0'
+if [ "$RES" != "$exp" ]; then
+	echo "Error (3): TPM Established flag has wrong value."
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Read from a file
+dd if=/dev/zero bs=1024 count=1024 2>/dev/null| \
+	$CUSE_TPM_IOCTL -h - /dev/$VTPM_NAME
+
+# Read PCR 17
+echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 1e 00 00 00 00 d8 0e 7a 7b 3c 37 88 7d b4 c2 88 08 1d a7 53 f6 4b 11 3a 9c'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: CUSE TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

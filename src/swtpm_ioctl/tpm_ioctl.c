@@ -69,6 +69,7 @@ static void usage(const char *prgname)
 "           resume the TPM with it and delete it afterwards\n"
 "-s       : shutdown the CUSE tpm\n"
 "-e       : get the tpmEstablished bit\n"
+"-r       : reset the tpmEstablished bit\n"
 "-v       : store the TPM's volatile data\n"
 "-C       : cancel an ongoing TPM command\n"
 "-l <num> : set the locality to the given number; valid numbers are 0-4\n"
@@ -82,6 +83,7 @@ int main(int argc, char *argv[])
     int fd;
     int devindex, n;
     ptmest_t est;
+    ptmreset_est_t reset_est;
     ptmloc_t loc;
     ptmcap_t cap;
     ptmhdata_t hdata;
@@ -98,6 +100,7 @@ int main(int argc, char *argv[])
     switch (argv[1][1]) {
         case 'l':
         case 'h':
+        case 'r':
             devindex = 3;
             break;
         default:
@@ -133,7 +136,7 @@ int main(int argc, char *argv[])
         break;
 
     case 'i':
-            init.u.req.init_flags = INIT_FLAG_DELETE_VOLATILE;
+        init.u.req.init_flags = INIT_FLAG_DELETE_VOLATILE;
         n = ioctl(fd, PTM_INIT, &init);
         if (n < 0) {
             fprintf(stderr,
@@ -164,6 +167,28 @@ int main(int argc, char *argv[])
             return 1;
         }
         printf("tpmEstablished is %d\n",est.bit);
+        break;
+
+    case 'r':
+        reset_est.u.req.loc = atoi(argv[2]);
+        if (reset_est.u.req.loc < 0 || reset_est.u.req.loc > 4) {
+            fprintf(stderr,
+                    "Locality must be a number from 0 to 4.\n");
+            return 1;
+        }
+        n = ioctl(fd, PTM_RESET_TPMESTABLISHED, &reset_est);
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not execute ioctl PTM_RESET_ESTABLISHED: "
+                    "%s\n", strerror(errno));
+            return 1;
+        }
+        res = reset_est.u.resp.tpm_result;
+        if (res != 0) {
+            fprintf(stderr,
+                    "TPM result from PTM_RESET_TPMESTABLISHED: 0x%x\n", res);
+            return 1;
+        }
         break;
 
     case 's':

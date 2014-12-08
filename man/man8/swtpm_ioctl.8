@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_ioctl 8"
-.TH swtpm_ioctl 8 "2014-09-04" "swtpm" ""
+.TH swtpm_ioctl 8 "2014-12-08" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -169,6 +169,11 @@ Gracefully shut the swtpm_cuse down.
 .IP "\fB\-e\fR" 4
 .IX Item "-e"
 Get the tpmEstablished bit.
+.IP "\fB\-r locality\fR" 4
+.IX Item "-r locality"
+Reset the tpmEstablished bit using the given locality. Only localities 3 and 4 work.
+This operation will not permanently change the localty that was previously set
+using the <I>\-l<I> option.
 .IP "\fB\-l locality\fR" 4
 .IX Item "-l locality"
 Set the locality for the subsequent \s-1TPM\s0 commands.

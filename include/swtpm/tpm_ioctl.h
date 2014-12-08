@@ -24,6 +24,17 @@ struct ptmest {
     unsigned char bit;
 };
 
+struct ptmreset_est {
+    union {
+        struct {
+            uint8_t loc;
+        } req;
+        struct {
+            ptmres_t tpm_result;
+        } resp;
+    } u;
+};
+
 struct ptminit {
     union {
         struct {
@@ -63,6 +74,7 @@ struct ptmhdata {
 
 typedef uint64_t ptmcap_t;
 typedef struct ptmest  ptmest_t;
+typedef struct ptmreset_est ptmreset_est_t;
 typedef struct ptmloc  ptmloc_t;
 typedef struct ptmhdata ptmhdata_t;
 typedef struct ptminit ptminit_t;
@@ -74,6 +86,7 @@ typedef struct ptminit ptminit_t;
 #define PTM_CAP_HASHING            (1<<4)
 #define PTM_CAP_CANCEL_TPM_CMD     (1<<5)
 #define PTM_CAP_STORE_VOLATILE     (1<<6)
+#define PTM_CAP_RESET_TPMESTABLISHED (1<<7)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptmcap_t),
@@ -86,4 +99,5 @@ enum {
     PTM_HASH_END           = _IOR('P', 7, ptmres_t),
     PTM_CANCEL_TPM_CMD     = _IOR('P', 8, ptmres_t),
     PTM_STORE_VOLATILE     = _IOR('P', 9, ptmres_t),
+    PTM_RESET_TPMESTABLISHED = _IOWR('P', 10, ptmreset_est_t),
 };
