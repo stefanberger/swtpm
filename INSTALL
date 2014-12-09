@@ -4,6 +4,7 @@ Building and running the swtpm has dependencies on the following packages:
 - autoconf
 - bash
 - coreutils
+- expect
 - libtool
 - sed
 - libtpms
@@ -14,9 +15,18 @@ Building and running the swtpm has dependencies on the following packages:
 - glib2-devel
 - gmp
 - gmp-devel
+- nss-devel
+- net-tools
+- selinux-policy-devel
+- gnutls
+- gnutls-devel
+- libtasn1
+- libtasn1-tools
+- libtasn1-devel
 - rpm-build (to build RPMs)
 
-Use 'yum install <package name(s)> to install these packages.
+On RHEL or Fedora use 'yum install <package name(s)> to install the above rpm
+packages.
 
 Use the following sequence to build and install the Software TPM.
 

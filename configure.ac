@@ -96,12 +96,12 @@ fi
 
 NSS_CFLAGS=$(pkg-config --cflags nss)
 if test $? -ne 0; then
-	AC_MSG_ERROR("Is nss-softokn-freebl-devel installed? -- could not get cflags for nss")
+	AC_MSG_ERROR("Is nss-devel installed? -- could not get cflags for nss")
 fi
 
 NSS_LDFLAGS=$(pkg-config --libs nss)
 if test $? -ne 0; then
-	AC_MSG_ERROR("Is nss-softokn-freebl-devel installed? -- could not get libs for nss")
+	AC_MSG_ERROR("Is nss-devel installed? -- could not get libs for nss")
 fi
 
 CFLAGS="$CFLAGS $GLIB_CFLAGS $NSS_CFLAGS"
