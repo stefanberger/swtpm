@@ -18,7 +18,9 @@ swtpm_cert_SOURCES = \
 
 ek-cert.o : tpm_asn1.h
 
-swtpm_cert_LDADD = -ltasn1
+swtpm_cert_LDADD = \
+	$(LIBTASN1_LIBS) \
+	$(GNUTLS_LIBS)
 
 tpm_asn1.h : tpm.asn
 	asn1Parser -o $@ $^ 

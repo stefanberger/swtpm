@@ -78,63 +78,67 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 AC_TYPE_SIGNAL
 
+AC_PROG_CC
+AC_PROG_INSTALL
 
 GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is glib-2.0 installed? -- could not get cflags")
 fi
+AC_SUBST([GLIB_CFLAGS])
 
-GLIB_LDFLAGS=$(pkg-config --libs glib-2.0)
+GLIB_LIBS=$(pkg-config --libs glib-2.0)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs")
 fi
+AC_SUBST([GLIB_LIBS])
 
-GTHREAD_LDFLAGS=$(pkg-config --libs gthread-2.0)
+GTHREAD_LIBS=$(pkg-config --libs gthread-2.0)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs for gthread-2.0")
 fi
+AC_SUBST([GTHREAD_LIBS])
 
-NSS_CFLAGS=$(pkg-config --cflags nss)
+NSS_CFLAGS=$(pkg-config --cflags nss-softokn)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is nss-devel installed? -- could not get cflags for nss")
 fi
+AC_SUBST([NSS_CFLAGS])
 
-NSS_LDFLAGS=$(pkg-config --libs nss)
+NSS_LIBS=$(pkg-config --libs nss-softokn)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is nss-devel installed? -- could not get libs for nss")
 fi
+AC_SUBST([NSS_LIBS])
 
-CFLAGS="$CFLAGS $GLIB_CFLAGS $NSS_CFLAGS"
-LDFLAGS="$LDFLAGS $GLIB_LDFLAGS $GTHREAD_LDFLAGS $NSS_LDFLAGS"
+LIBTASN1_LIBS=$(pkg-config --libs libtasn1)
+if test $? -ne 0; then
+	AC_MSG_ERROR("Is libtasn1-devel installed? -- could not get libs for libtasn1")
+fi
+AC_SUBST([LIBTASN1_LIBS])
 
-CPPFLAGS=$GLIB_CFLAGS
-AC_CHECK_HEADERS([glib.h],[],
-                 AC_MSG_ERROR([You must install glib2-devel]))
-
-AC_PROG_CC
-AC_PROG_INSTALL
-
-#AM_GNU_GETTEXT_VERSION([0.15])
-#AM_GNU_GETTEXT([external])
+LIBTPMS_LIBS=$(pkg-config --libs libtpms)
+if test $? -ne 0; then
+	AC_MSG_ERROR("Is libtpms-devel installed? -- could not get libs for libtpms")
+fi
+AC_SUBST([LIBTPMS_LIBS])
 
 AC_PATH_PROG([TPM_NVDEFINE], tpm_nvdefine)
 if test "x$TPM_NVDEFINE" == "x"; then
 	AC_MSG_ERROR([NVRAM area tools are need: tpm-tools package])
 fi
 
-AC_CHECK_LIB([tpms], [TPMLIB_MainInit], [],
-             [AC_MSG_ERROR([TPM library not found: libtpms.so])])
-AC_CHECK_HEADER(libtpms/tpm_library.h, [], \
-             [AC_MSG_ERROR([TPM library header not found: libtpms/tpm_library.h])])
+LIBFUSE_CFLAGS=$(pkg-config fuse --cflags)
+if test $? -ne 0; then
+	AC_MSG_ERROR("Is fuse-devel installed? -- could not get cflags for libfuse")
+fi
+AC_SUBST([LIBFUSE_CFLAGS])
 
-saved_CFLAGS="$CFLAGS"
-CFLAGS=`pkg-config fuse --cflags`
-CPPFLAGS=$CFLAGS
-AC_CHECK_LIB([fuse], [cuse_lowlevel_main], [],
-             [AC_MSG_ERROR([FUSE library not found: libfuse.so])])
-AC_CHECK_HEADER(cuse_lowlevel.h, [], \
-             [AC_MSG_ERROR([FUSE library header not found: fuse/cuse_lowlevel.h])])
-CFLAGS="$saved_CFLAGS"
+LIBFUSE_LIBS=$(pkg-config fuse --libs)
+if test $? -ne 0; then
+	AC_MSG_ERROR("Is fuse-devel installed? -- could not get libs for libfuse")
+fi
+AC_SUBST([LIBFUSE_LIBS])
 
 if test "x$with_gnutls" != "xno"; then
     GNUTLS_LDFLAGS=$(pkg-config --libs gnutls)
@@ -147,10 +151,11 @@ if test "x$with_gnutls" != "xno"; then
     fi
 fi
 
-saved_CFLAGS="$CFLAGS"
 if test "x$with_gnutls" != "xno"; then
-    CFLAGS=`pkg-config gnutls --cflags`
-    AC_CHECK_LIB([gnutls], [gnutls_x509_crt_set_key], [],
+    GNUTLS_CFLAGS=$(pkg-config gnutls --cflags)
+    AC_CHECK_LIB([gnutls], [gnutls_x509_crt_set_key], [
+                 GNUTLS_LIBS=-lgnutls
+             ],
              [if test "x$with_gnutls" == "xyes"; then
                  AC_MSG_ERROR([GNUTLS >= 3.1.0 library not found: libgnutls.so])
               else
@@ -171,8 +176,7 @@ if test "x$with_gnutls" != "xno"; then
     with_gnutls="yes"
 fi
 AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" == "xyes"])
-
-CFLAGS="$saved_CFLAGS"
+AC_SUBST([GNUTLS_LIBS])
 
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"

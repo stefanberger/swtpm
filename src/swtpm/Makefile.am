@@ -27,6 +27,13 @@ libswtpm_libtpms_la_SOURCES = \
 	swtpm_io.c \
 	swtpm_nvfile.c
 
+libswtpm_libtpms_la_CFLAGS = \
+	$(NSS_CFLAGS)
+
+libswtpm_libtpms_la_LIBADD = \
+	$(LIBTPMS_LIBS) \
+	$(NSS_LIBS)
+
 bin_PROGRAMS = swtpm swtpm_cuse
 
 swtpm_DEPENDENCIES = $(lib_LTLIBRARIES)
@@ -36,9 +43,13 @@ swtpm_SOURCES = \
 		swtpm.c
 
 swtpm_CFLAGS = \
-	-I$(top_srcdir)/include/swtpm
+	-I$(top_srcdir)/include/swtpm \
+	$(NSPR_CFLAGS) \
+	$(NSS_CFLAGS)
 
-swtpm_LDADD = -L$(PWD)/.libs -lswtpm_libtpms
+swtpm_LDADD = \
+	-L$(PWD)/.libs -lswtpm_libtpms \
+	$(LIBTPMS_LIBS)
 
 swtpm_cuse_DEPENDENCIES = $(lib_LTLIBRARIES)
 
@@ -47,12 +58,13 @@ swtpm_cuse_SOURCES = \
 
 swtpm_cuse_CFLAGS = \
 	-I$(top_srcdir)/include/swtpm \
-	$(shell pkg-config --cflags fuse)
+	$(GLIB_CFLAGS) \
+	$(LIBFUSE_CFLAGS)
 
-swtpm_cuse_LDFLAGS = \
-	$(shell pkg-config --libs-only-l fuse)
-
-swtpm_cuse_LDADD = -L$(PWD)/.libs -lswtpm_libtpms
+swtpm_cuse_LDADD = \
+	-L$(PWD)/.libs -lswtpm_libtpms \
+	$(LIBFUSE_LIBS) \
+	$(GLIB_LIBS)
 
 AM_CPPFLAGS   = 
 LDADD         = -ltpms
