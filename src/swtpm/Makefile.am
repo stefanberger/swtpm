@@ -50,6 +50,7 @@ swtpm_CFLAGS = \
 swtpm_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBTPMS_LIBS)
+	$(NSS_LIBS)
 
 swtpm_cuse_DEPENDENCIES = $(lib_LTLIBRARIES)
 

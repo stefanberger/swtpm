@@ -109,6 +109,8 @@ NSS_LIBS=$(pkg-config --libs nss-softokn)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is nss-devel installed? -- could not get libs for nss")
 fi
+dnl On RHEL 7 ppc64 we need an explicit -lfreebl
+NSS_LIBS="$NSS_LIBS -lfreebl"
 AC_SUBST([NSS_LIBS])
 
 LIBTASN1_LIBS=$(pkg-config --libs libtasn1)
