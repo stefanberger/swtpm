@@ -27,4 +27,5 @@ tpm_asn1.h : tpm.asn
 
 EXTRA_DIST = \
 	tpm.asn \
+	tpm_asn1.h \
 	README
