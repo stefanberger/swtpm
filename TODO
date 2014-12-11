@@ -14,3 +14,10 @@ Future capabilities needed
      - either TPM or QEMU can cause the fall-back due to an error
    - needs to allow suspend/resume in QEMU
    - needs to prevent snapshotting in QEMU
+
+swtpm_cert:
+  - needs implementation of some more TPM specific X509 attributes that
+    encode the data in ASN.1;
+   - Unified cert specs 3.5.9, 3.5.11, 3.5.22, 3.5.23. 3.5.24, 3.5.25,
+     3.5.26, 3.5.27
+
