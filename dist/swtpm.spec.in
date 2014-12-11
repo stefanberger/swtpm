@@ -25,7 +25,10 @@ BuildRequires:  libtpms-devel fuse-devel glib2-devel gmp-devel
 BuildRequires:  expect bash net-tools nss-devel
 %if %{with_gnutls}
 BuildRequires:  gnutls >= 3.1.0 gnutls-devel
-BuildRequires:  libtasn1-tools libtasn1-devel libtasn1
+BuildRequires:  libtasn1-devel libtasn1
+%if 0%{?fedora}
+BuildRequires:  libtasn1-tools
+%endif
 %endif
 Requires:       fuse
 
