@@ -113,6 +113,19 @@ dnl On RHEL 7 ppc64 we need an explicit -lfreebl
 NSS_LIBS="$NSS_LIBS -lfreebl"
 AC_SUBST([NSS_LIBS])
 
+# Check for missing headers
+CPPFLAGS="$NSS_CFLAGS"
+AC_CHECK_HEADERS([blapi.h],[],
+		 AC_MSG_ERROR(nss-softokn-freebl-devel/libnss3-dev is missing blapi.h))
+# Check for missing freebl library or missing library functions
+LIBS_save="$LIBS"
+LIBS="$(nss-config --libs) $(nspr-config --libs)"
+AC_SEARCH_LIBS([AES_CreateContext], [freebl],[],
+               AC_MSG_ERROR("Could not find AES_CreateContext(). Is nss-softokn-freebl-devel/libnss3-dev installed?"),
+               [])
+LIBS="$LIBS_save"
+CPPFLAGS=""
+
 LIBTASN1_LIBS=$(pkg-config --libs libtasn1)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is libtasn1-devel installed? -- could not get libs for libtasn1")
