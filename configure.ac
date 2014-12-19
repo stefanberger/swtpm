@@ -81,6 +81,37 @@ AC_TYPE_SIGNAL
 AC_PROG_CC
 AC_PROG_INSTALL
 
+AC_ARG_WITH([selinux],
+   AS_HELP_STRING([--with-selinux],
+      [add SELinux policy extensions @<:@default=check@:>@]))
+m4_divert_text([DEFAULTS], [with_selinux=check])
+
+dnl Check for SELinux policy support
+
+if test "$with_selinux" != "no"; then
+    if test "$with_selinux" = "check" || test "$with_selinux" = "yes"; then
+        if ! test -f /usr/share/selinux/devel/Makefile; then
+            if test "$with_selinux" = "yes"; then
+                AC_MSG_ERROR("Is selinux-policy-devel installed?")
+            else
+                with_selinux="no"
+            fi
+        fi
+        AC_PATH_PROG([SEMODULE], semodule)
+        if test "x$SEMODULE" == "x"; then
+            if test "$with_selinux" = "yes"; then
+	        AC_MSG_ERROR("Is selinux-policy-devel installed?")
+	    else
+	        with_selinux="no"
+	    fi
+        fi
+        if test "$with_selinux" = "check"; then
+            with_selinux="yes"
+        fi
+    fi
+fi
+AM_CONDITIONAL([WITH_SELINUX], [test "x$with_selinux" == "xyes"])
+
 GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is glib-2.0 installed? -- could not get cflags")
@@ -263,7 +294,8 @@ AC_CONFIG_FILES(Makefile                    \
 AC_OUTPUT
 
 echo
-echo "with_gnutls : $with_gnutls   (no = swtpm_cert will NOT be built)"
+printf "with_gnutls : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
+printf "with_selinux: %5s  (no = SELinux policy extenions will NOT be build)\n" $with_selinux
 echo
 echo "CFLAGS=$CFLAGS"
 echo "LDFLAGS=$LDFLAGS"
