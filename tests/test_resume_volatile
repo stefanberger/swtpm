@@ -65,8 +65,14 @@ fi
 
 exec 100<>/dev/$VTPM_NAME
 
+ECHO=$(which echo)
+if [ -z "$ECHO" ]; then
+	echo "Could not find NON-bash builtin echo tool."
+	exit 1
+fi
+
 # Read PCR 10
-/usr/bin/echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
+$ECHO -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
 RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 1e 00 00 00 00 6e dd 32 60 50 1d a3 2a de 90 a1 4c a3 10 df c3 a7 4f a0 04'
 if [ "$RES" != "$exp" ]; then
@@ -137,7 +143,7 @@ fi
 exec 100<>/dev/$VTPM_NAME
 
 # Read PCR 10
-/usr/bin/echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
+$ECHO -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
 RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 1e 00 00 00 00 6e dd 32 60 50 1d a3 2a de 90 a1 4c a3 10 df c3 a7 4f a0 04'
 if [ "$RES" != "$exp" ]; then
