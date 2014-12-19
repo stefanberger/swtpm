@@ -41,6 +41,3 @@ EXTRA_DIST=$(TESTS) \
 	data/tpmstate2/pwdfile.txt \
 	data/tpmstate2/README \
 	test_swtpm_cert
-
-# Cannot run the tests in parallel...
-.NOTPARALLEL:

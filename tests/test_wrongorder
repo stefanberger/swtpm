@@ -3,29 +3,28 @@
 # For the license, see the LICENSE file in the root directory.
 #set -x
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
-SWTPM=swtpm_cuse
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
-MAJOR=255
-MINOR=100
-VTPM_NAME=$(printf "vtpm-%d-%d" $MAJOR $MINOR)
-export TPM_PATH=/tmp
-STATE_FILE=$TPM_PATH/tpm-00.permall
-VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
-
 if [ "$(id -u)" -ne 0 ]; then
 	echo "Need to be root to run this test."
 	exit 77
 fi
 
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm_cuse
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+VTPM_NAME="vtpm-test-wrongorder"
+export TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+
 function cleanup()
 {
-	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+	pid=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
 	if [ -n "$pid" ]; then
 		kill -9 $pid
 	fi
+	rm -rf $TPM_PATH
 }
 
 trap "cleanup" EXIT
@@ -36,7 +35,7 @@ rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
 $SWTPM_EXE -n $VTPM_NAME
 sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
 
 ps aux | grep $SWTPM | grep -v grep
 

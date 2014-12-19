@@ -3,24 +3,22 @@
 # For the license, see the LICENSE file in the root directory.
 #set -x
 
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
 DIR=$(dirname "$0")
 ROOT=${DIR}/..
 SWTPM=swtpm_cuse
 SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
 CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
-MAJOR=255
-MINOR=100
-VTPM_NAME=$(printf "vtpm-%d-%d" $MAJOR $MINOR)
-export TPM_PATH=/tmp
+VTPM_NAME="vtpm-test-encrypted-state"
+export TPM_PATH=$(mktemp -d)
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 KEY=1234567890abcdef1234567890abcdef
 
-
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Need to be root to run this test."
-	exit 77
-fi
 
 keyfile=$(mktemp)
 logfile=$(mktemp)
@@ -28,11 +26,12 @@ echo "$KEY" > $keyfile
 
 function cleanup()
 {
-	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+	pid=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME " | gawk '{print $2}')
 	if [ -n "$pid" ]; then
 		kill -9 $pid
 	fi
 	rm -f $keyfile $logfile
+	rm -rf $TPM_PATH
 }
 
 trap "cleanup" EXIT
@@ -46,7 +45,7 @@ $SWTPM_EXE -n $VTPM_NAME --key file=$keyfile,mode=aes-cbc,format=hex \
 #sleep 20
 #echo "continuing"
 sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME " | gawk '{print $2}')
 
 ps aux | grep $SWTPM | grep -v grep
 
@@ -114,13 +113,13 @@ $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
 $SWTPM_EXE -n $VTPM_NAME --key file=$keyfile,mode=aes-cbc,format=hex,remove \
 	--log file=$logfile
 sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
+PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME " | gawk '{print $2}')
 
 ps aux | grep $SWTPM | grep -v grep
 
 kill -0 $PID
 if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM did not start."
+	echo "Error (2): CUSE TPM did not start."
 	exit 1
 fi
 

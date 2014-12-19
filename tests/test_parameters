@@ -47,6 +47,11 @@ FILESIZES=(
 	1712
 )
 
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
 SWTPM=swtpm
 SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
 TCSD=`type -P tcsd`
@@ -56,12 +61,6 @@ SWTPM_SETUP_CONF=$ROOT/etc/swtpm_setup.conf
 TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --config ${SWTPM_SETUP_CONF} --runas root"
 PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
 PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
-
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Need to be root to run this test."
-	exit 77
-fi
-
 
 trap "cleanup" SIGTERM EXIT
 
