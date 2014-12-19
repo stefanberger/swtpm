@@ -27,12 +27,19 @@ libswtpm_libtpms_la_SOURCES = \
 	swtpm_io.c \
 	swtpm_nvfile.c
 
+if SWTPM_USE_FREEBL
 libswtpm_libtpms_la_CFLAGS = \
-	$(NSS_CFLAGS)
+	$(NSS_CFLAGS) \
+	$(NSPR_CFLAGS)
+endif
 
 libswtpm_libtpms_la_LIBADD = \
-	$(LIBTPMS_LIBS) \
+	$(LIBTPMS_LIBS)
+
+if SWTPM_USE_FREEBL
+libswtpm_libtpms_la_LIBADD += \
 	$(NSS_LIBS)
+endif
 
 bin_PROGRAMS = swtpm swtpm_cuse
 
@@ -43,14 +50,22 @@ swtpm_SOURCES = \
 		swtpm.c
 
 swtpm_CFLAGS = \
-	-I$(top_srcdir)/include/swtpm \
-	$(NSPR_CFLAGS) \
+	-I$(top_srcdir)/include/swtpm
+
+if SWTPM_USE_FREEBL
+swtpm_CFLAGS += \
 	$(NSS_CFLAGS)
+	$(NSPR_CFLAGS)
+endif
 
 swtpm_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBTPMS_LIBS)
+
+if SWTPM_USE_FREEBL
+swtpm_LDADD += \
 	$(NSS_LIBS)
+endif
 
 swtpm_cuse_DEPENDENCIES = $(lib_LTLIBRARIES)
 
@@ -65,7 +80,8 @@ swtpm_cuse_CFLAGS = \
 swtpm_cuse_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBFUSE_LIBS) \
-	$(GLIB_LIBS)
+	$(GLIB_LIBS) \
+	$(LIBTPMS_LIBS)
 
 AM_CPPFLAGS   = 
 LDADD         = -ltpms
