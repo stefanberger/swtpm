@@ -130,7 +130,7 @@ Tools for the TPM emulator from the swtpm package
 make %{?_smp_mflags}
 
 %check
-make check
+make %{?_smp_mflags} check
 
 %install
 
