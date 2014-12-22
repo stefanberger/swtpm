@@ -134,7 +134,7 @@ cryptolib=freebl
 
 AC_ARG_WITH([openssl],
             AC_HELP_STRING([--with-openssl],
-                           [build libtpms with openssl library]),
+                           [build with openssl library]),
               [AC_CHECK_LIB(crypto,
                             [AES_set_encrypt_key],
                             [],
