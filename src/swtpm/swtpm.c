@@ -65,10 +65,10 @@
 /* local variables */
 int notify_fd[2] = {-1, -1};
 static TPM_BOOL terminate;
+struct mainLoopParams;
 
 /* local function prototypes */
-
-static void *mainLoop(void *mainLoopArgs);
+static void *mainLoop(struct mainLoopParams *mlp);
 static TPM_RESULT install_sighandlers(void);
 
 struct libtpms_callbacks callbacks = {
@@ -327,7 +327,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
    It reads a TPM request, processes the ordinal, and writes the response
 */
 
-static void *mainLoop(void *mainLoopArgs)
+static void *mainLoop(struct mainLoopParams *mlp)
 {
     TPM_RESULT          rc = 0;
     TPM_CONNECTION_FD   connection_fd;             /* file descriptor for read/write */
@@ -337,7 +337,6 @@ static void *mainLoop(void *mainLoopArgs)
     unsigned char       *rbuffer = NULL;           /* actual response bytes */
     uint32_t            rlength = 0;               /* bytes in response buffer */
     uint32_t            rTotal = 0;                /* total allocated bytes */
-    struct mainLoopParams *mlp = mainLoopArgs;
 
     TPM_DEBUG("mainLoop:\n");
 
@@ -349,7 +348,7 @@ static void *mainLoop(void *mainLoopArgs)
             if (!(mlp->flags & MAIN_LOOP_FLAG_USE_FD)) {
                 rc = SWTPM_IO_Connect(&connection_fd,
                                       notify_fd[0],
-                                      mainLoopArgs);
+                                      mlp);
             } else {
                 connection_fd.fd = mlp->fd;
             }
@@ -370,7 +369,7 @@ static void *mainLoop(void *mainLoopArgs)
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
             if (rc == 0) {
                 rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
-                                   sizeof(command), mainLoopArgs);
+                                   sizeof(command), mlp);
             }
             if (rc == 0) {
                 rlength = 0;                                /* clear the response buffer */
