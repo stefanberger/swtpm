@@ -86,6 +86,7 @@ swtpm_cuse_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
+	$(GTHREAD_LIBS) \
 	$(LIBTPMS_LIBS)
 
 AM_CPPFLAGS   = 
