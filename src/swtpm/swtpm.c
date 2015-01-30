@@ -68,7 +68,7 @@ static TPM_BOOL terminate;
 struct mainLoopParams;
 
 /* local function prototypes */
-static void *mainLoop(struct mainLoopParams *mlp);
+static int mainLoop(struct mainLoopParams *mlp);
 static TPM_RESULT install_sighandlers(void);
 
 struct libtpms_callbacks callbacks = {
@@ -301,7 +301,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         rc = install_sighandlers();
     }
     if (rc == 0) {
-        mainLoop(&mlp);
+        rc = mainLoop(&mlp);
     }
     if (initialized) {
         TPMLIB_Terminate();
@@ -327,18 +327,28 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
    It reads a TPM request, processes the ordinal, and writes the response
 */
 
-static void *mainLoop(struct mainLoopParams *mlp)
+static int mainLoop(struct mainLoopParams *mlp)
 {
     TPM_RESULT          rc = 0;
     TPM_CONNECTION_FD   connection_fd;             /* file descriptor for read/write */
-    unsigned char       command[getTPMProperty(TPMPROP_TPM_BUFFER_MAX)];                /* command buffer */
+    unsigned char       *command = NULL;           /* command buffer */
     uint32_t            command_length;            /* actual length of command bytes */
+    uint32_t            max_command_length;        /* command buffer size */
     /* The response buffer is reused for each command. Thus it can grow but never shrink */
     unsigned char       *rbuffer = NULL;           /* actual response bytes */
     uint32_t            rlength = 0;               /* bytes in response buffer */
     uint32_t            rTotal = 0;                /* total allocated bytes */
 
     TPM_DEBUG("mainLoop:\n");
+
+    max_command_length = getTPMProperty(TPMPROP_TPM_BUFFER_MAX);
+
+    rc = TPM_Malloc(&command, max_command_length);
+    if (rc != TPM_SUCCESS) {
+        fprintf(stderr, "Could not allocate %u bytes for buffer.\n",
+                max_command_length);
+        return rc;
+    }
 
     connection_fd.fd = -1;
 
@@ -369,7 +379,7 @@ static void *mainLoop(struct mainLoopParams *mlp)
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
             if (rc == 0) {
                 rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
-                                   sizeof(command), mlp);
+                                   max_command_length, mlp);
             }
             if (rc == 0) {
                 rlength = 0;                                /* clear the response buffer */
@@ -394,8 +404,9 @@ static void *mainLoop(struct mainLoopParams *mlp)
     }
 
     TPM_Free(rbuffer);
+    TPM_Free(command);
 
-    return NULL;
+    return rc;
 }
 
 
