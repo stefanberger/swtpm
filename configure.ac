@@ -270,8 +270,13 @@ fi
 AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" == "xyes"])
 AC_SUBST([GNUTLS_LIBS])
 
+HARDENING_CFLAGS="-fstack-protector-all -Wstack-protector -pie -fPIE "
+HARDENING_CFLAGS+="-D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now"
+AC_SUBST([HARDENING_CFLAGS])
+
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
+CFLAGS="$CFLAGS -Wformat -Wformat-security"
 
 AC_CONFIG_FILES(Makefile                    \
 		dist/swtpm.spec             \

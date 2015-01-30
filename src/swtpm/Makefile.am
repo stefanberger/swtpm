@@ -27,8 +27,11 @@ libswtpm_libtpms_la_SOURCES = \
 	swtpm_io.c \
 	swtpm_nvfile.c
 
-if SWTPM_USE_FREEBL
 libswtpm_libtpms_la_CFLAGS = \
+	$(HARDENING_CFLAGS)
+
+if SWTPM_USE_FREEBL
+libswtpm_libtpms_la_CFLAGS += \
 	$(NSS_CFLAGS) \
 	$(NSPR_CFLAGS)
 endif
@@ -50,7 +53,8 @@ swtpm_SOURCES = \
 		swtpm.c
 
 swtpm_CFLAGS = \
-	-I$(top_srcdir)/include/swtpm
+	-I$(top_srcdir)/include/swtpm \
+	$(HARDENING_CFLAGS)
 
 if SWTPM_USE_FREEBL
 swtpm_CFLAGS += \
@@ -75,7 +79,8 @@ swtpm_cuse_SOURCES = \
 swtpm_cuse_CFLAGS = \
 	-I$(top_srcdir)/include/swtpm \
 	$(GLIB_CFLAGS) \
-	$(LIBFUSE_CFLAGS)
+	$(LIBFUSE_CFLAGS) \
+	$(HARDENING_CFLAGS)
 
 swtpm_cuse_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
