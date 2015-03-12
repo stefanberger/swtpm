@@ -316,7 +316,8 @@ EOF
 			fi
 
 			# Did tcsd open the TCP port yet?
-			if [ -n "$(netstat -napt 2>/dev/null | 
+			if [ -n "$(netstat -naptl 2>/dev/null | 
+			           grep "LISTEN" |
 			           grep " $TCSD_PID/" |
 			           grep ":$TSS_TCSD_PORT ")" ]; then
 				echo "TSS is listening on TCP port $TSS_TCSD_PORT."
