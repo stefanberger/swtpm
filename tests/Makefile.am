@@ -15,6 +15,8 @@ TESTS = \
 	test_volatilestate \
 	test_wrongorder \
 	test_encrypted_state \
+	test_save_load_encrypted_state \
+	test_save_load_state \
 	\
 	test_commandline \
 	test_parameters \

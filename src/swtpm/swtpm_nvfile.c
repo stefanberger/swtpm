@@ -150,10 +150,12 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
         TPM_FAIL on failure to load (fatal), since it should never occur
 */
 
-TPM_RESULT SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
-                                uint32_t *length,
-                                  uint32_t tpm_number,
-                                const char *name) 
+static TPM_RESULT
+SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
+                            uint32_t *length,
+                            uint32_t tpm_number,
+                            const char *name,
+                            TPM_BOOL decrypt)         /* decrypt if key is set */
 {
     TPM_RESULT    rc = 0;
     long          lrc;
@@ -257,7 +259,7 @@ TPM_RESULT SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
         }
     }
 
-    if (rc == 0) {
+    if (rc == 0 && decrypt) {
         rc = SWTPM_NVRAM_DecryptData(&decrypt_data, &decrypt_length,
                                      *data, *length);
         TPM_DEBUG(" SWTPM_NVRAM_LoadData: SWTPM_NVRAM_DecryptData rc = %d\n",
@@ -277,6 +279,14 @@ TPM_RESULT SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
     return rc;
 }
 
+TPM_RESULT SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
+                                uint32_t *length,
+                                uint32_t tpm_number,
+                                const char *name)
+{
+     return SWTPM_NVRAM_LoadData_Intern(data, length, tpm_number, name, TRUE);
+}
+
 /* SWTPM_NVRAM_StoreData stores 'data' of 'length' to the rooted 'filename'
 
    Returns
@@ -284,10 +294,12 @@ TPM_RESULT SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
         TPM_FAIL for other fatal errors
 */
 
-TPM_RESULT SWTPM_NVRAM_StoreData(const unsigned char *data,
-                                 uint32_t length,
-                                 uint32_t tpm_number,
-                                 const char *name)
+static TPM_RESULT
+SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
+                             uint32_t length,
+                             uint32_t tpm_number,
+                             const char *name,
+                             TPM_BOOL encrypt         /* encrypt if key is set */)
 {
     TPM_RESULT    rc = 0;
     uint32_t      lrc;
@@ -315,7 +327,7 @@ TPM_RESULT SWTPM_NVRAM_StoreData(const unsigned char *data,
         }
     }
 
-    if (rc == 0) {
+    if (rc == 0 && encrypt) {
         rc = SWTPM_NVRAM_EncryptData(&encrypt_data, &encrypt_length,
                                      data, length);
         if (encrypt_data) {
@@ -354,6 +366,14 @@ TPM_RESULT SWTPM_NVRAM_StoreData(const unsigned char *data,
     TPM_DEBUG(" SWTPM_NVRAM_StoreData: rc=%d\n", rc);
 
     return rc;
+}
+
+TPM_RESULT SWTPM_NVRAM_StoreData(const unsigned char *data,
+                                 uint32_t length,
+                                 uint32_t tpm_number,
+                                 const char *name)
+{
+    return SWTPM_NVRAM_StoreData_Intern(data, length, tpm_number, name, TRUE);
 }
 
 /* SWTPM_NVRAM_GetFilenameForName() constructs a rooted file name from the name.
@@ -530,3 +550,48 @@ SWTPM_NVRAM_DecryptData(unsigned char **decrypt_data,
     return rc;
 }
 
+/*
+ * Get the state blob with the current name; read it from the filesystem.
+ * Decrypt it if the caller asks for it and if a key is set. Return
+ * whether it's still encrypyted.
+ */
+TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
+                                    uint32_t *length,
+                                    uint32_t tpm_number,
+                                    const char *name,
+                                    TPM_BOOL decrypt,
+                                    TPM_BOOL *is_encrypted)
+{
+    TPM_RESULT res;
+
+    res = SWTPM_NVRAM_LoadData_Intern(data, length, tpm_number, name,
+                                      decrypt);
+    if (decrypt) {
+        /* we asked for a decrypted blob, so it cannot be encrypted */
+        *is_encrypted = FALSE;
+    } else {
+        /*
+         * We did not ask for a decrypted blob; in this case it's
+         * encrypted if there is a key set
+         */
+        *is_encrypted = symkey.valid;
+    }
+    return res;
+}
+
+/*
+ * Set the state blob with the given name; the caller tells us if
+ * the blob is encrypted; if it is encrypted, it will be written
+ * into the file as-is, otherwise it will be encrypted if a key is set.
+ */
+TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
+                                    uint32_t length,
+                                    TPM_BOOL is_encrypted,
+                                    uint32_t tpm_number,
+                                    const char *name)
+{
+    TPM_BOOL encrypt = !is_encrypted;
+
+    return SWTPM_NVRAM_StoreData_Intern(data, length,
+                                        tpm_number, name, encrypt);
+}

@@ -120,6 +120,14 @@ struct thread_message {
     fuse_req_t    req;
 };
 
+#define min(a,b) ((a) < (b) ? (a) : (b))
+
+struct stateblob {
+    uint8_t type;
+    uint8_t *data;
+    uint32_t length;
+};
+
 static const char *usage =
 "usage: %s [options]\n"
 "\n"
@@ -394,6 +402,24 @@ error_terminate:
     return -1;
 }
 
+/*
+ * convert the blobtype integer into a string that libtpms
+ * understands
+ */
+static const char *ptm_get_blobname(uint8_t blobtype)
+{
+    switch (blobtype) {
+    case PTM_BLOB_TYPE_PERMANENT:
+        return TPM_PERMANENT_ALL_NAME;
+    case PTM_BLOB_TYPE_VOLATILE:
+        return TPM_VOLATILESTATE_NAME;
+    case PTM_BLOB_TYPE_SAVESTATE:
+        return TPM_SAVESTATE_NAME;
+    default:
+        return NULL;
+    }
+}
+
 static void ptm_open(fuse_req_t req, struct fuse_file_info *fi)
 {
     fuse_reply_open(req, fi);
@@ -488,6 +514,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     TPM_RESULT res;
     bool exit_prg = FALSE;
     ptminit_t *init_p;
+    static struct stateblob stateblob;
 
     if (flags & FUSE_IOCTL_COMPAT) {
         fuse_reply_err(req, ENOSYS);
@@ -509,6 +536,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     case PTM_HASH_DATA:
     case PTM_HASH_END:
     case PTM_STORE_VOLATILE:
+    case PTM_GET_STATEBLOB:
+    case PTM_SET_STATEBLOB:
         if (tpm_running)
             worker_thread_wait_done();
         break;
@@ -530,7 +559,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                 | PTM_CAP_HASHING 
                 | PTM_CAP_CANCEL_TPM_CMD
                 | PTM_CAP_STORE_VOLATILE
-                | PTM_CAP_RESET_TPMESTABLISHED;
+                | PTM_CAP_RESET_TPMESTABLISHED
+                | PTM_CAP_GET_STATEBLOB
+                | PTM_CAP_SET_STATEBLOB ;
             fuse_reply_ioctl(req, 0, &ptm_caps, sizeof(ptm_caps));
         }
         break;
@@ -669,6 +700,132 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         fuse_reply_ioctl(req, 0, &res, sizeof(res));
         break;
 
+    case PTM_GET_STATEBLOB:
+        if (!tpm_running)
+            goto error_not_running;
+
+        if (!in_bufsz) {
+            struct iovec iov = { arg, sizeof(uint32_t) };
+            fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
+        } else {
+            ptm_getstate_t *pgs = (ptm_getstate_t *)in_buf;
+            const char *blobname = ptm_get_blobname(pgs->u.req.type);
+            unsigned char *data = NULL;
+            uint32_t length = 0, to_copy, offset;
+            TPM_BOOL decrypt = ((pgs->u.req.state_flags & STATE_FLAG_DECRYPTED)
+                                != 0);
+            TPM_BOOL is_encrypted;
+
+            if (blobname) {
+                offset = pgs->u.req.offset;
+
+                res = SWTPM_NVRAM_GetStateBlob(&data, &length,
+                                               pgs->u.req.tpm_number,
+                                               blobname, decrypt,
+                                               &is_encrypted);
+                if (data != NULL && length > 0) {
+                    to_copy = 0;
+                    if (offset < length) {
+                        to_copy = min(length - offset,
+                                      sizeof(pgs->u.resp.data));
+                        memcpy(&pgs->u.resp.data, &data[offset], to_copy);
+                    }
+
+                    pgs->u.resp.length = to_copy;
+                    TPM_Free(data);
+                    data = NULL;
+
+                    pgs->u.resp.state_flags = 0;
+                    if (is_encrypted) {
+                        pgs->u.resp.state_flags |= STATE_FLAG_ENCRYPTED;
+                    }
+                } else {
+                    pgs->u.resp.length = 0;
+                }
+            } else {
+                res = TPM_BAD_PARAMETER;
+            }
+            pgs->u.resp.tpm_result = res;
+            fuse_reply_ioctl(req, 0, pgs, sizeof(pgs->u.resp));
+        }
+        break;
+
+    case PTM_SET_STATEBLOB:
+        if (tpm_running)
+            goto error_running;
+
+        /* tpm state dir must be set */
+        SWTPM_NVRAM_Init();
+
+        if (!in_bufsz) {
+            struct iovec iov = { arg, sizeof(uint32_t) };
+            fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
+        } else {
+            ptm_setstate_t *pss = (ptm_setstate_t *)in_buf;
+            const char *blobname;
+            TPM_BOOL is_encrypted =
+                ((pss->u.req.state_flags & STATE_FLAG_ENCRYPTED) != 0);
+
+            if (pss->u.req.length > sizeof(pss->u.req.data)) {
+                pss->u.resp.tpm_result = TPM_BAD_PARAMETER;
+                fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+                break;
+            }
+
+            if (stateblob.type != pss->u.req.type) {
+                /* clear old data */
+                TPM_Free(stateblob.data);
+                stateblob.data = NULL;
+                stateblob.length = 0;
+                stateblob.type = pss->u.req.type;
+            }
+
+            /* append */
+            res = TPM_Realloc(&stateblob.data,
+                              stateblob.length + pss->u.req.length);
+            if (res != 0) {
+                /* error */
+                TPM_Free(stateblob.data);
+                stateblob.data = NULL;
+                stateblob.length = 0;
+                stateblob.type = 0;
+
+                pss->u.resp.tpm_result = res;
+                fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+                break;
+            }
+
+            memcpy(&stateblob.data[stateblob.length],
+                   pss->u.req.data, pss->u.req.length);
+            stateblob.length += pss->u.req.length;
+
+            if (pss->u.req.length == sizeof(pss->u.req.data)) {
+                /* full packet */
+                pss->u.resp.tpm_result = 0;
+                fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+                break;
+            }
+            blobname = ptm_get_blobname(pss->u.req.type);
+
+            if (blobname) {
+                res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
+                                               stateblob.length,
+                                               is_encrypted,
+                                               pss->u.req.tpm_number,
+                                               blobname);
+            } else {
+                res = TPM_BAD_PARAMETER;
+            }
+            TPM_Free(stateblob.data);
+            stateblob.data = NULL;
+            stateblob.length = 0;
+            stateblob.type = 0;
+
+            pss->u.resp.tpm_result = res;
+            fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+        }
+        break;
+
     default:
         fuse_reply_err(req, EINVAL);
     }
@@ -684,6 +841,7 @@ cleanup:
 
     return;
 
+error_running:
 error_not_running:
     res = TPM_BAD_ORDINAL;
     fuse_reply_ioctl(req, 0, &res, sizeof(res));

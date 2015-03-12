@@ -38,7 +38,7 @@
 /*
  * tool for using 'swtpm cuse' ioctls
  *
- * cuse_tpm_ioctl [ -c | -i | -s | -e | -l num ] devicepath
+ * cuse_tpm_ioctl [ -c | -i | -s | -e | -l num | -C | -v ] devicepath
  *     -c get ptm capabilities
  *     -i do a hardware TPM_Init
  *     -s shutdown tpm_server_cuse
@@ -52,8 +52,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 
 #include <swtpm/tpm_ioctl.h>
@@ -69,13 +71,29 @@ static void usage(const char *prgname)
 "           resume the TPM with it and delete it afterwards\n"
 "-s       : shutdown the CUSE tpm\n"
 "-e       : get the tpmEstablished bit\n"
-"-r       : reset the tpmEstablished bit\n"
+"-r <loc> : reset the tpmEstablished bit; use the given locality\n"
 "-v       : store the TPM's volatile data\n"
 "-C       : cancel an ongoing TPM command\n"
 "-l <num> : set the locality to the given number; valid numbers are 0-4\n"
 "-h <data>: hash the given data; if data is '-' then data are read from\n"
-"           stdin\n\n"
+"           stdin\n"
+"--save <type> <file> : store the TPM state blob of given type in a file;\n"
+"                       type may be one of volatile, permanent, or savestate\n"
+"--load <type> <file> : load the TPM state blob of given type from a file;\n"
+"                       type may be one of volatile, permanent, or savestate\n"
+"\n"
     ,prgname);
+}
+
+static uint8_t get_blobtype(const char *blobname)
+{
+    if (!strcmp(blobname, "permanent"))
+        return PTM_BLOB_TYPE_PERMANENT;
+    if (!strcmp(blobname, "volatile"))
+        return PTM_BLOB_TYPE_VOLATILE;
+    if (!strcmp(blobname, "savestate"))
+        return PTM_BLOB_TYPE_SAVESTATE;
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -89,7 +107,13 @@ int main(int argc, char *argv[])
     ptmhdata_t hdata;
     ptmres_t res;
     ptminit_t init;
+    ptm_getstate_t pgs;
+    ptm_setstate_t pss;
     size_t idx;
+    ssize_t numbytes;
+    uint16_t offset;
+    int file_fd;
+    bool had_error;
 
     if (argc < 2) {
         fprintf(stderr, "Error: Missing command.\n\n");
@@ -97,15 +121,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    switch (argv[1][1]) {
-        case 'l':
-        case 'h':
-        case 'r':
-            devindex = 3;
-            break;
-        default:
-            devindex = 2;
-            break;
+    if (!strcmp(argv[1], "--save") ||
+        !strcmp(argv[1], "--load")) {
+        devindex = 4;
+    } else if (!strcmp(argv[1], "-l") ||
+        !strcmp(argv[1], "-h") ||
+        !strcmp(argv[1], "-r")) {
+        devindex = 3;
+    } else {
+        devindex = 2;
     }
 
     if (devindex >= argc) {
@@ -122,8 +146,7 @@ int main(int argc, char *argv[])
                 return -1;
     }
 
-    switch (argv[1][1]) {
-    case 'c':
+    if (!strcmp(argv[1], "-c")) {
         n = ioctl(fd, PTM_GET_CAPABILITY, &cap);
         if (n < 0) {
             fprintf(stderr,
@@ -133,9 +156,8 @@ int main(int argc, char *argv[])
         }
         /* no tpm_result here */
         printf("ptm capability is 0x%lx\n",cap);
-        break;
 
-    case 'i':
+    } else if (!strcmp(argv[1], "-i")) {
         init.u.req.init_flags = INIT_FLAG_DELETE_VOLATILE;
         n = ioctl(fd, PTM_INIT, &init);
         if (n < 0) {
@@ -150,9 +172,8 @@ int main(int argc, char *argv[])
                     "TPM result from PTM_INIT: 0x%x\n", res);
             return 1;
         }
-        break;
 
-    case 'e':
+    } else if (!strcmp(argv[1], "-e")) {
         n = ioctl(fd, PTM_GET_TPMESTABLISHED, &est);
         if (n < 0) {
             fprintf(stderr,
@@ -167,9 +188,8 @@ int main(int argc, char *argv[])
             return 1;
         }
         printf("tpmEstablished is %d\n",est.bit);
-        break;
 
-    case 'r':
+    } else if (!strcmp(argv[1], "-r")) {
         reset_est.u.req.loc = atoi(argv[2]);
         if (reset_est.u.req.loc < 0 || reset_est.u.req.loc > 4) {
             fprintf(stderr,
@@ -189,9 +209,8 @@ int main(int argc, char *argv[])
                     "TPM result from PTM_RESET_TPMESTABLISHED: 0x%x\n", res);
             return 1;
         }
-        break;
 
-    case 's':
+    } else if (!strcmp(argv[1], "-s")) {
         n = ioctl(fd, PTM_SHUTDOWN, &res);
         if (n < 0) {
             fprintf(stderr,
@@ -204,9 +223,8 @@ int main(int argc, char *argv[])
                     "TPM result from PTM_SHUTDOWN: 0x%x\n", res);
             return 1;
         }
-        break;
 
-    case 'l':
+    } else if (!strcmp(argv[1], "-l")) {
         loc.u.req.loc = atoi(argv[2]);
         if (loc.u.req.loc < 0 || loc.u.req.loc > 4) {
             fprintf(stderr,
@@ -226,9 +244,8 @@ int main(int argc, char *argv[])
                     "TPM result from PTM_SET_LOCALITY: 0x%x\n", res);
             return 1;
         }
-        break;
 
-    case 'h':
+    } else if (!strcmp(argv[1], "-h")) {
         /* hash string given on command line */
         n = ioctl(fd, PTM_HASH_START, &res);
         if (n < 0) {
@@ -299,9 +316,8 @@ int main(int argc, char *argv[])
                     "TPM result from PTM_HASH_END: 0x%x\n", res);
             return 1;
         }
-        break;
 
-        case 'C':
+    } else if (!strcmp(argv[1], "-C")) {
         n = ioctl(fd, PTM_CANCEL_TPM_CMD, &res);
         if (n < 0) {
             fprintf(stderr,
@@ -315,9 +331,8 @@ int main(int argc, char *argv[])
                     res);
             return 1;
         }
-        break;
 
-        case 'v':
+    } else if (!strcmp(argv[1], "-v")) {
         n = ioctl(fd, PTM_STORE_VOLATILE, &res);
         if (n < 0) {
             fprintf(stderr,
@@ -331,9 +346,122 @@ int main(int argc, char *argv[])
                     res);
             return 1;
         }
-        break;
 
-    default:
+    } else if (!strcmp(argv[1], "--save")) {
+        
+        file_fd = open(argv[3], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
+        if (file_fd < 0) {
+            fprintf(stderr,
+                    "Could not open file '%s' for writing: %s\n",
+                    argv[3], strerror(errno));
+            return 1;
+        }
+
+        had_error = 0;
+        offset = 0;
+
+        while (true) {
+            /* fill out request every time since response may change it */
+            pgs.u.req.state_flags = STATE_FLAG_DECRYPTED;
+            pgs.u.req.tpm_number = 0;
+            pgs.u.req.type = get_blobtype(argv[2]);
+            if (!pgs.u.req.type) {
+                fprintf(stderr,
+                        "Unknown state type '%s'", argv[2]);
+                return 1;
+            }
+            pgs.u.req.offset = offset;
+
+            n = ioctl(fd, PTM_GET_STATEBLOB, &pgs);
+            if (n < 0) {
+                fprintf(stderr,
+                        "Could not execute ioctl PTM_GET_STATEBLOB: "
+                        "%s\n", strerror(errno));
+                had_error = 1;
+                break;
+            }
+            res = pgs.u.resp.tpm_result;
+            if (res != 0) {
+                fprintf(stderr,
+                        "TPM result from PTM_GET_STATEBLOB: 0x%x\n",
+                        res);
+                had_error = 1;
+                break;
+            }
+            numbytes = write(file_fd, pgs.u.resp.data, pgs.u.resp.length);
+
+            if (numbytes != pgs.u.resp.length) {
+                fprintf(stderr,
+                        "Could not write to file '%s': %s\n",
+                        argv[3], strerror(errno));
+                had_error = 1;
+                break;
+            }
+            if (pgs.u.resp.length < sizeof(pgs.u.resp.data))
+                break;
+
+            offset += pgs.u.resp.length;
+        }
+        close(file_fd);
+
+        if (had_error)
+            return 1;
+    } else if (!strcmp(argv[1], "--load")) {
+        file_fd = open(argv[3], O_RDONLY);
+        if (file_fd < 0) {
+            fprintf(stderr,
+                    "Could not open file '%s' for reading: %s\n",
+                    argv[3], strerror(errno));
+            return 1;
+        }
+        had_error = 0;
+
+        while (true) {
+            /* fill out request every time since response may change it */
+            pss.u.req.state_flags = 0;
+            pss.u.req.type = get_blobtype(argv[2]);
+            pss.u.req.tpm_number = 0;
+            if (!pss.u.req.type) {
+                fprintf(stderr,
+                        "Unknown state type '%s'", argv[2]);
+                return 1;
+            }
+
+            numbytes = read(file_fd, pss.u.req.data, sizeof(pss.u.req.data));
+            if (numbytes < 0) {
+                fprintf(stderr,
+                        "Could not read from file '%s': %s\n",
+                        argv[3], strerror(errno));
+                had_error = 1;
+                break;
+            }
+            pss.u.req.length = numbytes;
+
+            n = ioctl(fd, PTM_SET_STATEBLOB, &pss);
+            if (n < 0) {
+                fprintf(stderr,
+                        "Could not execute ioctl PTM_SET_STATEBLOB: "
+                        "%s\n", strerror(errno));
+                had_error = 1;
+                break;
+            }
+            res = pss.u.resp.tpm_result;
+            if (res != 0) {
+                fprintf(stderr,
+                        "TPM result from PTM_SET_STATEBLOB: 0x%x\n",
+                        res);
+                had_error = 1;
+                break;
+            }
+            if ((size_t)numbytes < sizeof(pss.u.req.data))
+                break;
+        }
+
+        close(file_fd);
+
+        if (had_error)
+            return 1;
+    } else {
         usage(argv[0]);
         return 1;
     }

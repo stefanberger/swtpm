@@ -72,12 +72,68 @@ struct ptmhdata {
     } u;
 };
 
+#define STATE_BLOB_SIZE (8 * 1024)
+
+/*
+ * Data structure to get state blobs from the TPM. If the size of the
+ * blob exceeds the STATE_BLOB_SIZE, multiple reads with
+ * adjusted offset are necessary. The last packet is indicated by
+ * the length being smaller than the STATE_BLOB_SIZE.
+ */
+struct ptm_getstate {
+    union {
+        struct {
+            uint32_t state_flags; /* may be: STATE_FLAG_DECRYPTED */
+            uint32_t tpm_number;  /* always set to zero */
+            uint8_t type;         /* which blob to pull */
+            uint32_t offset;      /* offset from where to read */
+        } req;
+        struct {
+            ptmres_t tpm_result;
+            uint32_t state_flags; /* may be: STATE_FLAG_ENCRYPTED */
+            uint32_t length;
+            uint8_t  data[STATE_BLOB_SIZE];
+        } resp;
+    } u;
+};
+
+#define PTM_BLOB_TYPE_PERMANENT  1
+#define PTM_BLOB_TYPE_VOLATILE   2
+#define PTM_BLOB_TYPE_SAVESTATE  3
+
+#define STATE_FLAG_DECRYPTED     1 /* on input:  get decrypted state */
+#define STATE_FLAG_ENCRYPTED     2 /* on output: state is encrytped */
+
+/*
+ * Data structure to set state blobs in the TPM. If the size of the
+ * blob exceeds the STATE_BLOB_SIZE, multiple writes are necessary.
+ * The last packet is indicated by the length being smaller than the
+ * STATE_BLOB_SIZE.
+ */
+struct ptm_setstate {
+    union {
+        struct {
+            uint32_t state_flags; /* may be STATE_FLAG_ENCRYPTED */
+            uint32_t tpm_number;  /* always set to 0 */
+            uint8_t type;         /* which blob to set */
+            uint32_t length;
+            uint8_t data[STATE_BLOB_SIZE];
+        } req;
+        struct {
+            ptmres_t tpm_result;
+        } resp;
+    } u;
+};
+
+
 typedef uint64_t ptmcap_t;
 typedef struct ptmest  ptmest_t;
 typedef struct ptmreset_est ptmreset_est_t;
 typedef struct ptmloc  ptmloc_t;
 typedef struct ptmhdata ptmhdata_t;
 typedef struct ptminit ptminit_t;
+typedef struct ptm_getstate ptm_getstate_t;
+typedef struct ptm_setstate ptm_setstate_t;
 
 #define PTM_CAP_INIT               (1)
 #define PTM_CAP_SHUTDOWN           (1<<1)
@@ -87,6 +143,8 @@ typedef struct ptminit ptminit_t;
 #define PTM_CAP_CANCEL_TPM_CMD     (1<<5)
 #define PTM_CAP_STORE_VOLATILE     (1<<6)
 #define PTM_CAP_RESET_TPMESTABLISHED (1<<7)
+#define PTM_CAP_GET_STATEBLOB      (1<<8)
+#define PTM_CAP_SET_STATEBLOB      (1<<9)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptmcap_t),
@@ -100,4 +158,6 @@ enum {
     PTM_CANCEL_TPM_CMD     = _IOR('P', 8, ptmres_t),
     PTM_STORE_VOLATILE     = _IOR('P', 9, ptmres_t),
     PTM_RESET_TPMESTABLISHED = _IOWR('P', 10, ptmreset_est_t),
+    PTM_GET_STATEBLOB      = _IOWR('P', 11, ptm_getstate_t),
+    PTM_SET_STATEBLOB      = _IOWR('P', 12, ptm_setstate_t),
 };

@@ -74,5 +74,18 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *data,
                                    uint32_t length,
                                    enum encryption_mode mode);
 
+TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
+                                    uint32_t *length,
+                                    uint32_t tpm_number,
+                                    const char *name,
+                                    TPM_BOOL decrypt,
+                                    TPM_BOOL *is_encrypted);
+
+TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
+                                    uint32_t length,
+                                    TPM_BOOL is_encrypted,
+                                    uint32_t tpm_number,
+                                    const char *name);
+
 #endif /* _SWTPM_NVFILE_H */
 
