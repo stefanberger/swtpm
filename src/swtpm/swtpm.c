@@ -367,14 +367,23 @@ static int mainLoop(struct mainLoopParams *mlp)
         while (rc == 0) {
             struct pollfd pollfds = {
                 .fd = connection_fd.fd,
-                .events = POLLIN,
+                .events = POLLIN | POLLHUP,
                 .revents = 0,
             };
 
-            if (poll(&pollfds, 1, -1) < 0) {
+            /*
+             * all these check (seem to) prevent that we get
+             * stuck with a closed connection.
+             */
+            if (poll(&pollfds, 1, -1) < 0 ||
+                (pollfds.revents & POLLHUP) != 0 ||
+                (pollfds.revents & POLLIN) == 0 ) {
                 SWTPM_IO_Disconnect(&connection_fd);
                 break;
             }
+
+            if (!(pollfds.revents & POLLIN))
+                continue;
 
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
             if (rc == 0) {
@@ -393,6 +402,11 @@ static int mainLoop(struct mainLoopParams *mlp)
             if (rc == 0) {
                 rc = SWTPM_IO_Write(&connection_fd, rbuffer, rlength);
             }
+            /*
+             * only allow a single command per connection, otherwise
+             * we may get stuck in the poll() above.
+             */
+            break;
         }
         SWTPM_IO_Disconnect(&connection_fd);
         /* clear the response buffer, does not deallocate memory */
