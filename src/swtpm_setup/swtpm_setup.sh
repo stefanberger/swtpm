@@ -400,16 +400,6 @@ init_tpm()
 		tpm_createek 2>&1 1>/dev/null
 		if [ $? -ne 0 ]; then
 			logerr "tpm_createek failed"
-			echo "swtpm pid = $SWTPM_PID" >&2
-			ps aux | grep $SWTPM_PID >&2
-			echo "tcsd"
-			ps aux | grep tcsd >&2
-			strace swtpm_bios
-			sleep 1
-			tpm_createek
-			while :; do
-				sleep 100
-			done
 			return 1
 		fi
 		logit "Successfully created EK."
