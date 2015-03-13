@@ -320,6 +320,14 @@ EOF
 			           grep "LISTEN" |
 			           grep " $TCSD_PID/" |
 			           grep ":$TSS_TCSD_PORT ")" ]; then
+			        # in rare occastions tcsd refuses connections
+			        # test the connection
+				exec 100<>/dev/tcp/localhost/$TSS_TCSD_PORT 2>/dev/null
+				if [ $? -ne 0 ]; then
+					kill -9 $TCSD_PID 2>/dev/null
+					break
+				fi
+				exec 100>&-
 				echo "TSS is listening on TCP port $TSS_TCSD_PORT."
 				return 0
 			fi
@@ -392,6 +400,16 @@ init_tpm()
 		tpm_createek 2>&1 1>/dev/null
 		if [ $? -ne 0 ]; then
 			logerr "tpm_createek failed"
+			echo "swtpm pid = $SWTPM_PID" >&2
+			ps aux | grep $SWTPM_PID >&2
+			echo "tcsd"
+			ps aux | grep tcsd >&2
+			strace swtpm_bios
+			sleep 1
+			tpm_createek
+			while :; do
+				sleep 100
+			done
 			return 1
 		fi
 		logit "Successfully created EK."
