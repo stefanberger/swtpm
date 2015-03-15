@@ -204,7 +204,7 @@ start_tpm()
 		TPM_PORT=$(shuf -i 30000-65535 -n 1)
 
 		# skip used ports
-		if [ -n "$(netstate -lnpt 2>/dev/null |
+		if [ -n "$(netstat -lnpt 2>/dev/null |
 		         gawk '{print $4}' |
 		         grep ":${TPM_PORT} ")" ]; then
 			let ctr=ctr+1
@@ -227,6 +227,14 @@ start_tpm()
 			if [ -n "$(netstat -napt 2>/dev/null | 
 			           grep " $SWTPM_PID/" |
 			           grep ":$TPM_PORT ")" ]; then
+			        # in rare occastions tcsd refuses connections
+			        # test the connection
+				exec 100<>/dev/tcp/localhost/$TPM_PORT 2>/dev/null
+				if [ $? -ne 0 ]; then
+					kill -9 $SWTPM_PID 2>/dev/null
+					break
+				fi
+				exec 100>&-
 				echo "TPM is listening on TCP port $TPM_PORT."
 				return 0
 			fi
@@ -264,7 +272,7 @@ start_tcsd()
 		TSS_TCSD_PORT=$(shuf -i 30000-65535 -n 1)
 
 		# skip used ports
-		if [ -n "$(netstate -lnpt 2>/dev/null |
+		if [ -n "$(netstat -lnpt 2>/dev/null |
 		         gawk '{print $4}' |
 		         grep ":${TSS_TCSD_PORT} ")" ]; then
 			let ctr=$ctr+1
