@@ -127,21 +127,13 @@ sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
 rm -f $VOLATILE_STATE_FILE $STATE_FILE
 
 sleep 2
-# Shut the TPM down
+# Stop the TPM; this will not shut it down
 exec 100>&-
-$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
-
-# Start the TPM again
-$SWTPM_EXE -n $VTPM_NAME \
-	--log file=$logfile
-sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME " | gawk '{print $2}')
-
-ps aux | grep $SWTPM | grep -v grep
+$CUSE_TPM_IOCTL --stop /dev/$VTPM_NAME
 
 kill -0 $PID
 if [ $? -ne 0 ]; then
-	echo "Error (2): CUSE TPM did not start."
+	echo "Error (2): CUSE TPM is not running anymore."
 	exit 1
 fi
 

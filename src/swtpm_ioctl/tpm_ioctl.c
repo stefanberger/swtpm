@@ -71,7 +71,8 @@ static void usage(const char *prgname)
 "-c       : get ptm capabilities\n"
 "-i       : do a hardware TPM_Init; if volatile state is found, it will\n"
 "           resume the TPM with it and delete it afterwards\n"
-"-s       : shutdown the CUSE tpm\n"
+"--stop   : stop the CUSE tpm without exiting\n"
+"-s       : shutdown the CUSE tpm; stops and exists\n"
 "-e       : get the tpmEstablished bit\n"
 "-r <loc> : reset the tpmEstablished bit; use the given locality\n"
 "-v       : store the TPM's volatile data\n"
@@ -223,6 +224,20 @@ int main(int argc, char *argv[])
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_SHUTDOWN: 0x%x\n", res);
+            return 1;
+        }
+
+    } else if (!strcmp(argv[1], "--stop")) {
+        n = ioctl(fd, PTM_STOP, &res);
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not execute ioctl PTM_STOP: "
+                    "%s\n", strerror(errno));
+            return 1;
+        }
+        if (res != 0) {
+            fprintf(stderr,
+                    "TPM result from PTM_STOP: 0x%x\n", res);
             return 1;
         }
 

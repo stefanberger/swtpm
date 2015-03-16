@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_ioctl 8"
-.TH swtpm_ioctl 8 "2015-03-12" "swtpm" ""
+.TH swtpm_ioctl 8 "2015-03-16" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -166,6 +166,11 @@ delete.
 .IP "\fB\-s\fR" 4
 .IX Item "-s"
 Gracefully shut the swtpm_cuse down.
+.IP "\fB\-\-stop\fR" 4
+.IX Item "--stop"
+Stop the swtpm_cuse. This does not shut it down. The \fI\-i\fR command can again
+be sent to it. After a stop it is also possible to load \s-1TPM\s0 stateblobs into the
+\&\s-1TPM\s0 using the \fI\-\-load\fR command.
 .IP "\fB\-e\fR" 4
 .IX Item "-e"
 Get the tpmEstablished bit.

@@ -145,6 +145,7 @@ typedef struct ptm_setstate ptm_setstate_t;
 #define PTM_CAP_RESET_TPMESTABLISHED (1<<7)
 #define PTM_CAP_GET_STATEBLOB      (1<<8)
 #define PTM_CAP_SET_STATEBLOB      (1<<9)
+#define PTM_CAP_STOP               (1<<10)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptmcap_t),
@@ -160,4 +161,5 @@ enum {
     PTM_RESET_TPMESTABLISHED = _IOWR('P', 10, ptmreset_est_t),
     PTM_GET_STATEBLOB      = _IOWR('P', 11, ptm_getstate_t),
     PTM_SET_STATEBLOB      = _IOWR('P', 12, ptm_setstate_t),
+    PTM_STOP               = _IOR('P', 13, ptmres_t),
 };

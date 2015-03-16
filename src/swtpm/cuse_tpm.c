@@ -561,7 +561,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                 | PTM_CAP_STORE_VOLATILE
                 | PTM_CAP_RESET_TPMESTABLISHED
                 | PTM_CAP_GET_STATEBLOB
-                | PTM_CAP_SET_STATEBLOB ;
+                | PTM_CAP_SET_STATEBLOB
+                | PTM_CAP_STOP;
             fuse_reply_ioctl(req, 0, &ptm_caps, sizeof(ptm_caps));
         }
         break;
@@ -581,6 +582,21 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             tpm_running = 1;
         }
         fuse_reply_ioctl(req, 0, &res, sizeof(res));
+        break;
+
+    case PTM_STOP:
+        worker_thread_end();
+
+        res = TPM_SUCCESS;
+        TPMLIB_Terminate();
+
+        tpm_running = 0;
+
+        TPM_Free(ptm_res);
+        ptm_res = NULL;
+
+        fuse_reply_ioctl(req, 0, &res, sizeof(res));
+
         break;
 
     case PTM_SHUTDOWN:

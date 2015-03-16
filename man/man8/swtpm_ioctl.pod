@@ -35,6 +35,12 @@ delete.
 
 Gracefully shut the swtpm_cuse down.
 
+=item B<--stop>
+
+Stop the swtpm_cuse. This does not shut it down. The I<-i> command can again
+be sent to it. After a stop it is also possible to load TPM stateblobs into the
+TPM using the I<--load> command.
+
 =item B<-e>
 
 Get the tpmEstablished bit.
