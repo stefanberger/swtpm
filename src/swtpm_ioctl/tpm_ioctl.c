@@ -60,6 +60,8 @@
 
 #include <swtpm/tpm_ioctl.h>
 
+#include <libtpms/tpm_error.h>
+
 static void usage(const char *prgname)
 {
     fprintf(stdout,
@@ -381,7 +383,7 @@ int main(int argc, char *argv[])
                 break;
             }
             res = pgs.u.resp.tpm_result;
-            if (res != 0) {
+            if (res != 0 && (res & TPM_NON_FATAL) == 0) {
                 fprintf(stderr,
                         "TPM result from PTM_GET_STATEBLOB: 0x%x\n",
                         res);
