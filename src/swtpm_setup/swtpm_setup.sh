@@ -227,11 +227,11 @@ start_tpm()
 			if [ -n "$(netstat -napt 2>/dev/null | 
 			           grep " $SWTPM_PID/" |
 			           grep ":$TPM_PORT ")" ]; then
-			        # in rare occastions tcsd refuses connections
+			        # in rare occasions tcsd refuses connections
 			        # test the connection
 				exec 100<>/dev/tcp/localhost/$TPM_PORT 2>/dev/null
 				if [ $? -ne 0 ]; then
-					kill -9 $SWTPM_PID 2>/dev/null
+					stop_tpm
 					break
 				fi
 				exec 100>&-
@@ -328,11 +328,11 @@ EOF
 			           grep "LISTEN" |
 			           grep " $TCSD_PID/" |
 			           grep ":$TSS_TCSD_PORT ")" ]; then
-			        # in rare occastions tcsd refuses connections
+			        # in rare occasions tcsd refuses connections
 			        # test the connection
 				exec 100<>/dev/tcp/localhost/$TSS_TCSD_PORT 2>/dev/null
 				if [ $? -ne 0 ]; then
-					kill -9 $TCSD_PID 2>/dev/null
+					stop_tcsd
 					break
 				fi
 				exec 100>&-
