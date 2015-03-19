@@ -731,12 +731,14 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             TPM_BOOL decrypt = ((pgs->u.req.state_flags & STATE_FLAG_DECRYPTED)
                                 != 0);
             TPM_BOOL is_encrypted;
+            uint32_t tpm_number = pgs->u.req.tpm_number;
+            uint32_t blobtype = pgs->u.req.type;
 
             if (blobname) {
                 offset = pgs->u.req.offset;
 
                 res = SWTPM_NVRAM_GetStateBlob(&data, &length,
-                                               pgs->u.req.tpm_number,
+                                               tpm_number,
                                                blobname, decrypt,
                                                &is_encrypted);
                 if (data != NULL && length > 0) {
@@ -755,7 +757,16 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                     if (is_encrypted) {
                         pgs->u.resp.state_flags |= STATE_FLAG_ENCRYPTED;
                     }
+                    if (blobtype == PTM_BLOB_TYPE_VOLATILE &&
+                        to_copy < sizeof(pgs->u.resp.data)) {
+                        /* volatile blob deleted once transferred */
+                        SWTPM_NVRAM_DeleteName(tpm_number, blobname, FALSE);
+                    }
                 } else {
+                    /* 
+                     * blob presumably does not exist; not an error
+                     * res would show TPM_RETRY (0x800) flag
+                     */
                     pgs->u.resp.length = 0;
                 }
             } else {
