@@ -85,6 +85,13 @@ static const OptionDesc key_opt_desc[] = {
     END_OPTION_DESC
 };
 
+/*
+ * handle_log_options:
+ * Parse and act upon the parsed log options. Initialize the logging.
+ * @options: the log options
+ *
+ * Returns 0 on success, -1 on failure.
+ */
 int
 handle_log_options(char *options)
 {
@@ -126,6 +133,14 @@ error:
     return -1;
 }
 
+/*
+ * handle_key_options:
+ * Parse and act upon the parsed key options. Set global values related
+ * to the options found.
+ * @options: the key options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
 int
 handle_key_options(char *options)
 {
@@ -198,4 +213,3 @@ error:
 
     return -1;
 }
-

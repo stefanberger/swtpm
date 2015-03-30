@@ -19,15 +19,17 @@
 
 typedef uint32_t ptmres_t;
 
+/* PTM_GET_TPMESTABLISHED */
 struct ptmest {
     ptmres_t tpm_result;
-    unsigned char bit;
+    unsigned char bit; /* TPM established bit */
 };
 
+/* PTM_RESET_PTMESTABLIHSED: reset establishment bit */
 struct ptmreset_est {
     union {
         struct {
-            uint8_t loc;
+            uint8_t loc; /* locality to use */
         } req;
         struct {
             ptmres_t tpm_result;
@@ -35,10 +37,11 @@ struct ptmreset_est {
     } u;
 };
 
+/* PTM_INIT */
 struct ptminit {
     union {
         struct {
-            uint32_t init_flags;
+            uint32_t init_flags; /* see definitions below */
         } req;
         struct {
             ptmres_t tpm_result;
@@ -48,11 +51,13 @@ struct ptminit {
 
 /* above init_flags */
 #define INIT_FLAG_DELETE_VOLATILE (1 << 0)
+    /* delete volatile state file after reading it */
 
+/* PTM_SET_LOCALITY */
 struct ptmloc {
     union {
         struct {
-            uint8_t loc;
+            uint8_t loc; /* locality to set */
         } req;
         struct {
             ptmres_t tpm_result;
@@ -60,6 +65,7 @@ struct ptmloc {
     } u;
 };
 
+/* PTM_HASH_DATA: hash given data */
 struct ptmhdata {
     union {
         struct {
@@ -72,6 +78,7 @@ struct ptmhdata {
     } u;
 };
 
+/* size of the TPM state blob to transfer */
 #define STATE_BLOB_SIZE (8 * 1024)
 
 /*
@@ -97,16 +104,18 @@ struct ptm_getstate {
     } u;
 };
 
+/* TPM state blob types */
 #define PTM_BLOB_TYPE_PERMANENT  1
 #define PTM_BLOB_TYPE_VOLATILE   2
 #define PTM_BLOB_TYPE_SAVESTATE  3
 
+/* state_flags above : */
 #define STATE_FLAG_DECRYPTED     1 /* on input:  get decrypted state */
 #define STATE_FLAG_ENCRYPTED     2 /* on output: state is encrytped */
 
 /*
  * Data structure to set state blobs in the TPM. If the size of the
- * blob exceeds the STATE_BLOB_SIZE, multiple writes are necessary.
+ * blob exceeds the STATE_BLOB_SIZE, multiple 'writes' are necessary.
  * The last packet is indicated by the length being smaller than the
  * STATE_BLOB_SIZE.
  */
@@ -135,6 +144,7 @@ typedef struct ptminit ptminit_t;
 typedef struct ptm_getstate ptm_getstate_t;
 typedef struct ptm_setstate ptm_setstate_t;
 
+/* capability flags returned by PTM_GET_CAPABILITY */
 #define PTM_CAP_INIT               (1)
 #define PTM_CAP_SHUTDOWN           (1<<1)
 #define PTM_CAP_GET_TPMESTABLISHED (1<<2)

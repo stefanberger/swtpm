@@ -56,6 +56,13 @@
 
 static int logfd = CONSOLE_LOGGING;
 
+/*
+ * log_init:
+ * Initialize the logging to log into a file with the given name.
+ * @filename: the log filename; use '-' to suppress logging
+ *
+ * Returns 0 on success, -1 on failure with errno set.
+ */
 int log_init(const char *filename)
 {
     if (!strcmp(filename, "-")) {
@@ -70,6 +77,14 @@ int log_init(const char *filename)
     return 0;
 }
 
+/*
+ * log_init_fd:
+ * Initialize the logging and have the logs written to the given file
+ * descriptor.
+ * @fd: file descriptor to log to
+ *
+ * Returns 0 on success, -1 on failure with errno set.
+ */
 int log_init_fd(int fd)
 {
     int flags;
@@ -90,6 +105,15 @@ int log_init_fd(int fd)
     return 0;
 }
 
+/*
+ * _logprintf:
+ * Format a log line and output it to the given file descriptor.
+ * @fd: file descriptor to log to
+ * @format: printf type of format for the string
+ * @ap: list of var args to format
+ *
+ * Returns the number of bytes written on success, a value < 0 on error.
+ */
 static int _logprintf(int fd, const char *format, va_list ap)
 {
     char *buf = NULL;
@@ -112,7 +136,13 @@ cleanup:
 }
 
 /*
+ * logprintf:
  * log to stderr or logfile
+ * @fd : the foile descriptor to log to
+ * @format: the printf style format to format the var args into
+ * @...  : var args list of parameters to format
+ *
+ * Returns the number of bytes written on success, a value < 0 on error.
  */
 int logprintf(int fd, const char *format, ...)
 {

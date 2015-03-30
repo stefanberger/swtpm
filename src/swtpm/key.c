@@ -59,6 +59,13 @@
 #include "key.h"
 
 
+/*
+ * key_format_from_string:
+ * Convert the string into a key format identifier
+ * @format: either 'hex' or 'binary'
+ *
+ * Returns a key format identifier
+ */
 enum key_format
 key_format_from_string(const char *format)
 {
@@ -72,6 +79,13 @@ key_format_from_string(const char *format)
     return KEY_FORMAT_UNKNOWN;
 }
 
+/*
+ * encryption_mode_from_string:
+ * Convert the string into a encryption mode identifier
+ * @mode: string describing encryption mode
+ *
+ * Returns an encryption mode identifier
+ */
 enum encryption_mode
 encryption_mode_from_string(const char *mode)
 {
@@ -82,6 +96,17 @@ encryption_mode_from_string(const char *mode)
     return ENCRYPTION_MODE_UNKNOWN;
 }
 
+/*
+ * key_stream_to_bin
+ * Convert a stream of ASCII hex digits into a key; convert a maximum of
+ * bin_size bytes;
+ *
+ * @input: input data holding hex digits
+ * @bin: output field of bin_size
+ * @bin_size: max. number of bytes to convert
+ *
+ * Returns the number of digits that were converted.
+ */
 static ssize_t
 key_stream_to_bin(const char *input, unsigned char *bin, size_t bin_size)
 {
@@ -103,6 +128,17 @@ key_stream_to_bin(const char *input, unsigned char *bin, size_t bin_size)
     return (digits != 0) ? digits : -1;
 }
 
+/*
+ * key_parse_as_hexkey:
+ * Parse the raw key data as a key in ASCII hex format; they key may
+ * have a leading '0x'.
+ * @rawkey: ASCII data for a hex key with possible leading '0x'
+ * @key: buffer for key
+ * @keylen: actual key len returned by this function
+ * @maxkeylen: the max. size of the key; this is equivalent to the size of
+ *             the key buffer
+ * Returns 0 on success, -1 on failure
+ */
 static int
 key_parse_as_hexkey(const char *rawkey,
                     unsigned char *key, size_t *keylen, size_t maxkeylen)
@@ -129,6 +165,18 @@ key_parse_as_hexkey(const char *rawkey,
     return 0;
 }
 
+/*
+ * key_load_key:
+ * Load the raw key data from a file and convert it to a key.
+ * @filename: file holding the raw key data
+ * @keyformat: the format the raw key data are in; may either indicate
+ *             binary data or hex string
+ * @key: the buffer for holding the converted key
+ * @keylen: the actual key len of the converted key returned by this
+ *          function
+ * @maxkeylen: the max. size of the key; corresponds to the size of the
+ *             key buffer
+ */
 int
 key_load_key(const char *filename, enum key_format keyformat,
              unsigned char *key, size_t *keylen, size_t maxkeylen)
@@ -176,6 +224,19 @@ key_load_key(const char *filename, enum key_format keyformat,
     return ret;
 }
 
+/*
+ * key_from_pwdfile:
+ * Read the key from the given password file, convert the password into
+ * a key by applying a SHA512 on the password and use the first bytes
+ * of the hash as the key.
+ * @filename: name of the file holding the password
+ * @key: the buffer for holding the key
+ * @keylen: the actual number of bytes used in the buffer
+ * @keylen: the actual key len of the converted key returned by this
+ *          function
+ * @maxkeylen: the max. size of the key; corresponds to the size of the
+ *             key buffer
+ */
 int
 key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
                  size_t maxkeylen)
@@ -224,4 +285,3 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
 
     return 0;
 }
-
