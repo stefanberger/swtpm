@@ -62,6 +62,17 @@ option_error_set(char **error, const char *format, ...)
     (void)ret;
 }
 
+/*
+ * option_value_add
+ * Add a option's value that was parsed following a template to the collection
+ * of option values.
+ * @ovs: OptionValues where to add the given value
+ * @optdesc: the template to use for parsing this option
+ * @val: the value to parses as a datatype given in optdesc
+ * @error: Pointer to a pointer for an error message
+ *
+ * Returns 0 on success, -1 on error.
+ */
 static int
 option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
                  char **error)
@@ -114,6 +125,16 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
     return ret;
 }
 
+/*
+ * options_parse:
+ * Parse the string of options following the template; return the
+ * parsed Options or an error string.
+ * @opts: string containing the comma separated options to parse
+ * @optdesc: template to follow when parsing individual options
+ * @error: Pointer to a pointer for holding an error message
+ *
+ * Returns the parse options, types, and values in OptionValues.
+ */
 OptionValues *
 options_parse(char *opts, const OptionDesc optdesc[], char **error)
 {
@@ -164,6 +185,11 @@ error:
     return NULL;
 }
 
+/*
+ * option_values_free
+ * Free the option values
+ * @ovs: OptionValues structure to free; may be NULL
+ */
 void
 option_values_free(OptionValues *ovs)
 {
@@ -186,8 +212,18 @@ option_values_free(OptionValues *ovs)
     free(ovs);
 }
 
+/*
+ * Given the name of a string option, return the value it received when it
+ * was parsed.
+ * @ovs: The OptionValues
+ * @name: the name of the option
+ * @def: the default value
+ *
+ * Returns the parsed value or the default value if none was parsed;
+ * If the value is of different type than a string, NULL is returned.
+ */
 const char *
-option_get_string(OptionValues *ovs, const char *name)
+option_get_string(OptionValues *ovs, const char *name, const char *def)
 {
     size_t i;
 
@@ -199,11 +235,21 @@ option_get_string(OptionValues *ovs, const char *name)
         }
     }
 
-    return NULL;
+    return def;
 }
 
+/*
+ * Given the name of an int option, return the value it received when it
+ * was parsed.
+ * @ovs: The OptionValues
+ * @name: the name of the option
+ * @def: the default value
+ *
+ * Returns the parsed value or the default value if none was parsed
+ * If the value is of different type than an integer, -1 is returned.
+ */
 int
-option_get_int(OptionValues *ovs, const char *name)
+option_get_int(OptionValues *ovs, const char *name, int def)
 {
     size_t i;
 
@@ -215,11 +261,21 @@ option_get_int(OptionValues *ovs, const char *name)
         }
     }
 
-    return -1;
+    return def;
 }
 
+/*
+ * Given the name of a boolean option, return the value it received when it
+ * was parsed.
+ * @ovs: The OptionValues
+ * @name: the name of the option
+ * @def: the default value
+ *
+ * Returns the parsed value or the default value if none was parsed
+ * If the value is of different type than a boolean, false is returned.
+ */
 bool
-option_get_bool(OptionValues *ovs, const char *name)
+option_get_bool(OptionValues *ovs, const char *name, bool def)
 {
     size_t i;
 
@@ -231,6 +287,5 @@ option_get_bool(OptionValues *ovs, const char *name)
         }
     }
 
-    return false;
+    return def;
 }
-

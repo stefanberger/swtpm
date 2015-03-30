@@ -102,8 +102,8 @@ handle_log_options(char *options)
                 error);
         return -1;
     }
-    logfile = option_get_string(ovs, "file");
-    logfd = option_get_int(ovs, "fd");
+    logfile = option_get_string(ovs, "file", NULL);
+    logfd = option_get_int(ovs, "fd", -1);
     if (logfile && (log_init(logfile) < 0)) {
         fprintf(stderr,
             "Could not open logfile for writing: %s\n",
@@ -151,19 +151,19 @@ handle_key_options(char *options)
         goto error;
     }
 
-    keyfile = option_get_string(ovs, "file");
-    pwdfile = option_get_string(ovs, "pwdfile");
+    keyfile = option_get_string(ovs, "file", NULL);
+    pwdfile = option_get_string(ovs, "pwdfile", NULL);
     if (!keyfile && !pwdfile) {
         fprintf(stderr, "Either --key or --pwdfile is required\n");
         goto error;
     }
 
-    tmp = option_get_string(ovs, "format");
+    tmp = option_get_string(ovs, "format", NULL);
     keyformat = key_format_from_string(tmp ? tmp : "hex");
     if (keyformat == KEY_FORMAT_UNKNOWN)
         goto error;
 
-    tmp = option_get_string(ovs, "mode");
+    tmp = option_get_string(ovs, "mode", NULL);
     encmode = encryption_mode_from_string(tmp ? tmp : "aes-cbc");
     if (encmode == ENCRYPTION_MODE_UNKNOWN)
         goto error;
@@ -182,7 +182,7 @@ handle_key_options(char *options)
     if (SWTPM_NVRAM_Set_FileKey(key, keylen, encmode) != TPM_SUCCESS)
         goto error;
 
-    if (option_get_bool(ovs, "remove")) {
+    if (option_get_bool(ovs, "remove", false)) {
         if (keyfile)
             unlink(keyfile);
         if (pwdfile)

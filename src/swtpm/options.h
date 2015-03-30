@@ -74,9 +74,9 @@ typedef struct {
 OptionValues *options_parse(char *opts, const OptionDesc optdesc[],
                             char **error);
 void option_values_free(OptionValues *ov);
-const char *option_get_string(OptionValues *ovs, const char *name);
-int option_get_int(OptionValues *ovs, const char *name);
-bool option_get_bool(OptionValues *ovs, const char *name);
+const char *option_get_string(OptionValues *ovs, const char *name,
+                              const char *def);
+int option_get_int(OptionValues *ovs, const char *name, int def);
+bool option_get_bool(OptionValues *ovs, const char *name, bool def);
 
 #endif /* _SWTPM_OPTIONS_H */
-
