@@ -78,8 +78,11 @@ struct ptmhdata {
     } u;
 };
 
-/* size of the TPM state blob to transfer */
-#define STATE_BLOB_SIZE (8 * 1024)
+/*
+ * size of the TPM state blob to transfer; x86_64 can handle 8k, ppc64le only ~7k
+ * keep the response below a 4k page size
+ */
+#define STATE_BLOB_SIZE (3 * 1024)
 
 /*
  * Data structure to get state blobs from the TPM. If the size of the
