@@ -270,6 +270,11 @@ fi
 AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" == "xyes"])
 AC_SUBST([GNUTLS_LIBS])
 
+AC_PATH_PROG([EXPECT], expect)
+if test "x$EXPECT" == "x"; then
+	AC_MSG_ERROR([expect is required: expect package])
+fi
+
 HARDENING_CFLAGS="-fstack-protector-all -Wstack-protector -pie -fPIE "
 HARDENING_CFLAGS+="-D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now"
 AC_SUBST([HARDENING_CFLAGS])

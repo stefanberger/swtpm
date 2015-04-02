@@ -30,7 +30,7 @@ BuildRequires:  libtasn1-devel libtasn1
 BuildRequires:  libtasn1-tools
 %endif
 %endif
-Requires:       fuse
+Requires:       fuse expect
 
 %description
 TPM emulator built on libtpms providing TPM functionality for QEMU VMs
