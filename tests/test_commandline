@@ -17,6 +17,9 @@ trap "cleanup" SIGTERM EXIT
 function cleanup()
 {
 	rm -rf $TPMDIR
+	if [ -n "$PID" ]; then
+		kill -SIGTERM $PID
+	fi
 }
 
 PORT=11234
