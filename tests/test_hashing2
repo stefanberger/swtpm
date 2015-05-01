@@ -120,7 +120,7 @@ for ((l = 0; l <= 2; l++)); do
 	# Resetting via locality 2 must fail
 	$CUSE_TPM_IOCTL -r $l /dev/$VTPM_NAME
 	if [ $? -eq 0 ]; then
-		echo "Error: Could reset the establishment bit via locality 2"
+		echo "Error: Could reset the establishment bit via locality $l"
 		exit 1
 	fi
 done
