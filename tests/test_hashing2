@@ -125,10 +125,47 @@ for ((l = 0; l <= 2; l++)); do
 	fi
 done
 
+ECHO=$(which echo)
+if [ -z "$ECHO" ]; then
+	echo "Error: Could not find echo tool."
+	exit 1
+fi
+
+# We expect the same results for the TPM_ResetEstablishment command
+for ((l = 0; l <= 2; l++)); do
+	# Set locality
+	$CUSE_TPM_IOCTL -l $l /dev/$VTPM_NAME
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not choose locality $l"
+		exit 1
+	fi
+	# Have to use external echo command
+	$ECHO -en '\x00\xC1\x00\x00\x00\x0a\x40\x00\x00\x0b' >&100
+	RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+	exp=' 00 c4 00 00 00 0a 00 00 00 3d'
+	if [ "$RES" != "$exp" ]; then
+		echo "Error: Could reset TPM establishment bit in locality $l using command"
+		echo "expected: $exp"
+		echo "received: $RES"
+		exit 1
+	fi
+done
+
 # Resetting via locality 3 must work
-$CUSE_TPM_IOCTL -r 3 /dev/$VTPM_NAME
+$CUSE_TPM_IOCTL -l 3 /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not reset the establishment bit via locality 3"
+	exit 1
+fi
+
+# Have to use external echo command
+$ECHO -en '\x00\xC1\x00\x00\x00\x0a\x40\x00\x00\x0b' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Could reset TPM establishment bit in locality 3 using command"
+	echo "expected: $exp"
+	echo "received: $RES"
 	exit 1
 fi
 
