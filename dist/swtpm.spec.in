@@ -113,6 +113,7 @@ Tools for the TPM emulator from the swtpm package
 %config(noreplace) %{_sysconfdir}/swtpm-localca.options
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf
 %attr( 755, root, root) %{_datadir}/@PACKAGE@/swtpm-localca
+%attr( 755, tss, tss) %{_localstatedir}/lib/swtpm-localca
 
 
 %prep

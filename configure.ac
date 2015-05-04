@@ -80,6 +80,7 @@ AC_TYPE_SIGNAL
 
 AC_PROG_CC
 AC_PROG_INSTALL
+AC_PROG_MKDIR_P
 
 AC_ARG_WITH([selinux],
    AS_HELP_STRING([--with-selinux],

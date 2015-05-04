@@ -14,6 +14,10 @@ samplessysconf_DATA = \
 	swtpm-localca.conf \
 	swtpm-localca.options 
 
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)/$(localstatedir)/lib/swtpm-localca
+	chown tss:tss $(DESTDIR)/$(localstatedir)/lib/swtpm-localca
+
 EXTRA_DIST= \
 	swtpm-localca \
 	swtpm-localca.conf \
