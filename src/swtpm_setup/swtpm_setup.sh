@@ -147,7 +147,7 @@ call_create_certs()
 			create_certs_tool_options="$(sed -n 's/\s*create_certs_tool_options\s*=\s*\([^#]*\).*/\1/p' \
 				"$configfile")"
 			if [ -n "$create_certs_tool_options" ]; then
-				params="$params --optsfile $create_certs_tool_optsfile"
+				params="$params --optsfile $create_certs_tool_options"
 			fi
 	      	else
 			logerr "Could not access config file" \
