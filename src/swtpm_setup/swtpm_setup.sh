@@ -87,18 +87,18 @@ trap "cleanup" SIGTERM EXIT
 logit()
 {
 	if [ -z "$LOGFILE" ]; then
-		echo "$1" >&1
+		echo "$@" >&1
 	else
-		echo "$1" >> $LOGFILE
+		echo "$@" >> $LOGFILE
 	fi
 }
 
 logit_cmd()
 {
 	if [ -z "$LOGFILE" ]; then
-		eval "$1" >&1
+		eval "$@" >&1
 	else
-		eval "$1" >> $LOGFILE
+		eval "$@" >> $LOGFILE
 	fi
 }
 
@@ -121,7 +121,7 @@ call_create_certs()
 	local ek="$4"
 	local vmid="$5"
 
-	local logparam
+	local logparam tmp
 	local params="" cmd
 
 	if [ -n "$LOGFILE" ]; then
@@ -166,9 +166,10 @@ call_create_certs()
 				--vmid "$vmid" \
 				${logparam} ${params}"
 			logit "  Invoking: $(echo $cmd | tr -s " ")"
-			eval $cmd
+			tmp="$(eval $cmd 2>&1)"
 			ret=$?
 			if [ $ret -ne 0 ]; then
+				logerr "Error running '$cmd' : $tmp"
 				return $ret
 			fi
 		fi
@@ -180,9 +181,10 @@ call_create_certs()
 				--vmid "$vmid" \
 				${logparam} ${params}"
 			logit "  Invoking: $(echo $cmd | tr -s " ")"
-			eval $cmd
+			tmp="$(eval $cmd 2>&1)"
 			ret=$?
 			if [ $ret -ne 0 ]; then
+				logerr "Error running '$cmd' : $tmp"
 				return $ret
 			fi
 		fi
