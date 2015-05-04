@@ -5,7 +5,7 @@ swtpm-localca.conf
 =head1 DESCRIPTION
 
 The file I</etc/swtpm-localca.conf> contains configuration variables
-for the I<swtpm-localca.sh> program.
+for the I<swtpm-localca> program.
 
 The following configuration variables must be set:
 
@@ -43,7 +43,7 @@ An example I<swtpm-localca.conf> file may look as follows:
 
 =head1 SEE ALSO
 
-B<swtpm-localca.sh>
+B<swtpm-localca>
 
 =head1 REPORTING BUGS
 

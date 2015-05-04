@@ -23,7 +23,7 @@ an example I<swtpm-localca.options> file may look as follows:
 
 =head1 SEE ALSO
 
-B<swtpm-localca.sh>
+B<swtpm-localca>
 
 =head1 REPORTING BUGS
 

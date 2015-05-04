@@ -1,14 +1,14 @@
 =head1 NAME
 
-swtpm-localca.sh
+swtpm-localca
 
 =head1 SYNOPSIS
 
-B<swtpm-localca.sh [OPTIONS]>
+B<swtpm-localca [OPTIONS]>
 
 =head1 DESCRIPTION
 
-B<swtpm-localca.sh> is a tool to create TPM Endorsement Key (EK) and platform
+B<swtpm-localca> is a tool to create TPM Endorsement Key (EK) and platform
 certificates on the host. It uses the I<swtpm_cert> program to create
 the certificates.
 
