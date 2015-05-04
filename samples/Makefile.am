@@ -7,7 +7,7 @@
 samplesconfdir = $(datadir)/@PACKAGE@
 samplessysconfdir = $(sysconfdir)
 
-samplesconf_DATA = \
+samplesconf_SCRIPTS = \
 	swtpm-localca
 
 samplessysconf_DATA = \
@@ -17,6 +17,9 @@ samplessysconf_DATA = \
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)/$(localstatedir)/lib/swtpm-localca
 	chown tss:tss $(DESTDIR)/$(localstatedir)/lib/swtpm-localca
+
+install-exec:
+	chmod 755 $(DESTDIR)/$(samplesconfdir)/swtpm-localca
 
 EXTRA_DIST= \
 	swtpm-localca \
