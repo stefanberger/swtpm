@@ -259,6 +259,7 @@ main() {
 	fi
 	STATEDIR="$tmp"
 	if [ ! -d "$STATEDIR" ]; then
+		logit "Creating swtpm-local state dir."
 		mkdir -p "$STATEDIR"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create directory '${STATEDIR}."
@@ -279,16 +280,23 @@ main() {
 		logerr "Missing signingkey variable in config file $LOCALCA_CONFIG."
 		exit 1
 	fi
-	if [ ! -r "$SIGNKEY" ]; then
-		logerr "Cannot access signing key ${SIGNKEY}."
-		exit 1
-	fi
-
 	ISSUERCERT=$(get_config_value "$LOCALCA_CONFIG" "issuercert")
 	if [ -z "$ISSUERCERT" ]; then
 		logerr "Missing issuercert variable in config file $LOCALCA_CONFIG."
 		exit 1
 	fi
+
+	if [ ! -r "$SIGNKEY" ]; then
+		# Create the signing key and issuer cert since it will be missing
+		logit "Creating local CA's signing key and self signed issuer cert."
+		create_localca_cert
+	fi
+
+	if [ ! -r "$SIGNKEY" ]; then
+		logerr "Cannot access signing key ${SIGNKEY}."
+		exit 1
+	fi
+
 	if [ ! -r "$ISSUERCERT" ]; then
 		logerr "Cannot access issuer certificate ${ISSUERCERT}."
 		exit 1
@@ -296,8 +304,6 @@ main() {
 
 	CERTSERIAL=$(get_config_value "$LOCALCA_CONFIG" "certserial" \
 	    "${STATEDIR}/certserial")
-
-	create_localca_cert
 
 	create_cert "$typ" "$dir" "$ek" "$vmid"
 }
