@@ -143,10 +143,10 @@ int main(int argc, char *argv[])
 
     fd = open(argv[devindex], O_RDWR);
     if (fd < 0) {
-            fprintf(stderr,
-                    "Could not open CUSE TPM device %s: %s\n",
-                    argv[devindex], strerror(errno));
-                return -1;
+        fprintf(stderr,
+                "Could not open CUSE TPM device %s: %s\n",
+                argv[devindex], strerror(errno));
+        return -1;
     }
 
     if (!strcmp(argv[1], "-c")) {
@@ -281,15 +281,19 @@ int main(int argc, char *argv[])
             while (1) {
                 idx = 0;
                 int c = 0;
+
                 while (idx < sizeof(hdata.u.req.data)) {
                     c = fgetc(stdin);
                     if (c == EOF)
                         break;
+
                     hdata.u.req.data[idx] = (char)c;
                     idx++;
                 }
                 hdata.u.req.length = idx;
+
                 n = ioctl(fd, PTM_HASH_DATA, &hdata);
+
                 res = hdata.u.resp.tpm_result;
                 if (n != 0 || res != 0 || c == EOF)
                     break;
@@ -298,18 +302,21 @@ int main(int argc, char *argv[])
             idx = 0;
             while (idx < strlen(argv[2])) {
                 size_t tocopy = strlen(argv[2]) - idx;
+
                 if (tocopy > sizeof(hdata.u.req.data))
                     tocopy = sizeof(hdata.u.req.data);
+
                 hdata.u.req.length = tocopy;
-                memcpy(hdata.u.req.data, &(argv[2])[idx],
-                       tocopy);
+                memcpy(hdata.u.req.data, &(argv[2])[idx], tocopy);
                 idx += tocopy;
+
                 n = ioctl(fd, PTM_HASH_DATA, &hdata);
+
                 res = hdata.u.resp.tpm_result;
                 if (n != 0 || res != 0)
                     break;
             }
-                }
+        }
         if (n != 0) {
             fprintf(stderr,
                     "Could not execute ioctl PTM_HASH_DATA: "
