@@ -289,7 +289,6 @@ static void worker_thread_end()
  */
 static TPM_RESULT
 _TPM_IO_TpmEstablished_Reset(fuse_req_t req,
-                             struct fuse_file_info *fi,
                              TPM_MODIFIER_INDICATOR locty)
 {
     TPM_RESULT res = TPM_FAIL;
@@ -507,6 +506,20 @@ cleanup:
     return;
 }
 
+/*
+ * ptm_ioctl : ioctl execution
+ *
+ * req: the fuse_req_t used to send response with
+ * cmd: the ioctl request code
+ * arg: the pointer the application used for calling the ioctl (3rd param)
+ * fi:
+ * flags: some flags provided by fuse
+ * in_buf: the copy of the input buffer
+ * in_bufsz: size of the input buffer; provided by fuse and has size of
+ *           needed buffer
+ * out_bufsz: size of the output buffer; provided by fuse and has size of
+ *            needed buffer
+ */
 static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                       struct fuse_file_info *fi, unsigned flags,
                       const void *in_buf, size_t in_bufsz, size_t out_bufsz)
@@ -639,7 +652,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             if (re->u.req.loc < 0 || re->u.req.loc > 4) {
                 res = TPM_BAD_LOCALITY;
             } else {
-                res = _TPM_IO_TpmEstablished_Reset(req, fi, re->u.req.loc);
+                res = _TPM_IO_TpmEstablished_Reset(req, re->u.req.loc);
                 fuse_reply_ioctl(req, 0, &res, sizeof(res));
             }
         }
@@ -1021,4 +1034,3 @@ int main(int argc, char **argv)
     return cuse_lowlevel_main(args.argc, args.argv, &ci, &ptm_clop,
                               &param);
 }
-
