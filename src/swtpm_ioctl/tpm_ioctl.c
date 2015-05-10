@@ -249,6 +249,85 @@ static int do_save_state_blob(int fd, const char *blobtype,
     return 0;
 }
 
+/*
+ * do_load_state_blob: Load a TPM state blob from a file and load it into the
+ *                     TPM
+ * @fd: file descriptor to talk to the CUSE TPM
+ * @blobtype: the name of the blobtype
+ * @filename: name of the file to store the blob into
+ */
+static int do_load_state_blob(int fd, const char *blobtype,
+                              const char *filename)
+{
+    int file_fd;
+    ptmres_t res;
+    ptm_setstate_t pss;
+    ssize_t numbytes;
+    bool had_error;
+    int n;
+    uint8_t bt;
+
+    bt = get_blobtype(blobtype);
+    if (!bt) {
+        fprintf(stderr,
+                "Unknown TPM state type '%s'", blobtype);
+        return 1;
+    }
+
+    file_fd = open(filename, O_RDONLY);
+    if (file_fd < 0) {
+        fprintf(stderr,
+                "Could not open file '%s' for reading: %s\n",
+                filename, strerror(errno));
+        return 1;
+    }
+
+    had_error = 0;
+
+    while (true) {
+        /* fill out request every time since response may change it */
+        pss.u.req.state_flags = 0;
+        pss.u.req.type = bt;
+        pss.u.req.tpm_number = 0;
+
+        numbytes = read(file_fd, pss.u.req.data, sizeof(pss.u.req.data));
+        if (numbytes < 0) {
+            fprintf(stderr,
+                    "Could not read from file '%s': %s\n",
+                    filename, strerror(errno));
+            had_error = 1;
+            break;
+        }
+        pss.u.req.length = numbytes;
+
+        n = ioctl(fd, PTM_SET_STATEBLOB, &pss);
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not execute ioctl PTM_SET_STATEBLOB: "
+                    "%s\n", strerror(errno));
+            had_error = 1;
+            break;
+        }
+        res = pss.u.resp.tpm_result;
+        if (res != 0) {
+            fprintf(stderr,
+                    "TPM result from PTM_SET_STATEBLOB: 0x%x\n",
+                    res);
+            had_error = 1;
+            break;
+        }
+        if ((size_t)numbytes < sizeof(pss.u.req.data))
+            break;
+    }
+
+    close(file_fd);
+
+    if (had_error)
+        return 1;
+
+    return 0;
+}
+
 static void usage(const char *prgname)
 {
     fprintf(stdout,
@@ -285,10 +364,6 @@ int main(int argc, char *argv[])
     ptmcap_t cap;
     ptmres_t res;
     ptminit_t init;
-    ptm_setstate_t pss;
-    ssize_t numbytes;
-    int file_fd;
-    bool had_error;
 
     if (argc < 2) {
         fprintf(stderr, "Error: Missing command.\n\n");
@@ -474,60 +549,9 @@ int main(int argc, char *argv[])
             return 1;
 
     } else if (!strcmp(argv[1], "--load")) {
-        file_fd = open(argv[3], O_RDONLY);
-        if (file_fd < 0) {
-            fprintf(stderr,
-                    "Could not open file '%s' for reading: %s\n",
-                    argv[3], strerror(errno));
+        if (do_load_state_blob(fd, argv[2], argv[3]))
             return 1;
-        }
-        had_error = 0;
 
-        while (true) {
-            /* fill out request every time since response may change it */
-            pss.u.req.state_flags = 0;
-            pss.u.req.type = get_blobtype(argv[2]);
-            pss.u.req.tpm_number = 0;
-            if (!pss.u.req.type) {
-                fprintf(stderr,
-                        "Unknown state type '%s'", argv[2]);
-                return 1;
-            }
-
-            numbytes = read(file_fd, pss.u.req.data, sizeof(pss.u.req.data));
-            if (numbytes < 0) {
-                fprintf(stderr,
-                        "Could not read from file '%s': %s\n",
-                        argv[3], strerror(errno));
-                had_error = 1;
-                break;
-            }
-            pss.u.req.length = numbytes;
-
-            n = ioctl(fd, PTM_SET_STATEBLOB, &pss);
-            if (n < 0) {
-                fprintf(stderr,
-                        "Could not execute ioctl PTM_SET_STATEBLOB: "
-                        "%s\n", strerror(errno));
-                had_error = 1;
-                break;
-            }
-            res = pss.u.resp.tpm_result;
-            if (res != 0) {
-                fprintf(stderr,
-                        "TPM result from PTM_SET_STATEBLOB: 0x%x\n",
-                        res);
-                had_error = 1;
-                break;
-            }
-            if ((size_t)numbytes < sizeof(pss.u.req.data))
-                break;
-        }
-
-        close(file_fd);
-
-        if (had_error)
-            return 1;
     } else {
         usage(argv[0]);
         return 1;
