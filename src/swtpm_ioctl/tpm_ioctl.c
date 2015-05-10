@@ -62,6 +62,100 @@
 
 #include <libtpms/tpm_error.h>
 
+
+/*
+ * Do PTM_HASH_START, PTM_HASH_DATA, PTM_HASH_END on the
+ * data.
+ */
+static int do_hash_start_data_end(int fd, const char *input)
+{
+    ptmres_t res;
+    int n;
+    size_t idx;
+    ptmhdata_t hdata;
+
+    /* hash string given on command line */
+    n = ioctl(fd, PTM_HASH_START, &res);
+    if (n < 0) {
+        fprintf(stderr,
+                "Could not execute ioctl PTM_HASH_START: "
+                "%s\n", strerror(errno));
+        return 1;
+    }
+    if (res != 0) {
+        fprintf(stderr,
+                "TPM result from PTM_HASH_START: 0x%x\n", res);
+        return 1;
+    }
+    if (strlen(input) == 1 && input[0] == '-') {
+        /* read data from stdin */
+        while (1) {
+            idx = 0;
+            int c = 0;
+
+            while (idx < sizeof(hdata.u.req.data)) {
+                c = fgetc(stdin);
+                if (c == EOF)
+                    break;
+
+                hdata.u.req.data[idx] = (char)c;
+                idx++;
+            }
+            hdata.u.req.length = idx;
+
+            n = ioctl(fd, PTM_HASH_DATA, &hdata);
+
+            res = hdata.u.resp.tpm_result;
+            if (n != 0 || res != 0 || c == EOF)
+                break;
+        }
+    } else {
+        idx = 0;
+        while (idx < strlen(input)) {
+            size_t tocopy = strlen(input) - idx;
+
+            if (tocopy > sizeof(hdata.u.req.data))
+                tocopy = sizeof(hdata.u.req.data);
+
+            hdata.u.req.length = tocopy;
+            memcpy(hdata.u.req.data, &input[idx], tocopy);
+            idx += tocopy;
+
+            n = ioctl(fd, PTM_HASH_DATA, &hdata);
+
+            res = hdata.u.resp.tpm_result;
+            if (n != 0 || res != 0)
+                break;
+        }
+    }
+    if (n != 0) {
+        fprintf(stderr,
+                "Could not execute ioctl PTM_HASH_DATA: "
+                "%s\n", strerror(errno));
+        return 1;
+    }
+    if (res != 0) {
+        fprintf(stderr,
+               "TPM result from PTM_HASH_DATA: 0x%x\n", res);
+        return 1;
+    }
+    n = ioctl(fd, PTM_HASH_END, &res);
+    if (n < 0) {
+        fprintf(stderr,
+                "Could not execute ioctl PTM_HASH_END: "
+                "%s\n", strerror(errno));
+        return 1;
+    }
+    if (res != 0) {
+        fprintf(stderr,
+                "TPM result from PTM_HASH_END: 0x%x\n", res);
+        return 1;
+    }
+
+    return 0;
+}
+
+
 static void usage(const char *prgname)
 {
     fprintf(stdout,
@@ -107,12 +201,10 @@ int main(int argc, char *argv[])
     ptmreset_est_t reset_est;
     ptmloc_t loc;
     ptmcap_t cap;
-    ptmhdata_t hdata;
     ptmres_t res;
     ptminit_t init;
     ptm_getstate_t pgs;
     ptm_setstate_t pss;
-    size_t idx;
     ssize_t numbytes;
     uint16_t offset;
     int file_fd;
@@ -263,81 +355,7 @@ int main(int argc, char *argv[])
         }
 
     } else if (!strcmp(argv[1], "-h")) {
-        /* hash string given on command line */
-        n = ioctl(fd, PTM_HASH_START, &res);
-        if (n < 0) {
-            fprintf(stderr,
-                    "Could not execute ioctl PTM_HASH_START: "
-                    "%s\n", strerror(errno));
-            return 1;
-        }
-        if (res != 0) {
-            fprintf(stderr,
-                    "TPM result from PTM_HASH_START: 0x%x\n", res);
-            return 1;
-        }
-        if (strlen(argv[2]) == 1 && argv[2][0] == '-') {
-            /* read data from stdin */
-            while (1) {
-                idx = 0;
-                int c = 0;
-
-                while (idx < sizeof(hdata.u.req.data)) {
-                    c = fgetc(stdin);
-                    if (c == EOF)
-                        break;
-
-                    hdata.u.req.data[idx] = (char)c;
-                    idx++;
-                }
-                hdata.u.req.length = idx;
-
-                n = ioctl(fd, PTM_HASH_DATA, &hdata);
-
-                res = hdata.u.resp.tpm_result;
-                if (n != 0 || res != 0 || c == EOF)
-                    break;
-            }
-        } else {
-            idx = 0;
-            while (idx < strlen(argv[2])) {
-                size_t tocopy = strlen(argv[2]) - idx;
-
-                if (tocopy > sizeof(hdata.u.req.data))
-                    tocopy = sizeof(hdata.u.req.data);
-
-                hdata.u.req.length = tocopy;
-                memcpy(hdata.u.req.data, &(argv[2])[idx], tocopy);
-                idx += tocopy;
-
-                n = ioctl(fd, PTM_HASH_DATA, &hdata);
-
-                res = hdata.u.resp.tpm_result;
-                if (n != 0 || res != 0)
-                    break;
-            }
-        }
-        if (n != 0) {
-            fprintf(stderr,
-                    "Could not execute ioctl PTM_HASH_DATA: "
-                    "%s\n", strerror(errno));
-            return 1;
-        }
-        if (res != 0) {
-            fprintf(stderr,
-                   "TPM result from PTM_HASH_DATA: 0x%x\n", res);
-            return 1;
-        }
-        n = ioctl(fd, PTM_HASH_END, &res);
-        if (n < 0) {
-            fprintf(stderr,
-                    "Could not execute ioctl PTM_HASH_END: "
-                    "%s\n", strerror(errno));
-            return 1;
-        }
-        if (res != 0) {
-            fprintf(stderr,
-                    "TPM result from PTM_HASH_END: 0x%x\n", res);
+        if (do_hash_start_data_end(fd, argv[2])) {
             return 1;
         }
 
