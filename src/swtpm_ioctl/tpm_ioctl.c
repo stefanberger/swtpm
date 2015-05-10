@@ -155,6 +155,99 @@ static int do_hash_start_data_end(int fd, const char *input)
     return 0;
 }
 
+static uint8_t get_blobtype(const char *blobname)
+{
+    if (!strcmp(blobname, "permanent"))
+        return PTM_BLOB_TYPE_PERMANENT;
+    if (!strcmp(blobname, "volatile"))
+        return PTM_BLOB_TYPE_VOLATILE;
+    if (!strcmp(blobname, "savestate"))
+        return PTM_BLOB_TYPE_SAVESTATE;
+    return 0;
+}
+
+/*
+ * do_save_state_blob: Get a state blob from the TPM and store it into the
+ *                     given file
+ * @fd: file descriptor to talk to the CUSE TPM
+ * @blobtype: the name of the blobtype
+ * @filename: name of the file to store the blob into
+ *
+ */
+static int do_save_state_blob(int fd, const char *blobtype,
+                              const char *filename)
+{
+    int file_fd;
+    ptmres_t res;
+    ptm_getstate_t pgs;
+    uint16_t offset;
+    ssize_t numbytes;
+    bool had_error;
+    int n;
+    uint8_t bt;
+
+    bt = get_blobtype(blobtype);
+    if (!bt) {
+        fprintf(stderr,
+                "Unknown TPM state type '%s'", blobtype);
+        return 1;
+    }
+
+    file_fd = open(filename, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
+    if (file_fd < 0) {
+        fprintf(stderr,
+                "Could not open file '%s' for writing: %s\n",
+                filename, strerror(errno));
+        return 1;
+    }
+
+    had_error = 0;
+    offset = 0;
+
+    while (true) {
+        /* fill out request every time since response may change it */
+        pgs.u.req.state_flags = STATE_FLAG_DECRYPTED;
+        pgs.u.req.tpm_number = 0;
+        pgs.u.req.type = bt;
+        pgs.u.req.offset = offset;
+
+        n = ioctl(fd, PTM_GET_STATEBLOB, &pgs);
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not execute ioctl PTM_GET_STATEBLOB: "
+                    "%s\n", strerror(errno));
+            had_error = 1;
+            break;
+        }
+        res = pgs.u.resp.tpm_result;
+        if (res != 0 && (res & TPM_NON_FATAL) == 0) {
+            fprintf(stderr,
+                    "TPM result from PTM_GET_STATEBLOB: 0x%x\n",
+                    res);
+            had_error = 1;
+            break;
+        }
+        numbytes = write(file_fd, pgs.u.resp.data, pgs.u.resp.length);
+
+        if (numbytes != pgs.u.resp.length) {
+            fprintf(stderr,
+                    "Could not write to file '%s': %s\n",
+                    filename, strerror(errno));
+            had_error = 1;
+            break;
+        }
+        if (pgs.u.resp.length < sizeof(pgs.u.resp.data))
+            break;
+
+        offset += pgs.u.resp.length;
+    }
+    close(file_fd);
+
+    if (had_error)
+        return 1;
+
+    return 0;
+}
 
 static void usage(const char *prgname)
 {
@@ -182,17 +275,6 @@ static void usage(const char *prgname)
     ,prgname);
 }
 
-static uint8_t get_blobtype(const char *blobname)
-{
-    if (!strcmp(blobname, "permanent"))
-        return PTM_BLOB_TYPE_PERMANENT;
-    if (!strcmp(blobname, "volatile"))
-        return PTM_BLOB_TYPE_VOLATILE;
-    if (!strcmp(blobname, "savestate"))
-        return PTM_BLOB_TYPE_SAVESTATE;
-    return 0;
-}
-
 int main(int argc, char *argv[])
 {
     int fd;
@@ -203,10 +285,8 @@ int main(int argc, char *argv[])
     ptmcap_t cap;
     ptmres_t res;
     ptminit_t init;
-    ptm_getstate_t pgs;
     ptm_setstate_t pss;
     ssize_t numbytes;
-    uint16_t offset;
     int file_fd;
     bool had_error;
 
@@ -390,64 +470,9 @@ int main(int argc, char *argv[])
         }
 
     } else if (!strcmp(argv[1], "--save")) {
-        
-        file_fd = open(argv[3], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
-        if (file_fd < 0) {
-            fprintf(stderr,
-                    "Could not open file '%s' for writing: %s\n",
-                    argv[3], strerror(errno));
+        if (do_save_state_blob(fd, argv[2], argv[3]))
             return 1;
-        }
 
-        had_error = 0;
-        offset = 0;
-
-        while (true) {
-            /* fill out request every time since response may change it */
-            pgs.u.req.state_flags = STATE_FLAG_DECRYPTED;
-            pgs.u.req.tpm_number = 0;
-            pgs.u.req.type = get_blobtype(argv[2]);
-            if (!pgs.u.req.type) {
-                fprintf(stderr,
-                        "Unknown state type '%s'", argv[2]);
-                return 1;
-            }
-            pgs.u.req.offset = offset;
-
-            n = ioctl(fd, PTM_GET_STATEBLOB, &pgs);
-            if (n < 0) {
-                fprintf(stderr,
-                        "Could not execute ioctl PTM_GET_STATEBLOB: "
-                        "%s\n", strerror(errno));
-                had_error = 1;
-                break;
-            }
-            res = pgs.u.resp.tpm_result;
-            if (res != 0 && (res & TPM_NON_FATAL) == 0) {
-                fprintf(stderr,
-                        "TPM result from PTM_GET_STATEBLOB: 0x%x\n",
-                        res);
-                had_error = 1;
-                break;
-            }
-            numbytes = write(file_fd, pgs.u.resp.data, pgs.u.resp.length);
-
-            if (numbytes != pgs.u.resp.length) {
-                fprintf(stderr,
-                        "Could not write to file '%s': %s\n",
-                        argv[3], strerror(errno));
-                had_error = 1;
-                break;
-            }
-            if (pgs.u.resp.length < sizeof(pgs.u.resp.data))
-                break;
-
-            offset += pgs.u.resp.length;
-        }
-        close(file_fd);
-
-        if (had_error)
-            return 1;
     } else if (!strcmp(argv[1], "--load")) {
         file_fd = open(argv[3], O_RDONLY);
         if (file_fd < 0) {
