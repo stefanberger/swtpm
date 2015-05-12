@@ -441,7 +441,7 @@ int main(int argc, char *argv[])
 
     } else if (!strcmp(argv[1], "-r")) {
         reset_est.u.req.loc = atoi(argv[2]);
-        if (reset_est.u.req.loc < 0 || reset_est.u.req.loc > 4) {
+        if (reset_est.u.req.loc > 4) {
             fprintf(stderr,
                     "Locality must be a number from 0 to 4.\n");
             return 1;
@@ -490,7 +490,7 @@ int main(int argc, char *argv[])
 
     } else if (!strcmp(argv[1], "-l")) {
         loc.u.req.loc = atoi(argv[2]);
-        if (loc.u.req.loc < 0 || loc.u.req.loc > 4) {
+        if (loc.u.req.loc > 4) {
             fprintf(stderr,
                     "Locality must be a number from 0 to 4.\n");
             return 1;
