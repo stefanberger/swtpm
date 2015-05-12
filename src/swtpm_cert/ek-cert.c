@@ -109,7 +109,7 @@ hex_to_str(char digit) {
         value = digit - 'a' + 10;
     } else if (digit >= 'A' && digit <= 'F') {
         value = digit - 'A' + 10;
-        }
+    }
 
     return value;
 }
@@ -120,7 +120,7 @@ hex_str_to_bin(const char *hexstr, int *modulus_len)
     int len;
     unsigned char *result;
     int i = 0, j = 0;
-    unsigned char val1, val2;
+    char val1, val2;
 
     len = strlen(hexstr);
 
