@@ -400,7 +400,8 @@ static int mainLoop(struct mainLoopParams *mlp)
             }
             /* write the results */
             if (rc == 0) {
-                rc = SWTPM_IO_Write(&connection_fd, rbuffer, rlength);
+                /* ignore return value since we will close anyway */
+                SWTPM_IO_Write(&connection_fd, rbuffer, rlength);
             }
             /*
              * only allow a single command per connection, otherwise
