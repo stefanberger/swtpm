@@ -184,7 +184,7 @@ key_load_key(const char *filename, enum key_format keyformat,
     int ret = -1;
     int fd;
     char filebuffer[2 + 128/4 + 1 + 1];
-    size_t len;
+    ssize_t len;
 
     fd = open(filename, O_RDONLY);
     if (fd < 0) {
@@ -204,7 +204,7 @@ key_load_key(const char *filename, enum key_format keyformat,
     switch (keyformat) {
     case KEY_FORMAT_BINARY:
         *keylen = len;
-        if (maxkeylen < len) {
+        if (maxkeylen < (size_t)len) {
             fprintf(stderr, "Key is larger than buffer (%zu > %zu).\n",
                     len, maxkeylen);
             return -1;
