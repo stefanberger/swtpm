@@ -145,6 +145,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    /*
+     * need to pass unmodified argv to swtpm_setup.sh
+     */
     execv(path_program, argv);
 
     /* should never get here */
