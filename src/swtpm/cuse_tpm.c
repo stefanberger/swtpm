@@ -649,7 +649,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
             ptmreset_est_t *re = (ptmreset_est_t *)in_buf;
-            if (re->u.req.loc < 0 || re->u.req.loc > 4) {
+            if (re->u.req.loc > 4) {
                 res = TPM_BAD_LOCALITY;
             } else {
                 res = _TPM_IO_TpmEstablished_Reset(req, re->u.req.loc);
