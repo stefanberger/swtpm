@@ -138,7 +138,7 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
 OptionValues *
 options_parse(char *opts, const OptionDesc optdesc[], char **error)
 {
-    char *saveptr = NULL;
+    char *saveptr;
     char *tok;
     int i;
     OptionValues *ovs = calloc(sizeof(OptionValues), 1);
@@ -148,6 +148,8 @@ options_parse(char *opts, const OptionDesc optdesc[], char **error)
         option_error_set(error, "Out of memory.");
         return NULL;
     }
+
+    saveptr = opts; /* make coverity happy */
 
     tok = strtok_r(opts, ",", &saveptr);
     while (tok) {
