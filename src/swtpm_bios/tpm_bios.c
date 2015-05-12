@@ -51,7 +51,6 @@ static int open_connection(void)
 {
 	int fd = -1, tcp_device_port;
 	char *tcp_device_hostname = NULL;
-	char *un_socket_device_path = NULL;
 	char *tcp_device_port_string = NULL;
 
 	if (getenv("TCSD_USE_TCP_DEVICE")) {
@@ -84,22 +83,8 @@ static int open_connection(void)
 			}
 		}
 
-		if (fd < 0 && un_socket_device_path) {
-			struct sockaddr_un addr;
-
-			fd = socket(AF_UNIX, SOCK_STREAM, 0);
-			if (fd >= 0) {
-				addr.sun_family = AF_UNIX;
-				strncpy(addr.sun_path, un_socket_device_path,
-				        sizeof(addr.sun_path));
-				if (connect(fd, (void *)&addr, sizeof(addr)) < 0) {
-					close(fd);
-					fd = -1;
-				}
-			}
-		}
 		if (fd < 0) {
-			printf("Could not connect using TCP or UNIXIO socket.\n");
+			printf("Could not connect using TCP socket.\n");
 		}
 	} else {
 	        char *devname = getenv("TPM_DEVICE");
