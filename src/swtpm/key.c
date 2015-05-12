@@ -243,7 +243,7 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
 {
     unsigned char filebuffer[32];
     int fd;
-    size_t len;
+    ssize_t len;
 #ifdef USE_FREEBL_CRYPTO_LIBRARY
     unsigned char hashbuf[SHA512_BLOCK_LENGTH];
 #else
