@@ -442,8 +442,11 @@ TPM_RESULT SWTPM_IO_Disconnect(TPM_CONNECTION_FD *connection_fd)
     TPM_RESULT  rc = 0;
 
     /* close the connection to the client */
-    close(connection_fd->fd);
-    connection_fd->fd = -1;     /* mark the connection closed */
+    if (connection_fd->fd >= 0) {
+        close(connection_fd->fd);
+        connection_fd->fd = -1;     /* mark the connection closed */
+    }
+
     return rc;
 }
 
