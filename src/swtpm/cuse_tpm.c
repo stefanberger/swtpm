@@ -664,7 +664,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
             ptmloc_t *l = (ptmloc_t *)in_buf;
-            if (l->u.req.loc < 0 || l->u.req.loc > 4) {
+            if (l->u.req.loc > 4) {
                 res = TPM_BAD_LOCALITY;
             } else {
                 res = 0;
