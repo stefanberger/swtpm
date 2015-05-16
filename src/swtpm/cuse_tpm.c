@@ -1002,7 +1002,8 @@ int main(int argc, char **argv)
         return -3;
 
     if (setuid(0)) {
-        fprintf(stderr, "Error: Unable to setuid root\n");
+        fprintf(stderr, "Error: Unable to setuid root. uid = %d, "
+                "euid = %d, gid = %d\n", getuid(), geteuid(), getgid());
         return -4;
     }
 
