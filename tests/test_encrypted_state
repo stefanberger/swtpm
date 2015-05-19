@@ -60,6 +60,10 @@ fi
 
 # Init the TPM
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM initialization failed."
+	exit 1
+fi
 
 sleep 0.5
 
@@ -133,6 +137,10 @@ fi
 
 # Init the TPM
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM initialization failed."
+	exit 1
+fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
@@ -162,6 +170,10 @@ fi
 
 # Send a new TPM_Init
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM initialization failed."
+	exit 1
+fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
@@ -182,7 +194,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 
-# Finale shut down
+# Final shut down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
 

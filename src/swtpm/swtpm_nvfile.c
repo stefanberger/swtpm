@@ -50,20 +50,34 @@
    They take a 'name' that is mapped to a rooted file name.
 */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_memory.h>
 #include <libtpms/tpm_nvfilename.h>
 #include <libtpms/tpm_library.h>
 
+#ifdef USE_FREEBL_CRYPTO_LIBRARY
+# include <blapi.h>
+#else
+# ifdef USE_OPENSSL_CRYPTO_LIBRARY
+#  include <openssl/sha.h>
+# else
+#  error "Unsupported crypto library."
+# endif
+#endif
+
 #include "swtpm_aes.h"
 #include "swtpm_debug.h"
 #include "swtpm_nvfile.h"
 #include "key.h"
+#include "logging.h"
 
 
 /* local prototypes */
@@ -494,6 +508,82 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
     return rc;
 }
 
+static TPM_RESULT
+SWTPM_PrependHash(const unsigned char *in, uint32_t in_length,
+                  unsigned char **out, uint32_t *out_length)
+{
+    TPM_RESULT rc = 0;
+    unsigned char *dest;
+#ifdef USE_FREEBL_CRYPTO_LIBRARY
+    unsigned char hashbuf[SHA256_LENGTH];
+#else
+    unsigned char hashbuf[SHA256_DIGEST_LENGTH];
+#endif
+
+    /* hash the data */
+#ifdef USE_FREEBL_CRYPTO_LIBRARY
+    if (SHA256_HashBuf(hashbuf, in, in_length) != SECSuccess) {
+        logprintf(STDOUT_FILENO, "SHA256_HashBuff failed.\n");
+        rc = TPM_FAIL;
+    }
+#else
+    SHA256(in, in_length, hashbuf);
+#endif
+
+    *out_length = sizeof(hashbuf) + in_length;
+    rc = TPM_Malloc(out, *out_length);
+
+    if (rc == TPM_SUCCESS) {
+        dest = *out;
+        memcpy(dest, hashbuf, sizeof(hashbuf));
+        memcpy(&dest[sizeof(hashbuf)], in, in_length);
+    }
+
+    return rc;
+}
+
+static TPM_RESULT
+SWTPM_CheckHash(const unsigned char *in, uint32_t in_length,
+                unsigned char **out, uint32_t *out_length)
+{
+    TPM_RESULT rc = 0;
+    unsigned char *dest = NULL;
+#ifdef USE_FREEBL_CRYPTO_LIBRARY
+    unsigned char hashbuf[SHA256_LENGTH];
+#else
+    unsigned char hashbuf[SHA256_DIGEST_LENGTH];
+#endif
+    const unsigned char *data = &in[sizeof(hashbuf)];
+    uint32_t data_length = in_length - sizeof(hashbuf);
+
+    /* hash the data */
+#ifdef USE_FREEBL_CRYPTO_LIBRARY
+    if (SHA256_HashBuf(hashbuf, data, data_length) != SECSuccess) {
+        logprintf(STDOUT_FILENO, "SHA256_HashBuff failed.\n");
+        rc = TPM_FAIL;
+    }
+#else
+    SHA256(data, data_length, hashbuf);
+#endif
+
+    if (memcmp(in, hashbuf, sizeof(hashbuf))) {
+        logprintf(STDOUT_FILENO, "Verification of hash failed. "
+                  "Data integrity is compromised\n");
+        rc = TPM_FAIL;
+    }
+
+    if (rc == TPM_SUCCESS) {
+        rc = TPM_Malloc(&dest, data_length);
+        if (rc == TPM_SUCCESS) {
+            *out = dest;
+            *out_length = data_length;
+            memcpy(dest, data, data_length);
+        }
+    }
+
+    return rc;
+}
+
 static TPM_RESULT 
 SWTPM_NVRAM_EncryptData(unsigned char **encrypt_data,
                         uint32_t *encrypt_length,
@@ -501,6 +591,8 @@ SWTPM_NVRAM_EncryptData(unsigned char **encrypt_data,
                         uint32_t decrypt_length)
 {
     TPM_RESULT rc = 0;
+    unsigned char *hashed_data = NULL;
+    uint32_t hashed_length = 0;
 
     if (rc == 0) {
         if (symkey.valid) {
@@ -509,11 +601,16 @@ SWTPM_NVRAM_EncryptData(unsigned char **encrypt_data,
                 rc = TPM_BAD_MODE;
                 break;
             case ENCRYPTION_MODE_AES_CBC:
+                rc = SWTPM_PrependHash(decrypt_data, decrypt_length,
+                                       &hashed_data, &hashed_length);
+                if (rc)
+                     break;
                 rc = TPM_SymmetricKeyData_Encrypt(encrypt_data,
                                                   encrypt_length,
-                                                  decrypt_data,
-                                                  decrypt_length,
+                                                  hashed_data,
+                                                  hashed_length,
                                                   &symkey);
+                TPM_Free(hashed_data);
                 break;
             }
         }
@@ -529,6 +626,8 @@ SWTPM_NVRAM_DecryptData(unsigned char **decrypt_data,
                         uint32_t encrypt_length)
 {
     TPM_RESULT rc = 0;
+    unsigned char *hashed_data = NULL;
+    uint32_t hashed_length = 0;
 
     if (rc == 0) {
         if (symkey.valid) {
@@ -537,11 +636,16 @@ SWTPM_NVRAM_DecryptData(unsigned char **decrypt_data,
                 rc = TPM_BAD_MODE;
                 break;
             case ENCRYPTION_MODE_AES_CBC:
-                rc = TPM_SymmetricKeyData_Decrypt(decrypt_data,
-                                                  decrypt_length,
+                rc = TPM_SymmetricKeyData_Decrypt(&hashed_data,
+                                                  &hashed_length,
                                                   encrypt_data,
                                                   encrypt_length,
                                                   &symkey);
+                if (rc == TPM_SUCCESS) {
+                    rc = SWTPM_CheckHash(hashed_data, hashed_length,
+                                         decrypt_data, decrypt_length);
+                    TPM_Free(hashed_data);
+                }
                 break;
             }
         }
