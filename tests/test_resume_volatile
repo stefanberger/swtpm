@@ -15,12 +15,19 @@ SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
 CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
 VTPM_NAME="vtpm-test-resume-volatile"
 
+tpmstatedir="$(mktemp -d)"
+if [ -z "$tpmstatedir" ]; then
+	echo "Could not create temporary directory"
+	exit 1
+fi
+
 function cleanup()
 {
 	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
 	if [ -n "$pid" ]; then
 		kill -9 $pid
 	fi
+	rm -rf $tpmstatedir
 }
 
 trap "cleanup" EXIT
@@ -30,12 +37,10 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-export TPM_PATH=${PWD}/${DIR}/data/tpmstate1
+export TPM_PATH=$tpmstatedir
 
-# make a backup of the volatile state
-VOLATILE_STATE=$TPM_PATH/tpm-00.volatilestate
-VOLATILE_STATE_BAK=${VOLATILE_STATE}.bak
-cp -f $VOLATILE_STATE $VOLATILE_STATE_BAK
+# copy all the state files
+cp ${PWD}/${DIR}/data/tpmstate1/* ${TPM_PATH}
 
 $SWTPM_EXE -n $VTPM_NAME
 sleep 0.5
@@ -46,8 +51,6 @@ ps aux | grep $SWTPM | grep -v grep
 kill -0 $PID
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM did not start."
-	# Restore the original volatile state
-	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 	exit 1
 fi
 
@@ -59,8 +62,6 @@ sleep 0.5
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
-	# Restore the original volatile state
-	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 	exit 1
 fi
 
@@ -80,8 +81,6 @@ if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
 	echo "expected: $exp"
 	echo "received: $RES"
-	# Restore the original volatile state
-	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 	exit 1
 fi
 
@@ -90,8 +89,6 @@ $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
-	# Restore the original volatile state
-	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 	exit 1
 fi
 
@@ -99,20 +96,12 @@ fi
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
 
-# Restore the original volatile state
-mv $VOLATILE_STATE_BAK $VOLATILE_STATE
-
 echo "Test 1: Ok"
 
 
 # 2nd test: with encrypted state
-
-export TPM_PATH=${PWD}/${DIR}/data/tpmstate2
-
-# make a backup of the volatile state
-VOLATILE_STATE=$TPM_PATH/tpm-00.volatilestate
-VOLATILE_STATE_BAK=${VOLATILE_STATE}.bak
-cp -f $VOLATILE_STATE $VOLATILE_STATE_BAK
+# copy all the state files
+cp ${PWD}/${DIR}/data/tpmstate2/* ${TPM_PATH}
 
 $SWTPM_EXE -n $VTPM_NAME --key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt
 sleep 0.5
@@ -123,8 +112,6 @@ ps aux | grep $SWTPM | grep -v grep
 kill -0 $PID
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM did not start."
-	# Restore the original volatile state
-	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 	exit 1
 fi
 
@@ -140,8 +127,6 @@ sleep 0.5
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
-	# Restore the original volatile state
-	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 	exit 1
 fi
 
@@ -155,8 +140,6 @@ if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
 	echo "expected: $exp"
 	echo "received: $RES"
-	# Restore the original volatile state
-	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 	exit 1
 fi
 
@@ -165,16 +148,11 @@ $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
-	# Restore the original volatile state
-	mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 	exit 1
 fi
 
 # Shut the TPM down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
-
-# Restore the original volatile state
-mv $VOLATILE_STATE_BAK $VOLATILE_STATE
 
 echo "Test 2: Ok"
