@@ -95,6 +95,18 @@ typedef struct {
 /* flags for blobheader */
 #define BLOB_FLAG_ENCRYPTED              0x1
 
+typedef struct {
+    enum encryption_mode data_encmode;
+    TPM_SYMMETRIC_KEY_DATA symkey;
+} encryptionkey ;
+
+static encryptionkey filekey = {
+    .symkey = {
+        .valid = FALSE,
+    },
+};
+
+
 /* local prototypes */
 
 static TPM_RESULT SWTPM_NVRAM_GetFilenameForName(char *filename,
@@ -102,12 +114,14 @@ static TPM_RESULT SWTPM_NVRAM_GetFilenameForName(char *filename,
                                                   uint32_t tpm_number,
                                                  const char *name);
 
-static TPM_RESULT SWTPM_NVRAM_EncryptData(unsigned char **encrypt_data,
+static TPM_RESULT SWTPM_NVRAM_EncryptData(const encryptionkey *key,
+                                          unsigned char **encrypt_data,
                                           uint32_t *encrypt_length,
                                           const unsigned char *decrypt_data,
                                           uint32_t decrypt_length);
 
-static TPM_RESULT SWTPM_NVRAM_DecryptData(unsigned char **decrypt_data,
+static TPM_RESULT SWTPM_NVRAM_DecryptData(const encryptionkey *key,
+                                          unsigned char **decrypt_data,
                                           uint32_t *decrypt_length,
                                           const unsigned char *encrypt_data,
                                           uint32_t encrypt_length);
@@ -289,7 +303,7 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
     }
 
     if (rc == 0 && decrypt) {
-        rc = SWTPM_NVRAM_DecryptData(&decrypt_data, &decrypt_length,
+        rc = SWTPM_NVRAM_DecryptData(&filekey, &decrypt_data, &decrypt_length,
                                      *data, *length);
         TPM_DEBUG(" SWTPM_NVRAM_LoadData: SWTPM_NVRAM_DecryptData rc = %d\n",
                   rc);
@@ -357,7 +371,7 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
     }
 
     if (rc == 0 && encrypt) {
-        rc = SWTPM_NVRAM_EncryptData(&encrypt_data, &encrypt_length,
+        rc = SWTPM_NVRAM_EncryptData(&filekey, &encrypt_data, &encrypt_length,
                                      data, length);
         if (encrypt_data) {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Encrypted %u bytes before "
@@ -491,10 +505,6 @@ TPM_RESULT SWTPM_NVRAM_Store_Volatile(void)
     return rc;
 }
 
-static enum encryption_mode data_encmode;
-static TPM_SYMMETRIC_KEY_DATA symkey = {
-    .valid = FALSE,
-};
 
 TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
                                    enum encryption_mode encmode)
@@ -515,9 +525,9 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
 
 
     if (rc == 0) {
-        symkey.valid = TRUE;
-        memcpy(symkey.userKey, key, keylen);
-        data_encmode = encmode;
+        filekey.symkey.valid = TRUE;
+        memcpy(filekey.symkey.userKey, key, keylen);
+        filekey.data_encmode = encmode;
     }
 
     return rc;
@@ -600,7 +610,8 @@ SWTPM_CheckHash(const unsigned char *in, uint32_t in_length,
 }
 
 static TPM_RESULT 
-SWTPM_NVRAM_EncryptData(unsigned char **encrypt_data,
+SWTPM_NVRAM_EncryptData(const encryptionkey *key,
+                        unsigned char **encrypt_data,
                         uint32_t *encrypt_length,
                         const unsigned char *decrypt_data,
                         uint32_t decrypt_length)
@@ -610,8 +621,8 @@ SWTPM_NVRAM_EncryptData(unsigned char **encrypt_data,
     uint32_t hashed_length = 0;
 
     if (rc == 0) {
-        if (symkey.valid) {
-            switch (data_encmode) {
+        if (key->symkey.valid) {
+            switch (key->data_encmode) {
             case ENCRYPTION_MODE_UNKNOWN:
                 rc = TPM_BAD_MODE;
                 break;
@@ -624,7 +635,7 @@ SWTPM_NVRAM_EncryptData(unsigned char **encrypt_data,
                                                   encrypt_length,
                                                   hashed_data,
                                                   hashed_length,
-                                                  &symkey);
+                                                  &key->symkey);
                 TPM_Free(hashed_data);
                 break;
             }
@@ -635,7 +646,8 @@ SWTPM_NVRAM_EncryptData(unsigned char **encrypt_data,
 }
 
 static TPM_RESULT 
-SWTPM_NVRAM_DecryptData(unsigned char **decrypt_data,
+SWTPM_NVRAM_DecryptData(const encryptionkey *key,
+                        unsigned char **decrypt_data,
                         uint32_t *decrypt_length,
                         const unsigned char *encrypt_data,
                         uint32_t encrypt_length)
@@ -645,8 +657,8 @@ SWTPM_NVRAM_DecryptData(unsigned char **decrypt_data,
     uint32_t hashed_length = 0;
 
     if (rc == 0) {
-        if (symkey.valid) {
-            switch (data_encmode) {
+        if (key->symkey.valid) {
+            switch (key->data_encmode) {
             case ENCRYPTION_MODE_UNKNOWN:
                 rc = TPM_BAD_MODE;
                 break;
@@ -655,7 +667,7 @@ SWTPM_NVRAM_DecryptData(unsigned char **decrypt_data,
                                                   &hashed_length,
                                                   encrypt_data,
                                                   encrypt_length,
-                                                  &symkey);
+                                                  &key->symkey);
                 if (rc == TPM_SUCCESS) {
                     rc = SWTPM_CheckHash(hashed_data, hashed_length,
                                          decrypt_data, decrypt_length);
@@ -758,7 +770,7 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
          * We did not ask for a decrypted blob; in this case it's
          * encrypted if there is a key set
          */
-        *is_encrypted = symkey.valid;
+        *is_encrypted = filekey.symkey.valid;
     }
 
     if (*is_encrypted)
