@@ -134,15 +134,20 @@ error:
 }
 
 /*
- * handle_key_options:
- * Parse and act upon the parsed key options. Set global values related
- * to the options found.
+ * parse_key_options:
+ * Parse and act upon the parsed key options.
+ *
  * @options: the key options to parse
+ * @key: buffer to hold the key
+ * @maxkeylen: size of the buffer (= max. size the key can have)
+ * @keylen: the length of the parsed key
+ * @encmode: the encryption mode as determined from the options
  *
  * Returns 0 on success, -1 on failure.
  */
-int
-handle_key_options(char *options)
+static int
+parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
+                  size_t *keylen, enum encryption_mode *encmode)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -150,13 +155,6 @@ handle_key_options(char *options)
     const char *pwdfile = NULL;
     const char *tmp;
     enum key_format keyformat;
-    enum encryption_mode encmode;
-    unsigned char key[128/8];
-    size_t maxkeylen = sizeof(key);
-    size_t keylen;
-
-    if (!options)
-        return 0;
 
     ovs = options_parse(options, key_opt_desc, &error);
 
@@ -179,23 +177,20 @@ handle_key_options(char *options)
         goto error;
 
     tmp = option_get_string(ovs, "mode", NULL);
-    encmode = encryption_mode_from_string(tmp ? tmp : "aes-cbc");
-    if (encmode == ENCRYPTION_MODE_UNKNOWN)
+    *encmode = encryption_mode_from_string(tmp ? tmp : "aes-cbc");
+    if (*encmode == ENCRYPTION_MODE_UNKNOWN)
         goto error;
 
     if (keyfile != NULL) {
         if (key_load_key(keyfile, keyformat,
-                         key, &keylen, maxkeylen) < 0)
+                         key, keylen, maxkeylen) < 0)
             goto error;
     } else {
         /* no key file, so must be pwdfile */
-        if (key_from_pwdfile(pwdfile, key, &keylen,
+        if (key_from_pwdfile(pwdfile, key, keylen,
                              maxkeylen) < 0)
             goto error;
     }
-
-    if (SWTPM_NVRAM_Set_FileKey(key, keylen, encmode) != TPM_SUCCESS)
-        goto error;
 
     if (option_get_bool(ovs, "remove", false)) {
         if (keyfile)
@@ -212,4 +207,32 @@ error:
     option_values_free(ovs);
 
     return -1;
+}
+
+/*
+ * handle_key_options:
+ * Parse and act upon the parsed key options. Set global values related
+ * to the options found.
+ * @options: the key options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int
+handle_key_options(char *options)
+{
+    enum encryption_mode encmode = ENCRYPTION_MODE_UNKNOWN;
+    unsigned char key[128/8];
+    size_t maxkeylen = sizeof(key);
+    size_t keylen;
+
+    if (!options)
+        return 0;
+
+    if (parse_key_options(options, key, maxkeylen, &keylen, &encmode) < 0)
+        return -1;
+
+    if (SWTPM_NVRAM_Set_FileKey(key, keylen, encmode) != TPM_SUCCESS)
+        return -1;
+
+    return 0;
 }
