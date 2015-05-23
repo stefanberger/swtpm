@@ -58,6 +58,8 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include <arpa/inet.h>
+
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_memory.h>
 #include <libtpms/tpm_nvfilename.h>
@@ -79,6 +81,19 @@
 #include "key.h"
 #include "logging.h"
 
+/* local structures */
+typedef struct {
+    uint8_t  version;
+    uint8_t  min_version; /* min. required version */
+    uint16_t hdrsize;
+    uint16_t flags;
+    uint32_t totlen; /* length of the header and following data */
+} __attribute__((packed)) blobheader;
+
+#define BLOB_HEADER_VERSION 1
+
+/* flags for blobheader */
+#define BLOB_FLAG_ENCRYPTED              0x1
 
 /* local prototypes */
 
@@ -654,6 +669,70 @@ SWTPM_NVRAM_DecryptData(unsigned char **decrypt_data,
     return rc;
 }
 
+
+/*
+ * Prepend a header in front of the state blob
+ */
+static TPM_RESULT
+SWTPM_NVRAM_PrependHeader(unsigned char **data, uint32_t *length,
+                          uint16_t flags)
+{
+    unsigned char *out = NULL;
+    uint32_t out_len = sizeof(blobheader) + *length;
+    blobheader bh = {
+        .version = BLOB_HEADER_VERSION,
+        .min_version = BLOB_HEADER_VERSION,
+        .hdrsize = htons(sizeof(bh)),
+        .flags = htons(flags),
+        .totlen = htonl(out_len),
+    };
+    TPM_RESULT res;
+
+    res = TPM_Malloc(&out, out_len);
+    if (res != TPM_SUCCESS)
+        goto error;
+
+    memcpy(out, &bh, sizeof(bh));
+    memcpy(&out[sizeof(bh)], *data, *length);
+
+    *data = out;
+    *length = out_len;
+
+    return res;
+
+ error:
+    TPM_Free(*data);
+    *data = NULL;
+    *length = 0;
+
+    return res;
+}
+
+
+static TPM_RESULT
+SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
+                        uint32_t *dataoffset)
+{
+    blobheader *bh = (blobheader *)data;
+
+    if (length < sizeof(bh))
+        return TPM_BAD_PARAMETER;
+
+    if (ntohl(bh->totlen) != length)
+        return TPM_BAD_PARAMETER;
+
+    if (bh->min_version > BLOB_HEADER_VERSION) {
+        logprintf(STDERR_FILENO, "Minimum required version for the blob is %d, we "
+                  "only support version %d\n", bh->min_version,
+                  BLOB_HEADER_VERSION);
+        return TPM_BAD_VERSION;
+    }
+
+    *dataoffset = ntohs(bh->hdrsize);
+
+    return TPM_SUCCESS;
+}
+
 /*
  * Get the state blob with the current name; read it from the filesystem.
  * Decrypt it if the caller asks for it and if a key is set. Return
@@ -667,6 +746,7 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
                                     TPM_BOOL *is_encrypted)
 {
     TPM_RESULT res;
+    uint16_t flags = 0;
 
     res = SWTPM_NVRAM_LoadData_Intern(data, length, tpm_number, name,
                                       decrypt);
@@ -680,6 +760,12 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
          */
         *is_encrypted = symkey.valid;
     }
+
+    if (*is_encrypted)
+        flags |= BLOB_FLAG_ENCRYPTED;
+
+    res = SWTPM_NVRAM_PrependHeader(data, length, flags);
+
     return res;
 }
 
@@ -695,7 +781,13 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                     const char *name)
 {
     TPM_BOOL encrypt = !is_encrypted;
+    TPM_RESULT res;
+    uint32_t dataoffset;
 
-    return SWTPM_NVRAM_StoreData_Intern(data, length,
+    res = SWTPM_NVRAM_CheckHeader(data, length, &dataoffset);
+    if (res != TPM_SUCCESS)
+        return res;
+
+    return SWTPM_NVRAM_StoreData_Intern(&data[dataoffset], length - dataoffset,
                                         tpm_number, name, encrypt);
 }
