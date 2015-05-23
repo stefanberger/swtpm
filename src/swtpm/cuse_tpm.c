@@ -107,6 +107,7 @@ struct ptm_param {
     char *runas;
     char *logging;
     char *keydata;
+    char *migkeydata;
 };
 
 
@@ -143,6 +144,14 @@ static const char *usage =
 "                       format; the keyfile can be automatically removed using\n"
 "                       the remove parameter\n"
 "--key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
+"                    :  provide a passphrase in a file; the AES key will be\n"
+"                       derived from this passphrase\n"
+"--migration-key file=<path>,[,mode=aes-cbc][,format=hex|binary][,remove=[true|false]]\n"
+"                    :  use an AES key for the encryption of the TPM's state\n"
+"                       when it is retrieved from the TPM via ioctls;\n"
+"                       Setting this key ensures that the TPM's state will always\n"
+"                       be encrypted when migrated\n"
+"--migration-key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
 "                    :  provide a passphrase in a file; the AES key will be\n"
 "                       derived from this passphrase\n"
 "--log file=<path>|fd=<filedescriptor>\n"
@@ -933,6 +942,7 @@ static const struct fuse_opt ptm_opts[] = {
     PTM_OPT("--runas=%s", runas),
     PTM_OPT("--log %s",   logging),
     PTM_OPT("--key %s",   keydata),
+    PTM_OPT("--migration-key %s",   migkeydata),
     FUSE_OPT_KEY("-h",        0),
     FUSE_OPT_KEY("--help",    0),
     FUSE_OPT_KEY("-v",        1),
@@ -976,6 +986,7 @@ int main(int argc, char **argv)
         .runas = NULL,
         .logging = NULL,
         .keydata = NULL,
+        .migkeydata = NULL,
     };
     char dev_name[128] = "DEVNAME=";
     const char *dev_info_argv[] = { dev_name };
@@ -998,7 +1009,8 @@ int main(int argc, char **argv)
     }
 
     if (handle_log_options(param.logging) < 0 ||
-        handle_key_options(param.keydata) < 0)
+        handle_key_options(param.keydata) < 0 ||
+        handle_migration_key_options(param.migkeydata) < 0)
         return -3;
 
     if (setuid(0)) {

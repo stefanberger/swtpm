@@ -236,3 +236,31 @@ handle_key_options(char *options)
 
     return 0;
 }
+
+/*
+ * handle_migration_key_options:
+ * Parse and act upon the parsed key options. Set global values related
+ * to the options found.
+ * @options: the key options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int
+handle_migration_key_options(char *options)
+{
+    enum encryption_mode encmode = ENCRYPTION_MODE_UNKNOWN;
+    unsigned char key[128/8];
+    size_t maxkeylen = sizeof(key);
+    size_t keylen;
+
+    if (!options)
+        return 0;
+
+    if (parse_key_options(options, key, maxkeylen, &keylen, &encmode) < 0)
+        return -1;
+
+    if (SWTPM_NVRAM_Set_MigrationKey(key, keylen, encmode) != TPM_SUCCESS)
+        return -1;
+
+    return 0;
+}

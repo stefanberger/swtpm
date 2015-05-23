@@ -94,6 +94,7 @@ typedef struct {
 
 /* flags for blobheader */
 #define BLOB_FLAG_ENCRYPTED              0x1
+#define BLOB_FLAG_MIGRATION_ENCRYPTED    0x2 /* encrypted with migration key */
 
 typedef struct {
     enum encryption_mode data_encmode;
@@ -101,6 +102,12 @@ typedef struct {
 } encryptionkey ;
 
 static encryptionkey filekey = {
+    .symkey = {
+        .valid = FALSE,
+    },
+};
+
+static encryptionkey migrationkey = {
     .symkey = {
         .valid = FALSE,
     },
@@ -505,29 +512,53 @@ TPM_RESULT SWTPM_NVRAM_Store_Volatile(void)
     return rc;
 }
 
+static TPM_RESULT
+SWTPM_NVRAM_KeyParamCheck(uint32_t keylen,
+                          enum encryption_mode encmode)
+{
+    TPM_RESULT rc = 0;
+
+    if (keylen != TPM_AES_BLOCK_SIZE) {
+        rc = TPM_BAD_KEY_PROPERTY;
+    }
+    switch (encmode) {
+    case ENCRYPTION_MODE_AES_CBC:
+        break;
+    case ENCRYPTION_MODE_UNKNOWN:
+        rc = TPM_BAD_MODE;
+    }
+
+    return rc;
+}
 
 TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
                                    enum encryption_mode encmode)
 {
-    TPM_RESULT rc = 0;
+    TPM_RESULT rc;
 
-    if (rc == 0) {
-        if (keylen != TPM_AES_BLOCK_SIZE) {
-            rc = TPM_BAD_KEY_PROPERTY;
-        }
-        switch (encmode) {
-        case ENCRYPTION_MODE_AES_CBC:
-            break;
-        case ENCRYPTION_MODE_UNKNOWN:
-            rc = TPM_BAD_MODE;
-        }
-    }
-
+    rc = SWTPM_NVRAM_KeyParamCheck(keylen, encmode);
 
     if (rc == 0) {
         filekey.symkey.valid = TRUE;
         memcpy(filekey.symkey.userKey, key, keylen);
         filekey.data_encmode = encmode;
+    }
+
+    return rc;
+}
+
+TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,
+                                        uint32_t keylen,
+                                        enum encryption_mode encmode)
+{
+    TPM_RESULT rc;
+
+    rc = SWTPM_NVRAM_KeyParamCheck(keylen, encmode);
+
+    if (rc == 0) {
+        migrationkey.symkey.valid = TRUE;
+        memcpy(migrationkey.symkey.userKey, key, keylen);
+        migrationkey.data_encmode = encmode;
     }
 
     return rc;
@@ -723,7 +754,7 @@ SWTPM_NVRAM_PrependHeader(unsigned char **data, uint32_t *length,
 
 static TPM_RESULT
 SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
-                        uint32_t *dataoffset)
+                        uint32_t *dataoffset, uint16_t *hdrflags)
 {
     blobheader *bh = (blobheader *)data;
 
@@ -741,6 +772,7 @@ SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
     }
 
     *dataoffset = ntohs(bh->hdrsize);
+    *hdrflags = ntohs(bh->flags);
 
     return TPM_SUCCESS;
 }
@@ -773,10 +805,34 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
         *is_encrypted = filekey.symkey.valid;
     }
 
-    if (*is_encrypted)
-        flags |= BLOB_FLAG_ENCRYPTED;
+    if (res == TPM_SUCCESS && migrationkey.symkey.valid) {
+        /*
+         * we have to encrypt it now with the migration key
+         */
+        unsigned char *out = NULL;
+        uint32_t out_len = 0;
 
-    res = SWTPM_NVRAM_PrependHeader(data, length, flags);
+        flags |= BLOB_FLAG_MIGRATION_ENCRYPTED;
+
+        res = SWTPM_NVRAM_EncryptData(&migrationkey, &out, &out_len,
+                                      *data, *length);
+        TPM_Free(*data);
+        if (res == TPM_SUCCESS) {
+            *data = out;
+            *length = out_len;
+        } else {
+            *data = NULL;
+            *length = 0;
+        }
+    }
+
+    if (res == TPM_SUCCESS) {
+        /* put the header in clear text */
+        if (*is_encrypted)
+            flags |= BLOB_FLAG_ENCRYPTED;
+
+        res = SWTPM_NVRAM_PrependHeader(data, length, flags);
+    }
 
     return res;
 }
@@ -795,10 +851,36 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
     TPM_BOOL encrypt = !is_encrypted;
     TPM_RESULT res;
     uint32_t dataoffset;
+    unsigned char *plain = NULL;
+    uint32_t plain_len = 0;
+    uint16_t hdrflags;
 
-    res = SWTPM_NVRAM_CheckHeader(data, length, &dataoffset);
+    res = SWTPM_NVRAM_CheckHeader(data, length, &dataoffset, &hdrflags);
     if (res != TPM_SUCCESS)
         return res;
+
+    /*
+     * We allow setting of blobs that were not encrypted before;
+     * we just will not decrypt them even if the migration key is
+     * set. This allows to 'upgrade' to encryption. 'Downgrading'
+     * will not be possible once a migration key was used.
+     */
+    if ((hdrflags & BLOB_FLAG_MIGRATION_ENCRYPTED) && migrationkey.symkey.valid) {
+         /*
+          * we first need to decrypt the data with the migration key
+          */
+         res = SWTPM_NVRAM_DecryptData(&migrationkey,
+                                       &plain, &plain_len,
+                                       &data[dataoffset], length - dataoffset);
+         if (res == TPM_SUCCESS) {
+             res = SWTPM_NVRAM_StoreData_Intern(plain, plain_len,
+                                                tpm_number,
+                                                name,
+                                                encrypt);
+             TPM_Free(plain);
+         }
+         return res;
+    }
 
     return SWTPM_NVRAM_StoreData_Intern(&data[dataoffset], length - dataoffset,
                                         tpm_number, name, encrypt);

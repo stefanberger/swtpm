@@ -74,6 +74,10 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *data,
                                    uint32_t length,
                                    enum encryption_mode mode);
 
+TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *data,
+                                        uint32_t length,
+                                        enum encryption_mode mode);
+
 TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
                                     uint32_t *length,
                                     uint32_t tpm_number,

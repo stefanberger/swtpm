@@ -17,6 +17,7 @@ TESTS = \
 	test_encrypted_state \
 	test_save_load_encrypted_state \
 	test_save_load_state \
+	test_migration_key \
 	\
 	test_commandline \
 	test_parameters \
