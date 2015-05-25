@@ -37,6 +37,7 @@ EXTRA_DIST=$(TESTS) \
 	data/signkey.pem \
 	data/keyfile.txt \
 	data/pwdfile.txt \
+	data/migkey1/volatilestate.bin \
 	data/tpmstate1/tpm-00.permall \
 	data/tpmstate1/tpm-00.volatilestate \
 	data/tpmstate1/README \
