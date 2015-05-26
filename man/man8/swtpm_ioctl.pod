@@ -89,6 +89,11 @@ Note that this command can only be executed on a TPM that is shut down.
 To then start the TPM with the uploaded state, the I<-i> command must
 be issued.
 
+=item B<-g>
+
+Get configuration flags that for example indicate which keys (file encryption
+or migration key) are in use by the CUSE TPM.
+
 =back
 
 =head1 SEE ALSO

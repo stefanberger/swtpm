@@ -531,6 +531,11 @@ SWTPM_NVRAM_KeyParamCheck(uint32_t keylen,
     return rc;
 }
 
+TPM_BOOL SWTPM_NVRAM_Has_FileKey(void)
+{
+    return filekey.symkey.valid;
+}
+
 TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
                                    enum encryption_mode encmode)
 {
@@ -545,6 +550,11 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
     }
 
     return rc;
+}
+
+TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void)
+{
+    return migrationkey.symkey.valid;
 }
 
 TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,

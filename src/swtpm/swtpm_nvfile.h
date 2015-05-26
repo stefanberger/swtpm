@@ -91,5 +91,8 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                     uint32_t tpm_number,
                                     const char *name);
 
+TPM_BOOL SWTPM_NVRAM_Has_FileKey(void);
+TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void);
+
 #endif /* _SWTPM_NVFILE_H */
 

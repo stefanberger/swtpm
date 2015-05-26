@@ -137,6 +137,22 @@ struct ptm_setstate {
     } u;
 };
 
+/*
+ * Data structure to get runtime configuration information
+ * such as which keys are applied.
+ */
+struct ptm_getconfig {
+    union {
+        struct {
+            ptmres_t tpm_result;
+            uint32_t flags;
+        } resp;
+    } u;
+};
+
+#define CONFIG_FLAG_FILE_KEY        0x1
+#define CONFIG_FLAG_MIGRATION_KEY   0x2
+
 
 typedef uint64_t ptmcap_t;
 typedef struct ptmest  ptmest_t;
@@ -146,6 +162,7 @@ typedef struct ptmhdata ptmhdata_t;
 typedef struct ptminit ptminit_t;
 typedef struct ptm_getstate ptm_getstate_t;
 typedef struct ptm_setstate ptm_setstate_t;
+typedef struct ptm_getconfig ptm_getconfig_t;
 
 /* capability flags returned by PTM_GET_CAPABILITY */
 #define PTM_CAP_INIT               (1)
@@ -159,6 +176,7 @@ typedef struct ptm_setstate ptm_setstate_t;
 #define PTM_CAP_GET_STATEBLOB      (1<<8)
 #define PTM_CAP_SET_STATEBLOB      (1<<9)
 #define PTM_CAP_STOP               (1<<10)
+#define PTM_CAP_GET_CONFIG         (1<<11)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptmcap_t),
@@ -175,4 +193,5 @@ enum {
     PTM_GET_STATEBLOB      = _IOWR('P', 11, ptm_getstate_t),
     PTM_SET_STATEBLOB      = _IOWR('P', 12, ptm_setstate_t),
     PTM_STOP               = _IOR('P', 13, ptmres_t),
+    PTM_GET_CONFIG         = _IOR('P', 14, ptm_getconfig_t),
 };

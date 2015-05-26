@@ -548,6 +548,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     case PTM_GET_CAPABILITY:
     case PTM_SET_LOCALITY:
     case PTM_CANCEL_TPM_CMD:
+    case PTM_GET_CONFIG:
         /* no need to wait */
         break;
     case PTM_INIT:
@@ -584,7 +585,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                 | PTM_CAP_RESET_TPMESTABLISHED
                 | PTM_CAP_GET_STATEBLOB
                 | PTM_CAP_SET_STATEBLOB
-                | PTM_CAP_STOP;
+                | PTM_CAP_STOP
+                | PTM_CAP_GET_CONFIG;
             fuse_reply_ioctl(req, 0, &ptm_caps, sizeof(ptm_caps));
         }
         break;
@@ -872,6 +874,22 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
             pss->u.resp.tpm_result = res;
             fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+        }
+        break;
+
+    case PTM_GET_CONFIG:
+        if (out_bufsz != sizeof(ptm_getconfig_t)) {
+            struct iovec iov = { arg, sizeof(uint32_t) };
+            fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
+        } else {
+            ptm_getconfig_t pgs;
+            pgs.u.resp.tpm_result = 0;
+            pgs.u.resp.flags = 0;
+            if (SWTPM_NVRAM_Has_FileKey())
+                pgs.u.resp.flags |= CONFIG_FLAG_FILE_KEY;
+            if (SWTPM_NVRAM_Has_MigrationKey())
+                pgs.u.resp.flags |= CONFIG_FLAG_MIGRATION_KEY;
+            fuse_reply_ioctl(req, 0, &pgs, sizeof(pgs));
         }
         break;
 

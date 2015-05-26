@@ -136,6 +136,17 @@ if [ "$hash" != "$exphash" ]; then
 	exit 1
 fi
 
+tmp=$($CUSE_TPM_IOCTL -g /dev/$VTPM_NAME | cut -d":" -f2)
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the configration flags of the CUSE TPM."
+	exit 1
+fi
+
+if [ "$tmp" != " 0x2" ]; then
+	echo "Error: Unexpected configuration flags: $tmp; expected 0x2."
+	exit 1
+fi
+
 # Shut the TPM down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME

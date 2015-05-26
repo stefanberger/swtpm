@@ -350,6 +350,7 @@ static void usage(const char *prgname)
 "                       type may be one of volatile, permanent, or savestate\n"
 "--load <type> <file> : load the TPM state blob of given type from a file;\n"
 "                       type may be one of volatile, permanent, or savestate\n"
+"-g       : get configuration flags indicating which keys are in use\n"
 "\n"
     ,prgname);
 }
@@ -364,6 +365,7 @@ int main(int argc, char *argv[])
     ptmcap_t cap;
     ptmres_t res;
     ptminit_t init;
+    ptm_getconfig_t cfg;
 
     if (argc < 2) {
         fprintf(stderr, "Error: Missing command.\n\n");
@@ -552,6 +554,21 @@ int main(int argc, char *argv[])
         if (do_load_state_blob(fd, argv[2], argv[3]))
             return 1;
 
+    } else if (!strcmp(argv[1], "-g")) {
+        n = ioctl(fd, PTM_GET_CONFIG, &cfg);
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not execute ioctl PTM_GET_CONFIG: "
+                    "%s\n", strerror(errno));
+            return 1;
+        }
+        if (cfg.u.resp.tpm_result != 0) {
+            fprintf(stderr,
+                    "TPM result from PTM_GET_CONFIG: 0x%x\n",
+                    cfg.u.resp.tpm_result);
+            return 1;
+        }
+        printf("ptm configuration flags: 0x%x\n",cfg.u.resp.flags);
     } else {
         usage(argv[0]);
         return 1;
