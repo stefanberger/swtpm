@@ -1,6 +1,8 @@
 /*
  * tpm_ioctl.h
  *
+ * (c) Copyright IBM Corporation 2014, 2015.
+ *
  * This file is licensed under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either version 2.1 of
  * the License, or (at your option) any later version.

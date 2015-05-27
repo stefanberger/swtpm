@@ -5,7 +5,7 @@
 /*                       Adapted to SWTPM by Stefan Berger                      */
 /*                     IBM Thomas J. Watson Research Center                     */
 /*                                                                              */
-/* (c) Copyright IBM Corporation 2006, 2010, 2014.				*/
+/* (c) Copyright IBM Corporation 2006, 2010, 2014, 2015.			*/
 /*										*/
 /* All rights reserved.								*/
 /* 										*/

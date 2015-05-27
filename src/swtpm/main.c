@@ -1,7 +1,7 @@
 /*
  * main.c -- The TPM Emulator's main function
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2014, 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *

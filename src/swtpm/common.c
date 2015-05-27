@@ -1,7 +1,7 @@
 /*
  * common.c -- Common code for swtpm and swtpm_cuse
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2014, 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *

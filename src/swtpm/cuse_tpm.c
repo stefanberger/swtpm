@@ -1,6 +1,8 @@
 /*
  * ptm - CUSE based TPM PassThrough Multiplexer for QEMU.
  *
+ * (c) Copyright IBM Corporation 2014, 2015.
+ *
  * This program instantiates one /dev/vtpm* device, and
  * calls libtpms to handle requests
  *
