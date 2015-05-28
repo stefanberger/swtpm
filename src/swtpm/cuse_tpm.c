@@ -131,6 +131,15 @@ struct stateblob {
     uint32_t length;
 };
 
+typedef struct stateblob_desc {
+    uint32_t blobtype;
+    TPM_BOOL decrypt;
+    TPM_BOOL is_encrypted;
+    unsigned char *data;
+    uint32_t data_length;
+} stateblob_desc;
+
+
 static const char *usage =
 "usage: %s [options]\n"
 "\n"
@@ -517,6 +526,131 @@ cleanup:
     return;
 }
 
+static stateblob_desc cached_stateblob;
+
+static bool
+cached_stateblob_is_loaded(uint32_t blobtype, TPM_BOOL decrypt)
+{
+    return (cached_stateblob.data != NULL) &&
+           (cached_stateblob.blobtype == blobtype) &&
+           (cached_stateblob.decrypt == decrypt);
+}
+
+/*
+ * cached_stateblob_free: Free any previously loaded state blob
+ */
+static void
+cached_stateblob_free(void)
+{
+    TPM_Free(cached_stateblob.data);
+    cached_stateblob.data = NULL;
+    cached_stateblob.data_length = 0;
+}
+
+/*
+ * cached_stateblob_load: load a state blob into the cache
+ *
+ * blobtype: the type of blob
+ * decrypt: whether the blob is to be decrypted
+ */
+static TPM_RESULT
+cached_stateblob_load(uint32_t blobtype, TPM_BOOL decrypt)
+{
+    TPM_RESULT res = 0;
+    const char *blobname = ptm_get_blobname(blobtype);
+    uint32_t tpm_number = 0;
+
+    if (!blobname)
+        return TPM_BAD_PARAMETER;
+
+    cached_stateblob_free();
+
+    if (blobtype == PTM_BLOB_TYPE_VOLATILE)
+        res = SWTPM_NVRAM_Store_Volatile();
+
+    if (res == 0)
+        res = SWTPM_NVRAM_GetStateBlob(&cached_stateblob.data,
+                                       &cached_stateblob.data_length,
+                                       tpm_number, blobname, decrypt,
+                                       &cached_stateblob.is_encrypted);
+
+    /* make sure the volatile state file is gone */
+    if (blobtype == PTM_BLOB_TYPE_VOLATILE)
+        SWTPM_NVRAM_DeleteName(tpm_number, blobname, FALSE);
+
+    if (res == 0) {
+        cached_stateblob.blobtype = blobtype;
+        cached_stateblob.decrypt = decrypt;
+    }
+
+    return res;
+}
+
+/*
+ * cached_state_blob_copy: copy the cached state blob to a destination buffer
+ *
+ * dest: destination buffer
+ * destlen: size of the buffer
+ * srcoffset: offset to copy from
+ * copied: variable to return the number of copied bytes
+ * is_encrypted: variable to return whether the blob is encrypted
+ */
+static int
+cached_stateblob_copy(void *dest, size_t destlen, uint32_t srcoffset,
+                      uint32_t *copied, TPM_BOOL *is_encrypted)
+{
+    int ret = -1;
+
+    *copied = 0;
+
+    if (cached_stateblob.data != NULL && cached_stateblob.data_length > 0) {
+
+        if (srcoffset < cached_stateblob.data_length) {
+            *copied = min(cached_stateblob.data_length - srcoffset, destlen);
+
+            memcpy(dest, &cached_stateblob.data[srcoffset], *copied);
+
+            *is_encrypted = cached_stateblob.is_encrypted;
+        }
+
+        ret = 0;
+    }
+
+    return ret;
+}
+
+/*
+ * ptm_get_stateblob: Get the state blob from the TPM
+ */
+static void
+ptm_get_stateblob(fuse_req_t req, ptm_getstate_t *pgs)
+{
+    TPM_RESULT res = 0;
+    uint32_t blobtype = pgs->u.req.type;
+    TPM_BOOL decrypt = ((pgs->u.req.state_flags & STATE_FLAG_DECRYPTED) != 0);
+    TPM_BOOL is_encrypted = FALSE;
+    uint32_t copied = 0;
+
+    if (!cached_stateblob_is_loaded(blobtype, decrypt)) {
+        res = cached_stateblob_load(blobtype, decrypt);
+    }
+
+    if (res == 0) {
+        cached_stateblob_copy(&pgs->u.resp.data, sizeof(pgs->u.resp.data),
+                              pgs->u.req.offset, &copied, &is_encrypted);
+
+        pgs->u.resp.state_flags = 0;
+        if (is_encrypted) {
+            pgs->u.resp.state_flags |= STATE_FLAG_ENCRYPTED;
+        }
+    }
+
+    pgs->u.resp.length = copied;
+    pgs->u.resp.tpm_result = res;
+
+    fuse_reply_ioctl(req, 0, pgs, sizeof(pgs->u.resp));
+}
+
 /*
  * ptm_ioctl : ioctl execution
  *
@@ -740,66 +874,19 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
         res = SWTPM_NVRAM_Store_Volatile();
         fuse_reply_ioctl(req, 0, &res, sizeof(res));
+
+        cached_stateblob_free();
         break;
 
     case PTM_GET_STATEBLOB:
         if (!tpm_running)
             goto error_not_running;
 
-        if (!in_bufsz) {
+        if (in_bufsz != sizeof(ptm_getstate_t)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptm_getstate_t *pgs = (ptm_getstate_t *)in_buf;
-            const char *blobname = ptm_get_blobname(pgs->u.req.type);
-            unsigned char *data = NULL;
-            uint32_t length = 0, to_copy, offset;
-            TPM_BOOL decrypt = ((pgs->u.req.state_flags & STATE_FLAG_DECRYPTED)
-                                != 0);
-            TPM_BOOL is_encrypted;
-            uint32_t tpm_number = pgs->u.req.tpm_number;
-            uint32_t blobtype = pgs->u.req.type;
-
-            if (blobname) {
-                offset = pgs->u.req.offset;
-
-                res = SWTPM_NVRAM_GetStateBlob(&data, &length,
-                                               tpm_number,
-                                               blobname, decrypt,
-                                               &is_encrypted);
-                if (data != NULL && length > 0) {
-                    to_copy = 0;
-                    if (offset < length) {
-                        to_copy = min(length - offset,
-                                      sizeof(pgs->u.resp.data));
-                        memcpy(&pgs->u.resp.data, &data[offset], to_copy);
-                    }
-
-                    pgs->u.resp.length = to_copy;
-                    TPM_Free(data);
-                    data = NULL;
-
-                    pgs->u.resp.state_flags = 0;
-                    if (is_encrypted) {
-                        pgs->u.resp.state_flags |= STATE_FLAG_ENCRYPTED;
-                    }
-                    if (blobtype == PTM_BLOB_TYPE_VOLATILE &&
-                        to_copy < sizeof(pgs->u.resp.data)) {
-                        /* volatile blob deleted once transferred */
-                        SWTPM_NVRAM_DeleteName(tpm_number, blobname, FALSE);
-                    }
-                } else {
-                    /* 
-                     * blob presumably does not exist; not an error
-                     * res would show TPM_RETRY (0x800) flag
-                     */
-                    pgs->u.resp.length = 0;
-                }
-            } else {
-                res = TPM_BAD_PARAMETER;
-            }
-            pgs->u.resp.tpm_result = res;
-            fuse_reply_ioctl(req, 0, pgs, sizeof(pgs->u.resp));
+            ptm_get_stateblob(req, (ptm_getstate_t *)in_buf);
         }
         break;
 
