@@ -651,6 +651,70 @@ ptm_get_stateblob(fuse_req_t req, ptm_getstate_t *pgs)
     fuse_reply_ioctl(req, 0, pgs, sizeof(pgs->u.resp));
 }
 
+static void
+ptm_set_stateblob(fuse_req_t req, ptm_setstate_t *pss)
+{
+    const char *blobname;
+    TPM_RESULT res = 0;
+    TPM_BOOL is_encrypted = ((pss->u.req.state_flags & STATE_FLAG_ENCRYPTED) != 0);
+    static struct stateblob stateblob;
+
+    if (pss->u.req.length > sizeof(pss->u.req.data)) {
+        res = TPM_BAD_PARAMETER;
+        goto send_response;
+    }
+
+    if (stateblob.type != pss->u.req.type) {
+        /* clear old data */
+        TPM_Free(stateblob.data);
+        stateblob.data = NULL;
+        stateblob.length = 0;
+        stateblob.type = pss->u.req.type;
+    }
+
+    /* append */
+    res = TPM_Realloc(&stateblob.data,
+                      stateblob.length + pss->u.req.length);
+    if (res != 0) {
+        /* error */
+        TPM_Free(stateblob.data);
+        stateblob.data = NULL;
+        stateblob.length = 0;
+        stateblob.type = 0;
+
+        goto send_response;
+    }
+
+    memcpy(&stateblob.data[stateblob.length],
+           pss->u.req.data, pss->u.req.length);
+    stateblob.length += pss->u.req.length;
+
+    if (pss->u.req.length == sizeof(pss->u.req.data)) {
+        /* full packet -- expecting more data */
+        goto send_response;
+    }
+    blobname = ptm_get_blobname(pss->u.req.type);
+
+    if (blobname) {
+        res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
+                                       stateblob.length,
+                                       is_encrypted,
+                                       pss->u.req.tpm_number,
+                                       blobname);
+    } else {
+        res = TPM_BAD_PARAMETER;
+    }
+    TPM_Free(stateblob.data);
+    stateblob.data = NULL;
+    stateblob.length = 0;
+    stateblob.type = 0;
+
+ send_response:
+    pss->u.resp.tpm_result = res;
+
+    fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+}
+
 /*
  * ptm_ioctl : ioctl execution
  *
@@ -672,7 +736,6 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     TPM_RESULT res;
     bool exit_prg = FALSE;
     ptminit_t *init_p;
-    static struct stateblob stateblob;
 
     if (flags & FUSE_IOCTL_COMPAT) {
         fuse_reply_err(req, ENOSYS);
@@ -897,72 +960,11 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         /* tpm state dir must be set */
         SWTPM_NVRAM_Init();
 
-        if (!in_bufsz) {
+        if (in_bufsz != sizeof(ptm_setstate_t)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptm_setstate_t *pss = (ptm_setstate_t *)in_buf;
-            const char *blobname;
-            TPM_BOOL is_encrypted =
-                ((pss->u.req.state_flags & STATE_FLAG_ENCRYPTED) != 0);
-
-            if (pss->u.req.length > sizeof(pss->u.req.data)) {
-                pss->u.resp.tpm_result = TPM_BAD_PARAMETER;
-                fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
-                break;
-            }
-
-            if (stateblob.type != pss->u.req.type) {
-                /* clear old data */
-                TPM_Free(stateblob.data);
-                stateblob.data = NULL;
-                stateblob.length = 0;
-                stateblob.type = pss->u.req.type;
-            }
-
-            /* append */
-            res = TPM_Realloc(&stateblob.data,
-                              stateblob.length + pss->u.req.length);
-            if (res != 0) {
-                /* error */
-                TPM_Free(stateblob.data);
-                stateblob.data = NULL;
-                stateblob.length = 0;
-                stateblob.type = 0;
-
-                pss->u.resp.tpm_result = res;
-                fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
-                break;
-            }
-
-            memcpy(&stateblob.data[stateblob.length],
-                   pss->u.req.data, pss->u.req.length);
-            stateblob.length += pss->u.req.length;
-
-            if (pss->u.req.length == sizeof(pss->u.req.data)) {
-                /* full packet */
-                pss->u.resp.tpm_result = 0;
-                fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
-                break;
-            }
-            blobname = ptm_get_blobname(pss->u.req.type);
-
-            if (blobname) {
-                res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
-                                               stateblob.length,
-                                               is_encrypted,
-                                               pss->u.req.tpm_number,
-                                               blobname);
-            } else {
-                res = TPM_BAD_PARAMETER;
-            }
-            TPM_Free(stateblob.data);
-            stateblob.data = NULL;
-            stateblob.length = 0;
-            stateblob.type = 0;
-
-            pss->u.resp.tpm_result = res;
-            fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+            ptm_set_stateblob(req, (ptm_setstate_t *)in_buf);
         }
         break;
 
