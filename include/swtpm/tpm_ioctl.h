@@ -81,8 +81,8 @@ struct ptmhdata {
 };
 
 /*
- * size of the TPM state blob to transfer; x86_64 can handle 8k, ppc64le only ~7k
- * keep the response below a 4k page size
+ * size of the TPM state blob to transfer; x86_64 can handle 8k,
+ * ppc64le only ~7k; keep the response below a 4k page size
  */
 #define STATE_BLOB_SIZE (3 * 1024)
 
@@ -116,7 +116,7 @@ struct ptm_getstate {
 
 /* state_flags above : */
 #define STATE_FLAG_DECRYPTED     1 /* on input:  get decrypted state */
-#define STATE_FLAG_ENCRYPTED     2 /* on output: state is encrytped */
+#define STATE_FLAG_ENCRYPTED     2 /* on output: state is encrypted */
 
 /*
  * Data structure to set state blobs in the TPM. If the size of the
@@ -140,7 +140,7 @@ struct ptm_setstate {
 };
 
 /*
- * Data structure to get runtime configuration information
+ * PTM_GET_CONFIG: Data structure to get runtime configuration information
  * such as which keys are applied.
  */
 struct ptm_getconfig {
@@ -157,9 +157,9 @@ struct ptm_getconfig {
 
 
 typedef uint64_t ptmcap_t;
-typedef struct ptmest  ptmest_t;
+typedef struct ptmest ptmest_t;
 typedef struct ptmreset_est ptmreset_est_t;
-typedef struct ptmloc  ptmloc_t;
+typedef struct ptmloc ptmloc_t;
 typedef struct ptmhdata ptmhdata_t;
 typedef struct ptminit ptminit_t;
 typedef struct ptm_getstate ptm_getstate_t;
