@@ -15,38 +15,38 @@
 
 /*
  * Every response from a command involving a TPM command execution must hold
- * the ptmres_t as the first element.
- * ptmres_t corresponds to the error code of a command executed by the TPM.
+ * the ptm_res as the first element.
+ * ptm_res corresponds to the error code of a command executed by the TPM.
  */
 
-typedef uint32_t ptmres_t;
+typedef uint32_t ptm_res;
 
 /* PTM_GET_TPMESTABLISHED */
-struct ptmest {
-    ptmres_t tpm_result;
+struct ptm_est {
+    ptm_res tpm_result;
     unsigned char bit; /* TPM established bit */
 };
 
-/* PTM_RESET_PTMESTABLIHSED: reset establishment bit */
-struct ptmreset_est {
+/* PTM_RESET_PTMESTABLISHED: reset establishment bit */
+struct ptm_reset_est {
     union {
         struct {
             uint8_t loc; /* locality to use */
         } req;
         struct {
-            ptmres_t tpm_result;
+            ptm_res tpm_result;
         } resp;
     } u;
 };
 
 /* PTM_INIT */
-struct ptminit {
+struct ptm_init {
     union {
         struct {
             uint32_t init_flags; /* see definitions below */
         } req;
         struct {
-            ptmres_t tpm_result;
+            ptm_res tpm_result;
         } resp;
     } u;
 };
@@ -56,26 +56,26 @@ struct ptminit {
     /* delete volatile state file after reading it */
 
 /* PTM_SET_LOCALITY */
-struct ptmloc {
+struct ptm_loc {
     union {
         struct {
             uint8_t loc; /* locality to set */
         } req;
         struct {
-            ptmres_t tpm_result;
+            ptm_res tpm_result;
         } resp;
     } u;
 };
 
 /* PTM_HASH_DATA: hash given data */
-struct ptmhdata {
+struct ptm_hdata {
     union {
         struct {
             uint32_t length;
             uint8_t data[4096];
         } req;
         struct {
-            ptmres_t tpm_result;
+            ptm_res tpm_result;
         } resp;
     } u;
 };
@@ -101,7 +101,7 @@ struct ptm_getstate {
             uint32_t offset;      /* offset from where to read */
         } req;
         struct {
-            ptmres_t tpm_result;
+            ptm_res tpm_result;
             uint32_t state_flags; /* may be: STATE_FLAG_ENCRYPTED */
             uint32_t length;
             uint8_t  data[STATE_BLOB_SIZE];
@@ -134,7 +134,7 @@ struct ptm_setstate {
             uint8_t data[STATE_BLOB_SIZE];
         } req;
         struct {
-            ptmres_t tpm_result;
+            ptm_res tpm_result;
         } resp;
     } u;
 };
@@ -146,7 +146,7 @@ struct ptm_setstate {
 struct ptm_getconfig {
     union {
         struct {
-            ptmres_t tpm_result;
+            ptm_res tpm_result;
             uint32_t flags;
         } resp;
     } u;
@@ -156,15 +156,15 @@ struct ptm_getconfig {
 #define CONFIG_FLAG_MIGRATION_KEY   0x2
 
 
-typedef uint64_t ptmcap_t;
-typedef struct ptmest ptmest_t;
-typedef struct ptmreset_est ptmreset_est_t;
-typedef struct ptmloc ptmloc_t;
-typedef struct ptmhdata ptmhdata_t;
-typedef struct ptminit ptminit_t;
-typedef struct ptm_getstate ptm_getstate_t;
-typedef struct ptm_setstate ptm_setstate_t;
-typedef struct ptm_getconfig ptm_getconfig_t;
+typedef uint64_t ptm_cap;
+typedef struct ptm_est ptm_est;
+typedef struct ptm_reset_est ptm_reset_est;
+typedef struct ptm_loc ptm_loc;
+typedef struct ptm_hdata ptm_hdata;
+typedef struct ptm_init ptm_init;
+typedef struct ptm_getstate ptm_getstate;
+typedef struct ptm_setstate ptm_setstate;
+typedef struct ptm_getconfig ptm_getconfig;
 
 /* capability flags returned by PTM_GET_CAPABILITY */
 #define PTM_CAP_INIT               (1)
@@ -181,19 +181,19 @@ typedef struct ptm_getconfig ptm_getconfig_t;
 #define PTM_CAP_GET_CONFIG         (1<<11)
 
 enum {
-    PTM_GET_CAPABILITY     = _IOR('P', 0, ptmcap_t),
-    PTM_INIT               = _IOWR('P', 1, ptminit_t),
-    PTM_SHUTDOWN           = _IOR('P', 2, ptmres_t),
-    PTM_GET_TPMESTABLISHED = _IOR('P', 3, ptmest_t),
-    PTM_SET_LOCALITY       = _IOWR('P', 4, ptmloc_t),
-    PTM_HASH_START         = _IOR('P', 5, ptmres_t),
-    PTM_HASH_DATA          = _IOWR('P', 6, ptmhdata_t),
-    PTM_HASH_END           = _IOR('P', 7, ptmres_t),
-    PTM_CANCEL_TPM_CMD     = _IOR('P', 8, ptmres_t),
-    PTM_STORE_VOLATILE     = _IOR('P', 9, ptmres_t),
-    PTM_RESET_TPMESTABLISHED = _IOWR('P', 10, ptmreset_est_t),
-    PTM_GET_STATEBLOB      = _IOWR('P', 11, ptm_getstate_t),
-    PTM_SET_STATEBLOB      = _IOWR('P', 12, ptm_setstate_t),
-    PTM_STOP               = _IOR('P', 13, ptmres_t),
-    PTM_GET_CONFIG         = _IOR('P', 14, ptm_getconfig_t),
+    PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
+    PTM_INIT               = _IOWR('P', 1, ptm_init),
+    PTM_SHUTDOWN           = _IOR('P', 2, ptm_res),
+    PTM_GET_TPMESTABLISHED = _IOR('P', 3, ptm_est),
+    PTM_SET_LOCALITY       = _IOWR('P', 4, ptm_loc),
+    PTM_HASH_START         = _IOR('P', 5, ptm_res),
+    PTM_HASH_DATA          = _IOWR('P', 6, ptm_hdata),
+    PTM_HASH_END           = _IOR('P', 7, ptm_res),
+    PTM_CANCEL_TPM_CMD     = _IOR('P', 8, ptm_res),
+    PTM_STORE_VOLATILE     = _IOR('P', 9, ptm_res),
+    PTM_RESET_TPMESTABLISHED = _IOWR('P', 10, ptm_reset_est),
+    PTM_GET_STATEBLOB      = _IOWR('P', 11, ptm_getstate),
+    PTM_SET_STATEBLOB      = _IOWR('P', 12, ptm_setstate),
+    PTM_STOP               = _IOR('P', 13, ptm_res),
+    PTM_GET_CONFIG         = _IOR('P', 14, ptm_getconfig),
 };

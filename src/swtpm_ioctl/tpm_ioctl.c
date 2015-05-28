@@ -69,10 +69,10 @@
  */
 static int do_hash_start_data_end(int fd, const char *input)
 {
-    ptmres_t res;
+    ptm_res res;
     int n;
     size_t idx;
-    ptmhdata_t hdata;
+    ptm_hdata hdata;
 
     /* hash string given on command line */
     n = ioctl(fd, PTM_HASH_START, &res);
@@ -178,8 +178,8 @@ static int do_save_state_blob(int fd, const char *blobtype,
                               const char *filename)
 {
     int file_fd;
-    ptmres_t res;
-    ptm_getstate_t pgs;
+    ptm_res res;
+    ptm_getstate pgs;
     uint16_t offset;
     ssize_t numbytes;
     bool had_error;
@@ -260,8 +260,8 @@ static int do_load_state_blob(int fd, const char *blobtype,
                               const char *filename)
 {
     int file_fd;
-    ptmres_t res;
-    ptm_setstate_t pss;
+    ptm_res res;
+    ptm_setstate pss;
     ssize_t numbytes;
     bool had_error;
     int n;
@@ -359,13 +359,13 @@ int main(int argc, char *argv[])
 {
     int fd;
     int devindex, n;
-    ptmest_t est;
-    ptmreset_est_t reset_est;
-    ptmloc_t loc;
-    ptmcap_t cap;
-    ptmres_t res;
-    ptminit_t init;
-    ptm_getconfig_t cfg;
+    ptm_est est;
+    ptm_reset_est reset_est;
+    ptm_loc loc;
+    ptm_cap cap;
+    ptm_res res;
+    ptm_init init;
+    ptm_getconfig cfg;
 
     if (argc < 2) {
         fprintf(stderr, "Error: Missing command.\n\n");

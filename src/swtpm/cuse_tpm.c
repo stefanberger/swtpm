@@ -66,7 +66,7 @@
 #include <glib.h>
 
 #define TPM_REQ_MAX 4096
-static unsigned char *ptm_req, *ptm_res;
+static unsigned char *ptm_request, *ptm_response;
 static uint32_t ptm_req_len, ptm_res_len, ptm_res_tot;
 static TPM_MODIFIER_INDICATOR locality;
 static int tpm_running;
@@ -279,8 +279,8 @@ static void worker_thread(gpointer data, gpointer user_data)
 
     switch (msg->type) {
     case MESSAGE_TPM_CMD:
-        TPMLIB_Process(&ptm_res, &ptm_res_len, &ptm_res_tot,
-                       ptm_req, ptm_req_len);
+        TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
+                       ptm_request, ptm_req_len);
         break;
     case MESSAGE_IOCTL:
         break;
@@ -318,7 +318,7 @@ _TPM_IO_TpmEstablished_Reset(fuse_req_t req,
     locality = locty;
 
     ptm_req_len = sizeof(TPM_ResetEstablishmentBit);
-    memcpy(ptm_req, TPM_ResetEstablishmentBit, ptm_req_len);
+    memcpy(ptm_request, TPM_ResetEstablishmentBit, ptm_req_len);
     msg.type = MESSAGE_TPM_CMD;
     msg.req = req;
 
@@ -329,7 +329,7 @@ _TPM_IO_TpmEstablished_Reset(fuse_req_t req,
     worker_thread_wait_done();
 
     if (ptm_res_len >= sizeof(TPM_Response_Header)) {
-        tpmrh = (TPM_Response_Header *)ptm_res;
+        tpmrh = (TPM_Response_Header *)ptm_response;
         res = ntohl(tpmrh->returnCode);
     }
 
@@ -399,9 +399,9 @@ static int tpm_start(uint32_t flags)
         }
     }
 
-    if(!ptm_req)
-        ptm_req = malloc(4096);
-    if(!ptm_req) {
+    if(!ptm_request)
+        ptm_request = malloc(4096);
+    if(!ptm_request) {
         logprintf(STDERR_FILENO,
                   "Error: Could not allocate memory for request buffer.\n");
         goto error_terminate;
@@ -450,14 +450,14 @@ static void ptm_open(fuse_req_t req, struct fuse_file_info *fi)
  */
 static void ptm_write_fatal_error_response(void)
 {
-    if (ptm_res == NULL ||
+    if (ptm_response == NULL ||
         ptm_res_tot < sizeof(TPM_Resp_FatalError)) {
         ptm_res_tot = sizeof(TPM_Resp_FatalError);
-        TPM_Realloc(&ptm_res, ptm_res_tot);
+        TPM_Realloc(&ptm_response, ptm_res_tot);
     }
-    if (ptm_res) {
+    if (ptm_response) {
         ptm_res_len = sizeof(TPM_Resp_FatalError);
-        memcpy(ptm_res,
+        memcpy(ptm_response,
                TPM_Resp_FatalError,
                sizeof(TPM_Resp_FatalError));
     }
@@ -482,7 +482,7 @@ static void ptm_read(fuse_req_t req, size_t size, off_t off,
         ptm_res_len = 0;
     }
 
-    fuse_reply_buf(req, (const char *)ptm_res, len);
+    fuse_reply_buf(req, (const char *)ptm_response, len);
 }
 
 static void ptm_write(fuse_req_t req, const char *buf, size_t size,
@@ -505,7 +505,7 @@ static void ptm_write(fuse_req_t req, const char *buf, size_t size,
         if (ptm_req_len > TPM_REQ_MAX)
             ptm_req_len = TPM_REQ_MAX;
 
-        memcpy(ptm_req, buf, ptm_req_len);
+        memcpy(ptm_request, buf, ptm_req_len);
         msg.type = MESSAGE_TPM_CMD;
         msg.req = req;
 
@@ -623,7 +623,7 @@ cached_stateblob_copy(void *dest, size_t destlen, uint32_t srcoffset,
  * ptm_get_stateblob: Get the state blob from the TPM
  */
 static void
-ptm_get_stateblob(fuse_req_t req, ptm_getstate_t *pgs)
+ptm_get_stateblob(fuse_req_t req, ptm_getstate *pgs)
 {
     TPM_RESULT res = 0;
     uint32_t blobtype = pgs->u.req.type;
@@ -652,7 +652,7 @@ ptm_get_stateblob(fuse_req_t req, ptm_getstate_t *pgs)
 }
 
 static void
-ptm_set_stateblob(fuse_req_t req, ptm_setstate_t *pss)
+ptm_set_stateblob(fuse_req_t req, ptm_setstate *pss)
 {
     const char *blobname;
     TPM_RESULT res = 0;
@@ -735,7 +735,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 {
     TPM_RESULT res;
     bool exit_prg = FALSE;
-    ptminit_t *init_p;
+    ptm_init *init_p;
 
     if (flags & FUSE_IOCTL_COMPAT) {
         fuse_reply_err(req, ENOSYS);
@@ -774,7 +774,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             struct iovec iov = { arg, sizeof(uint8_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptmcap_t ptm_caps;
+            ptm_cap ptm_caps;
             ptm_caps = PTM_CAP_INIT | PTM_CAP_SHUTDOWN
                 | PTM_CAP_GET_TPMESTABLISHED
                 | PTM_CAP_SET_LOCALITY
@@ -791,7 +791,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         break;
 
     case PTM_INIT:
-        init_p = (ptminit_t *)in_buf;
+        init_p = (ptm_init *)in_buf;
 
         worker_thread_end();
 
@@ -815,8 +815,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
         tpm_running = 0;
 
-        TPM_Free(ptm_res);
-        ptm_res = NULL;
+        TPM_Free(ptm_response);
+        ptm_response = NULL;
 
         fuse_reply_ioctl(req, 0, &res, sizeof(res));
 
@@ -828,8 +828,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         res = TPM_SUCCESS;
         TPMLIB_Terminate();
 
-        TPM_Free(ptm_res);
-        ptm_res = NULL;
+        TPM_Free(ptm_response);
+        ptm_response = NULL;
 
         fuse_reply_ioctl(req, 0, &res, sizeof(res));
         exit_prg = TRUE;
@@ -844,7 +844,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             struct iovec iov = { arg, sizeof(uint8_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptmest_t te;
+            ptm_est te;
             te.tpm_result = TPM_IO_TpmEstablished_Get(&te.bit);
             fuse_reply_ioctl(req, 0, &te, sizeof(te));
         }
@@ -858,7 +858,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptmreset_est_t *re = (ptmreset_est_t *)in_buf;
+            ptm_reset_est *re = (ptm_reset_est *)in_buf;
             if (re->u.req.loc > 4) {
                 res = TPM_BAD_LOCALITY;
             } else {
@@ -873,7 +873,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptmloc_t *l = (ptmloc_t *)in_buf;
+            ptm_loc *l = (ptm_loc *)in_buf;
             if (l->u.req.loc > 4) {
                 res = TPM_BAD_LOCALITY;
             } else {
@@ -900,7 +900,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptmhdata_t *data = (ptmhdata_t *)in_buf;
+            ptm_hdata *data = (ptm_hdata *)in_buf;
             if (data->u.req.length <= sizeof(data->u.req.data)) {
                 res = TPM_IO_Hash_Data(data->u.req.data,
                                        data->u.req.length);
@@ -945,11 +945,11 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         if (!tpm_running)
             goto error_not_running;
 
-        if (in_bufsz != sizeof(ptm_getstate_t)) {
+        if (in_bufsz != sizeof(ptm_getstate)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptm_get_stateblob(req, (ptm_getstate_t *)in_buf);
+            ptm_get_stateblob(req, (ptm_getstate *)in_buf);
         }
         break;
 
@@ -960,20 +960,20 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         /* tpm state dir must be set */
         SWTPM_NVRAM_Init();
 
-        if (in_bufsz != sizeof(ptm_setstate_t)) {
+        if (in_bufsz != sizeof(ptm_setstate)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptm_set_stateblob(req, (ptm_setstate_t *)in_buf);
+            ptm_set_stateblob(req, (ptm_setstate *)in_buf);
         }
         break;
 
     case PTM_GET_CONFIG:
-        if (out_bufsz != sizeof(ptm_getconfig_t)) {
+        if (out_bufsz != sizeof(ptm_getconfig)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptm_getconfig_t pgs;
+            ptm_getconfig pgs;
             pgs.u.resp.tpm_result = 0;
             pgs.u.resp.flags = 0;
             if (SWTPM_NVRAM_Has_FileKey())
