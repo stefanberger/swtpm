@@ -97,14 +97,6 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-# Save the volatile state
-$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
-
-if [ ! -r $VOLATILE_STATE_FILE ]; then
-	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
-	exit 1
-fi
-
 $CUSE_TPM_IOCTL --save permanent $MY_PERMANENT_STATE_FILE /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not write permanent state file $MY_PERMANENT_STATE_FILE."

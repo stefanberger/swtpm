@@ -103,13 +103,6 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-# We have the CUSE TPM write the state
-$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
-if [ $? -ne  0 ]; then
-	echo "Error: Storing the TPM's volatile state failed."
-	exit 1
-fi
-
 # Save the volatile state into a file
 $CUSE_TPM_IOCTL --save volatile $volatilestatefile /dev/$VTPM_NAME
 
