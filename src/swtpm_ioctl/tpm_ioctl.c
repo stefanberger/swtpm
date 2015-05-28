@@ -155,7 +155,7 @@ static int do_hash_start_data_end(int fd, const char *input)
     return 0;
 }
 
-static uint8_t get_blobtype(const char *blobname)
+static uint32_t get_blobtype(const char *blobname)
 {
     if (!strcmp(blobname, "permanent"))
         return PTM_BLOB_TYPE_PERMANENT;
@@ -184,7 +184,7 @@ static int do_save_state_blob(int fd, const char *blobtype,
     ssize_t numbytes;
     bool had_error;
     int n;
-    uint8_t bt;
+    uint32_t bt;
 
     bt = get_blobtype(blobtype);
     if (!bt) {
@@ -265,7 +265,7 @@ static int do_load_state_blob(int fd, const char *blobtype,
     ssize_t numbytes;
     bool had_error;
     int n;
-    uint8_t bt;
+    uint32_t bt;
 
     bt = get_blobtype(blobtype);
     if (!bt) {

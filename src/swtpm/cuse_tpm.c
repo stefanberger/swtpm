@@ -425,7 +425,7 @@ error_terminate:
  * convert the blobtype integer into a string that libtpms
  * understands
  */
-static const char *ptm_get_blobname(uint8_t blobtype)
+static const char *ptm_get_blobname(uint32_t blobtype)
 {
     switch (blobtype) {
     case PTM_BLOB_TYPE_PERMANENT:
