@@ -699,7 +699,7 @@ ptm_set_stateblob(fuse_req_t req, ptm_setstate *pss)
         res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
                                        stateblob.length,
                                        is_encrypted,
-                                       pss->u.req.tpm_number,
+                                       0 /* tpm_number */,
                                        blobname);
     } else {
         res = TPM_BAD_PARAMETER;

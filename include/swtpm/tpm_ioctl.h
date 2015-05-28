@@ -96,7 +96,6 @@ struct ptm_getstate {
     union {
         struct {
             uint32_t state_flags; /* may be: STATE_FLAG_DECRYPTED */
-            uint32_t tpm_number;  /* always set to zero */
             uint32_t type;        /* which blob to pull */
             uint32_t offset;      /* offset from where to read */
         } req;
@@ -128,7 +127,6 @@ struct ptm_setstate {
     union {
         struct {
             uint32_t state_flags; /* may be STATE_FLAG_ENCRYPTED */
-            uint32_t tpm_number;  /* always set to 0 */
             uint32_t type;        /* which blob to set */
             uint32_t length;
             uint8_t data[STATE_BLOB_SIZE];

@@ -207,7 +207,6 @@ static int do_save_state_blob(int fd, const char *blobtype,
     while (true) {
         /* fill out request every time since response may change it */
         pgs.u.req.state_flags = STATE_FLAG_DECRYPTED;
-        pgs.u.req.tpm_number = 0;
         pgs.u.req.type = bt;
         pgs.u.req.offset = offset;
 
@@ -288,7 +287,6 @@ static int do_load_state_blob(int fd, const char *blobtype,
         /* fill out request every time since response may change it */
         pss.u.req.state_flags = 0;
         pss.u.req.type = bt;
-        pss.u.req.tpm_number = 0;
 
         numbytes = read(file_fd, pss.u.req.data, sizeof(pss.u.req.data));
         if (numbytes < 0) {
