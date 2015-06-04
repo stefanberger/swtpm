@@ -129,6 +129,7 @@ struct stateblob {
     uint8_t type;
     uint8_t *data;
     uint32_t length;
+    TPM_BOOL is_encrypted;
 };
 
 typedef struct stateblob_desc {
@@ -138,6 +139,32 @@ typedef struct stateblob_desc {
     unsigned char *data;
     uint32_t data_length;
 } stateblob_desc;
+
+typedef enum tx_state_type {
+    TX_STATE_RW_COMMAND = 1,
+    TX_STATE_SET_STATE_BLOB = 2,
+    TX_STATE_GET_STATE_BLOB = 3,
+} tx_state_type;
+
+typedef struct transfer_state {
+    tx_state_type state;
+    /* while in TX_STATE_GET/SET_STATEBLOB */
+    uint32_t blobtype;
+    TPM_BOOL blob_is_encrypted;
+    /* while in TX_STATE_GET */
+    uint32_t offset;
+} transfer_state;
+
+/* function prototypes */
+
+static TPM_RESULT
+ptm_set_stateblob_append(uint32_t blobtype,
+                         const unsigned char *data, uint32_t length,
+                         bool is_encrypted, bool is_last);
+
+static int
+cached_stateblob_get(uint32_t offset,
+                     unsigned char **bufptr, size_t *length);
 
 
 static const char *usage =
@@ -209,6 +236,8 @@ static struct libtpms_callbacks cbs = {
 };
 
 static struct thread_message msg;
+
+static transfer_state tx_state;
 
 /* worker_thread_wait_done
  *
@@ -441,6 +470,8 @@ static const char *ptm_get_blobname(uint32_t blobtype)
 
 static void ptm_open(fuse_req_t req, struct fuse_file_info *fi)
 {
+    tx_state.state = TX_STATE_RW_COMMAND;
+
     fuse_reply_open(req, fi);
 }
 
@@ -463,8 +494,7 @@ static void ptm_write_fatal_error_response(void)
     }
 }
 
-static void ptm_read(fuse_req_t req, size_t size, off_t off,
-                     struct fuse_file_info *fi)
+static void ptm_read_cmd(fuse_req_t req, size_t size)
 {
     int len;
 
@@ -485,8 +515,53 @@ static void ptm_read(fuse_req_t req, size_t size, off_t off,
     fuse_reply_buf(req, (const char *)ptm_response, len);
 }
 
-static void ptm_write(fuse_req_t req, const char *buf, size_t size,
-                      off_t off, struct fuse_file_info *fi)
+/*
+ * ptm_read_stateblob: get a stateblob via the read() interface
+ * @req: the fuse_req_t
+ * @size: the number of bytes to read
+ *
+ * The internal offset into the buffer is advanced by the number
+ * of bytes that were copied.
+ */
+static void ptm_read_stateblob(fuse_req_t req, size_t size)
+{
+    unsigned char *bufptr = NULL;
+    size_t numbytes;
+    size_t tocopy;
+
+    if (cached_stateblob_get(tx_state.offset, &bufptr, &numbytes) < 0) {
+        fuse_reply_err(req, EIO);
+        tx_state.state = TX_STATE_RW_COMMAND;
+    } else {
+        tocopy = MIN(size, numbytes);
+        tx_state.offset += tocopy;
+
+        fuse_reply_buf(req, (char *)bufptr, tocopy);
+        /* last transfer indicated by less bytes available than requested */
+        if (numbytes < size) {
+            tx_state.state = TX_STATE_RW_COMMAND;
+        }
+    }
+}
+
+static void ptm_read(fuse_req_t req, size_t size, off_t off,
+                     struct fuse_file_info *fi)
+{
+    switch (tx_state.state) {
+    case TX_STATE_RW_COMMAND:
+        ptm_read_cmd(req, size);
+        break;
+    case TX_STATE_SET_STATE_BLOB:
+        fuse_reply_err(req, EIO);
+        tx_state.state = TX_STATE_RW_COMMAND;
+        break;
+    case TX_STATE_GET_STATE_BLOB:
+        ptm_read_stateblob(req, size);
+        break;
+    }
+}
+
+static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size)
 {
     ptm_req_len = size;
     ptm_res_len = 0;
@@ -526,6 +601,53 @@ cleanup:
     return;
 }
 
+/*
+ * ptm_write_stateblob: Write the state blob using the write() interface
+ *
+ * @req: the fuse_req_t
+ * @buf: the buffer with the data
+ * @size: the number of bytes in the buffer
+ *
+ * The data are appended to an existing buffer that was created with the
+ * initial ioctl().
+ */
+static void ptm_write_stateblob(fuse_req_t req, const char *buf, size_t size)
+{
+    TPM_RESULT res;
+
+    res = ptm_set_stateblob_append(tx_state.blobtype,
+                                   (unsigned char *)buf, size,
+                                   tx_state.blob_is_encrypted,
+                                   (size == 0));
+    if (res) {
+        tx_state.state = TX_STATE_RW_COMMAND;
+        fuse_reply_err(req, EIO);
+    } else {
+        fuse_reply_write(req, size);
+    }
+}
+
+/*
+ * ptm_write: low-level write() interface; calls approriate function depending
+ *            on what is being transferred using the write()
+ */
+static void ptm_write(fuse_req_t req, const char *buf, size_t size,
+                      off_t off, struct fuse_file_info *fi)
+{
+    switch (tx_state.state) {
+    case TX_STATE_RW_COMMAND:
+        ptm_write_cmd(req, buf, size);
+        break;
+    case TX_STATE_GET_STATE_BLOB:
+        fuse_reply_err(req, EIO);
+        tx_state.state = TX_STATE_RW_COMMAND;
+        break;
+    case TX_STATE_SET_STATE_BLOB:
+        ptm_write_stateblob(req, buf, size);
+        break;
+    }
+}
+
 static stateblob_desc cached_stateblob;
 
 static bool
@@ -545,6 +667,36 @@ cached_stateblob_free(void)
     TPM_Free(cached_stateblob.data);
     cached_stateblob.data = NULL;
     cached_stateblob.data_length = 0;
+}
+
+/*
+ * cached_stateblob_get_bloblength: get the total length of the cached blob
+ */
+static uint32_t
+cached_stateblob_get_bloblength(void)
+{
+    return cached_stateblob.data_length;
+}
+
+/*
+ * cached_statblob_get: get stateblob data without copying them
+ *
+ * @offset: at which offset to get the data
+ * @bufptr: pointer to a buffer pointer used to return buffer start
+ * @length: pointer used to return number of available bytes in returned buffer
+ */
+static int
+cached_stateblob_get(uint32_t offset,
+                     unsigned char **bufptr, size_t *length)
+{
+    if (cached_stateblob.data == NULL ||
+        offset > cached_stateblob.data_length)
+        return -1;
+
+    *bufptr = &cached_stateblob.data[offset];
+    *length = cached_stateblob.data_length - offset;
+
+    return 0;
 }
 
 /*
@@ -620,7 +772,30 @@ cached_stateblob_copy(void *dest, size_t destlen, uint32_t srcoffset,
 }
 
 /*
- * ptm_get_stateblob: Get the state blob from the TPM
+ * ptm_get_stateblob_part: get part of a state blob
+ */
+static TPM_RESULT
+ptm_get_stateblob_part(uint32_t blobtype,
+                       unsigned char *buffer, size_t buffer_size,
+                       uint32_t offset, uint32_t *copied,
+                       TPM_BOOL decrypt, TPM_BOOL *is_encrypted)
+{
+    TPM_RESULT res = 0;
+
+    if (!cached_stateblob_is_loaded(blobtype, decrypt)) {
+        res = cached_stateblob_load(blobtype, decrypt);
+    }
+
+    if (res == 0) {
+        cached_stateblob_copy(buffer, buffer_size,
+                              offset, copied, is_encrypted);
+    }
+
+    return res;
+}
+
+/*
+ * ptm_get_stateblob: Get the state blob from the TPM using ioctl()
  */
 static void
 ptm_get_stateblob(fuse_req_t req, ptm_getstate *pgs)
@@ -631,50 +806,75 @@ ptm_get_stateblob(fuse_req_t req, ptm_getstate *pgs)
     TPM_BOOL is_encrypted = FALSE;
     uint32_t copied = 0;
 
-    if (!cached_stateblob_is_loaded(blobtype, decrypt)) {
-        res = cached_stateblob_load(blobtype, decrypt);
-    }
+    res = ptm_get_stateblob_part(blobtype,
+                                 pgs->u.resp.data, sizeof(pgs->u.resp.data),
+                                 pgs->u.req.offset, &copied,
+                                 decrypt, &is_encrypted);
 
-    if (res == 0) {
-        cached_stateblob_copy(&pgs->u.resp.data, sizeof(pgs->u.resp.data),
-                              pgs->u.req.offset, &copied, &is_encrypted);
-
-        pgs->u.resp.state_flags = 0;
-        if (is_encrypted) {
-            pgs->u.resp.state_flags |= STATE_FLAG_ENCRYPTED;
-        }
-    }
+    pgs->u.resp.state_flags = 0;
+    if (is_encrypted)
+        pgs->u.resp.state_flags |= STATE_FLAG_ENCRYPTED;
 
     pgs->u.resp.length = copied;
+    pgs->u.resp.totlength = cached_stateblob_get_bloblength();
     pgs->u.resp.tpm_result = res;
+
+    if (res == 0) {
+        if (copied == sizeof(pgs->u.resp.data)) {
+            /* transfer of blob initiated */
+            tx_state.state = TX_STATE_GET_STATE_BLOB;
+            tx_state.blobtype = pgs->u.req.type;
+            tx_state.blob_is_encrypted = is_encrypted;
+            tx_state.offset = copied;
+        } else {
+            /* last blob was copied */
+            tx_state.state = TX_STATE_RW_COMMAND;
+        }
+    } else {
+        /* error occurred */
+        tx_state.state = TX_STATE_RW_COMMAND;
+    }
 
     fuse_reply_ioctl(req, 0, pgs, sizeof(pgs->u.resp));
 }
 
-static void
-ptm_set_stateblob(fuse_req_t req, ptm_setstate *pss)
+/*
+ * ptm_set_stateblob_append: Append a piece of TPM state blob and transfer to TPM
+ *
+ * blobtype: the type of blob
+ * data: the data to append
+ * length: length of the data
+ * is_encrypted: whether the blob is encrypted
+ * is_last: whether this is the last part of the TPM state blob; if it is, the TPM
+ *          state blob will then be transferred to the TPM
+ */
+static TPM_RESULT
+ptm_set_stateblob_append(uint32_t blobtype,
+                         const unsigned char *data, uint32_t length,
+                         bool is_encrypted, bool is_last)
 {
     const char *blobname;
     TPM_RESULT res = 0;
-    TPM_BOOL is_encrypted = ((pss->u.req.state_flags & STATE_FLAG_ENCRYPTED) != 0);
     static struct stateblob stateblob;
 
-    if (pss->u.req.length > sizeof(pss->u.req.data)) {
-        res = TPM_BAD_PARAMETER;
-        goto send_response;
-    }
-
-    if (stateblob.type != pss->u.req.type) {
+    if (stateblob.type != blobtype) {
         /* clear old data */
         TPM_Free(stateblob.data);
         stateblob.data = NULL;
         stateblob.length = 0;
-        stateblob.type = pss->u.req.type;
+        stateblob.type = blobtype;
+        stateblob.is_encrypted = is_encrypted;
+
+        /*
+         * on the first call for a new state blob we allow 0 bytes to be written
+         * this allows the user to transfer via write()
+         */
+        if (length == 0)
+            return 0;
     }
 
     /* append */
-    res = TPM_Realloc(&stateblob.data,
-                      stateblob.length + pss->u.req.length);
+    res = TPM_Realloc(&stateblob.data, stateblob.length + length);
     if (res != 0) {
         /* error */
         TPM_Free(stateblob.data);
@@ -682,32 +882,65 @@ ptm_set_stateblob(fuse_req_t req, ptm_setstate *pss)
         stateblob.length = 0;
         stateblob.type = 0;
 
-        goto send_response;
+        return res;
     }
 
-    memcpy(&stateblob.data[stateblob.length],
-           pss->u.req.data, pss->u.req.length);
-    stateblob.length += pss->u.req.length;
+    memcpy(&stateblob.data[stateblob.length], data, length);
+    stateblob.length += length;
 
-    if (pss->u.req.length == sizeof(pss->u.req.data)) {
+    if (!is_last) {
         /* full packet -- expecting more data */
-        goto send_response;
+        return res;
     }
-    blobname = ptm_get_blobname(pss->u.req.type);
+    blobname = ptm_get_blobname(blobtype);
 
     if (blobname) {
         res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
                                        stateblob.length,
-                                       is_encrypted,
+                                       stateblob.is_encrypted,
                                        0 /* tpm_number */,
                                        blobname);
     } else {
         res = TPM_BAD_PARAMETER;
     }
+
     TPM_Free(stateblob.data);
     stateblob.data = NULL;
     stateblob.length = 0;
     stateblob.type = 0;
+
+    /* transfer of blob is complete */
+    tx_state.state = TX_STATE_RW_COMMAND;
+
+    return res;
+}
+
+static void
+ptm_set_stateblob(fuse_req_t req, ptm_setstate *pss)
+{
+    TPM_RESULT res = 0;
+    TPM_BOOL is_encrypted = ((pss->u.req.state_flags & STATE_FLAG_ENCRYPTED) != 0);
+    bool is_last = (sizeof(pss->u.req.data) != pss->u.req.length);
+
+    if (pss->u.req.length > sizeof(pss->u.req.data)) {
+        res = TPM_BAD_PARAMETER;
+        goto send_response;
+    }
+
+    /* transfer of blob initiated */
+    tx_state.state = TX_STATE_SET_STATE_BLOB;
+    tx_state.blobtype = pss->u.req.type;
+    tx_state.blob_is_encrypted = is_encrypted;
+    tx_state.offset = 0;
+
+    res = ptm_set_stateblob_append(pss->u.req.type,
+                                   pss->u.req.data,
+                                   pss->u.req.length,
+                                   is_encrypted,
+                                   is_last);
+
+    if (res)
+        tx_state.state = TX_STATE_RW_COMMAND;
 
  send_response:
     pss->u.resp.tpm_result = res;

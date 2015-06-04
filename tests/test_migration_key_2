@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Run the test_save_load_encrypted_state with swtpm_ioctl using the
+# read/write interface rather than ioctl
+export VTPM_NAME="vtpm-test2-migration-key"
+cd "$(dirname "$0")"
+
+export SWTPM_IOCTL_BUFFERSIZE=100
+bash test_migration_key
+ret=$?
+[ $ret -ne 0 ] && exit $ret
+
+export SWTPM_IOCTL_BUFFERSIZE=4096
+bash test_migration_key
+ret=$?
+[ $ret -ne 0 ] && exit $ret
+exit 0

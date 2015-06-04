@@ -175,7 +175,7 @@ static uint32_t get_blobtype(const char *blobname)
  *
  */
 static int do_save_state_blob(int fd, const char *blobtype,
-                              const char *filename)
+                              const char *filename, size_t buffersize)
 {
     int file_fd;
     ptm_res res;
@@ -185,6 +185,7 @@ static int do_save_state_blob(int fd, const char *blobtype,
     bool had_error;
     int n;
     uint32_t bt;
+    unsigned char *buffer =  NULL;
 
     bt = get_blobtype(blobtype);
     if (!bt) {
@@ -201,7 +202,7 @@ static int do_save_state_blob(int fd, const char *blobtype,
         return 1;
     }
 
-    had_error = 0;
+    had_error = false;
     offset = 0;
 
     while (true) {
@@ -215,7 +216,7 @@ static int do_save_state_blob(int fd, const char *blobtype,
             fprintf(stderr,
                     "Could not execute ioctl PTM_GET_STATEBLOB: "
                     "%s\n", strerror(errno));
-            had_error = 1;
+            had_error = true;
             break;
         }
         res = pgs.u.resp.tpm_result;
@@ -223,7 +224,7 @@ static int do_save_state_blob(int fd, const char *blobtype,
             fprintf(stderr,
                     "TPM result from PTM_GET_STATEBLOB: 0x%x\n",
                     res);
-            had_error = 1;
+            had_error = true;
             break;
         }
         numbytes = write(file_fd, pgs.u.resp.data, pgs.u.resp.length);
@@ -232,15 +233,55 @@ static int do_save_state_blob(int fd, const char *blobtype,
             fprintf(stderr,
                     "Could not write to file '%s': %s\n",
                     filename, strerror(errno));
-            had_error = 1;
+            had_error = true;
             break;
         }
+        /* done? */
         if (pgs.u.resp.length < sizeof(pgs.u.resp.data))
             break;
 
-        offset += pgs.u.resp.length;
+        if (buffersize) {
+            /* continue with the read interface */
+            buffer = malloc(buffersize);
+            if (!buffer) {
+                fprintf(stderr,
+                        "Could not allocate buffer with %zu bytes.",
+                        buffersize);
+                had_error = true;
+                break;
+            }
+
+            while (true) {
+                /* read from TPM */
+                n = read(fd, buffer, buffersize);
+                if (n < 0) {
+                    fprintf(stderr,
+                            "Could not read from TPM: %s\n",
+                            strerror(errno));
+                    had_error = true;
+                    break;
+                }
+                numbytes = write(file_fd, buffer, n);
+                if (numbytes < 0) {
+                    fprintf(stderr,
+                            "Could not write to file '%s': %s\n",
+                            filename, strerror(errno));
+                    had_error = true;
+                    break;
+                }
+                if ((size_t)n < buffersize)
+                    break;
+            }
+
+            break;
+        } else {
+            offset += pgs.u.resp.length;
+        }
     }
+
     close(file_fd);
+
+    free(buffer);
 
     if (had_error)
         return 1;
@@ -254,9 +295,11 @@ static int do_save_state_blob(int fd, const char *blobtype,
  * @fd: file descriptor to talk to the CUSE TPM
  * @blobtype: the name of the blobtype
  * @filename: name of the file to store the blob into
+ * @buffersize: the size of the buffer to use via write() interface
  */
 static int do_load_state_blob(int fd, const char *blobtype,
-                              const char *filename)
+                              const char *filename,
+                              size_t buffersize)
 {
     int file_fd;
     ptm_res res;
@@ -265,6 +308,7 @@ static int do_load_state_blob(int fd, const char *blobtype,
     bool had_error;
     int n;
     uint32_t bt;
+    unsigned char *buffer = NULL;
 
     bt = get_blobtype(blobtype);
     if (!bt) {
@@ -281,22 +325,57 @@ static int do_load_state_blob(int fd, const char *blobtype,
         return 1;
     }
 
-    had_error = 0;
+    had_error = false;
 
-    while (true) {
-        /* fill out request every time since response may change it */
+    if (!buffersize) {
+        /* use only the ioctl interface for the transfer */
+        while (true) {
+            /* fill out request every time since response may change it */
+            pss.u.req.state_flags = 0;
+            pss.u.req.type = bt;
+
+            numbytes = read(file_fd, pss.u.req.data, sizeof(pss.u.req.data));
+            if (numbytes < 0) {
+                fprintf(stderr,
+                        "Could not read from file '%s': %s\n",
+                        filename, strerror(errno));
+               had_error = true;
+               break;
+            }
+            pss.u.req.length = numbytes;
+
+            n = ioctl(fd, PTM_SET_STATEBLOB, &pss);
+            if (n < 0) {
+                fprintf(stderr,
+                        "Could not execute ioctl PTM_SET_STATEBLOB: "
+                        "%s\n", strerror(errno));
+                had_error = true;
+                break;
+            }
+            res = pss.u.resp.tpm_result;
+            if (res != 0) {
+                fprintf(stderr,
+                        "TPM result from PTM_SET_STATEBLOB: 0x%x\n",
+                        res);
+                had_error = true;
+                break;
+            }
+            if ((size_t)numbytes < sizeof(pss.u.req.data))
+                break;
+        }
+    } else {
+        buffer = malloc(buffersize);
+        if (!buffer) {
+            fprintf(stderr,
+                    "Could not allocate buffer with %zu bytes.",
+                    buffersize);
+            had_error = true;
+            goto cleanup;
+        }
+
         pss.u.req.state_flags = 0;
         pss.u.req.type = bt;
-
-        numbytes = read(file_fd, pss.u.req.data, sizeof(pss.u.req.data));
-        if (numbytes < 0) {
-            fprintf(stderr,
-                    "Could not read from file '%s': %s\n",
-                    filename, strerror(errno));
-            had_error = 1;
-            break;
-        }
-        pss.u.req.length = numbytes;
+        pss.u.req.length = 0; /* will use write interface */
 
         n = ioctl(fd, PTM_SET_STATEBLOB, &pss);
         if (n < 0) {
@@ -304,7 +383,7 @@ static int do_load_state_blob(int fd, const char *blobtype,
                     "Could not execute ioctl PTM_SET_STATEBLOB: "
                     "%s\n", strerror(errno));
             had_error = 1;
-            break;
+            goto cleanup;
         }
         res = pss.u.resp.tpm_result;
         if (res != 0) {
@@ -312,13 +391,54 @@ static int do_load_state_blob(int fd, const char *blobtype,
                     "TPM result from PTM_SET_STATEBLOB: 0x%x\n",
                     res);
             had_error = 1;
-            break;
+            goto cleanup;
         }
-        if ((size_t)numbytes < sizeof(pss.u.req.data))
-            break;
+
+        while (true) {
+            n = read(file_fd, buffer, buffersize);
+            if (n < 0) {
+                fprintf(stderr, "Could not read from file: %s\n",
+                        strerror(errno));
+                had_error = 1;
+                goto cleanup;
+            }
+            if (n != write(fd, buffer, n)) {
+                fprintf(stderr, "Could not write to file: %s\n",
+                        strerror(errno));
+                had_error = 1;
+                goto cleanup;
+            }
+            if ((size_t)n < buffersize) {
+                /* close transfer with the ioctl() */
+                pss.u.req.state_flags = 0;
+                pss.u.req.type = bt;
+                pss.u.req.length = 0; /* end the transfer */
+
+                n = ioctl(fd, PTM_SET_STATEBLOB, &pss);
+                if (n < 0) {
+                    fprintf(stderr,
+                            "Could not execute ioctl PTM_SET_STATEBLOB: "
+                            "%s\n", strerror(errno));
+                    had_error = 1;
+                    goto cleanup;
+                }
+                res = pss.u.resp.tpm_result;
+                if (res != 0) {
+                    fprintf(stderr,
+                            "TPM result from PTM_SET_STATEBLOB: 0x%x\n",
+                            res);
+                    had_error = 1;
+                    goto cleanup;
+                }
+                break;
+            }
+        }
     }
 
+ cleanup:
     close(file_fd);
+
+    free(buffer);
 
     if (had_error)
         return 1;
@@ -364,6 +484,8 @@ int main(int argc, char *argv[])
     ptm_res res;
     ptm_init init;
     ptm_getconfig cfg;
+    char *tmp;
+    size_t buffersize = 0;
 
     if (argc < 2) {
         fprintf(stderr, "Error: Missing command.\n\n");
@@ -386,6 +508,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error: Not enough parameters.\n\n");
         usage(argv[0]);
         return 1;
+    }
+
+    tmp = getenv("SWTPM_IOCTL_BUFFERSIZE");
+    if (tmp) {
+        if (sscanf(tmp, "%zu", &buffersize) != 1 || buffersize < 1)
+            buffersize = 1;
     }
 
     fd = open(argv[devindex], O_RDWR);
@@ -545,11 +673,11 @@ int main(int argc, char *argv[])
         }
 
     } else if (!strcmp(argv[1], "--save")) {
-        if (do_save_state_blob(fd, argv[2], argv[3]))
+        if (do_save_state_blob(fd, argv[2], argv[3], buffersize))
             return 1;
 
     } else if (!strcmp(argv[1], "--load")) {
-        if (do_load_state_blob(fd, argv[2], argv[3]))
+        if (do_load_state_blob(fd, argv[2], argv[3], buffersize))
             return 1;
 
     } else if (!strcmp(argv[1], "-g")) {

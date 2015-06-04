@@ -16,6 +16,11 @@ initialized, TPM commands can be sent to it.
 The full path to the swtpm_cuse's character device must be provided such 
 as for example /dev/vtpm-200.
 
+The environment variable SWTPM_IOCTL_BUFFERSIZE can be set to the size
+for the buffer for state blob transfer to use. If it is not set, the ioctl()
+interface is used for transferring the state. This environment variable
+is primarily used for testing purposes.
+
 The following commands are supported:
 
 =over 4

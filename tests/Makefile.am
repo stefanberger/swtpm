@@ -16,8 +16,11 @@ TESTS = \
 	test_wrongorder \
 	test_encrypted_state \
 	test_save_load_encrypted_state \
+	test_save_load_encrypted_state_2 \
 	test_save_load_state \
+	test_save_load_state_2 \
 	test_migration_key \
+	test_migration_key_2 \
 	\
 	test_commandline \
 	test_parameters \

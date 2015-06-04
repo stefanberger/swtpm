@@ -87,10 +87,14 @@ struct ptm_hdata {
 #define STATE_BLOB_SIZE (3 * 1024)
 
 /*
- * Data structure to get state blobs from the TPM. If the size of the
- * blob exceeds the STATE_BLOB_SIZE, multiple reads with
- * adjusted offset are necessary. The last packet is indicated by
- * the length being smaller than the STATE_BLOB_SIZE.
+ * The following is the data structure to get state blobs from the TPM.
+ * If the size of the state blob exceeds the STATE_BLOB_SIZE, multiple reads
+ * with this ioctl and with adjusted offset are necessary. The last packet is
+ * indicated by the length being smaller than the STATE_BLOB_SIZE.
+ * It is possible to use the read() interface for reading the data; however,
+ * the first bytes of the state blob will be part of the response to the ioctl();
+ * a subsequent read() is only necessary if the length indicates that the
+ * buffer was not filled with data.
  */
 struct ptm_getstate {
     union {
@@ -102,7 +106,8 @@ struct ptm_getstate {
         struct {
             ptm_res tpm_result;
             uint32_t state_flags; /* may be: STATE_FLAG_ENCRYPTED */
-            uint32_t length;
+            uint32_t totlength;   /* total length that will be transferred */
+            uint32_t length;      /* number of bytes in following buffer */
             uint8_t  data[STATE_BLOB_SIZE];
         } resp;
     } u;
@@ -118,17 +123,23 @@ struct ptm_getstate {
 #define STATE_FLAG_ENCRYPTED     2 /* on output: state is encrypted */
 
 /*
- * Data structure to set state blobs in the TPM. If the size of the
- * blob exceeds the STATE_BLOB_SIZE, multiple 'writes' are necessary.
- * The last packet is indicated by the length being smaller than the
- * STATE_BLOB_SIZE.
+ * The following is the data structure to set state blobs in the TPM.
+ * If the size of the state blob exceeds the STATE_BLOB_SIZE, multiple
+ * 'writes' using this ioctl are necessary. The last packet is indicated
+ * by the length being smaller than the STATE_BLOB_SIZE.
+ * The very first packet may have a length indicator of '0' enabling
+ * a write() with all the bytes from a buffer. If the write() interface
+ * is used, a final ioctl with a non-full buffer must be made to indicate
+ * that all data were transferred (a write with 0 bytes would not work).
  */
 struct ptm_setstate {
     union {
         struct {
             uint32_t state_flags; /* may be STATE_FLAG_ENCRYPTED */
             uint32_t type;        /* which blob to set */
-            uint32_t length;
+            uint32_t length;      /* length of the data;
+                                     use 0 on the first packet to
+                                     transfer using write() */
             uint8_t data[STATE_BLOB_SIZE];
         } req;
         struct {
