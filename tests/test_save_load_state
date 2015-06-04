@@ -34,6 +34,12 @@ function cleanup()
 
 trap "cleanup" EXIT
 
+ECHO=`which echo`
+if [ -z "$ECHO" ]; then
+	echo "Error: Could not find external echo tool."
+	exit 1
+fi
+
 modprobe cuse
 if [ $? -ne 0 ]; then
     exit 1
@@ -92,6 +98,35 @@ RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Assert physical presence
+$ECHO -en '\x00\xC1\x00\x00\x00\x0C\x40\x00\x00\x0A\x00\x20' >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TSC_PhysicalPresence(ENABLE)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Create a big NVRAM Area with 4000 bytes (0xfa0)
+tmp='\x00\xC1\x00\x00\x00\x65\x00\x00\x00\xcc\x00\x18\x00\x00\x00\x01'
+tmp+='\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+tmp+='\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01'
+tmp+='\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+tmp+='\x00\x00\x00\x00\x00\x17\x00\x01\x00\x01\x00\x00\x00\x00\x00\x0f'
+tmp+='\xa0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+tmp+='\x00\x00\x00\x00\x00'
+$ECHO -en $tmp >&100
+RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_NVDefineSpace()"
 	echo "expected: $exp"
 	echo "received: $RES"
 	exit 1
