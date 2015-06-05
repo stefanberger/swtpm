@@ -865,6 +865,12 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
     uint32_t plain_len = 0;
     uint16_t hdrflags;
 
+    if (length == 0) {
+        /* with 0 bytes length we delete any existing file */
+        SWTPM_NVRAM_DeleteName(tpm_number, name, FALSE);
+        return TPM_SUCCESS;
+    }
+
     res = SWTPM_NVRAM_CheckHeader(data, length, &dataoffset, &hdrflags);
     if (res != TPM_SUCCESS)
         return res;
