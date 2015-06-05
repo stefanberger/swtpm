@@ -236,8 +236,8 @@ static int do_save_state_blob(int fd, const char *blobtype,
             had_error = true;
             break;
         }
-        /* done? */
-        if (pgs.u.resp.length < sizeof(pgs.u.resp.data))
+        /* done when the last byte was received */
+        if (offset + pgs.u.resp.length >= pgs.u.resp.totlength)
             break;
 
         if (buffersize) {

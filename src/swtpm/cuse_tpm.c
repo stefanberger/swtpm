@@ -805,29 +805,33 @@ ptm_get_stateblob(fuse_req_t req, ptm_getstate *pgs)
     TPM_BOOL decrypt = ((pgs->u.req.state_flags & STATE_FLAG_DECRYPTED) != 0);
     TPM_BOOL is_encrypted = FALSE;
     uint32_t copied = 0;
+    uint32_t offset = pgs->u.req.offset;
+    uint32_t totlength;
 
     res = ptm_get_stateblob_part(blobtype,
                                  pgs->u.resp.data, sizeof(pgs->u.resp.data),
                                  pgs->u.req.offset, &copied,
                                  decrypt, &is_encrypted);
 
+    totlength = cached_stateblob_get_bloblength();
+
     pgs->u.resp.state_flags = 0;
     if (is_encrypted)
         pgs->u.resp.state_flags |= STATE_FLAG_ENCRYPTED;
 
     pgs->u.resp.length = copied;
-    pgs->u.resp.totlength = cached_stateblob_get_bloblength();
+    pgs->u.resp.totlength = totlength;
     pgs->u.resp.tpm_result = res;
 
     if (res == 0) {
-        if (copied == sizeof(pgs->u.resp.data)) {
-            /* transfer of blob initiated */
+        if (offset + copied < totlength) {
+            /* last byte was not copied */
             tx_state.state = TX_STATE_GET_STATE_BLOB;
             tx_state.blobtype = pgs->u.req.type;
             tx_state.blob_is_encrypted = is_encrypted;
             tx_state.offset = copied;
         } else {
-            /* last blob was copied */
+            /* last byte was copied */
             tx_state.state = TX_STATE_RW_COMMAND;
         }
     } else {

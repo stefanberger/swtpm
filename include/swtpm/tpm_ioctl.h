@@ -89,12 +89,13 @@ struct ptm_hdata {
 /*
  * The following is the data structure to get state blobs from the TPM.
  * If the size of the state blob exceeds the STATE_BLOB_SIZE, multiple reads
- * with this ioctl and with adjusted offset are necessary. The last packet is
- * indicated by the length being smaller than the STATE_BLOB_SIZE.
+ * with this ioctl and with adjusted offset are necessary. All bytes
+ * must be transferred and the transfer is done once the last byte has been
+ * returned.
  * It is possible to use the read() interface for reading the data; however,
  * the first bytes of the state blob will be part of the response to the ioctl();
- * a subsequent read() is only necessary if the length indicates that the
- * buffer was not filled with data.
+ * a subsequent read() is only necessary if the total length (totlength) exceeds
+ * the number of received bytes. seek() is not supported.
  */
 struct ptm_getstate {
     union {
