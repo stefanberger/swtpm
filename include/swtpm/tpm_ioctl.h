@@ -21,13 +21,13 @@
 
 typedef uint32_t ptm_res;
 
-/* PTM_GET_TPMESTABLISHED */
+/* PTM_GET_TPMESTABLISHED: get the establishment bit */
 struct ptm_est {
     ptm_res tpm_result;
     unsigned char bit; /* TPM established bit */
 };
 
-/* PTM_RESET_PTMESTABLISHED: reset establishment bit */
+/* PTM_RESET_TPMESTABLISHED: reset establishment bit */
 struct ptm_reset_est {
     union {
         struct {
