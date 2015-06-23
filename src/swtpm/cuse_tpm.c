@@ -1007,7 +1007,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
     switch (cmd) {
     case PTM_GET_CAPABILITY:
-        if (!out_bufsz) {
+        if (out_bufsz != sizeof(ptm_cap)) {
             struct iovec iov = { arg, sizeof(uint8_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
@@ -1028,20 +1028,25 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         break;
 
     case PTM_INIT:
-        init_p = (ptm_init *)in_buf;
-
-        worker_thread_end();
-
-        TPMLIB_Terminate();
-
-        tpm_running = 0;
-        if ((res = tpm_start(init_p->u.req.init_flags))) {
-            logprintf(STDERR_FILENO,
-                      "Error: Could not initialize the TPM.\n");
+        if (in_bufsz != sizeof(ptm_init)) {
+            struct iovec iov = { arg, sizeof(uint8_t) };
+            fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            tpm_running = 1;
+            init_p = (ptm_init *)in_buf;
+
+            worker_thread_end();
+
+            TPMLIB_Terminate();
+
+            tpm_running = 0;
+            if ((res = tpm_start(init_p->u.req.init_flags))) {
+                logprintf(STDERR_FILENO,
+                          "Error: Could not initialize the TPM.\n");
+            } else {
+                tpm_running = 1;
+            }
+            fuse_reply_ioctl(req, 0, &res, sizeof(res));
         }
-        fuse_reply_ioctl(req, 0, &res, sizeof(res));
         break;
 
     case PTM_STOP:
@@ -1077,7 +1082,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         if (!tpm_running)
             goto error_not_running;
 
-        if (!out_bufsz) {
+        if (out_bufsz != sizeof(ptm_est)) {
             struct iovec iov = { arg, sizeof(uint8_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
@@ -1091,7 +1096,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         if (!tpm_running)
             goto error_not_running;
 
-        if (!in_bufsz) {
+        if (in_bufsz != sizeof(ptm_reset_est)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
@@ -1106,7 +1111,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         break;
 
     case PTM_SET_LOCALITY:
-        if (!in_bufsz) {
+        if (in_bufsz != sizeof(ptm_loc)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
@@ -1133,7 +1138,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         if (!tpm_running)
             goto error_not_running;
 
-        if (!in_bufsz) {
+        if (in_bufsz != sizeof(ptm_hdata)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
