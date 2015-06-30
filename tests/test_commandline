@@ -18,7 +18,7 @@ function cleanup()
 {
 	rm -rf $TPMDIR
 	if [ -n "$PID" ]; then
-		kill -SIGTERM $PID
+		kill -SIGTERM $PID 2>/dev/null
 	fi
 }
 
@@ -28,12 +28,30 @@ export TCSD_TCP_DEVICE_HOSTNAME=localhost
 export TCSD_TCP_DEVICE_PORT=$PORT
 export TCSD_USE_TCP_DEVICE=1
 
+function wait_port_open()
+{
+	local port=$1
+	local pid=$2
+
+	sleep 0.2
+	for ((i = 0; i < 20; i++)); do
+		if [ -n "$(netstat -naptl 2>/dev/null |
+			   grep "LISTEN" |
+			   grep " $pid/" |
+			   grep ":$port ")" ]; then
+			return 0
+		fi
+		sleep 0.2
+	done
+	return 1
+}
+
 # Test 1: test port and directory command line parameters
 
 $SWTPM_EXE socket -p $PORT -i $TPMDIR &>/dev/null &
 PID=$!
 
-sleep 0.5
+wait_port_open $PORT $PID
 
 kill -0 $PID
 if [ $? -ne 0 ]; then
@@ -65,25 +83,26 @@ fi
 echo "Test 1 passed"
 cleanup
 
-# Test 2: test port, directory and terminate command line parameters
+# Test 2: test port, directory and terminate command line parameters (-t)
+#         that causes the swtpm process to exit upon connection close
 TPMDIR=`mktemp -d`
 
 $SWTPM_EXE socket -p $PORT -i $TPMDIR -t &>/dev/null &
 PID=$!
 
-sleep 0.5
+wait_port_open $PORT $PID
 
 exec 20<&1-; exec 21<&2-
 kill -0 $PID
+RES=$?
 exec 1<&20-; exec 2<&21-
 
-if [ $? -ne 0 ]; then
+if [ $RES -ne 0 ]; then
 	echo "Test 2 failed: TPM process not running"
 	exit 1
 fi
 
 exec 200<> /dev/tcp/localhost/$PORT
-
 if [ $? -ne 0 ]; then
 	echo "Test 2 failed: Could not connect to TPM"
 	exit 1
@@ -106,3 +125,5 @@ if [ $RES -eq 0 ]; then
 fi
 
 echo "Test 2 passed"
+
+exit 0
