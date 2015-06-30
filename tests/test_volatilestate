@@ -50,19 +50,16 @@ fi
 
 # Init the TPM
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-
-sleep 0.5
+if [ $? -n 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
 
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
 	exit 1
 fi
-
-
-export TPM_DUMP_COMMANDS=1
-export TPM_DEVICE=/dev/$VTPM_NAME
-#tpmbios -o
 
 # Startup the TPM
 exec 100<>/dev/$VTPM_NAME
@@ -77,6 +74,10 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 $CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Hash command did not work."
+	exit 1
+fi
 
 # Read PCR 17
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
@@ -101,6 +102,10 @@ fi
 
 # Save the volatile state
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not have the CUSE TPM store the volatile state to a file."
+	exit 1
+fi
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
@@ -110,6 +115,10 @@ fi
 # Shut the TPM down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 # Start the TPM again
 $SWTPM_EXE -n $VTPM_NAME
@@ -126,6 +135,10 @@ fi
 
 # Init the TPM
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -n 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
@@ -157,6 +170,10 @@ fi
 
 # Save the volatile state again
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not have the CUSE TPM store the volatile state to a file."
+	exit 1
+fi
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
@@ -165,6 +182,10 @@ fi
 
 # Send a new TPM_Init
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -n 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
@@ -186,6 +207,10 @@ fi
 
 # Check that the TPM Established bit is still set
 RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the TPM Established flag from the CUSE TPM."
+	exit 1
+fi
 exp='tpmEstablished is 1'
 if [ "$RES" != "$exp" ]; then
 	echo "Error (2): TPM Established flag has wrong value."
@@ -197,6 +222,10 @@ fi
 # Finale shut down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 sleep 0.5
 

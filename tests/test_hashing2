@@ -50,6 +50,10 @@ fi
 
 # Init the TPM
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM initialization failed."
+	exit 1
+fi
 
 sleep 0.5
 
@@ -58,11 +62,6 @@ if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
 	exit 1
 fi
-
-
-export TPM_DUMP_COMMANDS=1
-export TPM_DEVICE=/dev/$VTPM_NAME
-#tpmbios -o
 
 # Startup the TPM
 exec 100<>/dev/$VTPM_NAME
@@ -78,6 +77,10 @@ fi
 
 # Check the TPM Established bit before the hashing
 RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the TPM Established flag from the CUSE TPM."
+	exit 1
+fi
 exp='tpmEstablished is 0'
 if [ "$RES" != "$exp" ]; then
 	echo "Error (1): TPM Established flag has wrong value."
@@ -87,6 +90,10 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 $CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Hash command did not work."
+	exit 1
+fi
 
 # Read PCR 17
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
@@ -101,6 +108,10 @@ fi
 
 # Check the TPM Established bit after the hashing
 RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the TPM Established flag from the CUSE TPM."
+	exit 1
+fi
 exp='tpmEstablished is 1'
 if [ "$RES" != "$exp" ]; then
 	echo "Error (2): TPM Established flag has wrong value."
@@ -195,6 +206,10 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 sleep 0.5
 

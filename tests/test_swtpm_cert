@@ -25,6 +25,11 @@ ${SWTPM_CERT} \
 	--pem \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2
 
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
 #expecting size to be constant
 size=$(stat -c%s ${cert} 2>/dev/null)
 exp=1224
@@ -48,6 +53,11 @@ ${SWTPM_CERT} \
 	--pem \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2
 
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
 #expecting size to be constant
 size=$(stat -c%s ${cert} 2>/dev/null)
 exp=1302
@@ -70,6 +80,11 @@ ${SWTPM_CERT} \
 	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
 	--pem \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2
+
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
 
 #expecting size to be constant
 size=$(stat -c%s ${cert} 2>/dev/null)
@@ -101,6 +116,11 @@ ${SWTPM_CERT} \
 	--platform-manufacturer Fedora \
 	--platform-model QEMU \
 	--platform-version 2.1
+
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
 
 #expecting size to be constant
 size=$(stat -c%s ${cert} 2>/dev/null)

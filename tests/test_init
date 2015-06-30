@@ -48,9 +48,12 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-
 # Init the TPM
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -n 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
 
 sleep 0.5
 
@@ -61,6 +64,10 @@ if [ $? -ne 0 ]; then
 fi
 
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 sleep 0.5
 

@@ -33,7 +33,7 @@ export TCSD_USE_TCP_DEVICE=1
 $SWTPM_EXE socket -p $PORT -i $TPMDIR &>/dev/null &
 PID=$!
 
-sleep 5
+sleep 0.5
 
 kill -0 $PID
 if [ $? -ne 0 ]; then
@@ -71,7 +71,7 @@ TPMDIR=`mktemp -d`
 $SWTPM_EXE socket -p $PORT -i $TPMDIR -t &>/dev/null &
 PID=$!
 
-sleep 5
+sleep 0.5
 
 exec 20<&1-; exec 21<&2-
 kill -0 $PID

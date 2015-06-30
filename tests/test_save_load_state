@@ -49,8 +49,6 @@ rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
 $SWTPM_EXE -n $VTPM_NAME \
 	--log file=$logfile
-#sleep 20
-#echo "continuing"
 sleep 0.5
 PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME " | gawk '{print $2}')
 
@@ -64,19 +62,16 @@ fi
 
 # Init the TPM
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-
-sleep 0.5
+if [ $? -n 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
 
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
 	exit 1
 fi
-
-
-export TPM_DUMP_COMMANDS=1
-export TPM_DEVICE=/dev/$VTPM_NAME
-#tpmbios -o
 
 # Startup the TPM
 exec 100<>/dev/$VTPM_NAME
@@ -91,6 +86,10 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 $CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Hash command did not work."
+	exit 1
+fi
 
 # Read PCR 17
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
@@ -144,22 +143,29 @@ fi
 echo "Saved permanent state."
 
 $CUSE_TPM_IOCTL --save volatile $MY_VOLATILE_STATE_FILE /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not write volatile state file $MY_VOLATILE_STATE_FILE."
+	exit 1
+fi
 if [ ! -r $MY_VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $MY_VOLATILE_STATE_FILE does not exist."
 	exit 1
 fi
 echo "Saved volatile state."
 
-ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
-sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
+#ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
+#sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
 
 # we will use our own volatile state
 rm -f $VOLATILE_STATE_FILE $STATE_FILE
 
-sleep 2
 # Stop the TPM; this will not shut it down
 exec 100>&-
 $CUSE_TPM_IOCTL --stop /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not stop the CUSE TPM."
+	exit 1
+fi
 
 kill -0 $PID
 if [ $? -ne 0 ]; then
@@ -212,6 +218,10 @@ fi
 
 # Save the volatile state again
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not have the CUSE TPM store the volatile state to a file."
+	exit 1
+fi
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
@@ -220,6 +230,10 @@ fi
 
 # Send a new TPM_Init
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -n 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
@@ -239,10 +253,13 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-
-# Finale shut down
+# Final shut down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 sleep 0.5
 

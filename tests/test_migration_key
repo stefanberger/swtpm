@@ -76,8 +76,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sleep 0.5
-
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
@@ -134,7 +132,10 @@ fi
 
 # Save the volatile state into a file
 $CUSE_TPM_IOCTL --save volatile $volatilestatefile /dev/$VTPM_NAME
-
+if [ $? -ne 0 ]; then
+	echo "Error: Could not save the volatile state to ${volatilestatefile}."
+	exit 1
+fi
 if [ ! -r $volatilestatefile ]; then
 	echo "Error: Volatile state file $volatilestatefile does not exist."
 	exit 1
@@ -204,7 +205,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-
 exec 100<>/dev/$VTPM_NAME
 
 # Read PCR 10
@@ -218,10 +218,13 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-
 # Shut the TPM down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 echo "Test 2: Ok"
 
@@ -312,5 +315,9 @@ fi
 # Shut the TPM down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 echo "Test 4: Ok"

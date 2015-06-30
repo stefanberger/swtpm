@@ -56,8 +56,10 @@ fi
 
 # Init the TPM
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-
-sleep 0.5
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
 
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
@@ -86,7 +88,10 @@ fi
 
 # Save the volatile state again
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
-
+if [ $? -ne 0 ]; then
+	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
+	exit 1
+fi
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
 	exit 1
@@ -122,8 +127,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sleep 0.5
-
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
@@ -145,7 +148,10 @@ fi
 
 # Save the volatile state again
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
-
+if [ $? -ne 0 ]; then
+	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
+	exit 1
+fi
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
 	exit 1
@@ -154,5 +160,9 @@ fi
 # Shut the TPM down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 echo "Test 2: Ok"

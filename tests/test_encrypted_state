@@ -45,8 +45,6 @@ rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
 $SWTPM_EXE -n $VTPM_NAME --key file=$keyfile,mode=aes-cbc,format=hex \
 	--log file=$logfile
-#sleep 20
-#echo "continuing"
 sleep 0.5
 PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME " | gawk '{print $2}')
 
@@ -65,18 +63,11 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sleep 0.5
-
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
 	exit 1
 fi
-
-
-export TPM_DUMP_COMMANDS=1
-export TPM_DEVICE=/dev/$VTPM_NAME
-#tpmbios -o
 
 # Startup the TPM
 exec 100<>/dev/$VTPM_NAME
@@ -91,6 +82,10 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 $CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Hash command did not work."
+	exit 1
+fi
 
 # Read PCR 17
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
@@ -105,6 +100,10 @@ fi
 
 # Save the volatile state
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Saving the volatile state failed."
+	exit 1
+fi
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
@@ -125,6 +124,10 @@ fi
 # Shut the TPM down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 # Start the TPM again; have the keyfile removed
 $SWTPM_EXE -n $VTPM_NAME --key file=$keyfile,mode=aes-cbc,format=hex,remove \
@@ -172,6 +175,10 @@ fi
 
 # Save the volatile state again
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Saving the volatile state failed."
+	exit 1
+fi
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
@@ -207,6 +214,10 @@ fi
 # Final shut down
 exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
 
 sleep 0.5
 
