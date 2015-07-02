@@ -81,6 +81,11 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# swtpm_setup.conf points to the local create_certs.sh
+# For create_certs.sh to be found (with out full path)
+# add this directory to the PATH
+PATH=$PATH:$PWD
+
 for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 	rm -rf $TPMDIR/*
 	echo -n "Test $i: "

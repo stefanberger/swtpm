@@ -6,12 +6,15 @@ DIR=$(dirname "$0")
 ROOT=${DIR}/..
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
+SWTPM=${ROOT}/src/swtpm/swtpm
 
 workdir=$(mktemp -d)
 
 SIGNINGKEY=${workdir}/signingkey.pem
 ISSUERCERT=${workdir}/issuercert.pem
 CERTSERIAL=${workdir}/certserial
+
+PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
 
 trap "cleanup" SIGTERM EXIT
 
@@ -52,7 +55,8 @@ $SWTPM_SETUP \
 	--tpm-state ${workdir} \
 	--create-ek-cert \
 	--config ${workdir}/swtpm_setup.conf \
-	--logfile ${workdir}/logfile
+	--logfile ${workdir}/logfile \
+	--tpm "${SWTPM} socket"
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."

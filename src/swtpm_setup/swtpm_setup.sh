@@ -154,7 +154,7 @@ call_create_certs()
 			create_certs_tool_options="$(sed -n 's/\s*create_certs_tool_options\s*=\s*\([^#]*\).*/\1/p' \
 				"$configfile")"
 			if [ -n "$create_certs_tool_options" ]; then
-				params="$params --optsfile $create_certs_tool_options"
+				params="$params --optsfile \"$create_certs_tool_options\""
 			fi
 	      	else
 			logerr "Could not access config file" \
@@ -409,7 +409,6 @@ init_tpm()
 
 	export TCSD_USE_TCP_DEVICE=1
 	export TCSD_TCP_DEVICE_PORT=$TPM_PORT
-	PATH=$PATH:.
 
 	swtpm_bios
 	if [ $? -ne 0 ]; then
