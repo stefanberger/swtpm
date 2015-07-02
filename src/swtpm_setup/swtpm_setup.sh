@@ -105,12 +105,19 @@ logit_cmd()
 logerr()
 {
 	if [ -z "$LOGFILE" ]; then
-		echo "Error: $1" >&2
+		echo "Error: $@" >&2
 	else
-		echo "Error: $1" >> $LOGFILE
+		echo "Error: $@" >> $LOGFILE
 	fi
 }
 
+# Call external program to create certificates
+#
+# @param1: flags
+# @param2: the configuration file to get the external program from
+# @parma3: the directory where to write the certificates to
+# @param4: the EK as a sequence of hex nunbers
+# @param5: the ID of the VM
 call_create_certs()
 {
 	local ret=0
@@ -193,6 +200,10 @@ call_create_certs()
 	return $ret
 }
 
+# Start the TPM on a random open port
+#
+# @param1: full path to the TPM executable to use
+# @param2: the directory where the TPM is supposed to write its state to
 start_tpm()
 {
 	local swtpm="$1"
@@ -209,7 +220,7 @@ start_tpm()
 		if [ -n "$(netstat -lnpt 2>/dev/null |
 		         gawk '{print $4}' |
 		         grep ":${TPM_PORT} ")" ]; then
-			let ctr=ctr+1
+			let ctr=$ctr+1
 			continue
 		fi
 
@@ -249,14 +260,14 @@ start_tpm()
 	return 1
 }
 
-
+# Stop the TPM by sigalling it with a SIGTERM
 stop_tpm()
 {
 	[ "$SWTPM_PID" != "" ] && kill -SIGTERM $SWTPM_PID
 	SWTPM_PID=
 }
 
-
+# Start the TSS for TPM 1.2
 start_tcsd()
 {
 	local TCSD=$1
@@ -350,14 +361,14 @@ EOF
 	return 1
 }
 
-
+# Stop the TSS
 stop_tcsd()
 {
 	[ "$TCSD_PID" != "" ] && kill -SIGTERM $TCSD_PID
 	TCSD_PID=
 }
 
-
+# Cleanup everything including TPM, TSS, and files we may have created
 cleanup()
 {
 	stop_tpm
@@ -365,7 +376,14 @@ cleanup()
 	rm -rf "$TCSD_CONFIG" "$TCSD_DATA_FILE" "$TCSD_DATA_DIR"
 }
 
-
+# Initialize the TPM
+#
+# @param1: the flags
+# @param2: the configuration file to get the external program from
+# @parma3: the directory where the TPM is supposed to write it state to
+# @param4: the TPM owner password to use
+# @param5: The SRK password to use
+# @param6: The ID of the VM
 init_tpm()
 {
 	local flags="$1"
@@ -385,7 +403,7 @@ init_tpm()
 
 	start_tpm "$SWTPM" "$tpm_state_path"
 	if [ $? -ne 0 ]; then
-		logerr "Could not start TPM."
+		logerr "Could not start the TPM."
 		return 1
 	fi
 
@@ -572,7 +590,6 @@ init_tpm()
 	return 0
 }
 
-
 usage()
 {
 	cat <<EOF
@@ -584,17 +601,15 @@ The following options are supported:
                    this parameter is interpreted by swtpm_setup that switches
                    to this user and invokes swtpm_setup.sh; defaults to 'tss' 
 
---tpm-state <dir>: Path to a directory where the TPM's state will be written into;
-                   this is a mandatory argument
+--tpm-state <dir>: Path to a directory where the TPM's state will be written
+                   into; this is a mandatory argument
+
 --tpm <executable>
                  : Path to the TPM executable; this is an optional argument and
-                   by default $SWTPM is used
-
---keyfile <file> : File containing the encryption key to be used by the TPM
-                   emulator; this parameter will be passed to the TPM using
-                   '--key file=<file>'
+                   by default $SWTPM is used.
 
 --createek       : Create the EK
+
 --take-ownership : Take ownership; this option implies --createek
   --ownerpass  <password>
                  : Provide custom owner password; default is $DEFAULT_OWNER_PASSWORD
@@ -605,10 +620,10 @@ The following options are supported:
   --srk-well-known:
                  : Use an SRK password of 20 zero bytes
 --create-ek-cert : Create an EK certificate; this implies --createek
-                   (NOT SUPPORTED YET)
+
 --create-platform-cert
                  : Create a platform certificate; this implies --create-ek-cert
-                   (NOT SUPPORTED YET)
+
 --lock-nvram     : Lock NVRAM access
 
 --display        : At the end display as much info as possible about the
@@ -624,15 +639,19 @@ The following options are supported:
                  : Path to a key file containing the encryption key for the
                    TPM to encrypt its persistent state with. The content
                    must be a 32 hex digit number representing a 128bit AES key.
+                   This parameter will be passed to the TPM using
+                   '--key file=<file>'.
+
 --pwdfile <pwdfile>
                  : Path to a file containing a passphrase from which the
                    TPM will derive the 128bit AES key. The passphrase ca be
                    32 bytes long.
+                   This parameter will be passed to the TPM using
+                   '--key pwdfile=<file>'.
 
 --help,-h,-?     : Display this help screen
 EOF
 }
-
 
 main()
 {
