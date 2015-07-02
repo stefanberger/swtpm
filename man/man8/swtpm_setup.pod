@@ -29,10 +29,10 @@ certificates; see also B<swtpm_setup.conf>
 Path to a directory where the TPM's state will be written into;
 this is a mandatory argument
 
-=item B<--tpm>
+=item B<--tpm <path to executable>>
 
 Path to the TPM executable; this is an optional argument and
-by default /usr/bin/swtpm is used
+by default the swtpm executable found in the PATH will be used.
 
 =item B<--createek>
 
