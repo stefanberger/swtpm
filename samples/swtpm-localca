@@ -46,18 +46,18 @@ LOGFILE=""
 logit()
 {
 	if [ -z "$LOGFILE" ]; then
-		echo "$1" >&1
+		echo "$@" >&1
 	else
-		echo "$1" >> $LOGFILE
+		echo "$@" >> $LOGFILE
 	fi
 }
 
 logerr()
 {
 	if [ -z "$LOGFILE" ]; then
-		echo "Error: $1" >&2
+		echo "Error: $@" >&2
 	else
-		echo "Error: $1" >> $LOGFILE
+		echo "Error: $@" >> $LOGFILE
 	fi
 }
 
@@ -119,7 +119,7 @@ create_cert() {
 	local vmid="$4"
 
 	local serial=$(get_next_cert_serial)
-	local options
+	local options rc=0
 	
 	if [ -r "${LOCALCA_OPTIONS}" ]; then
 		options=$(cat ${LOCALCA_OPTIONS})
@@ -142,6 +142,7 @@ create_cert() {
 				logit "Successfully created EK certificate locally."
 			else
 				logerr "Could not create EK certificate locally."
+				rc=1
 			fi
 		fi
 		;;
@@ -162,10 +163,13 @@ create_cert() {
 				logit "Successfully created platform certificate locally."
 			else
 				logerr "Could not create platform certificate locally."
+				rc=1
 			fi
 		fi
 		;;
 	esac
+
+	return $rc
 }
 
 # Create the local CA's (self signed) certificate if it doesn't already exist.
@@ -306,6 +310,8 @@ main() {
 	    "${STATEDIR}/certserial")
 
 	create_cert "$typ" "$dir" "$ek" "$vmid"
+
+	exit $?
 }
 
 main "$@" # 2>&1 | tee -a /tmp/localca.log
