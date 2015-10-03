@@ -312,6 +312,7 @@ AC_CONFIG_FILES(Makefile                    \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_setup/Makefile    \
 		man/Makefile                \
+		man/man3/Makefile           \
 		man/man8/Makefile           \
 		tests/Makefile              \
 		)

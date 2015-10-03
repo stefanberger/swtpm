@@ -4,4 +4,6 @@
 # For the license, see the COPYING file in the root directory.
 #
 
-SUBDIRS = man8
+SUBDIRS = \
+	man3 \
+	man8

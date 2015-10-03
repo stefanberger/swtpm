@@ -90,6 +90,7 @@ Tools for the TPM emulator from the swtpm package
 
 %dir %{_includedir}/%{name}
 %attr(644, root, root) %{_includedir}/%{name}/*.h
+%{_mandir}/man3/swtpm_ioctls.3*
 
 %files tools
 %defattr(-,root,root,-)

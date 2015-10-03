@@ -1,0 +1,345 @@
+=head1 NAME
+
+Description of the ioctl's of the CUSE tpm (swtpm_cuse)
+
+=head1 SYNOPSYS
+
+B<#include E<lt>tpm_ioctl.hE<gt>>
+
+=head1 DESCRIPTION
+
+The CUSE TPM implements an ioctl interface on the CUSE TPM's character device.
+The ioctl's are used for out-of-band control of various TPM operations,
+such as its intialization, resetting, and state migration.
+
+The following is an enumeration of the supported ioctl's and the names
+of the data structure types used by the individual ioctl. All ioctl's
+return a TPM error code in their response.
+
+=over 4
+
+=item B<PTM_GET_CAPABILITY, ptm_cap>
+
+This ioctl allows the caller to check which ioctl's are implemented
+by the CUSE TPM. The following is a list of capability flags that
+may be set upon return:
+
+=over 4
+
+=item B<PTM_CAP_INIT (since v0.1)>
+
+The PTM_INIT ioctl is supported.
+
+=item B<PTM_CAP_SHUTDOWN (since v0.1)>
+
+The PTM_SHUTDOWN ioctl is supported.
+
+=item B<PTM_CAP_GET_TPMESTABLISHED (since v0.1)>
+
+The PTM_GET_TPMESTABLISHED ioctl is supported.
+
+=item B<PTM_CAP_SET_LOCALITY (since v0.1)>
+
+The PTM_SET_LOCALITY ioctl is supported.
+
+=item B<PTM_CAP_HASHING (since v0.1)>
+
+The PTM_HASH_START, PTM_HASH_DATA, and PTM_HASH_END ioctl's are supported.
+
+=item B<PTM_CAP_CANCEL_TPM_CMD (since v0.1)>
+
+The PTM_CANCEL_TPM_CMD ioctl is supported.
+
+=item B<PTM_CAP_STORE_VOLATILE (since v0.1)>
+
+The PTM_STORE_VOLATILE ioctl is supported.
+
+=item B<PTM_CAP_RESET_TPMESTABLISHED (since v0.1)>
+
+The PTM_RESET_TPMESTABLISHED ioctl is supported.
+
+=item B<PTM_CAP_GET_STATEBLOB (since v0.1)>
+
+The PTM_GET_STATEBLOB ioctl is supported.
+
+=item B<PTM_CAP_SET_STATEBLOB (since v0.1)>
+
+The PTM_SET_STATEBLOB ioctl is supported.
+
+=item B<PTM_CAP_STOP (since v0.1)>
+
+The PTM_STOP ioctl is supported.
+
+=item B<PTM_CAP_GET_CONFIG (since v0.1)>
+
+The PTM_GET_CONFIG ioctl is supported.
+
+=back
+
+=item B<PTM_INIT, ptm_init>
+
+This ioctl must be used to initialize the TPM. It must be sent to the
+TPM before any command is sent to the TPM.
+
+The ptm_init data structure looks as follows:
+
+ struct ptm_init {
+    union {
+        struct {
+            uint32_t init_flags; /* see definitions below */
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+        } resp; /* response */
+    } u;
+ };
+
+The init_flags field in the request can be used to have the TPM
+delete the volatile state upon startup (B<PTM_INIT_FLAG_DELETE_VOLATILE>).
+
+A TPM result code is returned in the tpm_result field.
+
+=item B<PTM_SHUTDOWN, ptm_res>
+
+This ioctl allows to shut down the TPM.
+
+A TPM result code is returned in ptm_res.
+
+=item B<PTM_GET_TPMESTABLISHED, ptm_est>
+
+This ioctl is used to check whether the TPM established flag is set.
+
+The tpm_est data structure looks as follows:
+
+struct ptm_est {
+    union {
+        struct {
+            ptm_res tpm_result;
+            unsigned char bit; /* TPM established bit */
+        } resp; /* response */
+    } u;
+};
+
+A TPM result code is returned in the tpm_result field.
+
+The status of the TPM establishment flag is returned in the
+bit field.
+
+=item B<PTM_SET_LOCALITY, ptm_loc>
+
+This ioctl is used to set the current locality. All subsequent commands
+will be executed in this locality until the locality is changed.
+
+The ptm_loc data structure looks as follows:
+
+ struct ptm_loc {
+    union {
+        struct {
+            uint8_t loc; /* locality to set */
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+        } resp; /* response */
+    } u;
+ };
+
+
+The locality number must be set in the request's loc field. Valid
+localities are in the range of 0 to 4.
+
+A TPM result code is returned in the tpm_result field.
+
+=item B<PTM_HASH_START, ptm_res>
+
+This ioctl is used to start the hash operation that is typically
+initiated by writing into certain registers of locality 4 of the
+TPM Interface (TPM TIS). Subsequent write operations for transferring
+data must be done with the B<PTM_HASH_DATA> ioctl.
+
+A TPM result code is returned in the ptm_res.
+
+=item B<PTM_HASH_DATA, ptm_hdata>
+
+This ioctl is used to transfer the data for the hash operation.
+
+The ptm_hdata structure looks as follows:
+
+ struct ptm_hdata {
+    union {
+        struct {
+            uint32_t length;
+            uint8_t data[4096];
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+        } resp; /* response */
+    } u;
+ };
+
+The length of the data is indicated in the length field with the data in
+the data field. Up to 4096 bytes can be transferred in one call.
+
+A TPM result code is returned in the tpm_result field.
+
+=item B<PTM_HASH_END, ptm_res>
+
+This ioctl is used to indicate the end of a hash operation that was
+started with the B<PTM_HASH_START> ioctl.
+
+A TPM result code is returned in ptm_res.
+
+=item B<PTM_CANCEL_CMD, ptm_res>
+
+This ioctl is used to cancel a TPM command.
+
+A TPM result code is returned in ptm_res.
+
+=item B<PTM_STORE_VOLATILE, ptm_res>
+
+This ioctl is used to trigger the TPM to store the volatile state into
+a file.
+
+A TPM result code is returned in ptm_res.
+
+=item B<PTM_RESET_ESTABLISHED, ptm_reset_est>
+
+This ioctl is used to reset the TPM's establishment flag.
+
+The ptm_reset_est data structure looks as follows:
+
+ struct ptm_reset_est {
+    union {
+        struct {
+            uint8_t loc; /* locality to use */
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+        } resp; /* response */
+    } u;
+ };
+
+The locality in which the establishment flag is to be reset must be set in
+the loc field. Valid localities are in the range of 0 to 4.
+
+A TPM result code is returned in the tpm_result field.
+
+=item B<PTM_GET_STATEBLOB, ptm_getstate>
+
+This ioctl is used to initiate the retrieval of one of the TPM's stateblobs.
+
+The ptm_getstate data structure looks as follows:
+
+ struct ptm_getstate {
+    union {
+        struct {
+            uint32_t state_flags; /* may be: PTM_STATE_FLAG_DECRYPTED */
+            uint32_t type;        /* which blob to pull */
+            uint32_t offset;      /* offset from where to read */
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+            uint32_t state_flags; /* may be: PTM_STATE_FLAG_ENCRYPTED */
+            uint32_t totlength;   /* total length that will be transferred */
+            uint32_t length;      /* number of bytes in following buffer */
+            uint8_t  data[PTM_STATE_BLOB_SIZE];
+        } resp; /* response */
+    } u;
+ };
+
+In the request the state_flags field allows to set the
+B<PTM_STATE_FLAG_DECRYPT> flag to retrieve decrypted TPM state in case
+the TPM's state was written in encrypted form.
+
+The type field allows to choose one of the TPM's state blobs, and must be
+one of B<PTM_BLOB_TYPE_PERMANENT>, B<PTM_BLOB_TYPE_VOLATILE>, and
+B<PTM_BLOB_TYPE_SAVESTATE>.
+
+The offset field indicates at what offset to read the data from. Subsequent
+state transfers must advance the offset field to the next byte to be read.
+If the read() interface is used the offset will be advanced automatically.
+
+The response returns a TPM error code in the tpm_result field.
+
+The state_flags field in the response indicates whether the returned
+blob is encrypted.
+
+The totlength field indicates the total length of the state blob.
+
+The length field indicates the number of valid bytes in the data field.
+
+If necessary, subsequent state blob transfers must be done using this
+ioctl or using the read() call on the file descriptor. All state
+must be transferred before the TPM will accept commands again.
+
+=item B<PTM_SET_STATEBLOB, ptm_setstate>
+
+This ioctl is used to transfer one of the TPM's stateblob to the TPM.
+
+The ptm_setstate data structure looks as follows:
+
+ struct ptm_setstate {
+    union {
+        struct {
+            uint32_t state_flags; /* may be PTM_STATE_FLAG_ENCRYPTED */
+            uint32_t type;        /* which blob to set */
+            uint32_t length;      /* length of the data;
+                                     use 0 on the first packet to
+                                     transfer using write() */
+            uint8_t data[PTM_STATE_BLOB_SIZE];
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+        } resp; /* response */
+    } u;
+ };
+
+The state_flags field indicates whether the provided state is encrypted.
+In case it is encrypted, a migration key must have been provided to the
+TPM for it to be able to decrypt the state.
+
+The type field indicates which one of the TPM's state blobs is being set.
+It must be either one of B<PTM_BLOB_TYPE_PERMANENT>,
+B<PTM_BLOB_TYPE_VOLATILE>, and B<PTM_BLOB_TYPE_SAVESTATE>.
+
+The length field indicates the number of bytes of state blob data in the
+data field. To transfer the state blob using the write() call, set the
+length to 0.
+
+The response returns a TPM error code in the tpm_result field.
+
+=item B<PTM_STOP, ptm_res>
+
+This ioctl is used to stop the TPM. In contrast to a TPM shut down,
+the stopping of the TPM only halts its operations without terminating
+the TPM process. The TPM can restart operation with the B<PTM_INIT>
+ioctl.
+
+A TPM result code is returned in pmt_res.
+
+=item B<PTM_GET_CONFIG, ptm_getconfig>
+
+This ioctl is used to retrieve the TPM's current configuration.
+
+The ptm_getconfig data structure looks as follows:
+
+ struct ptm_getconfig {
+    union {
+        struct {
+            ptm_res tpm_result;
+            uint32_t flags;
+        } resp; /* response */
+    } u;
+ };
+
+A TPM result code is returned in the tpm_result field.
+
+The flags field holds individual flags that indicate whether a file
+encryption key is used (B<PTM_CONFIG_FLAG_FILE_KEY>)
+and whether a migration key is used
+(B<PTM_CONFIG_FLAG_MIGRATION_KEY>).
+
+=back
+
+=head1 SEE ALSO
+
+B<swtpm_ioctl(8)>, B<swtpm_cuse(8)>
