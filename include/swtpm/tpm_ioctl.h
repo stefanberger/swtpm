@@ -7,6 +7,8 @@
  * License as published by the Free Software Foundation; either version 2.1 of
  * the License, or (at your option) any later version.
  */
+#ifndef _TPM_IOCTL_H_
+#define _TPM_IOCTL_H_
 
 #include <stdint.h>
 #include <sys/uio.h>
@@ -23,8 +25,12 @@ typedef uint32_t ptm_res;
 
 /* PTM_GET_TPMESTABLISHED: get the establishment bit */
 struct ptm_est {
-    ptm_res tpm_result;
-    unsigned char bit; /* TPM established bit */
+    union {
+        struct {
+            ptm_res tpm_result;
+            unsigned char bit; /* TPM established bit */
+        } resp; /* response */
+    } u;
 };
 
 /* PTM_RESET_TPMESTABLISHED: reset establishment bit */
@@ -32,10 +38,10 @@ struct ptm_reset_est {
     union {
         struct {
             uint8_t loc; /* locality to use */
-        } req;
+        } req; /* request */
         struct {
             ptm_res tpm_result;
-        } resp;
+        } resp; /* response */
     } u;
 };
 
@@ -44,15 +50,15 @@ struct ptm_init {
     union {
         struct {
             uint32_t init_flags; /* see definitions below */
-        } req;
+        } req; /* request */
         struct {
             ptm_res tpm_result;
-        } resp;
+        } resp; /* response */
     } u;
 };
 
 /* above init_flags */
-#define INIT_FLAG_DELETE_VOLATILE (1 << 0)
+#define PTM_INIT_FLAG_DELETE_VOLATILE (1 << 0)
     /* delete volatile state file after reading it */
 
 /* PTM_SET_LOCALITY */
@@ -60,10 +66,10 @@ struct ptm_loc {
     union {
         struct {
             uint8_t loc; /* locality to set */
-        } req;
+        } req; /* request */
         struct {
             ptm_res tpm_result;
-        } resp;
+        } resp; /* response */
     } u;
 };
 
@@ -73,10 +79,10 @@ struct ptm_hdata {
         struct {
             uint32_t length;
             uint8_t data[4096];
-        } req;
+        } req; /* request */
         struct {
             ptm_res tpm_result;
-        } resp;
+        } resp; /* response */
     } u;
 };
 
@@ -84,11 +90,11 @@ struct ptm_hdata {
  * size of the TPM state blob to transfer; x86_64 can handle 8k,
  * ppc64le only ~7k; keep the response below a 4k page size
  */
-#define STATE_BLOB_SIZE (3 * 1024)
+#define PTM_STATE_BLOB_SIZE (3 * 1024)
 
 /*
  * The following is the data structure to get state blobs from the TPM.
- * If the size of the state blob exceeds the STATE_BLOB_SIZE, multiple reads
+ * If the size of the state blob exceeds the PTM_STATE_BLOB_SIZE, multiple reads
  * with this ioctl and with adjusted offset are necessary. All bytes
  * must be transferred and the transfer is done once the last byte has been
  * returned.
@@ -100,17 +106,17 @@ struct ptm_hdata {
 struct ptm_getstate {
     union {
         struct {
-            uint32_t state_flags; /* may be: STATE_FLAG_DECRYPTED */
+            uint32_t state_flags; /* may be: PTM_STATE_FLAG_DECRYPTED */
             uint32_t type;        /* which blob to pull */
             uint32_t offset;      /* offset from where to read */
-        } req;
+        } req; /* request */
         struct {
             ptm_res tpm_result;
-            uint32_t state_flags; /* may be: STATE_FLAG_ENCRYPTED */
+            uint32_t state_flags; /* may be: PTM_STATE_FLAG_ENCRYPTED */
             uint32_t totlength;   /* total length that will be transferred */
             uint32_t length;      /* number of bytes in following buffer */
-            uint8_t  data[STATE_BLOB_SIZE];
-        } resp;
+            uint8_t  data[PTM_STATE_BLOB_SIZE];
+        } resp; /* response */
     } u;
 };
 
@@ -120,14 +126,14 @@ struct ptm_getstate {
 #define PTM_BLOB_TYPE_SAVESTATE  3
 
 /* state_flags above : */
-#define STATE_FLAG_DECRYPTED     1 /* on input:  get decrypted state */
-#define STATE_FLAG_ENCRYPTED     2 /* on output: state is encrypted */
+#define PTM_STATE_FLAG_DECRYPTED     1 /* on input:  get decrypted state */
+#define PTM_STATE_FLAG_ENCRYPTED     2 /* on output: state is encrypted */
 
 /*
  * The following is the data structure to set state blobs in the TPM.
- * If the size of the state blob exceeds the STATE_BLOB_SIZE, multiple
+ * If the size of the state blob exceeds the PTM_STATE_BLOB_SIZE, multiple
  * 'writes' using this ioctl are necessary. The last packet is indicated
- * by the length being smaller than the STATE_BLOB_SIZE.
+ * by the length being smaller than the PTM_STATE_BLOB_SIZE.
  * The very first packet may have a length indicator of '0' enabling
  * a write() with all the bytes from a buffer. If the write() interface
  * is used, a final ioctl with a non-full buffer must be made to indicate
@@ -136,16 +142,16 @@ struct ptm_getstate {
 struct ptm_setstate {
     union {
         struct {
-            uint32_t state_flags; /* may be STATE_FLAG_ENCRYPTED */
+            uint32_t state_flags; /* may be PTM_STATE_FLAG_ENCRYPTED */
             uint32_t type;        /* which blob to set */
             uint32_t length;      /* length of the data;
                                      use 0 on the first packet to
                                      transfer using write() */
-            uint8_t data[STATE_BLOB_SIZE];
-        } req;
+            uint8_t data[PTM_STATE_BLOB_SIZE];
+        } req; /* request */
         struct {
             ptm_res tpm_result;
-        } resp;
+        } resp; /* response */
     } u;
 };
 
@@ -158,12 +164,12 @@ struct ptm_getconfig {
         struct {
             ptm_res tpm_result;
             uint32_t flags;
-        } resp;
+        } resp; /* response */
     } u;
 };
 
-#define CONFIG_FLAG_FILE_KEY        0x1
-#define CONFIG_FLAG_MIGRATION_KEY   0x2
+#define PTM_CONFIG_FLAG_FILE_KEY        0x1
+#define PTM_CONFIG_FLAG_MIGRATION_KEY   0x2
 
 
 typedef uint64_t ptm_cap;
@@ -207,3 +213,5 @@ enum {
     PTM_STOP               = _IOR('P', 13, ptm_res),
     PTM_GET_CONFIG         = _IOR('P', 14, ptm_getconfig),
 };
+
+#endif /* _TPM_IOCTL_H */

@@ -415,7 +415,7 @@ static int tpm_start(uint32_t flags)
         goto error_del_pool;
     }
 
-    if (flags & INIT_FLAG_DELETE_VOLATILE) {
+    if (flags & PTM_INIT_FLAG_DELETE_VOLATILE) {
         uint32_t tpm_number = 0;
         char *name = TPM_VOLATILESTATE_NAME;
         if (SWTPM_NVRAM_DeleteName(tpm_number,
@@ -802,7 +802,8 @@ ptm_get_stateblob(fuse_req_t req, ptm_getstate *pgs)
 {
     TPM_RESULT res = 0;
     uint32_t blobtype = pgs->u.req.type;
-    TPM_BOOL decrypt = ((pgs->u.req.state_flags & STATE_FLAG_DECRYPTED) != 0);
+    TPM_BOOL decrypt =
+        ((pgs->u.req.state_flags & PTM_STATE_FLAG_DECRYPTED) != 0);
     TPM_BOOL is_encrypted = FALSE;
     uint32_t copied = 0;
     uint32_t offset = pgs->u.req.offset;
@@ -817,7 +818,7 @@ ptm_get_stateblob(fuse_req_t req, ptm_getstate *pgs)
 
     pgs->u.resp.state_flags = 0;
     if (is_encrypted)
-        pgs->u.resp.state_flags |= STATE_FLAG_ENCRYPTED;
+        pgs->u.resp.state_flags |= PTM_STATE_FLAG_ENCRYPTED;
 
     pgs->u.resp.length = copied;
     pgs->u.resp.totlength = totlength;
@@ -923,7 +924,8 @@ static void
 ptm_set_stateblob(fuse_req_t req, ptm_setstate *pss)
 {
     TPM_RESULT res = 0;
-    TPM_BOOL is_encrypted = ((pss->u.req.state_flags & STATE_FLAG_ENCRYPTED) != 0);
+    TPM_BOOL is_encrypted =
+        ((pss->u.req.state_flags & PTM_STATE_FLAG_ENCRYPTED) != 0);
     bool is_last = (sizeof(pss->u.req.data) != pss->u.req.length);
 
     if (pss->u.req.length > sizeof(pss->u.req.data)) {
@@ -1087,7 +1089,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
             ptm_est te;
-            te.tpm_result = TPM_IO_TpmEstablished_Get(&te.bit);
+            te.u.resp.tpm_result = TPM_IO_TpmEstablished_Get(&te.u.resp.bit);
             fuse_reply_ioctl(req, 0, &te, sizeof(te));
         }
         break;
@@ -1219,9 +1221,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             pgs.u.resp.tpm_result = 0;
             pgs.u.resp.flags = 0;
             if (SWTPM_NVRAM_Has_FileKey())
-                pgs.u.resp.flags |= CONFIG_FLAG_FILE_KEY;
+                pgs.u.resp.flags |= PTM_CONFIG_FLAG_FILE_KEY;
             if (SWTPM_NVRAM_Has_MigrationKey())
-                pgs.u.resp.flags |= CONFIG_FLAG_MIGRATION_KEY;
+                pgs.u.resp.flags |= PTM_CONFIG_FLAG_MIGRATION_KEY;
             fuse_reply_ioctl(req, 0, &pgs, sizeof(pgs));
         }
         break;

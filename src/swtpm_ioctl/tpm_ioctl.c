@@ -207,7 +207,7 @@ static int do_save_state_blob(int fd, const char *blobtype,
 
     while (true) {
         /* fill out request every time since response may change it */
-        pgs.u.req.state_flags = STATE_FLAG_DECRYPTED;
+        pgs.u.req.state_flags = PTM_STATE_FLAG_DECRYPTED;
         pgs.u.req.type = bt;
         pgs.u.req.offset = offset;
 
@@ -536,7 +536,7 @@ int main(int argc, char *argv[])
         printf("ptm capability is 0x%lx\n",cap);
 
     } else if (!strcmp(argv[1], "-i")) {
-        init.u.req.init_flags = INIT_FLAG_DELETE_VOLATILE;
+        init.u.req.init_flags = PTM_INIT_FLAG_DELETE_VOLATILE;
         n = ioctl(fd, PTM_INIT, &init);
         if (n < 0) {
             fprintf(stderr,
@@ -559,13 +559,13 @@ int main(int argc, char *argv[])
                     "%s\n", strerror(errno));
             return 1;
         }
-        res = est.tpm_result;
+        res = est.u.resp.tpm_result;
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_GET_TPMESTABLISHED: 0x%x\n", res);
             return 1;
         }
-        printf("tpmEstablished is %d\n",est.bit);
+        printf("tpmEstablished is %d\n",est.u.resp.bit);
 
     } else if (!strcmp(argv[1], "-r")) {
         reset_est.u.req.loc = atoi(argv[2]);
