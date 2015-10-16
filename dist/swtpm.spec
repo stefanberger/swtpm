@@ -21,7 +21,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 %endif
 
 BuildRequires:  automake autoconf bash coreutils libtool sed
-BuildRequires:  libtpms-devel>=0.6.0 fuse-devel glib2-devel gmp-devel
+BuildRequires:  libtpms-devel fuse-devel glib2-devel gmp-devel
 BuildRequires:  expect bash net-tools nss-devel
 %if %{with_gnutls}
 BuildRequires:  gnutls >= 3.1.0 gnutls-devel
@@ -30,7 +30,7 @@ BuildRequires:  libtasn1-devel libtasn1 kernel-modules-extra
 BuildRequires:  libtasn1-tools
 %endif
 %endif
-Requires:       fuse expect kernel-modules-extra libtpms>=0.6.0
+Requires:       fuse expect kernel-modules-extra
 
 %description
 TPM emulator built on libtpms providing TPM functionality for QEMU VMs
