@@ -16,7 +16,9 @@ samplessysconf_DATA = \
 
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)/$(localstatedir)/lib/swtpm-localca
-	chown tss:tss $(DESTDIR)/$(localstatedir)/lib/swtpm-localca
+	if test -z $(DESTDIR); then \
+		chown tss:tss $(DESTDIR)/$(localstatedir)/lib/swtpm-localca; \
+	fi
 
 install-exec:
 	chmod 755 $(DESTDIR)/$(samplesconfdir)/swtpm-localca
