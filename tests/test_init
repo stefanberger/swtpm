@@ -17,6 +17,7 @@ VTPM_NAME="vtpm-test-init"
 export TPM_PATH=$(mktemp -d)
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+PID_FILE=$TPM_PATH/${SWTPM}.pid
 
 function cleanup()
 {
@@ -36,7 +37,7 @@ fi
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
-$SWTPM_EXE -n $VTPM_NAME
+$SWTPM_EXE --pid file=$PID_FILE -n $VTPM_NAME
 sleep 0.5
 PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
 
@@ -45,6 +46,17 @@ ps aux | grep $SWTPM | grep -v grep
 kill -0 $PID
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM did not start."
+	exit 1
+fi
+
+if [ ! -r $PID_FILE ]; then
+	echo "Error: CUSE TPM did not write pidfile."
+	exit 1
+fi
+
+PIDF="$(cat $PID_FILE)"
+if [ "$PIDF" != "$PID" ]; then
+	echo "Error: CUSE TPM wrote pid $PIDF, but found $PID."
 	exit 1
 fi
 

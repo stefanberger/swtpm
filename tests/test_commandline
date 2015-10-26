@@ -8,6 +8,7 @@ SWTPM=swtpm
 SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
 TPMDIR=`mktemp -d`
 TPMAUTHORING=$ROOT/src/swtpm_setup/swtpm_setup
+PID_FILE=$TPMDIR/${SWTPM}.pid
 PATH=${PWD}/${ROOT}/src/swtpm:$PATH
 PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
 PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
@@ -65,7 +66,7 @@ function wait_port_closed()
 
 # Test 1: test port and directory command line parameters
 
-$SWTPM_EXE socket -p $PORT -i $TPMDIR &>/dev/null &
+$SWTPM_EXE socket -p $PORT -i $TPMDIR --pid file=$PID_FILE &>/dev/null &
 PID=$!
 
 wait_port_open $PORT $PID
@@ -75,6 +76,18 @@ if [ $? -ne 0 ]; then
 	echo "Test 1 failed: TPM process not running"
 	exit 1
 fi
+
+if [ ! -r $PID_FILE ]; then
+	echo "Error: CUSE TPM did not write pidfile."
+	exit 1
+fi
+
+PIDF="$(cat $PID_FILE)"
+if [ "$PIDF" != "$PID" ]; then
+	echo "Error: CUSE TPM wrote pid $PIDF, but found $PID."
+	exit 1
+fi
+
 
 swtpm_bios &>/dev/null
 

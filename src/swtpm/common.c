@@ -43,6 +43,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <stdlib.h>
 
 #include <libtpms/tpm_error.h>
 
@@ -51,6 +52,7 @@
 #include "key.h"
 #include "logging.h"
 #include "swtpm_nvfile.h"
+#include "pidfile.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -80,6 +82,15 @@ static const OptionDesc key_opt_desc[] = {
         .type = OPT_TYPE_BOOLEAN,
     }, {
         .name = "pwdfile",
+        .type = OPT_TYPE_STRING,
+    },
+    END_OPTION_DESC
+};
+
+/* --pid %s */
+static const OptionDesc pid_opt_desc[] = {
+    {
+        .name = "file",
         .type = OPT_TYPE_STRING,
     },
     END_OPTION_DESC
@@ -261,6 +272,78 @@ handle_migration_key_options(char *options)
 
     if (SWTPM_NVRAM_Set_MigrationKey(key, keylen, encmode) != TPM_SUCCESS)
         return -1;
+
+    return 0;
+}
+
+/*
+ * parse_pid_options:
+ * Parse and act upon the parsed 'pid' options.
+ *
+ * @options: the 'pid' options to parse
+ * @pidfile: Point to pointer for pidfile
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+static int
+parse_pid_options(char *options, char **pidfile)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+    const char *filename = NULL;
+
+    ovs = options_parse(options, pid_opt_desc, &error);
+
+    if (!ovs) {
+        fprintf(stderr, "Error parsing pid options: %s\n",
+                error);
+        goto error;
+    }
+
+    filename = option_get_string(ovs, "file", NULL);
+    if (!filename) {
+        fprintf(stderr, "The file parameter is required for the pid option.\n");
+        goto error;
+    }
+
+    *pidfile = strdup(filename);
+    if (!*pidfile) {
+        fprintf(stderr, "Out of memory.");
+        goto error;
+    }
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+
+    return -1;
+}
+
+/*
+ * handle_pidfile_options:
+ * Parse and act upon the parse pidfile options. Set global value
+ * related to the options found.
+ * @options: the pidfile options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int
+handle_pid_options(char *options)
+{
+    char *pidfile = NULL;
+
+    if (!options)
+        return 0;
+
+    if (parse_pid_options(options, &pidfile) < 0)
+        return -1;
+
+    pidfile_set(pidfile);
+
+    free(pidfile);
 
     return 0;
 }

@@ -60,7 +60,7 @@
 #include "swtpm_nvfile.h"
 #include "common.h"
 #include "logging.h"
-
+#include "pidfile.h"
 
 /* local variables */
 int notify_fd[2] = {-1, -1};
@@ -147,6 +147,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char buf[20];
     char *keydata = NULL;
     char *logdata = NULL;
+    char *piddata = NULL;
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -159,6 +160,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"terminate" ,       no_argument, 0, 't'},
         {"log"       , required_argument, 0, 'l'},
         {"key"       , required_argument, 0, 'k'},
+        {"pid"       , required_argument, 0, 'P'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -233,6 +235,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             logdata = optarg;
             break;
 
+        case 'P':
+            piddata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -244,7 +250,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     }
 
     if (handle_log_options(logdata) < 0 ||
-        handle_key_options(keydata) < 0)
+        handle_key_options(keydata) < 0 ||
+        handle_pid_options(piddata) < 0)
         return EXIT_FAILURE;
 
     if (daemonize) {
@@ -252,6 +259,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
            logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
            return EXIT_FAILURE;
        }
+    }
+
+    if (pidfile_write(getpid()) < 0) {
+        return EXIT_FAILURE;
     }
 
     setvbuf(stdout, 0, _IONBF, 0);      /* output may be going through pipe */

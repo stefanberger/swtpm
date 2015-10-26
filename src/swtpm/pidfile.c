@@ -1,7 +1,7 @@
 /*
- * common.h -- Header file for Common code for swtpm and swtpm_cuse
+ * pidfile.c -- pidfile handling
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,13 +34,61 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _SWTPM_COMMON_H_
-#define _SWTPM_COMMON_H_
 
-int handle_log_options(char *options);
-int handle_key_options(char *options);
-int handle_migration_key_options(char *options);
-int handle_pid_options(char *options);
+#include "config.h"
 
-#endif /* _SWTPM_COMMON_H_ */
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
 
+#include "pidfile.h"
+#include "logging.h"
+
+static char *g_pidfile;
+
+int pidfile_set(const char *pidfile)
+{
+   g_pidfile = strdup(pidfile);
+   if (!g_pidfile)
+       return -1;
+
+   return 0;
+}
+
+/*
+ * pidfile_write: Write the given pid to the pidfile
+ *
+ * @pid: the PID to write
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int pidfile_write(pid_t pid)
+{
+    FILE *f;
+
+    if (!g_pidfile)
+        return 0;
+
+    f = fopen(g_pidfile, "w+");
+    if (!f) {
+        logprintf(STDERR_FILENO, "Could not open pidfile %s : %s\n",
+                  g_pidfile, strerror(errno));
+        goto error;
+    }
+
+    if (fprintf(f, "%d", pid) < 0) {
+        logprintf(STDERR_FILENO, "Could not write to pidfile : %s\n",
+                  strerror(errno));
+        fclose(f);
+        goto error;
+    }
+
+    fclose(f);
+
+    return 0;
+
+error:
+    return -1;
+}

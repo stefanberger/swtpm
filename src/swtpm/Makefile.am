@@ -10,6 +10,7 @@ noinst_HEADERS = \
 	logging.h \
 	main.h \
 	options.h \
+	pidfile.h \
 	swtpm_aes.h \
 	swtpm_debug.h \
 	swtpm_io.h \
@@ -22,6 +23,7 @@ libswtpm_libtpms_la_SOURCES = \
 	key.c \
 	logging.c \
 	options.c \
+	pidfile.c \
 	swtpm_aes.c \
 	swtpm_debug.c \
 	swtpm_io.c \

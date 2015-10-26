@@ -62,6 +62,7 @@
 #include "logging.h"
 #include "main.h"
 #include "common.h"
+#include "pidfile.h"
 
 #include <glib.h>
 
@@ -110,6 +111,7 @@ struct ptm_param {
     char *logging;
     char *keydata;
     char *migkeydata;
+    char *piddata;
 };
 
 
@@ -1251,7 +1253,13 @@ error_not_running:
     goto cleanup;
 }
 
-static void ptm_init_done(void *userdata) {
+static void ptm_init_done(void *userdata)
+{
+    /* at this point the entry in /dev/ is available */
+    if (pidfile_write(getpid()) < 0) {
+        exit(-13);
+    }
+
     if (passwd) {
         if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
             logprintf(STDERR_FILENO,
@@ -1296,6 +1304,7 @@ static const struct fuse_opt ptm_opts[] = {
     PTM_OPT("--log %s",   logging),
     PTM_OPT("--key %s",   keydata),
     PTM_OPT("--migration-key %s",   migkeydata),
+    PTM_OPT("--pid %s",   piddata),
     FUSE_OPT_KEY("-h",        0),
     FUSE_OPT_KEY("--help",    0),
     FUSE_OPT_KEY("-v",        1),
@@ -1363,7 +1372,8 @@ int main(int argc, char **argv)
 
     if (handle_log_options(param.logging) < 0 ||
         handle_key_options(param.keydata) < 0 ||
-        handle_migration_key_options(param.migkeydata) < 0)
+        handle_migration_key_options(param.migkeydata) < 0 ||
+        handle_pid_options(param.piddata) < 0)
         return -3;
 
     if (setuid(0)) {

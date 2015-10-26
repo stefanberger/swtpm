@@ -1,7 +1,7 @@
 /*
- * common.h -- Header file for Common code for swtpm and swtpm_cuse
+ * pidfile.h -- pidfile handling
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,13 +34,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _SWTPM_COMMON_H_
-#define _SWTPM_COMMON_H_
 
-int handle_log_options(char *options);
-int handle_key_options(char *options);
-int handle_migration_key_options(char *options);
-int handle_pid_options(char *options);
+#ifndef _SWTPM_PIDFILE_H_
+#define _SWTPM_PIDFILE_H_
 
-#endif /* _SWTPM_COMMON_H_ */
+int pidfile_set(const char *pidfile);
+int pidfile_write(pid_t pid);
 
+#endif /* _SWTPM_PIDFILE_H_ */
