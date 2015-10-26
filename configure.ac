@@ -276,6 +276,11 @@ if test "x$EXPECT" == "x"; then
 	AC_MSG_ERROR([expect is required: expect package])
 fi
 
+AC_PATH_PROG([GAWK], gawk)
+if test "x$GAWK" == "x"; then
+	AC_MSG_ERROR([gawk is required: gawk package])
+fi
+
 AX_CHECK_COMPILE_FLAG(-fstack-protector-strong, ax_support_stack_protector_strong=yes, [])
 AX_CHECK_COMPILE_FLAG(-Wstack-protector, ax_support_stack_protector=yes, [])
 if test x"$ax_support_stack_protector_strong" = x"yes"; then
