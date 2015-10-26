@@ -276,7 +276,13 @@ if test "x$EXPECT" == "x"; then
 	AC_MSG_ERROR([expect is required: expect package])
 fi
 
-HARDENING_CFLAGS="-fstack-protector-strong -Wstack-protector "
+AX_CHECK_COMPILE_FLAG(-fstack-protector-strong, ax_support_stack_protector_strong=yes, [])
+AX_CHECK_COMPILE_FLAG(-Wstack-protector, ax_support_stack_protector=yes, [])
+if test x"$ax_support_stack_protector_strong" = x"yes"; then
+  HARDENING_CFLAGS="-fstack-protector-strong -Wstack-protector "
+else
+  HARDENING_CFLGAS="-fstack-protector -Wstack-protector"
+fi
 
 dnl Must not have -O0 but must have a -O for -D_FORTIFY_SOURCE=2
 TMP1="$(echo $CFLAGS | sed -n 's/.*\(-O0\).*/\1/p')"
