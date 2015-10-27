@@ -7,7 +7,7 @@
 Summary: TPM Emulator
 Name:           %{name}
 Version:        %{version}
-Release:        %{release}.dev%{?dist}
+Release:        %{release}.dev2%{?dist}
 License:        BSD
 Group:          Applications/Emulators
 Source:         %{name}-%{version}.tar.gz
