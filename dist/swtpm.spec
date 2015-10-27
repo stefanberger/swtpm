@@ -7,7 +7,7 @@
 Summary: TPM Emulator
 Name:           %{name}
 Version:        %{version}
-Release:        %{release}.dev%{?dist}
+Release:        %{release}.dev2%{?dist}
 License:        BSD
 Group:          Applications/Emulators
 Source:         %{name}-%{version}.tar.gz
@@ -152,11 +152,13 @@ if [ -n "$(type -p restorecon)" ]; then
 fi
 
 %postun cuse
-if [ -n "$(type -p semodule)" ]; then
-  for p in swtpmcuse_svirt swtpmcuse ; do
-    echo "Removing SELinux policy $p"
-    semodule -r $p
-  done
+if [ $1 -eq  0 ]; then
+  if [ -n "$(type -p semodule)" ]; then
+    for p in swtpmcuse_svirt swtpmcuse ; do
+      echo "Removing SELinux policy $p"
+      semodule -r $p
+    done
+  fi
 fi
 
 %post libs -p /sbin/ldconfig
