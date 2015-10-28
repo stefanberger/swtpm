@@ -1,5 +1,5 @@
 /*
- * pidfile.c -- pidfile handling
+ * tpmstate.c -- tpmstate parameter handling
  *
  * (c) Copyright IBM Corporation 2015.
  *
@@ -43,15 +43,15 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "pidfile.h"
+#include "tpmstate.h"
 #include "logging.h"
 
-static char *g_pidfile;
+static char *g_tpmstatedir;
 
-int pidfile_set(const char *pidfile)
+int tpmstate_set_dir(char *tpmstatedir)
 {
-   g_pidfile = strdup(pidfile);
-   if (!g_pidfile) {
+   g_tpmstatedir = strdup(tpmstatedir);
+   if (!g_tpmstatedir) {
        logprintf(STDERR_FILENO, "Out of memory.\n");
        return -1;
    }
@@ -59,38 +59,9 @@ int pidfile_set(const char *pidfile)
    return 0;
 }
 
-/*
- * pidfile_write: Write the given pid to the pidfile
- *
- * @pid: the PID to write
- *
- * Returns 0 on success, -1 on failure.
- */
-int pidfile_write(pid_t pid)
+const char *tpmstate_get_dir(void)
 {
-    FILE *f;
-
-    if (!g_pidfile)
-        return 0;
-
-    f = fopen(g_pidfile, "w+");
-    if (!f) {
-        logprintf(STDERR_FILENO, "Could not open pidfile %s : %s\n",
-                  g_pidfile, strerror(errno));
-        goto error;
-    }
-
-    if (fprintf(f, "%d", pid) < 0) {
-        logprintf(STDERR_FILENO, "Could not write to pidfile : %s\n",
-                  strerror(errno));
-        fclose(f);
-        goto error;
-    }
-
-    fclose(f);
-
-    return 0;
-
-error:
-    return -1;
+    if (g_tpmstatedir)
+        return g_tpmstatedir;
+    return getenv("TPM_PATH");
 }

@@ -53,6 +53,7 @@
 #include "logging.h"
 #include "swtpm_nvfile.h"
 #include "pidfile.h"
+#include "tpmstate.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -91,6 +92,15 @@ static const OptionDesc key_opt_desc[] = {
 static const OptionDesc pid_opt_desc[] = {
     {
         .name = "file",
+        .type = OPT_TYPE_STRING,
+    },
+    END_OPTION_DESC
+};
+
+/* --state %s */
+static const OptionDesc tpmstate_opt_desc[] = {
+    {
+        .name = "dir",
         .type = OPT_TYPE_STRING,
     },
     END_OPTION_DESC
@@ -324,8 +334,8 @@ error:
 
 /*
  * handle_pidfile_options:
- * Parse and act upon the parse pidfile options. Set global value
- * related to the options found.
+ * Parse and act upon the parse pidfile options.
+ *
  * @options: the pidfile options to parse
  *
  * Returns 0 on success, -1 on failure.
@@ -341,9 +351,83 @@ handle_pid_options(char *options)
     if (parse_pid_options(options, &pidfile) < 0)
         return -1;
 
-    pidfile_set(pidfile);
+    if (pidfile_set(pidfile) < 0)
+        return -1;
 
     free(pidfile);
+
+    return 0;
+}
+
+/*
+ * parse_tpmstate_options:
+ * Parse and act upon the parsed 'tpmstate' options.
+ *
+ * @options: the 'pid' options to parse
+ * @tpmstatedir: Point to pointer for tpmstatedir
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+static int
+parse_tpmstate_options(char *options, char **tpmstatedir)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+    const char *directory = NULL;
+
+    ovs = options_parse(options, tpmstate_opt_desc, &error);
+
+    if (!ovs) {
+        fprintf(stderr, "Error parsing pid options: %s\n",
+                error);
+        goto error;
+    }
+
+    directory = option_get_string(ovs, "dir", NULL);
+    if (!directory) {
+        fprintf(stderr, "The file parameter is required for the tpmstate option.\n");
+        goto error;
+    }
+
+    *tpmstatedir = strdup(directory);
+    if (!*tpmstatedir) {
+        fprintf(stderr, "Out of memory.");
+        goto error;
+    }
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+
+    return -1;
+}
+
+/*
+ * handle_tpmstate_options:
+ * Parse and act upon the parsed 'tpmstate' options.
+ *
+ * @options: the tpmstate options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int
+handle_tpmstate_options(char *options)
+{
+    char *tpmstatedir = NULL;
+
+    if (!options)
+        return 0;
+
+    if (parse_tpmstate_options(options, &tpmstatedir) < 0)
+        return -1;
+
+    if (tpmstate_set_dir(tpmstatedir) < 0)
+        return -1;
+
+    free(tpmstatedir);
 
     return 0;
 }

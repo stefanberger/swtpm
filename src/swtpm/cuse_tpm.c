@@ -63,6 +63,7 @@
 #include "main.h"
 #include "common.h"
 #include "pidfile.h"
+#include "tpmstate.h"
 
 #include <glib.h>
 
@@ -112,6 +113,7 @@ struct ptm_param {
     char *keydata;
     char *migkeydata;
     char *piddata;
+    char *tpmstatedata;
 };
 
 
@@ -197,10 +199,13 @@ static const char *usage =
 "--log file=<path>|fd=<filedescriptor>\n"
 "                    :  write the TPM's log into the given file rather than\n"
 "                       to the console; provide '-' for path to avoid logging\n"
+"--pid file=<path>   :  write the process ID into the given file\n"
+"--tpmstate dir=<dir>\n"
+"                    :  set the directory where the TPM's state will be written\n"
+"                       into; the TPM_PATH environment variable can be used\n"
+"                       instead\n"
+""
 "-h|--help           :  display this help screen and terminate\n"
-"\n"
-"Make sure that TPM_PATH environment variable points to directory\n"
-"where TPM's NV storage file is kept\n"
 "\n";
 
 const static unsigned char TPM_Resp_FatalError[] = {
@@ -372,24 +377,22 @@ _TPM_IO_TpmEstablished_Reset(fuse_req_t req,
 static int tpm_start(uint32_t flags)
 {
     DIR *dir;
-    char * tpmdir = NULL;
+    const char *tpmdir = tpmstate_get_dir();
 
-    /* temporary - the backend script lacks the perms to do this */
     if (tpmdir == NULL) {
-        tpmdir = getenv("TPM_PATH");
-        if (!tpmdir) {
-            logprintf(STDOUT_FILENO,
-                      "Error: TPM_PATH is not set\n");
-            return -1;
-        }
+        logprintf(STDOUT_FILENO,
+                  "Error: TPM_PATH is not set\n");
+        return -1;
     }
+
     dir = opendir(tpmdir);
     if (dir) {
         closedir(dir);
     } else {
         if (mkdir(tpmdir, 0775)) {
             logprintf(STDERR_FILENO,
-                      "Error: Could not open TPM_PATH dir\n");
+                      "Error: Could not open tpmstate dir %s\n",
+                      tpmdir);
             return -1;
         }
     }
@@ -1305,6 +1308,7 @@ static const struct fuse_opt ptm_opts[] = {
     PTM_OPT("--key %s",   keydata),
     PTM_OPT("--migration-key %s",   migkeydata),
     PTM_OPT("--pid %s",   piddata),
+    PTM_OPT("--tpmstate %s", tpmstatedata),
     FUSE_OPT_KEY("-h",        0),
     FUSE_OPT_KEY("--help",    0),
     FUSE_OPT_KEY("-v",        1),
@@ -1349,6 +1353,8 @@ int main(int argc, char **argv)
         .logging = NULL,
         .keydata = NULL,
         .migkeydata = NULL,
+        .piddata = NULL,
+        .tpmstatedata = NULL,
     };
     char dev_name[128] = "DEVNAME=";
     const char *dev_info_argv[] = { dev_name };
@@ -1373,7 +1379,8 @@ int main(int argc, char **argv)
     if (handle_log_options(param.logging) < 0 ||
         handle_key_options(param.keydata) < 0 ||
         handle_migration_key_options(param.migkeydata) < 0 ||
-        handle_pid_options(param.piddata) < 0)
+        handle_pid_options(param.piddata) < 0 ||
+        handle_tpmstate_options(param.tpmstatedata) < 0)
         return -3;
 
     if (setuid(0)) {

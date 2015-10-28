@@ -14,7 +14,7 @@ SWTPM=swtpm_cuse
 SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
 CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
 VTPM_NAME="vtpm-test-init"
-export TPM_PATH=$(mktemp -d)
+TPM_PATH=$(mktemp -d)
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 PID_FILE=$TPM_PATH/${SWTPM}.pid
@@ -37,7 +37,7 @@ fi
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
-$SWTPM_EXE --pid file=$PID_FILE -n $VTPM_NAME
+$SWTPM_EXE --tpmstate dir=$TPM_PATH --pid file=$PID_FILE -n $VTPM_NAME
 sleep 0.5
 PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
 

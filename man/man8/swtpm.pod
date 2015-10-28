@@ -16,9 +16,9 @@ B<swtpm> program requires that the environment variable I<TPM_PORT>
 be set to the TCP/IP port the process is supposed to listen on for TPM
 request messages. 
 
-The environment variable I<TPM_PATH> must be set and
+Similarly, the environment variable I<TPM_PATH> can be set and
 contain the name of a directory where the TPM can store its persistent
-data into.
+state into.
 
 The B<swtpm> process can be terminated by sending a
 I<SIGTERM> signal to it.
@@ -31,7 +31,7 @@ The following options are supported if the I<socket> interface is chosen:
 
 Use the given port rather than using the environment variable TPM_PORT.
 
-=item B<-i|--dir <dir>>
+=item B<--tpmstate dir=E<lt>dirE<gt>>
 
 Use the given path rather than using the environment variable TPM_PATH.
 

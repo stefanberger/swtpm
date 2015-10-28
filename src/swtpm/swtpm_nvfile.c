@@ -80,6 +80,7 @@
 #include "swtpm_nvfile.h"
 #include "key.h"
 #include "logging.h"
+#include "tpmstate.h"
 
 /* local structures */
 typedef struct {
@@ -157,14 +158,14 @@ char state_directory[FILENAME_MAX];
 TPM_RESULT SWTPM_NVRAM_Init(void)
 {
     TPM_RESULT  rc = 0;
-    char        *tpm_state_path;
+    const char  *tpm_state_path;
     size_t      length;
 
     TPM_DEBUG(" SWTPM_NVRAM_Init:\n");
 
     /* TPM_NV_DISK TPM emulation stores in local directory determined by environment variable. */
     if (rc == 0) {
-        tpm_state_path = getenv("TPM_PATH");
+        tpm_state_path = tpmstate_get_dir();
         if (tpm_state_path == NULL) {
             fprintf(stderr,
                     "SWTPM_NVRAM_Init: Error (fatal), TPM_PATH environment "

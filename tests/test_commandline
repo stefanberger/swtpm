@@ -66,7 +66,7 @@ function wait_port_closed()
 
 # Test 1: test port and directory command line parameters
 
-$SWTPM_EXE socket -p $PORT -i $TPMDIR --pid file=$PID_FILE &>/dev/null &
+$SWTPM_EXE socket -p $PORT --tpmstate dir=$TPMDIR --pid file=$PID_FILE &>/dev/null &
 PID=$!
 
 wait_port_open $PORT $PID
@@ -117,7 +117,7 @@ cleanup
 #         that causes the swtpm process to exit upon connection close
 TPMDIR=`mktemp -d`
 
-$SWTPM_EXE socket -p $PORT -i $TPMDIR -t &>/dev/null &
+$SWTPM_EXE socket -p $PORT --tpmstate dir=$TPMDIR -t &>/dev/null &
 PID=$!
 
 wait_port_open $PORT $PID

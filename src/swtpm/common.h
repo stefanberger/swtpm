@@ -41,6 +41,7 @@ int handle_log_options(char *options);
 int handle_key_options(char *options);
 int handle_migration_key_options(char *options);
 int handle_pid_options(char *options);
+int handle_tpmstate_options(char *options);
 
 #endif /* _SWTPM_COMMON_H_ */
 

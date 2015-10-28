@@ -102,13 +102,12 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "The following options are supported:\n"
     "\n"
     "-p|--port <port> : use the given port\n"
-    "-i|--dir <dir>   : use the given directory\n"
     "-f|--fd <fd>     : use the given socket file descriptor\n"
     "-t|--terminate   : terminate the TPM once a connection has been lost\n"
     "-d|--daemon      : daemonize the TPM\n"
     "--log file=<path>|fd=<filedescriptor>\n"
-    "                 :  write the TPM's log into the given file rather than\n"
-    "                    to the console; provide '-' for path to avoid logging\n"
+    "                 : write the TPM's log into the given file rather than\n"
+    "                   to the console; provide '-' for path to avoid logging\n"
     "--key file=<path>[,mode=aes-cbc][,format=hex|binary][,remove=[true|false]]\n"
     "                 : use an AES key for the encryption of the TPM's state\n"
     "                   files; use the given mode for the block encryption;\n"
@@ -116,8 +115,14 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   format; the keyfile can be automatically removed using\n"
     "                   the remove parameter\n"
     "--key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
-    "                 :  provide a passphrase in a file; the AES key will be\n"
-    "                    derived from this passphrase\n"
+    "                 : provide a passphrase in a file; the AES key will be\n"
+    "                   derived from this passphrase\n"
+    "--pid file=<path>\n"
+    "                 : write the process ID into the given file\n"
+    "--tpmstate dir=<dir>\n"
+    "                 : set the directory where the TPM's state will be written\n"
+    "                   into; the TPM_PATH environment variable can be used\n"
+    "                   instead\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -148,6 +153,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *keydata = NULL;
     char *logdata = NULL;
     char *piddata = NULL;
+    char *tpmstatedata = NULL;
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -155,17 +161,17 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
         {"port"      , required_argument, 0, 'p'},
-        {"dir"       , required_argument, 0, 'i'},
         {"fd"        , required_argument, 0, 'f'},
         {"terminate" ,       no_argument, 0, 't'},
         {"log"       , required_argument, 0, 'l'},
         {"key"       , required_argument, 0, 'k'},
         {"pid"       , required_argument, 0, 'P'},
+        {"tpmstate"  , required_argument, 0, 's'},
         {NULL        , 0                , 0, 0  },
     };
 
     while (TRUE) {
-        opt = getopt_long(argc, argv, "dhp:i:f:tk:", longopts, &longindex);
+        opt = getopt_long(argc, argv, "dhp:f:tk:P:s:", longopts, &longindex);
 
         if (opt == -1)
             break;
@@ -190,13 +196,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             snprintf(buf, sizeof(buf), "%lu", val);
             if (setenv("TPM_PORT", buf, 1) != 0) {
                 fprintf(stderr, "Could not set port: %s\n", strerror(errno));
-                exit(1);
-            }
-            break;
-
-        case 'i':
-            if (setenv("TPM_PATH", optarg, 1) != 0) {
-                fprintf(stderr, "Could not set path: %s\n", strerror(errno));
                 exit(1);
             }
             break;
@@ -239,6 +238,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             piddata = optarg;
             break;
 
+        case 's':
+            tpmstatedata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -251,7 +254,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
-        handle_pid_options(piddata) < 0)
+        handle_pid_options(piddata) < 0 ||
+        handle_tpmstate_options(tpmstatedata) < 0)
         return EXIT_FAILURE;
 
     if (daemonize) {

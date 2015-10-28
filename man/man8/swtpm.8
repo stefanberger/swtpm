@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2015-10-26" "swtpm" ""
+.TH swtpm 8 "2015-10-27" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -153,9 +153,9 @@ Unless corresponding command line parameters are used, the
 be set to the \s-1TCP/IP\s0 port the process is supposed to listen on for \s-1TPM\s0
 request messages.
 .PP
-The environment variable \fI\s-1TPM_PATH\s0\fR must be set and
+Similarly, the environment variable \fI\s-1TPM_PATH\s0\fR can be set and
 contain the name of a directory where the \s-1TPM\s0 can store its persistent
-data into.
+state into.
 .PP
 The \fBswtpm\fR process can be terminated by sending a
 \&\fI\s-1SIGTERM\s0\fR signal to it.
@@ -164,8 +164,8 @@ The following options are supported if the \fIsocket\fR interface is chosen:
 .IP "\fB\-p|\-\-port <port\fR>" 4
 .IX Item "-p|--port <port>"
 Use the given port rather than using the environment variable \s-1TPM_PORT.\s0
-.IP "\fB\-i|\-\-dir <dir\fR>" 4
-.IX Item "-i|--dir <dir>"
+.IP "\fB\-\-tpmstate dir=<dir>\fR" 4
+.IX Item "--tpmstate dir=<dir>"
 Use the given path rather than using the environment variable \s-1TPM_PATH.\s0
 .IP "\fB\-f|\-\-fd <fd\fR>" 4
 .IX Item "-f|--fd <fd>"
