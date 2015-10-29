@@ -379,12 +379,6 @@ static int tpm_start(uint32_t flags)
     DIR *dir;
     const char *tpmdir = tpmstate_get_dir();
 
-    if (tpmdir == NULL) {
-        logprintf(STDOUT_FILENO,
-                  "Error: TPM_PATH is not set\n");
-        return -1;
-    }
-
     dir = opendir(tpmdir);
     if (dir) {
         closedir(dir);
@@ -1359,6 +1353,7 @@ int main(int argc, char **argv)
     char dev_name[128] = "DEVNAME=";
     const char *dev_info_argv[] = { dev_name };
     struct cuse_info ci;
+    const char *tpmdir;
     int ret;
 
     if ((ret = fuse_opt_parse(&args, &param, ptm_opts, ptm_process_arg))) {
@@ -1396,6 +1391,15 @@ int main(int argc, char **argv)
             return -5;
         }
     }
+
+    tpmdir = tpmstate_get_dir();
+    if (tpmdir == NULL) {
+        fprintf(stderr,
+                "Error: No TPM state directory is defined; TPM_PATH is not set\n");
+        return -1;
+    }
+
+    fprintf(stderr, "devname=%s\n", param.dev_name);
 
     memset(&ci, 0, sizeof(ci));
     ci.dev_major = param.major;
