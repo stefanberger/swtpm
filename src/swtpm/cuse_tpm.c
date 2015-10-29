@@ -1354,7 +1354,8 @@ int main(int argc, char **argv)
     const char *dev_info_argv[] = { dev_name };
     struct cuse_info ci;
     const char *tpmdir;
-    int ret;
+    int ret, n, tpmfd;
+    char path[PATH_MAX];
 
     if ((ret = fuse_opt_parse(&args, &param, ptm_opts, ptm_process_arg))) {
         fprintf(stderr, "Error: Could not parse option\n");
@@ -1399,7 +1400,26 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    fprintf(stderr, "devname=%s\n", param.dev_name);
+    n = snprintf(path, sizeof(path), "/dev/%s", param.dev_name);
+    if (n < 0) {
+        fprintf(stderr,
+                "Error: Could not create device file name\n");
+        return -1;
+    }
+    if (n >= (int)sizeof(path)) {
+        fprintf(stderr,
+                "Error: Buffer too small to create device file name\n");
+        return -1;
+    }
+
+    tpmfd = open(path, O_RDWR);
+    if (tpmfd >= 0) {
+        close(tpmfd);
+        fprintf(stderr,
+                "Error: A device '%s' already exists.\n",
+                path);
+        return -1;
+    }
 
     memset(&ci, 0, sizeof(ci));
     ci.dev_major = param.major;
