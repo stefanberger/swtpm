@@ -46,7 +46,7 @@
 #include <pwd.h>
 #include <grp.h>
 
-#define E_USER_GROUP "tss"
+#include "swtpm_setup.h"
 
 /*
  * Those parameters interpreted by swtpm_setup.sh that have an additional
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     size_t length;
     struct passwd *passwd;
     int i = 1, j;
-    const char *userid = E_USER_GROUP;
+    const char *userid = E_USER_ID;
 
     while (i < argc) {
         if (!strcmp("--runas", argv[i])) {
@@ -129,8 +129,8 @@ int main(int argc, char *argv[])
     }
 
     if (setgid(passwd->pw_gid)) {
-        fprintf(stderr,"Setting groupid to tss (%d) failed.\n",
-                passwd->pw_gid);
+        fprintf(stderr,"Setting groupid to %s (%d) failed.\n",
+                userid, passwd->pw_gid);
         return EXIT_FAILURE;
     }
 
@@ -140,8 +140,8 @@ int main(int argc, char *argv[])
     }
 
     if (setuid(passwd->pw_uid)) {
-        fprintf(stderr,"Setting userid to tss (%d) failed.\n",
-                passwd->pw_uid);
+        fprintf(stderr,"Setting userid to %s (%d) failed.\n",
+                userid, passwd->pw_uid);
         return EXIT_FAILURE;
     }
 

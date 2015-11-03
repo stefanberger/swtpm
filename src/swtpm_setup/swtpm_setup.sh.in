@@ -138,10 +138,10 @@ call_create_certs()
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] || \
 	   [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ]; then
 		if [ -r "$configfile" ]; then
-		        # The config file contains lines in the format:
-        		# key = value
-        		# or with a comment at the end started by #:
-        		# key = value # comment
+			# The config file contains lines in the format:
+			# key = value
+			# or with a comment at the end started by #:
+			# key = value # comment
 			create_certs_tool="$(sed -n 's/\s*create_certs_tool\s*=\s*\([^#]*\).*/\1/p' \
 				"$configfile")"
 
@@ -156,7 +156,7 @@ call_create_certs()
 			if [ -n "$create_certs_tool_options" ]; then
 				params="$params --optsfile \"$create_certs_tool_options\""
 			fi
-	      	else
+		else
 			logerr "Could not access config file" \
 			       "'$configfile' to get" \
 			       "name of certificate tool to invoke."
@@ -237,7 +237,7 @@ start_tpm()
 			fi
 
 			# Did swtpm open the TCP port yet?
-			if [ -n "$(netstat -napt 2>/dev/null | 
+			if [ -n "$(netstat -napt 2>/dev/null |
 			           grep " $SWTPM_PID/" |
 			           grep ":$TPM_PORT ")" ]; then
 			        # in rare occasions tcsd refuses connections
@@ -296,14 +296,14 @@ start_tcsd()
 port = $TSS_TCSD_PORT
 system_ps_file = $TCSD_DATA_FILE
 EOF
-		# tcsd requires tss:tss and 0600 on TCSD_CONFIG
+		# tcsd requires @TSS_USER@:@TSS_GROUP@ and 0600 on TCSD_CONFIG
 		# -> only root can start
 		chmod 600 $TCSD_CONFIG
 		#ls -l $TCSD_CONFIG
 		if [ $(id -u) -eq 0 ]; then
-			chown tss:tss $TCSD_CONFIG 2>/dev/null
-			chown tss:tss $TCSD_DATA_DIR 2>/dev/null
-			chown tss:tss $TCSD_DATA_FILE 2>/dev/null
+			chown @TSS_USER@:@TSS_GROUP@ $TCSD_CONFIG 2>/dev/null
+			chown @TSS_USER@:@TSS_GROUP@ $TCSD_DATA_DIR 2>/dev/null
+			chown @TSS_USER@:@TSS_GROUP@ $TCSD_DATA_FILE 2>/dev/null
 		fi
 		if [ $? -ne 0 ]; then
 			logerr "Could not change ownership on $TCSD_CONFIG to ${user}:${group}."
@@ -337,7 +337,7 @@ EOF
 			fi
 
 			# Did tcsd open the TCP port yet?
-			if [ -n "$(netstat -naptl 2>/dev/null | 
+			if [ -n "$(netstat -naptl 2>/dev/null |
 			           grep "LISTEN" |
 			           grep " $TCSD_PID/" |
 			           grep ":$TSS_TCSD_PORT ")" ]; then
@@ -431,7 +431,7 @@ init_tpm()
 		fi
 		logit "Successfully created EK."
 		# Get the value of the EK
-		ek=$(tpm_getpubek | 
+		ek=$(tpm_getpubek |
 		     sed '1,/Public Key:/d' |
 		     tr -d " " |
 		     tr -d '\t' |
@@ -454,7 +454,7 @@ init_tpm()
 			spawn tpm_takeownership \$parm_z \$parm_y
 			if { \$parm_y == \"\" } {
 				expect {
-					\"Enter owner password:\" 
+					\"Enter owner password:\"
 						{ send \"$ownerpass\n\" }
 				}
 				expect {
@@ -598,7 +598,7 @@ The following options are supported:
 
 --runas <user>   : Use the given user id to switch to and run this program;
                    this parameter is interpreted by swtpm_setup that switches
-                   to this user and invokes swtpm_setup.sh; defaults to 'tss' 
+                   to this user and invokes swtpm_setup.sh; defaults to 'tss'
 
 --tpm-state <dir>: Path to a directory where the TPM's state will be written
                    into; this is a mandatory argument

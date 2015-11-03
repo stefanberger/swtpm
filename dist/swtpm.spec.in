@@ -99,7 +99,7 @@ Tools for the TPM emulator from the swtpm package
 %attr( 755, root, root) %{_bindir}/swtpm_cert
 %endif
 %attr( 755, root, root) %{_bindir}/swtpm_setup
-%attr( 755, tss , tss)  %{_bindir}/swtpm_setup.sh
+%attr( 755, @TSS_USER@ , @TSS_GROUP@)  %{_bindir}/swtpm_setup.sh
 %attr( 755, root, root) %{_bindir}/swtpm_ioctl
 %{_mandir}/man8/swtpm_bios.8*
 %{_mandir}/man8/swtpm_cert.8*
@@ -114,7 +114,7 @@ Tools for the TPM emulator from the swtpm package
 %config(noreplace) %{_sysconfdir}/swtpm-localca.options
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf
 %attr( 755, root, root) %{_datadir}/@PACKAGE@/swtpm-localca
-%attr( 755, tss, tss) %{_localstatedir}/lib/swtpm-localca
+%attr( 755, @TSS_USER@, @TSS_GROUP@) %{_localstatedir}/lib/swtpm-localca
 
 
 %prep

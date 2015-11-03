@@ -41,6 +41,8 @@ Makefile
 /src/swtpm_cert/swtpm_cert
 /src/swtpm_ioctl/swtpm_ioctl
 /src/swtpm_setup/swtpm_setup
+/src/swtpm_setup/swtpm_setup.h
 /test-driver
 tests/*.log
 tests/*.trs
+tests/test_config

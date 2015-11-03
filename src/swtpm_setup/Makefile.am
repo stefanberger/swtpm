@@ -4,6 +4,9 @@
 # For the license, see the LICENSE file in the root directory.
 #
 
+noinst_HEADERS = \
+	swtpm_setup.h
+
 bin_PROGRAMS = \
 	swtpm_setup
 
@@ -13,7 +16,7 @@ dist_bin_SCRIPTS = swtpm_setup.sh
 
 install-exec-hook:
 	if test -z $(DESTDIR); then \
-		chown tss:tss $(DESTDIR)/$(bindir)/swtpm_setup.sh; \
+		chown @TSS_USER@:@TSS_GROUP@ $(DESTDIR)/$(bindir)/swtpm_setup.sh; \
 	fi
 	chmod 750 $(DESTDIR)/$(bindir)/swtpm_setup.sh
 	

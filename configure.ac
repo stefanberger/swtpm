@@ -303,6 +303,22 @@ if $LD --help 2>&1 | $GREP '\-z now ' > /dev/null; then
 fi
 AC_SUBST([HARDENING_CFLAGS])
 
+AC_ARG_WITH([tss-user],
+            AC_HELP_STRING([--with-tss-user=TSS_USER],
+                           [The tss user to use]),
+            [TSS_USER="$withval"],
+            [TSS_USER="tss"]
+)
+
+AC_ARG_WITH([tss-group],
+            AC_HELP_STRING([--with-tss-group=TSS_GROUP],
+                           [The tss group to use]),
+            [TSS_GROUP="$withval"],
+            [TSS_GROUP="tss"]
+)
+AC_SUBST([TSS_USER])
+AC_SUBST([TSS_GROUP])
+
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
@@ -321,12 +337,17 @@ AC_CONFIG_FILES(Makefile                    \
 		src/swtpm_cert/Makefile     \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_setup/Makefile    \
+		src/swtpm_setup/swtpm_setup.h  \
+		src/swtpm_setup/swtpm_setup.sh \
 		man/Makefile                \
 		man/man3/Makefile           \
 		man/man8/Makefile           \
 		tests/Makefile              \
+		tests/test_config           \
 		)
 AC_OUTPUT
+
+chmod 755 src/swtpm_setup/swtpm_setup.sh
 
 echo
 printf "with_gnutls : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
@@ -335,3 +356,7 @@ echo
 echo "CFLAGS=$CFLAGS"
 echo "HARDENING_CFLAGS=$HARDENING_CFLAGS"
 echo "LDFLAGS=$LDFLAGS"
+echo
+echo "TSS_USER=$TSS_USER"
+echo "TSS_GROUP=$TSS_GROUP"
+echo

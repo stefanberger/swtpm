@@ -1,0 +1,4 @@
+# For the license, see the LICENSE file in the root directory.
+
+TSS_USER=@TSS_USER@
+TSS_GROUP=@TSS_GROUP@
