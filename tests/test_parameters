@@ -62,6 +62,8 @@ TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --config ${SWTPM_SETUP_CONF} --r
 PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
 PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
 
+source ${DIR}/test_config
+
 trap "cleanup" SIGTERM EXIT
 
 if test "$TCSD" = ""; then
@@ -74,9 +76,9 @@ function cleanup()
 	rm -rf $TPMDIR
 }
 
-chown tss:tss $TPMDIR 2>/dev/null
+chown $TSS_USER:$TSS_GROUP $TPMDIR 2>/dev/null
 if [ $? -ne 0 ]; then
-	echo "Could not change ownership of $TPMDIR to tss:tss." \
+	echo "Could not change ownership of $TPMDIR to $TSS_USER:$TSS_GROUP." \
 	     "You need to be root."
 	exit 1
 fi
