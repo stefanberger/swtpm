@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2015-10-27" "swtpm" ""
+.TH swtpm 8 "2015-11-08" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -143,13 +143,16 @@ swtpm
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBswtpm socket [\s-1OPTIONS\s0]\fR
+.PP
+\&\fBswtpm chardev [\s-1OPTIONS\s0]\fR
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBswtpm\fR implements a \s-1TPM\s0 software emulator built on libtpms.
-It provides access to \s-1TPM\s0 functionality over a \s-1TCP/IP\s0 socket interface.
+It provides access to \s-1TPM\s0 functionality over a \s-1TCP/IP\s0 socket interface
+or it can listend for commands on a character device.
 .PP
 Unless corresponding command line parameters are used, the
-\&\fBswtpm\fR program requires that the environment variable \fI\s-1TPM_PORT\s0\fR
+\&\fBswtpm\fR socket version requires that the environment variable \fI\s-1TPM_PORT\s0\fR
 be set to the \s-1TCP/IP\s0 port the process is supposed to listen on for \s-1TPM\s0
 request messages.
 .PP
@@ -157,23 +160,34 @@ Similarly, the environment variable \fI\s-1TPM_PATH\s0\fR can be set and
 contain the name of a directory where the \s-1TPM\s0 can store its persistent
 state into.
 .PP
-The \fBswtpm\fR process can be terminated by sending a
+The \fBswtpm\fR process can be gracefully terminated by sending a
 \&\fI\s-1SIGTERM\s0\fR signal to it.
-.PP
+.SH "Options for socket interface"
+.IX Header "Options for socket interface"
 The following options are supported if the \fIsocket\fR interface is chosen:
 .IP "\fB\-p|\-\-port <port\fR>" 4
 .IX Item "-p|--port <port>"
 Use the given port rather than using the environment variable \s-1TPM_PORT.\s0
+.IP "\fB\-t|\-\-terminate\fR" 4
+.IX Item "-t|--terminate"
+Terminate the \s-1TPM\s0 after the client has closed the connection.
+.SH "Options for character device interface"
+.IX Header "Options for character device interface"
+The following options are support if the \fIchardev\fR interface is chosen:
+.IP "\fB\-c|\-\-chardev <device path\fR>" 4
+.IX Item "-c|--chardev <device path>"
+Use the given device to listen for \s-1TPM\s0 commands and send response on.
+.SH "Optiosn for both interfaces"
+.IX Header "Optiosn for both interfaces"
+The following options are support by both interfaces:
 .IP "\fB\-\-tpmstate dir=<dir>\fR" 4
 .IX Item "--tpmstate dir=<dir>"
 Use the given path rather than using the environment variable \s-1TPM_PATH.\s0
 .IP "\fB\-f|\-\-fd <fd\fR>" 4
 .IX Item "-f|--fd <fd>"
-Use the given socket file descriptor for receiving \s-1TPM\s0 commands and sending
-responses. This option automatically assumes \-t.
-.IP "\fB\-t|\-\-terminate\fR" 4
-.IX Item "-t|--terminate"
-Terminate the \s-1TPM\s0 after the client has closed the connection.
+Use the given socket file descriptor or character device file descript for
+receiving \s-1TPM\s0 commands and sending responses.
+For the socket interface, this option automatically assumes \-t.
 .IP "\fB\-\-log fd=<fd>|file=<path>\fR" 4
 .IX Item "--log fd=<fd>|file=<path>"
 Enable logging to a file given its file descriptor or its path. Use '\-' for path to

@@ -39,6 +39,7 @@
 #define _SWTPM_MAIN_H
 
 int swtpm_main(int argc, char **argv, const char *prgname, const char *iface);
+int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *iface);
 
 #endif /* _SWPTM_MAIN_H */
 

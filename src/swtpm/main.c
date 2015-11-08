@@ -63,6 +63,8 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "socket")) {
         return swtpm_main(argc-1, &argv[1], argv[0], "socket");
+    } else if (!strcmp(argv[1], "chardev")) {
+        return swtpm_chardev_main(argc-1, &argv[1], argv[0], "chardev");
     } else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         usage(stdout, argv[0]);
     } else if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {

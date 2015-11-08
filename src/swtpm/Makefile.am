@@ -54,7 +54,8 @@ swtpm_DEPENDENCIES = $(lib_LTLIBRARIES)
 
 swtpm_SOURCES = \
 		main.c \
-		swtpm.c
+		swtpm.c \
+		swtpm_chardev.c
 
 swtpm_CFLAGS = \
 	-I$(top_srcdir)/include/swtpm \
