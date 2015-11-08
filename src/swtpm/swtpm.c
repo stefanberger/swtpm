@@ -63,15 +63,10 @@
 #include "pidfile.h"
 
 /* local variables */
-int notify_fd[2] = {-1, -1};
+static int notify_fd[2] = {-1, -1};
 static TPM_BOOL terminate;
-struct mainLoopParams;
 
-/* local function prototypes */
-static int mainLoop(struct mainLoopParams *mlp);
-static TPM_RESULT install_sighandlers(void);
-
-struct libtpms_callbacks callbacks = {
+static struct libtpms_callbacks callbacks = {
     .sizeOfStruct            = sizeof(struct libtpms_callbacks),
     .tpm_nvram_init          = SWTPM_NVRAM_Init,
     .tpm_nvram_loaddata      = SWTPM_NVRAM_LoadData,
@@ -80,6 +75,11 @@ struct libtpms_callbacks callbacks = {
     .tpm_io_init             = SWTPM_IO_Init,
 };
 
+/* local function prototypes */
+struct mainLoopParams;
+
+static int mainLoop(struct mainLoopParams *mlp);
+static TPM_RESULT install_sighandlers(void);
 
 static inline int getTPMProperty(enum TPMLIB_TPMProperty prop)
 {
