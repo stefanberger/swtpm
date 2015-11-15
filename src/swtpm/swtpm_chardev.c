@@ -311,6 +311,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         TPMLIB_Terminate();
     }
 
+    pidfile_remove();
+
     close(notify_fd[0]);
     notify_fd[0] = -1;
     close(notify_fd[1]);

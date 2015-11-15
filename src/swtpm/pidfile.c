@@ -94,3 +94,15 @@ int pidfile_write(pid_t pid)
 error:
     return -1;
 }
+
+/*
+ * pidfile_remove: Remove the pid file
+ *
+ */
+void pidfile_remove(void)
+{
+    if (!g_pidfile)
+        return;
+
+    unlink(g_pidfile);
+}

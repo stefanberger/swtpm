@@ -1237,6 +1237,8 @@ cleanup:
     if (exit_prg) {
         logprintf(STDOUT_FILENO,
                   "CUSE TPM is shutting down.\n");
+        pidfile_remove();
+
         exit(0);
     }
 
