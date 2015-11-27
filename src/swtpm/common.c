@@ -44,6 +44,10 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 #include <libtpms/tpm_error.h>
 
@@ -54,6 +58,7 @@
 #include "swtpm_nvfile.h"
 #include "pidfile.h"
 #include "tpmstate.h"
+#include "ctrlchannel.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -102,6 +107,26 @@ static const OptionDesc tpmstate_opt_desc[] = {
     {
         .name = "dir",
         .type = OPT_TYPE_STRING,
+    },
+    END_OPTION_DESC
+};
+
+static const OptionDesc ctrl_opt_desc[] = {
+    {
+        .name = "type",
+        .type = OPT_TYPE_STRING,
+    },
+    {
+        .name = "path",
+        .type = OPT_TYPE_STRING,
+    },
+    {
+        .name = "port",
+        .type = OPT_TYPE_INT,
+    },
+    {
+        .name = "fd",
+        .type = OPT_TYPE_INT,
     },
     END_OPTION_DESC
 };
@@ -429,6 +454,226 @@ handle_tpmstate_options(char *options)
         return -1;
 
     free(tpmstatedir);
+
+    return 0;
+}
+
+/*
+ * unixio_open_socket: Open a UnixIO socket and return file descriptor
+ *
+ * @path: UnixIO socket path
+ * @perm: UnixIO socket permissions
+ */
+static int unixio_open_socket(const char *path, mode_t perm)
+{
+    struct sockaddr_un su;
+    int fd = -1, n;
+    size_t len;
+
+    su.sun_family = AF_UNIX;
+    len = sizeof(su.sun_path);
+    n = snprintf(su.sun_path, len, "%s", path);
+    if (n < 0) {
+        fprintf(stderr, "Could not nsprintf path to UnixIO socket\n");
+        return -1;
+    }
+    if (n >= (int)len) {
+        fprintf(stderr, "Path for UnioIO socket is too long\n");
+        return -1;
+    }
+
+    unlink(su.sun_path);
+
+    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) {
+        fprintf(stderr, "Could not open UnixIO socket\n");
+        return -1;
+    }
+
+    len = strlen(su.sun_path) + sizeof(su.sun_family);
+    n = bind(fd, (struct sockaddr *)&su, len);
+    if (n < 0) {
+        fprintf(stderr, "Could not open UnixIO socket: %s\n",
+                strerror(errno));
+        goto error;
+    }
+
+    if (chmod(su.sun_path, perm) < 0) {
+        fprintf(stderr,
+                "Could not change permssions on UnixIO socket: %s\n",
+                strerror(errno));
+        goto error;
+    }
+
+    n = listen(fd, 1);
+    if (n < 0) {
+        fprintf(stderr, "Cannot listen on UnixIO socket: %s\n",
+                strerror(errno));
+        goto error;
+    }
+
+    return fd;
+
+error:
+    close(fd);
+
+    return -1;
+}
+
+/*
+ * tcp_open_socket: Open a TCP port and return the file descriptor
+ *
+ * @port: port number
+ */
+static int tcp_open_socket(unsigned short port)
+{
+    int fd = -1, n;
+    struct sockaddr_in si;
+
+    fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+        fprintf(stderr, "Could not open TCP socket\n");
+        return -1;
+    }
+
+    si.sin_family = AF_INET;
+    si.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    si.sin_port = htons(port);
+
+    n = bind(fd, (struct sockaddr *)&si, sizeof(si));
+    if (n < 0) {
+        fprintf(stderr, "Could not open TCP socket: %s\n",
+                strerror(errno));
+        goto error;
+    }
+
+    n = listen(fd, 1);
+    if (n < 0) {
+        fprintf(stderr, "Cannot listen on TCP socket: %s\n",
+                strerror(errno));
+        goto error;
+    }
+
+    return fd;
+
+error:
+    close(fd);
+
+    return -1;
+}
+
+/*
+ * parse_ctrlchannel_options:
+ * Parse the 'ctrl' (control channel) options.
+ *
+ * @options: the control channel options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+    const char *type, *path;
+    int fd, port;
+    struct stat stat;
+
+    ovs = options_parse(options, ctrl_opt_desc, &error);
+    if (!ovs) {
+        fprintf(stderr, "Error parsing ctrl options: %s\n", error);
+        goto error;
+    }
+
+    type = option_get_string(ovs, "type", NULL);
+    if (!type) {
+        fprintf(stderr, "Missing type parameter for control channel\n");
+        goto error;
+    }
+
+    if (!strcmp(type, "unixio")) {
+        path = option_get_string(ovs, "path", NULL);
+        fd = option_get_int(ovs, "fd", -1);
+        if (fd >= 0) {
+            if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
+               fprintf(stderr,
+                       "Bad filedescriptor %d for UnixIO control channel\n",
+                       fd);
+               goto error;
+            }
+
+            *cc = ctrlchannel_new(fd);
+        } else if (path) {
+            fd = unixio_open_socket(path, 0770);
+            if (fd < 0)
+                goto error;
+
+            *cc = ctrlchannel_new(fd);
+        } else {
+            fprintf(stderr,
+                   "Missing path and fd options for UnixIO control channel\n");
+            goto error;
+        }
+    } else if (!strcmp(type, "tcp")) {
+        port = option_get_int(ovs, "port", -1);
+        fd = option_get_int(ovs, "fd", -1);
+        if (fd >= 0) {
+            if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
+               fprintf(stderr,
+                       "Bad filedescriptor %d for TCP control channel\n", fd);
+               goto error;
+            }
+
+            *cc = ctrlchannel_new(fd);
+        } else if (port >= 0) {
+            if (port >= 0x10000) {
+                fprintf(stderr,
+                        "TCP control channel port outside valid range\n");
+                goto error;
+            }
+
+            fd = tcp_open_socket(port);
+            if (fd < 0)
+                goto error;
+
+            *cc = ctrlchannel_new(fd);
+        } else {
+            fprintf(stderr,
+                    "Missing port and fd options for TCP control channel\n");
+            goto error;
+        }
+    } else {
+        fprintf(stderr, "Unsupport control channel type: %s\n", type);
+        goto error;
+    }
+
+    if (*cc == NULL)
+        goto error;
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+
+    return -1;
+}
+
+/*
+ * handle_ctrlchannel_options:
+ * Parse and act upon the parsed 'ctrl' (control channel) options.
+ *
+ * @options: the control channel options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc)
+{
+    if (!options)
+        return 0;
+
+    if (parse_ctrlchannel_options(options, cc) < 0)
+        return -1;
 
     return 0;
 }

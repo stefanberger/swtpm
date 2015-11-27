@@ -219,6 +219,12 @@ Daemonize the process.
 .IX Item "--pid file=<pidfile>"
 This options allows to set the name of file where the process \s-1ID \s0(pid) of the \s-1TPM\s0
 will be written into.
+.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>,[port=<port>][,fd=<filedescriptor>] \fR" 4
+.IX Item "--ctrl type=[unixio|tcp][,path=<path>,[port=<port>][,fd=<filedescriptor>] "
+This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
+a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
+.Sp
+The control channel enables out-of-band control of the \s-1TPM,\s0 such as resetting the \s-1TPM.\s0
 .IP "\fB\-h|\-\-help\fR" 4
 .IX Item "-h|--help"
 Display usage info.

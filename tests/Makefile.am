@@ -23,6 +23,7 @@ TESTS = \
 	test_migration_key_2 \
 	\
 	test_commandline \
+	test_ctrlchannel \
 	test_parameters \
 	test_resume_volatile
 

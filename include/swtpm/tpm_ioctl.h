@@ -214,4 +214,12 @@ enum {
     PTM_GET_CONFIG         = _IOR('P', 14, ptm_getconfig),
 };
 
+/*
+ * Comments used by the non-CUSE TPMs
+ */
+enum {
+    CMD_GET_CAPABILITY = 1,
+    CMD_INIT,
+};
+
 #endif /* _TPM_IOCTL_H */

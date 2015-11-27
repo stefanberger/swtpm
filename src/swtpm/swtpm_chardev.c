@@ -47,6 +47,7 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/socket.h>
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_library.h>
@@ -60,6 +61,7 @@
 #include "pidfile.h"
 #include "tpmlib.h"
 #include "utils.h"
+#include "ctrlchannel.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -77,6 +79,7 @@ static struct libtpms_callbacks callbacks = {
 struct mainLoopParams {
     uint32_t flags;
     int fd;
+    struct ctrlchannel *cc;
 };
 
 #define MAIN_LOOP_FLAG_TERMINATE  (1 << 0)
@@ -105,6 +108,11 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : use the given character device\n"
     "-f|--fd <fd>     : use the given character device file descriptor\n"
     "-d|--daemon      : daemonize the TPM\n"
+    "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor]\n"
+    "                 : TPM control channel using either UnixIO or TCP sockets;\n"
+    "                   the path is only valid for Unixio channels; the port must\n"
+    "                   be given in case the type is TCP; the TCP socket is bound\n"
+    "                   to 127.0.0.1\n"
     "--log file=<path>|fd=<filedescriptor>\n"
     "                 : write the TPM's log into the given file rather than\n"
     "                   to the console; provide '-' for path to avoid logging\n"
@@ -143,6 +151,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *logdata = NULL;
     char *piddata = NULL;
     char *tpmstatedata = NULL;
+    char *ctrlchdata = NULL;
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -155,6 +164,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"key"       , required_argument, 0, 'k'},
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
+        {"ctrl"      , required_argument, 0, 'C'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -185,6 +195,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             if (mlp.fd >= 0)
                 continue;
 
+            errno = 0;
             val = strtoul(optarg, &end_ptr, 10);
             if (val != (unsigned int)val || errno || end_ptr[0] != '\0') {
                 fprintf(stderr, "Cannot parse character device file descriptor.\n");
@@ -221,6 +232,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             tpmstatedata = optarg;
             break;
 
+        case 'C':
+            ctrlchdata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -239,7 +254,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
-        handle_tpmstate_options(tpmstatedata) < 0)
+        handle_tpmstate_options(tpmstatedata) < 0 ||
+        handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0)
         return EXIT_FAILURE;
 
     if (daemonize) {
@@ -329,6 +345,8 @@ static int mainLoop(struct mainLoopParams *mlp)
     uint32_t            rlength = 0;               /* bytes in response buffer */
     uint32_t            rTotal = 0;                /* total allocated bytes */
     int                 n;
+    int                 ctrlfd;
+    int                 ctrlclntfd;
 
     TPM_DEBUG("mainLoop:\n");
 
@@ -340,6 +358,9 @@ static int mainLoop(struct mainLoopParams *mlp)
                 max_command_length);
         return rc;
     }
+
+    ctrlfd = ctrlchannel_get_fd(mlp->cc);
+    ctrlclntfd = -1;
 
     while (!terminate) {
 
@@ -353,12 +374,31 @@ static int mainLoop(struct mainLoopParams *mlp)
                     .fd = notify_fd[0],
                     .events = POLLIN,
                     .revents = 0,
+                }, {
+                    .fd = ctrlfd,
+                    .events = POLLIN,
+                    .revents = 0,
+                } , {
+                    .fd = ctrlclntfd,
+                    .events = POLLIN | POLLHUP,
+                    .revents = 0,
                 }
             };
 
-            if (poll(pollfds, 2, -1) < 0 ||
+            if (poll(pollfds, 4, -1) < 0 ||
                 (pollfds[1].revents & POLLIN) != 0) {
                 break;
+            }
+
+            if (pollfds[2].revents & POLLIN)
+                ctrlclntfd = accept(ctrlfd, NULL, 0);
+
+            if (pollfds[3].revents & POLLIN)
+                ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, &callbacks);
+
+            if (pollfds[3].revents & POLLHUP) {
+                close(ctrlclntfd);
+                ctrlclntfd = -1;
             }
 
             if (!(pollfds[0].revents & POLLIN))

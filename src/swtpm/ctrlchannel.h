@@ -1,7 +1,7 @@
 /*
- * common.h -- Header file for Common code for swtpm and swtpm_cuse
+ * ctrlchannel.h -- control channel implementation
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,16 +34,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _SWTPM_COMMON_H_
-#define _SWTPM_COMMON_H_
 
-int handle_log_options(char *options);
-int handle_key_options(char *options);
-int handle_migration_key_options(char *options);
-int handle_pid_options(char *options);
-int handle_tpmstate_options(char *options);
+#ifndef _SWTPM_CTRLCHANNEL_H_
+#define _SWTPM_CTRLCHANNEL_H_
+
 struct ctrlchannel;
-int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc);
+struct libtpms_callbacks;
 
-#endif /* _SWTPM_COMMON_H_ */
+struct ctrlchannel *ctrlchannel_new(int fd);
+int ctrlchannel_get_fd(struct ctrlchannel *cc);
+int ctrlchannel_process_fd(int fd,
+                           struct libtpms_callbacks *cbs);
 
+#endif /* _SWTPM_CTRLCHANNEL_H_ */

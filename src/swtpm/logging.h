@@ -40,6 +40,8 @@
 
 #include <unistd.h> /* STD???_FILENO */
 
+#include <unistd.h> /* STD???_FILENO */
+
 int log_init(const char *filename);
 int log_init_fd(int fd);
 int logprintf(int fd, const char *format, ...);

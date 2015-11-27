@@ -6,6 +6,7 @@
 
 noinst_HEADERS = \
 	common.h \
+	ctrlchannel.h \
 	key.h \
 	logging.h \
 	main.h \
@@ -23,6 +24,7 @@ lib_LTLIBRARIES = libswtpm_libtpms.la
 
 libswtpm_libtpms_la_SOURCES = \
 	common.c \
+	ctrlchannel.c \
 	key.c \
 	logging.c \
 	options.c \

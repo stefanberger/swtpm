@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+TPMDIR=`mktemp -d`
+PID_FILE=$TPMDIR/${SWTPM}.pid
+SOCK_PATH=$TPMDIR/sock
+CMD_PATH=$TPMDIR/cmd
+RESP_PATH=$TPMDIR/resp
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf $TPMDIR
+	if [ -n "$PID" ]; then
+		kill -SIGTERM $PID 2>/dev/null
+	fi
+}
+
+# Test 1: test the control channel
+
+# use a pseudo terminal
+exec 100<>/dev/ptmx
+$SWTPM_EXE chardev --fd 100 --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &>/dev/null &
+sleep 0.5
+
+if [ ! -r $PID_FILE ]; then
+	echo "Error: Chardev TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+
+# Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
+echo -en '\x00\x00\x00\x01' > $CMD_PATH
+socat -x FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 01 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+echo "OK"
+
+exit 0
