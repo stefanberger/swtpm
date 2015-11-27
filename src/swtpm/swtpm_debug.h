@@ -45,11 +45,11 @@
 
 #  include "logging.h"
 
-#  define TPM_DEBUG(X, args...) logprintf(X, ## args)
+#  define TPM_DEBUG(args...) logprintf(STDOUT_FILENO, ## args)
 
 # else
 
-# define  TPM_DEBUG(X, ...)
+# define  TPM_DEBUG(...)
 
 # endif /* DEBUG */
 
