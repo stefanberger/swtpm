@@ -103,7 +103,6 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "-c|--chardev <device>\n"
     "                 : use the given character device\n"
     "-f|--fd <fd>     : use the given character device file descriptor\n"
-    "-t|--terminate   : terminate the TPM once a connection has been lost\n"
     "-d|--daemon      : daemonize the TPM\n"
     "--log file=<path>|fd=<filedescriptor>\n"
     "                 : write the TPM's log into the given file rather than\n"
