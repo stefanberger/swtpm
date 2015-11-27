@@ -1,7 +1,7 @@
 /*
- * logging.h -- Logging functions
+ * utils.s -- utilities
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2014, 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,15 +34,35 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
-#ifndef _SWTPM_LOGGING_H
-#define _SWTPM_LOGGING_H
 
-#include <unistd.h> /* STD???_FILENO */
+#include "config.h"
 
-int log_init(const char *filename);
-int log_init_fd(int fd);
-int logprintf(int fd, const char *format, ...);
+#include <fcntl.h>
+#include <unistd.h>
 
-#endif /* _SWTPM_LOGGING_H */
+#include "utils.h"
+#include "logging.h"
 
+int install_sighandlers(int pipefd[2], sighandler_t handler)
+{
+    if (pipe(pipefd) < 0) {
+        logprintf(STDERR_FILENO, "Error: Could not open pipe.\n");
+        goto err_exit;
+    }
+
+    if (signal(SIGTERM, handler) == SIG_ERR) {
+        logprintf(STDERR_FILENO, "Could not install signal handler for SIGTERM.\n");
+        goto err_close_pipe;
+    }
+
+    return 0;
+
+err_close_pipe:
+    close(pipefd[0]);
+    pipefd[0] = -1;
+    close(pipefd[1]);
+    pipefd[1] = -1;
+
+err_exit:
+    return -1;
+}

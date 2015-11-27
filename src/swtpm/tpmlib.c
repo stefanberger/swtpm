@@ -1,7 +1,7 @@
 /*
- * logging.h -- Logging functions
+ * tpm_funcs.c -- interface with libtpms
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,15 +34,65 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
-#ifndef _SWTPM_LOGGING_H
-#define _SWTPM_LOGGING_H
 
-#include <unistd.h> /* STD???_FILENO */
+#include "config.h"
 
-int log_init(const char *filename);
-int log_init_fd(int fd);
-int logprintf(int fd, const char *format, ...);
+#include <assert.h>
 
-#endif /* _SWTPM_LOGGING_H */
+#include <libtpms/tpm_library.h>
+#include <libtpms/tpm_error.h>
+#include <libtpms/tpm_nvfilename.h>
 
+#include "tpmlib.h"
+#include "logging.h"
+#include "tpm_ioctl.h"
+#include "swtpm_nvfile.h"
+
+TPM_RESULT tpmlib_start(struct libtpms_callbacks *cbs, uint32_t flags)
+{
+    TPM_RESULT res;
+
+    if ((res = TPMLIB_RegisterCallbacks(cbs)) != TPM_SUCCESS) {
+        logprintf(STDERR_FILENO,
+                  "Error: Could not register the callbacks.\n");
+        return res;
+    }
+
+    if ((res = TPMLIB_MainInit()) != TPM_SUCCESS) {
+        logprintf(STDERR_FILENO,
+                  "Error: Could not initialize libtpms.\n");
+        return res;
+    }
+
+    if (flags & PTM_INIT_FLAG_DELETE_VOLATILE) {
+        uint32_t tpm_number = 0;
+        char *name = TPM_VOLATILESTATE_NAME;
+        res = SWTPM_NVRAM_DeleteName(tpm_number,
+                                     name,
+                                     FALSE);
+        if (res != TPM_SUCCESS) {
+            logprintf(STDERR_FILENO,
+                      "Error: Could not delete the volatile "
+                      "state of the TPM.\n");
+            goto error_terminate;
+        }
+    }
+    return TPM_SUCCESS;
+
+error_terminate:
+    TPMLIB_Terminate();
+
+    return res;
+}
+
+int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop)
+{
+    int result;
+    TPM_RESULT res;
+
+    res = TPMLIB_GetTPMProperty(prop, &result);
+
+    assert(res == TPM_SUCCESS);
+
+    return result;
+}

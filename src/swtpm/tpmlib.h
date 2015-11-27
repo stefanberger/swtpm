@@ -1,7 +1,7 @@
 /*
- * logging.h -- Logging functions
+ * tpmlib.h -- interface with libtpms
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,15 +34,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
-#ifndef _SWTPM_LOGGING_H
-#define _SWTPM_LOGGING_H
 
-#include <unistd.h> /* STD???_FILENO */
+#ifndef _SWTPM_TPMLIB_H_
+#define _SWTPM_TPMLIB_H_
 
-int log_init(const char *filename);
-int log_init_fd(int fd);
-int logprintf(int fd, const char *format, ...);
+#include <stdint.h>
 
-#endif /* _SWTPM_LOGGING_H */
+#include <libtpms/tpm_library.h>
 
+TPM_RESULT tpmlib_start(struct libtpms_callbacks *cbs, uint32_t flags);
+int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
+
+#endif /* _SWTPM_TPMLIB_H_ */

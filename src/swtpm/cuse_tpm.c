@@ -64,6 +64,7 @@
 #include "common.h"
 #include "pidfile.h"
 #include "tpmstate.h"
+#include "tpmlib.h"
 
 #include <glib.h>
 
@@ -402,30 +403,8 @@ static int tpm_start(uint32_t flags)
         return -1;
     }
 
-    if (TPMLIB_RegisterCallbacks(&cbs) != TPM_SUCCESS) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not register the callbacks.\n");
+    if (tpmlib_start(&cbs, flags) != TPM_SUCCESS)
         goto error_del_pool;
-    }
-
-    if (TPMLIB_MainInit() != TPM_SUCCESS) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not start the CUSE TPM.\n");
-        goto error_del_pool;
-    }
-
-    if (flags & PTM_INIT_FLAG_DELETE_VOLATILE) {
-        uint32_t tpm_number = 0;
-        char *name = TPM_VOLATILESTATE_NAME;
-        if (SWTPM_NVRAM_DeleteName(tpm_number,
-                                   name,
-                                   FALSE) != TPM_SUCCESS) {
-            logprintf(STDERR_FILENO,
-                      "Error: Could not delete the volatile "
-                      "state of the TPM.\n");
-            goto error_terminate;
-        }
-    }
 
     if(!ptm_request)
         ptm_request = malloc(4096);
@@ -1040,7 +1019,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             TPMLIB_Terminate();
 
             tpm_running = 0;
-            if ((res = tpm_start(init_p->u.req.init_flags))) {
+            if (tpm_start(init_p->u.req.init_flags) < 0) {
+                res = TPM_FAIL;
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM.\n");
             } else {

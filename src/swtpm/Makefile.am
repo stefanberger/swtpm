@@ -15,7 +15,9 @@ noinst_HEADERS = \
 	swtpm_debug.h \
 	swtpm_io.h \
 	swtpm_nvfile.h \
-	tpmstate.h
+	tpmlib.h \
+	tpmstate.h \
+	utils.h
 
 lib_LTLIBRARIES = libswtpm_libtpms.la
 
@@ -29,9 +31,12 @@ libswtpm_libtpms_la_SOURCES = \
 	swtpm_debug.c \
 	swtpm_io.c \
 	swtpm_nvfile.c \
-	tpmstate.c
+	tpmlib.c \
+	tpmstate.c \
+	utils.c
 
 libswtpm_libtpms_la_CFLAGS = \
+	-I$(top_srcdir)/include/swtpm \
 	$(HARDENING_CFLAGS)
 
 if SWTPM_USE_FREEBL

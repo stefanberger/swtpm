@@ -1,7 +1,7 @@
 /*
- * logging.h -- Logging functions
+ * utils.h -- utilities
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,15 +34,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
-#ifndef _SWTPM_LOGGING_H
-#define _SWTPM_LOGGING_H
 
-#include <unistd.h> /* STD???_FILENO */
+#ifndef _SWTPM_UTILS_H_
+#define _SWTPM_UTILS_H_
 
-int log_init(const char *filename);
-int log_init_fd(int fd);
-int logprintf(int fd, const char *format, ...);
+#include <signal.h>
+typedef void (*sighandler_t)(int);
 
-#endif /* _SWTPM_LOGGING_H */
+int install_sighandlers(int pipefd[2], sighandler_t handler);
 
+#endif /* _SWTPM_UTILS_H_ */

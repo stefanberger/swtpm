@@ -42,9 +42,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
-#include <signal.h>
-#include <assert.h>
 #include <getopt.h>
 #include <errno.h>
 #include <poll.h>
@@ -61,6 +58,8 @@
 #include "common.h"
 #include "logging.h"
 #include "pidfile.h"
+#include "tpmlib.h"
+#include "utils.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -75,22 +74,24 @@ static struct libtpms_callbacks callbacks = {
     .tpm_io_init             = NULL,
 };
 
+struct mainLoopParams {
+    uint32_t flags;
+    int fd;
+};
+
+#define MAIN_LOOP_FLAG_TERMINATE  (1 << 0)
+
 /* local function prototypes */
-struct mainLoopParams;
-
 static int mainLoop(struct mainLoopParams *mlp);
-static TPM_RESULT install_sighandlers(void);
 
-static inline int getTPMProperty(enum TPMLIB_TPMProperty prop)
+static void sigterm_handler(int sig __attribute__((unused)))
 {
-    int result;
-    TPM_RESULT res;
-
-    res = TPMLIB_GetTPMProperty(prop, &result);
-
-    assert(res == TPM_SUCCESS);
-
-    return result;
+    TPM_DEBUG("Terminating...\n");
+    if (write(notify_fd[1], "T", 1) < 0) {
+        logprintf(STDERR_FILENO, "Error: sigterm notification failed: %s\n",
+                  strerror(errno));
+    }
+    terminate = TRUE;
 }
 
 static void usage(FILE *file, const char *prgname, const char *iface)
@@ -126,15 +127,6 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "\n",
     prgname, iface);
 }
-
-
-#define MAIN_LOOP_FLAG_TERMINATE  (1 << 0)
-
-struct mainLoopParams {
-    uint32_t flags;
-    int fd;
-};
-
 int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *iface)
 {
     TPM_RESULT rc = 0;
@@ -145,7 +137,6 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         .fd = -1,
         .flags = 0,
     };
-    int initialized = FALSE;
     unsigned long val;
     char *end_ptr;
     char *keydata = NULL;
@@ -240,6 +231,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         }
     }
 
+    if (mlp.fd < 0) {
+        logprintf(STDERR_FILENO, "Error: Missing character device or file descriptor\n");
+        return EXIT_FAILURE;
+    }
+
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
@@ -267,49 +263,39 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     TPM_DEBUG("main: Initializing TPM at %s", ctime(&start_time));
 
     TPM_DEBUG("Main: Compiled for %u auth, %u transport, and %u DAA session slots\n",
-           getTPMProperty(TPMPROP_TPM_MIN_AUTH_SESSIONS),
-           getTPMProperty(TPMPROP_TPM_MIN_TRANS_SESSIONS),
-           getTPMProperty(TPMPROP_TPM_MIN_DAA_SESSIONS));
+           tpmlib_get_tpm_property(TPMPROP_TPM_MIN_AUTH_SESSIONS),
+           tpmlib_get_tpm_property(TPMPROP_TPM_MIN_TRANS_SESSIONS),
+           tpmlib_get_tpm_property(TPMPROP_TPM_MIN_DAA_SESSIONS));
     TPM_DEBUG("Main: Compiled for %u key slots, %u owner evict slots\n",
-           getTPMProperty(TPMPROP_TPM_KEY_HANDLES),
-           getTPMProperty(TPMPROP_TPM_OWNER_EVICT_KEY_HANDLES));
+           tpmlib_get_tpm_property(TPMPROP_TPM_KEY_HANDLES),
+           tpmlib_get_tpm_property(TPMPROP_TPM_OWNER_EVICT_KEY_HANDLES));
     TPM_DEBUG("Main: Compiled for %u counters, %u saved sessions\n",
-           getTPMProperty(TPMPROP_TPM_MIN_COUNTERS),
-           getTPMProperty(TPMPROP_TPM_MIN_SESSION_LIST));
+           tpmlib_get_tpm_property(TPMPROP_TPM_MIN_COUNTERS),
+           tpmlib_get_tpm_property(TPMPROP_TPM_MIN_SESSION_LIST));
     TPM_DEBUG("Main: Compiled for %u family, %u delegate table entries\n",
-           getTPMProperty(TPMPROP_TPM_NUM_FAMILY_TABLE_ENTRY_MIN),
-           getTPMProperty(TPMPROP_TPM_NUM_DELEGATE_TABLE_ENTRY_MIN));
+           tpmlib_get_tpm_property(TPMPROP_TPM_NUM_FAMILY_TABLE_ENTRY_MIN),
+           tpmlib_get_tpm_property(TPMPROP_TPM_NUM_DELEGATE_TABLE_ENTRY_MIN));
     TPM_DEBUG("Main: Compiled for %u total NV, %u savestate, %u volatile space\n",
-           getTPMProperty(TPMPROP_TPM_MAX_NV_SPACE),
-           getTPMProperty(TPMPROP_TPM_MAX_SAVESTATE_SPACE),
-           getTPMProperty(TPMPROP_TPM_MAX_VOLATILESTATE_SPACE));
+           tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_SPACE),
+           tpmlib_get_tpm_property(TPMPROP_TPM_MAX_SAVESTATE_SPACE),
+           tpmlib_get_tpm_property(TPMPROP_TPM_MAX_VOLATILESTATE_SPACE));
 #if 0
     TPM_DEBUG("Main: Compiled for %u NV defined space\n",
-           getTPMProperty(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
+           tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
 #endif
 
-    if (rc == 0) {
-        rc = TPMLIB_RegisterCallbacks(&callbacks);
-    }
-    /* TPM_Init transitions the TPM from a power-off state to one where the TPM begins an
-       initialization process.  TPM_Init could be the result of power being applied to the platform
-       or a hard reset. */
-    if (rc == 0) {
-        rc = TPMLIB_MainInit();
-    }
-    if (rc == 0) {
-        initialized = TRUE;
-    }
-    if (rc == 0) {
-        rc = install_sighandlers();
-    }
-    if (rc == 0) {
-        rc = mainLoop(&mlp);
-    }
-    if (initialized) {
-        TPMLIB_Terminate();
-    }
+    if ((rc = tpmlib_start(&callbacks, 0)))
+        goto error_no_tpm;
 
+    if (install_sighandlers(notify_fd, sigterm_handler) < 0)
+        goto error_no_sighandlers;
+
+    rc = mainLoop(&mlp);
+
+error_no_sighandlers:
+    TPMLIB_Terminate();
+
+error_no_tpm:
     pidfile_remove();
 
     close(notify_fd[0]);
@@ -346,7 +332,7 @@ static int mainLoop(struct mainLoopParams *mlp)
 
     TPM_DEBUG("mainLoop:\n");
 
-    max_command_length = getTPMProperty(TPMPROP_TPM_BUFFER_MAX);
+    max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX);
 
     rc = TPM_Malloc(&command, max_command_length);
     if (rc != TPM_SUCCESS) {
@@ -414,38 +400,4 @@ static int mainLoop(struct mainLoopParams *mlp)
     TPM_Free(command);
 
     return rc;
-}
-
-static void sigterm_handler(int sig __attribute__((unused)))
-{
-    TPM_DEBUG("Terminating...\n");
-    if (write(notify_fd[1], "T", 1) < 0) {
-        logprintf(STDERR_FILENO, "Error: sigterm notification failed: %s\n",
-                  strerror(errno));
-    }
-    terminate = TRUE;
-}
-
-static TPM_RESULT install_sighandlers(void)
-{
-    if (pipe(notify_fd) < 0) {
-        logprintf(STDERR_FILENO, "Error: Could not open pipe.\n");
-        goto err_exit;
-    }
-
-    if (signal(SIGTERM, sigterm_handler) == SIG_ERR) {
-        logprintf(STDERR_FILENO, "Could not install signal handler for SIGTERM.\n");
-        goto err_close_pipe;
-    }
-
-    return 0;
-
-err_close_pipe:
-    close(notify_fd[0]);
-    notify_fd[0] = -1;
-    close(notify_fd[1]);
-    notify_fd[1] = -1;
-
-err_exit:
-    return TPM_IOERROR;
 }
