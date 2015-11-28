@@ -378,14 +378,15 @@ parse_tpmstate_options(char *options, char **tpmstatedir)
     ovs = options_parse(options, tpmstate_opt_desc, &error);
 
     if (!ovs) {
-        fprintf(stderr, "Error parsing pid options: %s\n",
+        fprintf(stderr, "Error parsing tpmstate options: %s\n",
                 error);
         goto error;
     }
 
     directory = option_get_string(ovs, "dir", NULL);
     if (!directory) {
-        fprintf(stderr, "The file parameter is required for the tpmstate option.\n");
+        fprintf(stderr,
+                "The file parameter is required for the tpmstate option.\n");
         goto error;
     }
 
