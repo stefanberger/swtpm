@@ -323,7 +323,7 @@ CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
 
-AC_CONFIG_FILES(Makefile                    \
+AC_CONFIG_FILES([Makefile                    \
 		dist/swtpm.spec             \
 		etc/Makefile                \
 		samples/Makefile            \
@@ -344,10 +344,8 @@ AC_CONFIG_FILES(Makefile                    \
 		man/man8/Makefile           \
 		tests/Makefile              \
 		tests/test_config           \
-		)
+		], [chmod 755 src/swtpm_setup/swtpm_setup.sh])
 AC_OUTPUT
-
-chmod 755 src/swtpm_setup/swtpm_setup.sh
 
 echo
 printf "with_gnutls : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
