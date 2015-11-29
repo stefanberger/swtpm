@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
@@ -72,9 +73,10 @@ int main(int argc, char *argv[])
     char *dir;
     char *path_program;
     size_t length;
-    struct passwd *passwd;
+    struct passwd *passwd = NULL;
     int i = 1, j;
     const char *userid = E_USER_ID;
+    bool show_help = false;
 
     while (i < argc) {
         if (!strcmp("--runas", argv[i])) {
@@ -84,7 +86,8 @@ int main(int argc, char *argv[])
                 exit(1);
             }
             userid = argv[i];
-            break;
+        } else if (!strcmp("--help", argv[i]) || !strcmp("-h", argv[i])) {
+            show_help = true;
         }
         for (j = 0; one_arg_params[j] != NULL; j++) {
             if (!strcmp(one_arg_params[j], argv[i])) {
@@ -122,39 +125,42 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    passwd = getpwnam(userid);
-    if (!passwd) {
-        fprintf(stderr, "Could not get account data of user %s.\n", userid);
-        return EXIT_FAILURE;
-    }
+    if (!show_help) {
+        passwd = getpwnam(userid);
+        if (!passwd) {
+            fprintf(stderr, "Could not get account data of user %s.\n", userid);
+            return EXIT_FAILURE;
+        }
 
-    if (setgid(passwd->pw_gid)) {
-        fprintf(stderr,"Setting groupid to %s (%d) failed.\n",
-                userid, passwd->pw_gid);
-        return EXIT_FAILURE;
-    }
+        if (setgid(passwd->pw_gid)) {
+            fprintf(stderr,"Setting groupid to %s (%d) failed: %s\n",
+                    userid, passwd->pw_gid, strerror(errno));
+            return EXIT_FAILURE;
+        }
 
-    if (initgroups(passwd->pw_name, passwd->pw_gid)) {
-        fprintf(stderr,"initgroups() failed: %s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
+        if (initgroups(passwd->pw_name, passwd->pw_gid)) {
+            fprintf(stderr,"initgroups() failed: %s\n", strerror(errno));
+            return EXIT_FAILURE;
+        }
 
-    if (setuid(passwd->pw_uid)) {
-        fprintf(stderr,"Setting userid to %s (%d) failed.\n",
-                userid, passwd->pw_uid);
-        return EXIT_FAILURE;
+        if (setuid(passwd->pw_uid)) {
+            fprintf(stderr,"Setting userid to %s (%d) failed.\n",
+                    userid, passwd->pw_uid);
+            return EXIT_FAILURE;
+        }
     }
-
     /*
      * need to pass unmodified argv to swtpm_setup.sh
      */
     execv(path_program, argv);
 
-    /* should never get here */
-    fprintf(stderr, "As user %s: Could not execute '%s' : %s\n",
-            passwd->pw_name,
-            path_program,
-            strerror(errno));
+    if (passwd) {
+        /* should never get here */
+        fprintf(stderr, "As user %s:", passwd->pw_name);
+    }
+
+    fprintf(stderr, "Could not execute '%s' : %s\n",
+            path_program, strerror(errno));
 
     return EXIT_FAILURE;
 }

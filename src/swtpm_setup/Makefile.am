@@ -18,7 +18,7 @@ install-exec-hook:
 	if test -z $(DESTDIR); then \
 		chown @TSS_USER@:@TSS_GROUP@ $(DESTDIR)/$(bindir)/swtpm_setup.sh; \
 	fi
-	chmod 750 $(DESTDIR)/$(bindir)/swtpm_setup.sh
+	chmod 755 $(DESTDIR)/$(bindir)/swtpm_setup.sh
 	
 EXTRA_DIST = \
 	README
