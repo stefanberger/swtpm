@@ -539,6 +539,7 @@ static int tcp_open_socket(unsigned short port)
     si.sin_family = AF_INET;
     si.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     si.sin_port = htons(port);
+    memset(&si.sin_zero, 0, sizeof(si.sin_zero));
 
     n = bind(fd, (struct sockaddr *)&si, sizeof(si));
     if (n < 0) {

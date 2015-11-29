@@ -397,7 +397,8 @@ static int mainLoop(struct mainLoopParams *mlp)
                 ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, &callbacks);
 
             if (pollfds[3].revents & POLLHUP) {
-                close(ctrlclntfd);
+                if (ctrlclntfd >= 0)
+                    close(ctrlclntfd);
                 ctrlclntfd = -1;
             }
 
@@ -438,6 +439,9 @@ static int mainLoop(struct mainLoopParams *mlp)
 
     TPM_Free(rbuffer);
     TPM_Free(command);
+
+    if (ctrlclntfd >= 0)
+        close(ctrlclntfd);
 
     return rc;
 }
