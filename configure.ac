@@ -281,6 +281,11 @@ if test "x$GAWK" == "x"; then
 	AC_MSG_ERROR([gawk is required: gawk package])
 fi
 
+AC_PATH_PROG([SOCAT], socat)
+if test "x$SOCAT" == "x"; then
+	AC_MSG_ERROR([socat is required: socat package])
+fi
+
 TMP="$($CC -fstack-protector-strong 2>&1)"
 if echo $TMP | $GREP 'unrecognized command line option' >/dev/null; then
   HARDENING_CFLAGS="-fstack-protector -Wstack-protector "
