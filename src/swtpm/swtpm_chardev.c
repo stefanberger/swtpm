@@ -368,7 +368,7 @@ static int mainLoop(struct mainLoopParams *mlp)
             struct pollfd pollfds[] = {
                 {
                     .fd = mlp->fd,
-                    .events = POLLIN,
+                    .events = POLLIN | POLLHUP,
                     .revents = 0,
                 }, {
                     .fd = notify_fd[0],
@@ -387,6 +387,11 @@ static int mainLoop(struct mainLoopParams *mlp)
 
             if (poll(pollfds, 4, -1) < 0 ||
                 (pollfds[1].revents & POLLIN) != 0) {
+                break;
+            }
+
+            if ((pollfds[0].revents & POLLHUP)) {
+                terminate = 1;
                 break;
             }
 
