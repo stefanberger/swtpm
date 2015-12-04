@@ -47,7 +47,7 @@ static void usage(FILE *stream, const char *prgname)
     fprintf(stream,
         "TPM emulator with choice of interface.\n"
         "\n"
-        "Usage: %s socket [options]\n"
+        "Usage: %s socket|chardev [options]\n"
         "       %s -v|--version\n"
         "\n"
         "Use the --help option to see the help screen for each interface type.\n"

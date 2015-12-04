@@ -29,13 +29,13 @@ Makefile
 /m4/*
 /.pc/*
 /patches/*
+/include/swtpm.h
 /src/selinux/swtpmcuse.pp
 /src/selinux/swtpmcuse_svirt.fc
 /src/selinux/swtpmcuse_svirt.if
 /src/selinux/swtpmcuse_svirt.pp
 /src/selinux/tmp
 /src/swtpm/swtpm
-/src/swtpm/swtpm.h
 /src/swtpm/swtpm_cuse
 /src/swtpm_bios/swtpm_bios
 /src/swtpm_cert/swtpm_cert

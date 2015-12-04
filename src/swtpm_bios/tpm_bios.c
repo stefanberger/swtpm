@@ -47,6 +47,8 @@
 #include <netdb.h>
 #include <sys/un.h>
 
+#include "swtpm.h"
+
 static int open_connection(void)
 {
 	int fd = -1, tcp_device_port;
@@ -206,6 +208,7 @@ static int TPM_ContinueSelfTest(int *tpm_errcode)
 static void print_usage(const char *prgname)
 {
 	printf(
+"TPM emulator BIOS emulator version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
 "\n"
 "%s [options]\n"
 "\n"
@@ -218,7 +221,7 @@ static void print_usage(const char *prgname)
 "\t-n  no startup\n"
 "\t-o  startup only\n"
 "\t-cs run TPM_ContinueSelfTest\n",
-prgname);
+SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO, prgname);
 	return;
 }
 

@@ -55,6 +55,7 @@
 #include <gnutls/gnutls.h>
 
 #include "tpm_asn1.h"
+#include "swtpm.h"
 
 enum cert_type_t {
     CERT_TYPE_EK = 1,
@@ -70,6 +71,8 @@ static void
 usage(const char *prg)
 {
     fprintf(stdout,
+        "TPM certificate tool version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
+        "\n"
         "Usage: %s [options]\n"
         "\n"
         "Create TPM certificates without requiring the EK private key.\n"
@@ -95,8 +98,8 @@ usage(const char *prg)
         "--subject <subject>       : Subject such as location in format\n"
         "                            C=US,ST=NY,L=NewYork\n"
         "--help                    : Display this help screen and exit\n"
-        "\n"
-        ,prg);
+        "\n",
+        SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO, prg);
 }
 
 static char

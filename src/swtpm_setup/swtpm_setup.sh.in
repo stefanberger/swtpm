@@ -592,6 +592,8 @@ init_tpm()
 usage()
 {
 	cat <<EOF
+TPM emulator setup tool version @SWTPM_VER_MAJOR@.@SWTPM_VER_MINOR@.@SWTPM_VER_MICRO@
+
 Usage: $1 [options]
 
 The following options are supported:

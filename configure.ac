@@ -334,10 +334,10 @@ AC_CONFIG_FILES([Makefile                    \
 		samples/Makefile            \
 		include/Makefile            \
 		include/swtpm/Makefile      \
+		include/swtpm.h             \
 		src/Makefile                \
 		src/selinux/Makefile        \
 		src/swtpm/Makefile          \
-		src/swtpm/swtpm.h           \
 		src/swtpm_bios/Makefile     \
 		src/swtpm_cert/Makefile     \
 		src/swtpm_ioctl/Makefile    \

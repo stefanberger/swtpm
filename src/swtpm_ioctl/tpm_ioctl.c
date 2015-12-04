@@ -62,6 +62,7 @@
 
 #include <libtpms/tpm_error.h>
 
+#include "swtpm.h"
 
 /*
  * Do PTM_HASH_START, PTM_HASH_DATA, PTM_HASH_END on the
@@ -449,6 +450,8 @@ static int do_load_state_blob(int fd, const char *blobtype,
 static void usage(const char *prgname)
 {
     fprintf(stdout,
+"TPM emulator control tool version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
+"\n"
 "Usage: %s command <device path>\n"
 "\n"
 "The following commands are supported:\n"
@@ -470,7 +473,7 @@ static void usage(const char *prgname)
 "                       type may be one of volatile, permanent, or savestate\n"
 "-g       : get configuration flags indicating which keys are in use\n"
 "\n"
-    ,prgname);
+,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO, prgname);
 }
 
 int main(int argc, char *argv[])
