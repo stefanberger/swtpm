@@ -68,12 +68,19 @@ extern const ASN1_ARRAY_TYPE tpm_asn1_tab[];
 ASN1_TYPE _tpm_asn;
 
 static void
-usage(const char *prg)
+versioninfo(const char *prg)
 {
     fprintf(stdout,
         "TPM certificate tool version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
-        "\n"
-        "Usage: %s [options]\n"
+        ,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO);
+}
+
+static void
+usage(const char *prg)
+{
+    versioninfo(prg);
+    fprintf(stdout,
+        "\nUsage: %s [options]\n"
         "\n"
         "Create TPM certificates without requiring the EK private key.\n"
         "\n"
@@ -97,9 +104,10 @@ usage(const char *prg)
         "--platform-version <version>   : The Platform version (firmware version)\n"
         "--subject <subject>       : Subject such as location in format\n"
         "                            C=US,ST=NY,L=NewYork\n"
+        "--version                 : Display version and exit\n"
         "--help                    : Display this help screen and exit\n"
         "\n",
-        SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO, prg);
+        prg);
 }
 
 static char
@@ -583,6 +591,9 @@ main(int argc, char *argv[])
             platf_version = argv[i];
         } else if (!strcmp(argv[i], "--pem")) {
             write_pem = true;
+        } else if (!strcmp(argv[i], "--version")) {
+            versioninfo(argv[0]);
+            exit(0);
         } else if (!strcmp(argv[i], "--help")) {
             usage(argv[0]);
             exit(0);

@@ -589,10 +589,17 @@ init_tpm()
 	return 0
 }
 
-usage()
+versioninfo()
 {
 	cat <<EOF
 TPM emulator setup tool version @SWTPM_VER_MAJOR@.@SWTPM_VER_MINOR@.@SWTPM_VER_MICRO@
+EOF
+}
+
+usage()
+{
+	versioninfo
+	cat <<EOF
 
 Usage: $1 [options]
 
@@ -650,6 +657,8 @@ The following options are supported:
                    This parameter will be passed to the TPM using
                    '--key pwdfile=<file>'.
 
+--verion         : Display version and exit
+
 --help,-h,-?     : Display this help screen
 EOF
 }
@@ -686,6 +695,7 @@ main()
 		--pwdfile) shift; pwdfile="$1";;
 		--runas) shift;; # ignore here
 		--logfile) shift; LOGFILE="$1";;
+		--version) versioninfo $0; exit 0;;
 		--help|-h|-?) usage $0; exit 0;;
 		*) logerr "Unknown option $1"; usage $0; exit 1;;
 		esac

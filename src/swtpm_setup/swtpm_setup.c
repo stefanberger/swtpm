@@ -88,6 +88,8 @@ int main(int argc, char *argv[])
             userid = argv[i];
         } else if (!strcmp("--help", argv[i]) || !strcmp("-h", argv[i])) {
             show_help = true;
+        } else if (!strcmp("--version", argv[i])) {
+            show_help = true;
         }
         for (j = 0; one_arg_params[j] != NULL; j++) {
             if (!strcmp(one_arg_params[j], argv[i])) {

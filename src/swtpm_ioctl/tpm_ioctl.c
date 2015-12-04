@@ -447,10 +447,17 @@ static int do_load_state_blob(int fd, const char *blobtype,
     return 0;
 }
 
-static void usage(const char *prgname)
+static void versioninfo(const char *prgname)
 {
     fprintf(stdout,
 "TPM emulator control tool version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
+,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO);
+}
+
+static void usage(const char *prgname)
+{
+    versioninfo(prgname);
+    fprintf(stdout,
 "\n"
 "Usage: %s command <device path>\n"
 "\n"
@@ -472,8 +479,10 @@ static void usage(const char *prgname)
 "--load <type> <file> : load the TPM state blob of given type from a file;\n"
 "                       type may be one of volatile, permanent, or savestate\n"
 "-g       : get configuration flags indicating which keys are in use\n"
+"--version: display version and exit\n"
+"-h|--help: display help screen and exit\n"
 "\n"
-,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO, prgname);
+, prgname);
 }
 
 int main(int argc, char *argv[])
@@ -494,6 +503,14 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error: Missing command.\n\n");
         usage(argv[0]);
         return 1;
+    }
+
+    if (!strcmp(argv[1], "--version")) {
+        versioninfo(argv[0]);
+        exit(0);
+    } else if (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")) {
+        usage(argv[0]);
+        exit(0);
     }
 
     if (!strcmp(argv[1], "--save") ||

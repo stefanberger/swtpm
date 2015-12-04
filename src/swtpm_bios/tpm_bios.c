@@ -205,10 +205,17 @@ static int TPM_ContinueSelfTest(int *tpm_errcode)
 	return talk(tpm_cst, sizeof(tpm_cst), tpm_errcode);
 }
 
+static void versioninfo(void)
+{
+        printf(
+"TPM emulator BIOS emulator version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
+,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO);
+}
+
 static void print_usage(const char *prgname)
 {
+        versioninfo();
 	printf(
-"TPM emulator BIOS emulator version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
 "\n"
 "%s [options]\n"
 "\n"
@@ -220,9 +227,10 @@ static void print_usage(const char *prgname)
 "\t-d  startup deactivate\n"
 "\t-n  no startup\n"
 "\t-o  startup only\n"
-"\t-cs run TPM_ContinueSelfTest\n",
-SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO, prgname);
-	return;
+"\t-cs run TPM_ContinueSelfTest\n"
+"\t-v  display version and exit\n"
+"\t-h  display this help screen and exit\n"
+, prgname);
 }
 
 int main(int argc, char *argv[])
@@ -245,6 +253,9 @@ int main(int argc, char *argv[])
 			startupparm = 0x03;
 		} else if (strcmp(argv[i],"-h") == 0) {
 			print_usage(argv[0]);
+			exit(EXIT_SUCCESS);
+		} else if (strcmp(argv[i],"-v") == 0) {
+			versioninfo();
 			exit(EXIT_SUCCESS);
 		} else if (strcmp(argv[i],"-n") == 0) {
 			startupparm = 0xff;
