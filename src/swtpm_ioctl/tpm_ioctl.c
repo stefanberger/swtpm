@@ -480,7 +480,7 @@ static void usage(const char *prgname)
 "                       type may be one of volatile, permanent, or savestate\n"
 "-g       : get configuration flags indicating which keys are in use\n"
 "--version: display version and exit\n"
-"-h|--help: display help screen and exit\n"
+"--help   : display help screen and exit\n"
 "\n"
 , prgname);
 }
@@ -508,7 +508,7 @@ int main(int argc, char *argv[])
     if (!strcmp(argv[1], "--version")) {
         versioninfo(argv[0]);
         exit(0);
-    } else if (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")) {
+    } else if (!strcmp(argv[1], "--help")) {
         usage(argv[0]);
         exit(0);
     }
