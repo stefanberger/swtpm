@@ -1,0 +1,178 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm_cuse
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+SWTPM_BIOS=$ROOT/src/swtpm_bios/swtpm_bios
+VTPM_NAME="vtpm-test-swtpm-bios"
+TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+PID_FILE=$TPM_PATH/${SWTPM}.pid
+
+function cleanup()
+{
+	pid=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+modprobe cuse
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+$SWTPM_EXE --tpmstate dir=$TPM_PATH --pid file=$PID_FILE -n $VTPM_NAME
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM did not start."
+	exit 1
+fi
+
+if [ ! -r $PID_FILE ]; then
+	echo "Error: CUSE TPM did not write pidfile."
+	exit 1
+fi
+
+PIDF="$(cat $PID_FILE)"
+if [ "$PIDF" != "$PID" ]; then
+	echo "Error: CUSE TPM wrote pid $PIDF, but found $PID."
+	exit 1
+fi
+
+# Init the TPM
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: CUSE TPM not running anymore after INIT."
+	exit 1
+fi
+
+# must work
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -o)
+if [ $? -ne 0 ] || [ -n "$res" ]; then
+	echo "Error: Could not startup the CUSE TPM."
+	exit 1
+fi
+
+#  must work
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -cs)
+if [ $? -ne 0 ] || [ -n "$res" ]; then
+	echo "Error: Could not self-test the CUSE TPM."
+	exit 1
+fi
+
+#  must work
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u)
+if [ $? -ne 0 ] || [ -n "$res" ]; then
+	echo "Error: Could not give up physical presence on the CUSE TPM."
+	exit 1
+fi
+
+#  will NOT work -- we get error output in $res
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u)
+ret=$?
+if [ $ret -eq 0 ] || [ -z "$res" ]; then
+	echo "Error: Could give up physical presence on the CUSE TPM."
+	exit 1
+fi
+
+if [ $ret -ne 128 ]; then
+	echo "Error: Wrong return code from swtpm_bios. Should be 128, had $ret."
+	exit 1
+fi
+
+#  will NOT work (wrong device) -- we get error output in $res
+res=$(TPM_DEVICE=/dev/${VTPM_NAME}123 $SWTPM_BIOS -n -u)
+ret=$?
+if [ $ret -eq 0 ] || [ -z "$res" ]; then
+	echo "Error: Could give up physical presence on wrong device."
+	exit 1
+fi
+
+if [ $ret -ne 255 ]; then
+	echo "Error: Wrong return code from swtpm_bios. Should be 255, had $ret."
+	exit 1
+fi
+
+
+# RESET TPM
+
+$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the CUSE TPM."
+	exit 1
+fi
+
+# must work
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -cs -u)
+if [ $? -ne 0 ] || [ -n "$res" ]; then
+	echo "Error: Could not startup the CUSE TPM."
+	exit 1
+fi
+
+#  will NOT work -- we get error output in $res
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u)
+ret=$?
+if [ $ret -eq 0 ] || [ -z "$res" ]; then
+	echo "Error: Could give up physical presence on the CUSE TPM."
+	exit 1
+fi
+
+if [ $ret -ne 128 ]; then
+	echo "Error: Wrong return code from swtpm_bios. Should be 128, had $ret."
+	exit 1
+fi
+
+
+
+$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the CUSE TPM."
+	exit 1
+fi
+
+sleep 0.5
+
+kill -0 $PID 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: CUSE TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

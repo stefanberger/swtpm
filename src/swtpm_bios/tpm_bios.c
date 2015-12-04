@@ -220,6 +220,7 @@ static void print_usage(const char *prgname)
 "%s [options]\n"
 "\n"
 "Runs TPM_Startup (unless -n), then (unless -o) sets PP, enable, activate \n"
+"and finally (using -u) gives up physical presence (PP)\n"
 "\n"
 "The following options are supported:\n"
 "\t-c  startup clear (default)\n"
@@ -228,6 +229,7 @@ static void print_usage(const char *prgname)
 "\t-n  no startup\n"
 "\t-o  startup only\n"
 "\t-cs run TPM_ContinueSelfTest\n"
+"\t-u  give up physical presence\n"
 "\t-v  display version and exit\n"
 "\t-h  display this help screen and exit\n"
 , prgname);
@@ -241,10 +243,12 @@ int main(int argc, char *argv[])
 	int   contselftest = 0;
 	unsigned char  startupparm = 0x1;      /* parameter for TPM_Startup(); */
 	int   tpm_errcode = 0;
+	int   unassert_pp = 0;
+	int   tpm_error = 0;
 
 	/* command line argument defaults */
 
-	for (i=1 ; (i<argc) && (ret == 0) ; i++) {
+	for (i = 1 ; i < argc; i++) {
 		if (strcmp(argv[i],"-c") == 0) {
 			startupparm = 0x01;
 			do_more = 1;
@@ -267,32 +271,42 @@ int main(int argc, char *argv[])
 			do_more = 0;
 		} else if (strcmp(argv[i],"-cs") == 0) {
 			contselftest = 1;
+		} else if (strcmp(argv[i],"-u") == 0) {
+			unassert_pp = 1;
 		} else {
 			printf("\n%s is not a valid option\n", argv[i]);
 			print_usage(argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
+
 	if (ret == 0) {
 		if (0xff != startupparm) {
 			ret = TPM_Startup(startupparm, &tpm_errcode);
 			if (tpm_errcode != 0) {
-				printf("TPM_Startup returned error code "
-				       "0x%08x\n", ret);
+				tpm_error = 1;
+				printf("TPM_Startup(0x%02x) returned error code "
+				       "0x%08x\n", startupparm, tpm_errcode);
 			}
 		}
 	}
 
 	/* Sends the TSC_PhysicalPresence command to turn on physicalPresenceCMDEnable */
 	if ((ret == 0) && do_more) {
-		TSC_PhysicalPresence(0x20, &tpm_errcode);
+		ret = TSC_PhysicalPresence(0x20, &tpm_errcode);
+		if (tpm_errcode != 0) {
+			tpm_error = 1;
+			printf("TSC_PhysicalPresence(CMD_ENABLE) returned error code "
+			       "0x%08x\n", tpm_errcode);
+		}
 	}
 
 	/* Sends the TSC_PhysicalPresence command to turn on physicalPresence */
 	if ((ret == 0) && do_more) {
 		ret = TSC_PhysicalPresence(0x08, &tpm_errcode);
 		if (tpm_errcode != 0) {
-			printf("TSC_PhysicalPresence returned error code "
+			tpm_error = 1;
+			printf("TSC_PhysicalPresence(PRESENT) returned error code "
 			       "0x%08x\n", tpm_errcode);
 		}
 	}
@@ -300,6 +314,7 @@ int main(int argc, char *argv[])
 	if ((ret == 0) && do_more) {
 		ret = TPM_PhysicalEnable(&tpm_errcode);
 		if (tpm_errcode != 0) {
+			tpm_error = 1;
 			printf("TPM_PhysicalEnable returned error "
 			       "code 0x%08x\n", tpm_errcode);
 		}
@@ -308,6 +323,7 @@ int main(int argc, char *argv[])
 	if ((ret == 0) && do_more) {
 		ret = TPM_PhysicalSetDeactivated(0, &tpm_errcode);
 		if (tpm_errcode != 0) {
+			tpm_error = 1;
 			printf("TPM_PhysicalSetDeactivated returned error "
 			       "code 0x%08x\n", tpm_errcode);
 		}
@@ -316,10 +332,34 @@ int main(int argc, char *argv[])
 	if ((ret == 0) && contselftest) {
 		ret = TPM_ContinueSelfTest(&tpm_errcode);
 		if (tpm_errcode != 0) {
+			tpm_error = 1;
 			printf("TPM_ContinueSelfTest returned error "
 			       "code 0x%08x\n", tpm_errcode);
 		}
 	}
+
+	/* Sends the TSC_PhysicalPresence command to turn on physicalPresenceCMDEnable */
+	if ((ret == 0) && unassert_pp) {
+		ret = TSC_PhysicalPresence(0x20, &tpm_errcode);
+		if (tpm_errcode != 0) {
+			tpm_error = 1;
+			printf("TSC_PhysicalPresence(CMD_ENABLE) returned error code "
+			       "0x%08x\n", tpm_errcode);
+		}
+	}
+
+	/* Sends the TSC_PhysicalPresence command to unassert physical presence and lock it */
+	if ((ret == 0) && unassert_pp) {
+		ret = TSC_PhysicalPresence(0x14, &tpm_errcode);
+		if (tpm_errcode != 0) {
+			tpm_error = 1;
+			printf("TSC_PhysicalPresence(NOT_PRESENT|LOCK) returned error code "
+			       "0x%08x\n", tpm_errcode);
+		}
+	}
+
+	if (!ret && tpm_error)
+	        ret = 0x80;
 
 	return ret;
 }

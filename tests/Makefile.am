@@ -25,7 +25,8 @@ TESTS = \
 	test_commandline \
 	test_ctrlchannel \
 	test_parameters \
-	test_resume_volatile
+	test_resume_volatile \
+	test_swtpm_bios
 
 if WITH_GNUTLS
 TESTS += \

@@ -10,8 +10,8 @@ B<swtpm_bios [OPTIONS]>
 
 B<swtpm_bios> is a tool that can send the commands to the TPM (I<swtpm> 
 program) that typically are used by the BIOS to initialize the TPM.
-The user can choose among several command line options as to what the
-state should be with which the TPM is started.
+The user can choose among several command line options to choose the
+state the TPM should be set to.
 
 This command requires the environment variable I<TCSD_USE_TCP_DEVICE>
 to be set for communication via TCP. Otherwise it will use the device
@@ -20,6 +20,10 @@ I</dev/tpm0> to send the commands to. In TCP mode, the environment variable
 I<TCSD_TCP_DEVICE_HOSTNAME> is used to indicate the host to send the commands
 to. By default I<localhost> is assumed. The default TCP port is 6545 unless
 the environment variable I<TCSD_TCP_DEVICE_PORT> indicates another port. 
+
+In case of success 0 will be returned. In case a TPM error was
+encountered the return code will be 128. In case of communcation
+failure 255 is returned.
 
 This command will send the following sequence of commands to the TPM.
 
@@ -36,6 +40,10 @@ This command will send the following sequence of commands to the TPM.
 =item B<TPM_PhysicalSetDeactivated(0x0)> -- activate TPM
 
 =item B<TPM_ContinueSelfTest> -- continue self test
+
+=item B<TSC_PhysicalPresence(0x20)> -- PhysicalPresenceCMDEnable
+
+=item B<TSC_PhysicalPresence(0x14)> -- turn off physical presence & lock it
 
 =back
 
@@ -69,6 +77,18 @@ Only send the startup command and nothing else.
 =item B<-cs>
 
 Send a TPM_ContinueSelfTest command.
+
+=item B<-u>
+
+Give up physical presence.
+
+=item B<-v>
+
+Display version and exit.
+
+=item B<-h>
+
+Display the help screen and exit.
 
 =back
 
