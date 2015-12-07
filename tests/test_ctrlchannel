@@ -43,7 +43,7 @@ socat -x FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
-exp=" 00 00 00 01 00 00 00 00"
+exp=" 00 00 00 00 00 00 00 01"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"

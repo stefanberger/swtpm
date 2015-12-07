@@ -42,7 +42,7 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <stdint.h>
-#include <arpa/inet.h>
+#include <endian.h>
 
 #include <libtpms/tpm_library.h>
 
@@ -105,10 +105,10 @@ int ctrlchannel_process_fd(int fd,
 
     n -= sizeof(input.cmd);
 
-    switch (ntohl(input.cmd)) {
+    switch (be32toh(input.cmd)) {
     case CMD_GET_CAPABILITY:
         ptm_caps = (ptm_cap *)&output.body;
-        *ptm_caps = htonl(PTM_CAP_INIT);
+        *ptm_caps = htobe64(PTM_CAP_INIT);
 
         out_len = sizeof(*ptm_caps);
         break;
@@ -123,7 +123,7 @@ int ctrlchannel_process_fd(int fd,
 
             TPMLIB_Terminate();
 
-            *res_p = tpmlib_start(cbs, ntohl(init_p->u.req.init_flags));
+            *res_p = tpmlib_start(cbs, be32toh(init_p->u.req.init_flags));
             if (*res_p) {
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM\n");
