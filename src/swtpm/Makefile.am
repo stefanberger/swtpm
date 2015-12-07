@@ -55,7 +55,7 @@ libswtpm_libtpms_la_LIBADD += \
 	$(NSS_LIBS)
 endif
 
-bin_PROGRAMS = swtpm swtpm_cuse
+bin_PROGRAMS = swtpm swtpm_cuse swtpm_cuse_bsd
 
 swtpm_DEPENDENCIES = $(lib_LTLIBRARIES)
 
@@ -95,6 +95,24 @@ swtpm_cuse_CFLAGS = \
 	$(HARDENING_CFLAGS)
 
 swtpm_cuse_LDADD = \
+	-L$(PWD)/.libs -lswtpm_libtpms \
+	$(LIBFUSE_LIBS) \
+	$(GLIB_LIBS) \
+	$(GTHREAD_LIBS) \
+	$(LIBTPMS_LIBS)
+
+swtpm_cuse_bsd_DEPENDENCIES = $(lib_LTLIBRARIES)
+
+swtpm_cuse_bsd_SOURCES = \
+	cuse_tpm_bsd.c
+
+swtpm_cuse_bsd_CFLAGS = \
+	-I$(top_srcdir)/include/swtpm \
+	$(GLIB_CFLAGS) \
+	$(LIBFUSE_CFLAGS) \
+	$(HARDENING_CFLAGS)
+
+swtpm_cuse_bsd_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
