@@ -46,7 +46,7 @@ A library with callback functions for libtpms based TPM emulator
 %package        cuse
 Summary:        TPM emulator with CUSE interface
 Group:          Applications/Emulators
-License:        GPL
+License:        BSD
 BuildRequires:  selinux-policy-devel
 
 %description    cuse

@@ -3,9 +3,7 @@
  *
  * (c) Copyright IBM Corporation 2014, 2015.
  *
- * This file is licensed under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either version 2.1 of
- * the License, or (at your option) any later version.
+ * This file is licensed under the terms of the 3-clause BSD license
  */
 #ifndef _TPM_IOCTL_H_
 #define _TPM_IOCTL_H_

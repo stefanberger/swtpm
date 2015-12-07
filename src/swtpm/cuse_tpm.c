@@ -1,51 +1,61 @@
-/*
- * ptm - CUSE based TPM PassThrough Multiplexer for QEMU.
- *
- * (c) Copyright IBM Corporation 2014, 2015.
- *
- * This program instantiates one /dev/vtpm* device, and
- * calls libtpms to handle requests
- *
- * The following code was derived from
- * http://fuse.sourceforge.net/doxygen/cusexmp_8c.html
- *
- * It's original header states:
- *
- * CUSE example: Character device in Userspace
- * Copyright (C) 2008-2009 SUSE Linux Products GmbH
- * Copyright (C) 2008-2009 Tejun Heo <tj@kernel.org>
- * This program can be distributed under the terms of the GNU GPL.
- * See the file COPYING.
- *
- *
- * Authors: David Safford safford@us.ibm.com
- *          Stefan Berger stefanb@us.ibm.com
- * 
- */
+/********************************************************************************/
+/*                                                                              */
+/*                            CUSE TPM                                          */
+/*                     IBM Thomas J. Watson Research Center                     */
+/*                                                                              */
+/* (c) Copyright IBM Corporation 2014-2015.					*/
+/*										*/
+/* All rights reserved.								*/
+/* 										*/
+/* Redistribution and use in source and binary forms, with or without		*/
+/* modification, are permitted provided that the following conditions are	*/
+/* met:										*/
+/* 										*/
+/* Redistributions of source code must retain the above copyright notice,	*/
+/* this list of conditions and the following disclaimer.			*/
+/* 										*/
+/* Redistributions in binary form must reproduce the above copyright		*/
+/* notice, this list of conditions and the following disclaimer in the		*/
+/* documentation and/or other materials provided with the distribution.		*/
+/* 										*/
+/* Neither the names of the IBM Corporation nor the names of its		*/
+/* contributors may be used to endorse or promote products derived from		*/
+/* this software without specific prior written permission.			*/
+/* 										*/
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS		*/
+/* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT		*/
+/* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR	*/
+/* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT		*/
+/* HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,	*/
+/* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT		*/
+/* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,	*/
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY	*/
+/* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT		*/
+/* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE	*/
+/* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.		*/
+/********************************************************************************/
 
 /*
- * Note: It's possible for multiple process to open access to
- * the same character device. Concurrency problems may arise
- * if those processes all write() to the device and then try
- * to pick up the results. Proper usage of the device is to
- * have one process (QEMU) use ioctl, read and write and have
- * other processes (libvirt, etc.) only use ioctl.
+ * Authors:
+ *     Eric Richter, erichte@us.ibm.com
+ *     Stefan Berger, stefanb@us.ibm.com
+ *     David Safford, safford@us.ibm.com
  */
-#define FUSE_USE_VERSION 29
 
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <errno.h>
 #include <stdbool.h>
-#include <sys/types.h>
-#include <ctype.h>
+#include <string.h>
+#include <getopt.h>
 #include <pwd.h>
 #include <grp.h>
+#include <limits.h>
+#include <errno.h>
 #include <arpa/inet.h>
+
+#include <fuse/cuse_lowlevel.h>
+
+#include <glib.h>
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_tis.h>
@@ -53,29 +63,38 @@
 #include <libtpms/tpm_memory.h>
 #include <libtpms/tpm_nvfilename.h>
 
-#include "cuse_lowlevel.h"
-#include "fuse_opt.h"
-#include "tpm_ioctl.h"
 #include "swtpm.h"
-#include "swtpm_nvfile.h"
-#include "key.h"
-#include "logging.h"
-#include "main.h"
 #include "common.h"
-#include "pidfile.h"
 #include "tpmstate.h"
+#include "pidfile.h"
+#include "logging.h"
+#include "tpm_ioctl.h"
+#include "swtpm_nvfile.h"
 #include "tpmlib.h"
 
-#include <glib.h>
-
+/* maximum size of request buffer */
 #define TPM_REQ_MAX 4096
-static unsigned char *ptm_request, *ptm_response;
+
+/* buffer containing the TPM request */
+static unsigned char *ptm_request;
+
+/* buffer containing the TPM response */
+static unsigned char *ptm_response;
+
+/* the sizes of the data in the buffers */
 static uint32_t ptm_req_len, ptm_res_len, ptm_res_tot;
+
+/* locality applied to TPM commands */
 static TPM_MODIFIER_INDICATOR locality;
-static int tpm_running;
-static int thread_busy;
+
+/* whether the TPM is running (TPM_Init was received) */
+static bool tpm_running;
+
+/* whether the worker thread is busy processing a command */
+static bool thread_busy;
+
+/* thread pool with one single TPM thread */
 static GThreadPool *pool;
-static struct passwd *passwd;
 
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
@@ -103,12 +122,7 @@ GMutex *file_ops_lock;
 
 #endif
 
-struct ptm_param {
-    unsigned major;
-    unsigned minor;
-    char *dev_name;
-    int is_help;
-    const char *prgname;
+struct cuse_param {
     char *runas;
     char *logging;
     char *keydata;
@@ -117,12 +131,12 @@ struct ptm_param {
     char *tpmstatedata;
 };
 
-
 enum msg_type {
     MESSAGE_TPM_CMD = 1,
     MESSAGE_IOCTL,
 };
 
+/* the message we are sending to the thread in the pool */
 struct thread_message {
     enum msg_type type;
     fuse_req_t    req;
@@ -160,17 +174,13 @@ typedef struct transfer_state {
     uint32_t offset;
 } transfer_state;
 
-/* function prototypes */
+typedef struct TPM_Response_Header {
+    uint16_t tag;
+    uint32_t paramSize;
+    uint32_t returnCode;
+} __attribute__ ((packed)) TPM_Response_Header;
 
-static TPM_RESULT
-ptm_set_stateblob_append(uint32_t blobtype,
-                         const unsigned char *data, uint32_t length,
-                         bool is_encrypted, bool is_last);
-
-static int
-cached_stateblob_get(uint32_t offset,
-                     unsigned char **bufptr, size_t *length);
-
+/*********************************** data *************************************/
 
 static const char *usage =
 "usage: %s [options]\n"
@@ -221,12 +231,6 @@ const static unsigned char TPM_ResetEstablishmentBit[] = {
     0x40, 0x00, 0x00, 0x0B          /* TPM_ORD_ResetEstablishmentBit */
 };
 
-typedef struct TPM_Response_Header {
-    uint16_t tag;
-    uint32_t paramSize;
-    uint32_t returnCode;
-} __attribute__ ((packed)) TPM_Response_Header;
-
 static TPM_RESULT
 ptm_io_getlocality(TPM_MODIFIER_INDICATOR *loc, uint32_t tpmnum)
 {
@@ -243,190 +247,11 @@ static struct libtpms_callbacks cbs = {
     .tpm_io_getlocality     = ptm_io_getlocality,
 };
 
+/* single message to send to the worker thread */
 static struct thread_message msg;
 
+/* the current state the transfer interface is in */
 static transfer_state tx_state;
-
-/* worker_thread_wait_done
- *
- * Wait while the TPM worker thread is busy
- */ 
-static void worker_thread_wait_done(void)
-{
-    g_mutex_lock(THREAD_BUSY_LOCK);
-    while (thread_busy) {
-#if GLIB_MINOR_VERSION >= 32
-        gint64 end_time = g_get_monotonic_time() +
-            1 * G_TIME_SPAN_SECOND;
-        g_cond_wait_until(THREAD_BUSY_SIGNAL,
-                          THREAD_BUSY_LOCK,
-                          end_time);
-#else
-        GTimeVal abs_time;
-        /*
-         * seems like occasionally the g_cond_signal did not wake up
-         * the sleeping task; so we poll [TIS Test in BIOS]
-         */
-        abs_time.tv_sec = 1;
-        abs_time.tv_usec = 0;
-        g_cond_timed_wait(THREAD_BUSY_SIGNAL,
-                          THREAD_BUSY_LOCK,
-                          &abs_time);
-#endif
-    }
-    g_mutex_unlock(THREAD_BUSY_LOCK);
-}
-
-/* worker_thread_mark_busy
- *
- * Mark the worker thread as busy; call this with the lock held
- */
-static void worker_thread_mark_busy(void)
-{
-    g_mutex_lock(THREAD_BUSY_LOCK);
-    thread_busy = 1;
-    g_mutex_unlock(THREAD_BUSY_LOCK);
-}
-
-/* work_tread_mark_done
- *
- * Mark the worker thread as done and wake
- * up the waiting thread
- */
-static void worker_thread_mark_done(void)
-{
-    g_mutex_lock(THREAD_BUSY_LOCK);
-    thread_busy = 0;
-    g_cond_signal(THREAD_BUSY_SIGNAL);
-    g_mutex_unlock(THREAD_BUSY_LOCK);
-}
-
-/* worker_thread_is_busy
- *
- * Determine whether the worker thread is busy
- */
-static int worker_thread_is_busy()
-{
-    return thread_busy;
-}
-
-static void worker_thread(gpointer data, gpointer user_data)
-{
-    struct thread_message *msg = (struct thread_message *)data;
-
-    switch (msg->type) {
-    case MESSAGE_TPM_CMD:
-        TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
-                       ptm_request, ptm_req_len);
-        break;
-    case MESSAGE_IOCTL:
-        break;
-    }
-
-    /* results are ready */
-    worker_thread_mark_done();
-}
-
-/* worker_thread_end
- *
- * finish the worker thread
- */
-static void worker_thread_end()
-{
-    if (pool) {
-        worker_thread_wait_done();
-        g_thread_pool_free(pool, TRUE, TRUE);
-        pool = NULL;
-    }
-}
-
-/* _TPM_IO_TpmEstablished_Reset
- *
- * Reset the TPM Established bit
- */
-static TPM_RESULT
-_TPM_IO_TpmEstablished_Reset(fuse_req_t req,
-                             TPM_MODIFIER_INDICATOR locty)
-{
-    TPM_RESULT res = TPM_FAIL;
-    TPM_Response_Header *tpmrh;
-    TPM_MODIFIER_INDICATOR orig_locality = locality;
-
-    locality = locty;
-
-    ptm_req_len = sizeof(TPM_ResetEstablishmentBit);
-    memcpy(ptm_request, TPM_ResetEstablishmentBit, ptm_req_len);
-    msg.type = MESSAGE_TPM_CMD;
-    msg.req = req;
-
-    worker_thread_mark_busy();
-
-    g_thread_pool_push(pool, &msg, NULL);
-
-    worker_thread_wait_done();
-
-    if (ptm_res_len >= sizeof(TPM_Response_Header)) {
-        tpmrh = (TPM_Response_Header *)ptm_response;
-        res = ntohl(tpmrh->returnCode);
-    }
-
-    locality = orig_locality;
-
-    return res;
-}
-
-static int tpm_start(uint32_t flags)
-{
-    DIR *dir;
-    const char *tpmdir = tpmstate_get_dir();
-
-    dir = opendir(tpmdir);
-    if (dir) {
-        closedir(dir);
-    } else {
-        if (mkdir(tpmdir, 0775)) {
-            logprintf(STDERR_FILENO,
-                      "Error: Could not open tpmstate dir %s\n",
-                      tpmdir);
-            return -1;
-        }
-    }
-
-    pool = g_thread_pool_new(worker_thread,
-                             NULL,
-                             1,
-                             TRUE,
-                             NULL);
-    if (!pool) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not create the thread pool.\n");
-        return -1;
-    }
-
-    if (tpmlib_start(&cbs, flags) != TPM_SUCCESS)
-        goto error_del_pool;
-
-    if(!ptm_request)
-        ptm_request = malloc(4096);
-    if(!ptm_request) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not allocate memory for request buffer.\n");
-        goto error_terminate;
-    }
-
-    logprintf(STDOUT_FILENO,
-              "CUSE TPM successfully initialized.\n");
-
-    return 0;
-
-error_del_pool:
-    g_thread_pool_free(pool, TRUE, TRUE);
-    pool = NULL;
-
-error_terminate:
-    TPMLIB_Terminate();
-    return -1;
-}
 
 /*
  * convert the blobtype integer into a string that libtpms
@@ -446,190 +271,16 @@ static const char *ptm_get_blobname(uint32_t blobtype)
     }
 }
 
-static void ptm_open(fuse_req_t req, struct fuse_file_info *fi)
-{
-    tx_state.state = TX_STATE_RW_COMMAND;
-
-    fuse_reply_open(req, fi);
-}
-
-/* ptm_write_fatal_error_response
- *
- * Write a fatal error response
- */
-static void ptm_write_fatal_error_response(void)
-{
-    if (ptm_response == NULL ||
-        ptm_res_tot < sizeof(TPM_Resp_FatalError)) {
-        ptm_res_tot = sizeof(TPM_Resp_FatalError);
-        TPM_Realloc(&ptm_response, ptm_res_tot);
-    }
-    if (ptm_response) {
-        ptm_res_len = sizeof(TPM_Resp_FatalError);
-        memcpy(ptm_response,
-               TPM_Resp_FatalError,
-               sizeof(TPM_Resp_FatalError));
-    }
-}
-
-static void ptm_read_cmd(fuse_req_t req, size_t size)
-{
-    int len;
-
-    if (tpm_running) {
-        /* wait until results are ready */
-        worker_thread_wait_done();
-    }
-
-    len = ptm_res_len;
-
-    if (ptm_res_len > size) {
-        len = size;
-        ptm_res_len -= size;
-    } else {
-        ptm_res_len = 0;
-    }
-
-    fuse_reply_buf(req, (const char *)ptm_response, len);
-}
-
-/*
- * ptm_read_stateblob: get a stateblob via the read() interface
- * @req: the fuse_req_t
- * @size: the number of bytes to read
- *
- * The internal offset into the buffer is advanced by the number
- * of bytes that were copied.
- */
-static void ptm_read_stateblob(fuse_req_t req, size_t size)
-{
-    unsigned char *bufptr = NULL;
-    size_t numbytes;
-    size_t tocopy;
-
-    if (cached_stateblob_get(tx_state.offset, &bufptr, &numbytes) < 0) {
-        fuse_reply_err(req, EIO);
-        tx_state.state = TX_STATE_RW_COMMAND;
-    } else {
-        tocopy = MIN(size, numbytes);
-        tx_state.offset += tocopy;
-
-        fuse_reply_buf(req, (char *)bufptr, tocopy);
-        /* last transfer indicated by less bytes available than requested */
-        if (numbytes < size) {
-            tx_state.state = TX_STATE_RW_COMMAND;
-        }
-    }
-}
-
-static void ptm_read(fuse_req_t req, size_t size, off_t off,
-                     struct fuse_file_info *fi)
-{
-    switch (tx_state.state) {
-    case TX_STATE_RW_COMMAND:
-        ptm_read_cmd(req, size);
-        break;
-    case TX_STATE_SET_STATE_BLOB:
-        fuse_reply_err(req, EIO);
-        tx_state.state = TX_STATE_RW_COMMAND;
-        break;
-    case TX_STATE_GET_STATE_BLOB:
-        ptm_read_stateblob(req, size);
-        break;
-    }
-}
-
-static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size)
-{
-    ptm_req_len = size;
-    ptm_res_len = 0;
-
-    /* prevent other threads from writing or doing ioctls */
-    g_mutex_lock(FILE_OPS_LOCK);
-
-    if (tpm_running) {
-        /* ensure that we only ever work on one TPM command */
-        if (worker_thread_is_busy()) {
-            fuse_reply_err(req, EBUSY);
-            goto cleanup;
-        }
-
-        /* have command processed by thread pool */
-        if (ptm_req_len > TPM_REQ_MAX)
-            ptm_req_len = TPM_REQ_MAX;
-
-        memcpy(ptm_request, buf, ptm_req_len);
-        msg.type = MESSAGE_TPM_CMD;
-        msg.req = req;
-
-        worker_thread_mark_busy();
-
-        g_thread_pool_push(pool, &msg, NULL);
-
-        fuse_reply_write(req, ptm_req_len);
-    } else {
-        /* TPM not initialized; return error */
-        ptm_write_fatal_error_response();
-        fuse_reply_write(req, ptm_req_len);
-    }
-
-cleanup:
-    g_mutex_unlock(FILE_OPS_LOCK);
-
-    return;
-}
-
-/*
- * ptm_write_stateblob: Write the state blob using the write() interface
- *
- * @req: the fuse_req_t
- * @buf: the buffer with the data
- * @size: the number of bytes in the buffer
- *
- * The data are appended to an existing buffer that was created with the
- * initial ioctl().
- */
-static void ptm_write_stateblob(fuse_req_t req, const char *buf, size_t size)
-{
-    TPM_RESULT res;
-
-    res = ptm_set_stateblob_append(tx_state.blobtype,
-                                   (unsigned char *)buf, size,
-                                   tx_state.blob_is_encrypted,
-                                   (size == 0));
-    if (res) {
-        tx_state.state = TX_STATE_RW_COMMAND;
-        fuse_reply_err(req, EIO);
-    } else {
-        fuse_reply_write(req, size);
-    }
-}
-
-/*
- * ptm_write: low-level write() interface; calls approriate function depending
- *            on what is being transferred using the write()
- */
-static void ptm_write(fuse_req_t req, const char *buf, size_t size,
-                      off_t off, struct fuse_file_info *fi)
-{
-    switch (tx_state.state) {
-    case TX_STATE_RW_COMMAND:
-        ptm_write_cmd(req, buf, size);
-        break;
-    case TX_STATE_GET_STATE_BLOB:
-        fuse_reply_err(req, EIO);
-        tx_state.state = TX_STATE_RW_COMMAND;
-        break;
-    case TX_STATE_SET_STATE_BLOB:
-        ptm_write_stateblob(req, buf, size);
-        break;
-    }
-}
+/************************* cached stateblob *********************************/
 
 static stateblob_desc cached_stateblob;
 
-static bool
-cached_stateblob_is_loaded(uint32_t blobtype, TPM_BOOL decrypt)
+/*
+ * cached_stateblob_is_loaded: is the stateblob with the given properties
+ *                             the one in the cache?
+ */
+static bool cached_stateblob_is_loaded(uint32_t blobtype,
+                                       TPM_BOOL decrypt)
 {
     return (cached_stateblob.data != NULL) &&
            (cached_stateblob.blobtype == blobtype) &&
@@ -639,8 +290,7 @@ cached_stateblob_is_loaded(uint32_t blobtype, TPM_BOOL decrypt)
 /*
  * cached_stateblob_free: Free any previously loaded state blob
  */
-static void
-cached_stateblob_free(void)
+static void cached_stateblob_free(void)
 {
     TPM_Free(cached_stateblob.data);
     cached_stateblob.data = NULL;
@@ -650,8 +300,7 @@ cached_stateblob_free(void)
 /*
  * cached_stateblob_get_bloblength: get the total length of the cached blob
  */
-static uint32_t
-cached_stateblob_get_bloblength(void)
+static uint32_t cached_stateblob_get_bloblength(void)
 {
     return cached_stateblob.data_length;
 }
@@ -663,9 +312,8 @@ cached_stateblob_get_bloblength(void)
  * @bufptr: pointer to a buffer pointer used to return buffer start
  * @length: pointer used to return number of available bytes in returned buffer
  */
-static int
-cached_stateblob_get(uint32_t offset,
-                     unsigned char **bufptr, size_t *length)
+static int cached_stateblob_get(uint32_t offset,
+                                unsigned char **bufptr, size_t *length)
 {
     if (cached_stateblob.data == NULL ||
         offset > cached_stateblob.data_length)
@@ -683,8 +331,7 @@ cached_stateblob_get(uint32_t offset,
  * blobtype: the type of blob
  * decrypt: whether the blob is to be decrypted
  */
-static TPM_RESULT
-cached_stateblob_load(uint32_t blobtype, TPM_BOOL decrypt)
+static TPM_RESULT cached_stateblob_load(uint32_t blobtype, TPM_BOOL decrypt)
 {
     TPM_RESULT res = 0;
     const char *blobname = ptm_get_blobname(blobtype);
@@ -725,9 +372,9 @@ cached_stateblob_load(uint32_t blobtype, TPM_BOOL decrypt)
  * copied: variable to return the number of copied bytes
  * is_encrypted: variable to return whether the blob is encrypted
  */
-static int
-cached_stateblob_copy(void *dest, size_t destlen, uint32_t srcoffset,
-                      uint32_t *copied, TPM_BOOL *is_encrypted)
+static int cached_stateblob_copy(void *dest, size_t destlen,
+                                 uint32_t srcoffset, uint32_t *copied,
+                                 TPM_BOOL *is_encrypted)
 {
     int ret = -1;
 
@@ -749,8 +396,439 @@ cached_stateblob_copy(void *dest, size_t destlen, uint32_t srcoffset,
     return ret;
 }
 
+
+/************************* worker thread ************************************/
+
+/*
+ * worker_thread_wait_done: wait until the worker thread is done
+ */
+static void worker_thread_wait_done(void)
+{
+    g_mutex_lock(THREAD_BUSY_LOCK);
+    while (thread_busy) {
+#if GLIB_MINOR_VERSION >= 32
+        gint64 end_time = g_get_monotonic_time() +
+            1 * G_TIME_SPAN_SECOND;
+        g_cond_wait_until(THREAD_BUSY_SIGNAL,
+                          THREAD_BUSY_LOCK,
+                          end_time);
+#else
+        GTimeVal abs_time;
+        /*
+         * seems like occasionally the g_cond_signal did not wake up
+         * the sleeping task; so we poll [TIS Test in BIOS]
+         */
+        abs_time.tv_sec = 1;
+        abs_time.tv_usec = 0;
+        g_cond_timed_wait(THREAD_BUSY_SIGNAL,
+                          THREAD_BUSY_LOCK,
+                          &abs_time);
+#endif
+    }
+    g_mutex_unlock(THREAD_BUSY_LOCK);
+}
+
+/*
+ * worker_thread_mark_busy: mark the workder thread as busy
+ */
+static void worker_thread_mark_busy(void)
+{
+    g_mutex_lock(THREAD_BUSY_LOCK);
+    thread_busy = true;
+    g_mutex_unlock(THREAD_BUSY_LOCK);
+}
+
+/*
+ * work_tread_mark_done: mark the worker thread as having completed
+ *
+ * Mark the worker thread as done and wake up the waiting thread.
+ */
+static void worker_thread_mark_done(void)
+{
+    g_mutex_lock(THREAD_BUSY_LOCK);
+    thread_busy = false;
+    g_cond_signal(THREAD_BUSY_SIGNAL);
+    g_mutex_unlock(THREAD_BUSY_LOCK);
+}
+
+/*
+ * worker_thread_is_busy: is the worker thread busy?
+ *
+ * Determine whether the worker thread is busy.
+ */
+static int worker_thread_is_busy()
+{
+    return thread_busy;
+}
+
+/*
+ * worker_thread: the worker thread
+ */
+static void worker_thread(gpointer data, gpointer user_data)
+{
+    struct thread_message *msg = (struct thread_message *)data;
+
+    switch (msg->type) {
+    case MESSAGE_TPM_CMD:
+        TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
+                       ptm_request, ptm_req_len);
+        break;
+    case MESSAGE_IOCTL:
+        break;
+    }
+
+    /* results are ready */
+    worker_thread_mark_done();
+}
+
+/*
+ * worker_thread_end: cleanup once worker thread is all done
+ */
+static void worker_thread_end()
+{
+    if (pool) {
+        worker_thread_wait_done();
+        g_thread_pool_free(pool, TRUE, TRUE);
+        pool = NULL;
+    }
+}
+
+/***************************** utility functions ****************************/
+
+/* _TPM_IO_TpmEstablished_Reset
+ *
+ * Reset the TPM Established bit by creating a TPM_ResetEstablishmentBit
+ * command and sending it to the TPM; we temporarily switch the locality
+ * to the one provded to this call. We wait until the TPM has processed
+ * the request.
+ */
+static TPM_RESULT _TPM_IO_TpmEstablished_Reset(fuse_req_t req,
+                                                TPM_MODIFIER_INDICATOR locty)
+{
+    TPM_RESULT res = TPM_FAIL;
+    TPM_Response_Header *tpmrh;
+    TPM_MODIFIER_INDICATOR orig_locality = locality;
+
+    locality = locty;
+
+    ptm_req_len = sizeof(TPM_ResetEstablishmentBit);
+    memcpy(ptm_request, TPM_ResetEstablishmentBit, ptm_req_len);
+
+    msg.type = MESSAGE_TPM_CMD;
+    msg.req = req;
+
+    worker_thread_mark_busy();
+
+    g_thread_pool_push(pool, &msg, NULL);
+
+    worker_thread_wait_done();
+
+    if (ptm_res_len >= sizeof(TPM_Response_Header)) {
+        tpmrh = (TPM_Response_Header *)ptm_response;
+        res = ntohl(tpmrh->returnCode);
+    }
+
+    locality = orig_locality;
+
+    return res;
+}
+
+/*
+ * tpm_start: Start the TPM
+ *
+ * Check whether the TPM's state directory exists and if it does
+ * not exists, try to creat it. Start the thread pool, initilize
+ * libtpms and allocate a global TPM request buffer.
+ *
+ * @flags: libtpms init flags
+ */
+static int tpm_start(uint32_t flags)
+{
+    DIR *dir;
+    const char *tpmdir = tpmstate_get_dir();
+
+    dir = opendir(tpmdir);
+    if (dir) {
+        closedir(dir);
+    } else {
+        if (mkdir(tpmdir, 0775)) {
+            logprintf(STDERR_FILENO,
+                      "Error: Could not open tpmstate dir %s\n",
+                      tpmdir);
+            return -1;
+        }
+    }
+
+    pool = g_thread_pool_new(worker_thread,
+                             NULL,
+                             1,
+                             TRUE,
+                             NULL);
+    if (!pool) {
+        logprintf(STDERR_FILENO,
+                  "Error: Could not create the thread pool.\n");
+        return -1;
+    }
+
+    if(!ptm_request)
+        ptm_request = malloc(4096);
+    if(!ptm_request) {
+        logprintf(STDERR_FILENO,
+                  "Error: Could not allocate memory for request buffer.\n");
+        goto error_del_pool;
+    }
+
+    if (tpmlib_start(&cbs, flags) != TPM_SUCCESS)
+        goto error_del_pool;
+
+    logprintf(STDOUT_FILENO,
+              "CUSE TPM successfully initialized.\n");
+
+    return 0;
+
+error_del_pool:
+    g_thread_pool_free(pool, TRUE, TRUE);
+    pool = NULL;
+
+    return -1;
+}
+
+/*
+ * ptm_write_fatal_error_response: Write fatal error response
+ *
+ * Write a fatal error response into the global ptm_response buffer.
+ */
+static void ptm_write_fatal_error_response(void)
+{
+    if (ptm_response == NULL ||
+        ptm_res_tot < sizeof(TPM_Resp_FatalError)) {
+        ptm_res_tot = sizeof(TPM_Resp_FatalError);
+        TPM_Realloc(&ptm_response, ptm_res_tot);
+    }
+    if (ptm_response) {
+        ptm_res_len = sizeof(TPM_Resp_FatalError);
+        memcpy(ptm_response,
+               TPM_Resp_FatalError,
+               sizeof(TPM_Resp_FatalError));
+    }
+}
+
+/************************************ read() support ***************************/
+
+/*
+ * ptm_read_result: Return the TPM response packet
+ *
+ * @req: the fuse_req_t
+ * @size: the max. number of bytes to return to the requester
+ */
+static void ptm_read_result(fuse_req_t req, size_t size)
+{
+    int len;
+
+    if (tpm_running) {
+        /* wait until results are ready */
+        worker_thread_wait_done();
+    }
+
+    len = ptm_res_len;
+
+    if (ptm_res_len > size) {
+        len = size;
+        ptm_res_len -= size;
+    } else {
+        ptm_res_len = 0;
+    }
+
+    fuse_reply_buf(req, (const char *)ptm_response, len);
+}
+
+/*
+ * ptm_read_stateblob: get a TPM stateblob via the read() interface
+ *
+ * @req: the fuse_req_t
+ * @size: the number of bytes to read
+ *
+ * The internal offset into the buffer is advanced by the number
+ * of bytes that were copied. We switch back to command read/write
+ * mode if an error occurred or once all bytes were read.
+ */
+static void ptm_read_stateblob(fuse_req_t req, size_t size)
+{
+    unsigned char *bufptr = NULL;
+    size_t numbytes;
+    size_t tocopy;
+
+    if (cached_stateblob_get(tx_state.offset, &bufptr, &numbytes) < 0) {
+        fuse_reply_err(req, EIO);
+        tx_state.state = TX_STATE_RW_COMMAND;
+    } else {
+        tocopy = MIN(size, numbytes);
+        tx_state.offset += tocopy;
+
+        fuse_reply_buf(req, (char *)bufptr, tocopy);
+        /* last transfer indicated by less bytes available than requested */
+        if (numbytes < size) {
+            tx_state.state = TX_STATE_RW_COMMAND;
+        }
+    }
+}
+
+/*
+ * ptm_read: interface to POSIX read()
+ *
+ * @req: fuse_req_t
+ * @size: number of bytes to read
+ * @off: offset (not used)
+ * @fi: fuse_file_info (not used)
+ *
+ * Depending on the current state of the transfer interface (read/write)
+ * return either the results of TPM commands or a data of a TPM state blob.
+ */
+static void ptm_read(fuse_req_t req, size_t size, off_t off,
+                     struct fuse_file_info *fi)
+{
+    switch (tx_state.state) {
+    case TX_STATE_RW_COMMAND:
+        ptm_read_result(req, size);
+        break;
+    case TX_STATE_SET_STATE_BLOB:
+        fuse_reply_err(req, EIO);
+        tx_state.state = TX_STATE_RW_COMMAND;
+        break;
+    case TX_STATE_GET_STATE_BLOB:
+        ptm_read_stateblob(req, size);
+        break;
+    }
+}
+
+/*************************read/write stateblob support ***********************/
+
+/*
+ * ptm_set_stateblob_append: Append a piece of TPM state blob and transfer to TPM
+ *
+ * blobtype: the type of blob
+ * data: the data to append
+ * length: length of the data
+ * is_encrypted: whether the blob is encrypted
+ * is_last: whether this is the last part of the TPM state blob; if it is, the TPM
+ *          state blob will then be transferred to the TPM
+ */
+static TPM_RESULT
+ptm_set_stateblob_append(uint32_t blobtype,
+                         const unsigned char *data, uint32_t length,
+                         bool is_encrypted, bool is_last)
+{
+    const char *blobname;
+    TPM_RESULT res = 0;
+    static struct stateblob stateblob;
+
+    if (stateblob.type != blobtype) {
+        /* new blob; clear old data */
+        TPM_Free(stateblob.data);
+        stateblob.data = NULL;
+        stateblob.length = 0;
+        stateblob.type = blobtype;
+        stateblob.is_encrypted = is_encrypted;
+
+        /*
+         * on the first call for a new state blob we allow 0 bytes to be written
+         * this allows the user to transfer via write()
+         */
+        if (length == 0)
+            return 0;
+    }
+
+    /* append */
+    res = TPM_Realloc(&stateblob.data, stateblob.length + length);
+    if (res != 0) {
+        /* error */
+        TPM_Free(stateblob.data);
+        stateblob.data = NULL;
+        stateblob.length = 0;
+        stateblob.type = 0;
+
+        return res;
+    }
+
+    memcpy(&stateblob.data[stateblob.length], data, length);
+    stateblob.length += length;
+
+    if (!is_last) {
+        /* full packet -- expecting more data */
+        return res;
+    }
+    blobname = ptm_get_blobname(blobtype);
+
+    if (blobname) {
+        res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
+                                       stateblob.length,
+                                       stateblob.is_encrypted,
+                                       0 /* tpm_number */,
+                                       blobname);
+    } else {
+        res = TPM_BAD_PARAMETER;
+    }
+
+    TPM_Free(stateblob.data);
+    stateblob.data = NULL;
+    stateblob.length = 0;
+    stateblob.type = 0;
+
+    /* transfer of blob is complete */
+    tx_state.state = TX_STATE_RW_COMMAND;
+
+    return res;
+}
+
+/*
+ * ptm_set_stateblob: set part of a TPM state blob
+ *
+ * @req: fuse_req_t
+ * pss: ptm_setstate provided via ioctl()
+ */
+static void
+ptm_set_stateblob(fuse_req_t req, ptm_setstate *pss)
+{
+    TPM_RESULT res = 0;
+    TPM_BOOL is_encrypted =
+        ((pss->u.req.state_flags & PTM_STATE_FLAG_ENCRYPTED) != 0);
+    bool is_last = (sizeof(pss->u.req.data) != pss->u.req.length);
+
+    if (pss->u.req.length > sizeof(pss->u.req.data)) {
+        res = TPM_BAD_PARAMETER;
+        goto send_response;
+    }
+
+    /* transfer of blob initiated */
+    tx_state.state = TX_STATE_SET_STATE_BLOB;
+    tx_state.blobtype = pss->u.req.type;
+    tx_state.blob_is_encrypted = is_encrypted;
+    tx_state.offset = 0;
+
+    res = ptm_set_stateblob_append(pss->u.req.type,
+                                   pss->u.req.data,
+                                   pss->u.req.length,
+                                   is_encrypted,
+                                   is_last);
+
+    if (res)
+        tx_state.state = TX_STATE_RW_COMMAND;
+
+ send_response:
+    pss->u.resp.tpm_result = res;
+
+    fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+}
+
 /*
  * ptm_get_stateblob_part: get part of a state blob
+ *
+ * @blobtype: the type of blob to get
+ * @buffer: the buffer this function will write the blob into
+ * @buffer_size: the size of the buffer
+ * @offset: the offset into the state blob
+ * @copied: pointer to int to indicate the number of bytes that were copied
+ * @is_encryped: returns whether the state blob is encrypted
  */
 static TPM_RESULT
 ptm_get_stateblob_part(uint32_t blobtype,
@@ -821,115 +899,110 @@ ptm_get_stateblob(fuse_req_t req, ptm_getstate *pgs)
     fuse_reply_ioctl(req, 0, pgs, sizeof(pgs->u.resp));
 }
 
+/*********************************** write() support *************************/
+
 /*
- * ptm_set_stateblob_append: Append a piece of TPM state blob and transfer to TPM
+ * ptm_write_stateblob: Write the state blob using the write() interface
  *
- * blobtype: the type of blob
- * data: the data to append
- * length: length of the data
- * is_encrypted: whether the blob is encrypted
- * is_last: whether this is the last part of the TPM state blob; if it is, the TPM
- *          state blob will then be transferred to the TPM
+ * @req: the fuse_req_t
+ * @buf: the buffer with the data
+ * @size: the number of bytes in the buffer
+ *
+ * The data are appended to an existing buffer that was created with the
+ * initial ioctl().
  */
-static TPM_RESULT
-ptm_set_stateblob_append(uint32_t blobtype,
-                         const unsigned char *data, uint32_t length,
-                         bool is_encrypted, bool is_last)
+static void ptm_write_stateblob(fuse_req_t req, const char *buf, size_t size)
 {
-    const char *blobname;
-    TPM_RESULT res = 0;
-    static struct stateblob stateblob;
+    TPM_RESULT res;
 
-    if (stateblob.type != blobtype) {
-        /* clear old data */
-        TPM_Free(stateblob.data);
-        stateblob.data = NULL;
-        stateblob.length = 0;
-        stateblob.type = blobtype;
-        stateblob.is_encrypted = is_encrypted;
-
-        /*
-         * on the first call for a new state blob we allow 0 bytes to be written
-         * this allows the user to transfer via write()
-         */
-        if (length == 0)
-            return 0;
-    }
-
-    /* append */
-    res = TPM_Realloc(&stateblob.data, stateblob.length + length);
-    if (res != 0) {
-        /* error */
-        TPM_Free(stateblob.data);
-        stateblob.data = NULL;
-        stateblob.length = 0;
-        stateblob.type = 0;
-
-        return res;
-    }
-
-    memcpy(&stateblob.data[stateblob.length], data, length);
-    stateblob.length += length;
-
-    if (!is_last) {
-        /* full packet -- expecting more data */
-        return res;
-    }
-    blobname = ptm_get_blobname(blobtype);
-
-    if (blobname) {
-        res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
-                                       stateblob.length,
-                                       stateblob.is_encrypted,
-                                       0 /* tpm_number */,
-                                       blobname);
+    res = ptm_set_stateblob_append(tx_state.blobtype,
+                                   (unsigned char *)buf, size,
+                                   tx_state.blob_is_encrypted,
+                                   (size == 0));
+    if (res) {
+        tx_state.state = TX_STATE_RW_COMMAND;
+        fuse_reply_err(req, EIO);
     } else {
-        res = TPM_BAD_PARAMETER;
+        fuse_reply_write(req, size);
     }
-
-    TPM_Free(stateblob.data);
-    stateblob.data = NULL;
-    stateblob.length = 0;
-    stateblob.type = 0;
-
-    /* transfer of blob is complete */
-    tx_state.state = TX_STATE_RW_COMMAND;
-
-    return res;
 }
 
-static void
-ptm_set_stateblob(fuse_req_t req, ptm_setstate *pss)
+/*
+ * ptm_write_cmd: User writing a TPM command
+ *
+ * req: fuse_req_t
+ * buf: the buffer containing the TPM command
+ * size: the size of the buffer
+ */
+static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size)
 {
-    TPM_RESULT res = 0;
-    TPM_BOOL is_encrypted =
-        ((pss->u.req.state_flags & PTM_STATE_FLAG_ENCRYPTED) != 0);
-    bool is_last = (sizeof(pss->u.req.data) != pss->u.req.length);
+    ptm_req_len = size;
+    ptm_res_len = 0;
 
-    if (pss->u.req.length > sizeof(pss->u.req.data)) {
-        res = TPM_BAD_PARAMETER;
-        goto send_response;
+    /* prevent other threads from writing or doing ioctls */
+    g_mutex_lock(FILE_OPS_LOCK);
+
+    if (tpm_running) {
+        /* ensure that we only ever work on one TPM command */
+        if (worker_thread_is_busy()) {
+            fuse_reply_err(req, EBUSY);
+            goto cleanup;
+        }
+
+        /* have command processed by thread pool */
+        if (ptm_req_len > TPM_REQ_MAX)
+            ptm_req_len = TPM_REQ_MAX;
+
+        memcpy(ptm_request, buf, ptm_req_len);
+
+        msg.type = MESSAGE_TPM_CMD;
+        msg.req = req;
+
+        worker_thread_mark_busy();
+
+        g_thread_pool_push(pool, &msg, NULL);
+    } else {
+        /* TPM not initialized; return error */
+        ptm_write_fatal_error_response();
     }
 
-    /* transfer of blob initiated */
-    tx_state.state = TX_STATE_SET_STATE_BLOB;
-    tx_state.blobtype = pss->u.req.type;
-    tx_state.blob_is_encrypted = is_encrypted;
-    tx_state.offset = 0;
+    fuse_reply_write(req, ptm_req_len);
 
-    res = ptm_set_stateblob_append(pss->u.req.type,
-                                   pss->u.req.data,
-                                   pss->u.req.length,
-                                   is_encrypted,
-                                   is_last);
+cleanup:
+    g_mutex_unlock(FILE_OPS_LOCK);
 
-    if (res)
+    return;
+}
+
+/*
+ * ptm_write: low-level write() interface; calls approriate function depending
+ *            on what is being transferred using the write()
+ */
+static void ptm_write(fuse_req_t req, const char *buf, size_t size,
+                      off_t off, struct fuse_file_info *fi)
+{
+    switch (tx_state.state) {
+    case TX_STATE_RW_COMMAND:
+        ptm_write_cmd(req, buf, size);
+        break;
+    case TX_STATE_GET_STATE_BLOB:
+        fuse_reply_err(req, EIO);
         tx_state.state = TX_STATE_RW_COMMAND;
+        break;
+    case TX_STATE_SET_STATE_BLOB:
+        ptm_write_stateblob(req, buf, size);
+        break;
+    }
+}
 
- send_response:
-    pss->u.resp.tpm_result = res;
+/*
+ * ptm_open: interface to POSIX open()
+ */
+static void ptm_open(fuse_req_t req, struct fuse_file_info *fi)
+{
+    tx_state.state = TX_STATE_RW_COMMAND;
 
-    fuse_reply_ioctl(req, 0, pss, sizeof(*pss));
+    fuse_reply_open(req, fi);
 }
 
 /*
@@ -995,7 +1068,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             ptm_caps = PTM_CAP_INIT | PTM_CAP_SHUTDOWN
                 | PTM_CAP_GET_TPMESTABLISHED
                 | PTM_CAP_SET_LOCALITY
-                | PTM_CAP_HASHING 
+                | PTM_CAP_HASHING
                 | PTM_CAP_CANCEL_TPM_CMD
                 | PTM_CAP_STORE_VOLATILE
                 | PTM_CAP_RESET_TPMESTABLISHED
@@ -1018,13 +1091,13 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
             TPMLIB_Terminate();
 
-            tpm_running = 0;
+            tpm_running = false;
             if (tpm_start(init_p->u.req.init_flags) < 0) {
                 res = TPM_FAIL;
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM.\n");
             } else {
-                tpm_running = 1;
+                tpm_running = true;
             }
             fuse_reply_ioctl(req, 0, &res, sizeof(res));
         }
@@ -1036,7 +1109,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         res = TPM_SUCCESS;
         TPMLIB_Terminate();
 
-        tpm_running = 0;
+        tpm_running = false;
 
         TPM_Free(ptm_response);
         ptm_response = NULL;
@@ -1215,8 +1288,7 @@ cleanup:
     g_mutex_unlock(FILE_OPS_LOCK);
 
     if (exit_prg) {
-        logprintf(STDOUT_FILENO,
-                  "CUSE TPM is shutting down.\n");
+        logprintf(STDOUT_FILENO, "CUSE TPM is shutting down.\n");
         pidfile_remove();
 
         exit(0);
@@ -1234,16 +1306,26 @@ error_not_running:
 
 static void ptm_init_done(void *userdata)
 {
+    struct cuse_param *param = userdata;
+    struct passwd *passwd = NULL;
+
     /* at this point the entry in /dev/ is available */
     if (pidfile_write(getpid()) < 0) {
         exit(-13);
     }
 
-    if (passwd) {
+    if (param->runas) {
+        passwd = getpwnam(param->runas);
+        if (!passwd) {
+            logprintf(STDERR_FILENO,
+                      "Error: User '%s' does not exist.\n",
+                      param->runas);
+            exit(-14);
+        }
         if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
             logprintf(STDERR_FILENO,
                       "Error: initgroups(%s, %d) failed.\n",
-                  passwd->pw_name, passwd->pw_gid);
+                      passwd->pw_name, passwd->pw_gid);
             exit(-10);
         }
         if (setgid(passwd->pw_gid) < 0) {
@@ -1261,97 +1343,123 @@ static void ptm_init_done(void *userdata)
     }
 }
 
-static const struct cuse_lowlevel_ops ptm_clop = {
-    .open      = ptm_open,
-    .read      = ptm_read,
-    .write     = ptm_write,
-    .ioctl     = ptm_ioctl,
+static const struct cuse_lowlevel_ops clops = {
+    .open = ptm_open,
+    .read = ptm_read,
+    .write = ptm_write,
+    .ioctl = ptm_ioctl,
     .init_done = ptm_init_done,
 };
 
-#define PTM_OPT(t, p) { t, offsetof(struct ptm_param, p), 1 }
-
-static const struct fuse_opt ptm_opts[] = {
-    PTM_OPT("-M %u",      major),
-    PTM_OPT("--maj=%u",   major),
-    PTM_OPT("-m %u",      minor),
-    PTM_OPT("--min=%u",   minor),
-    PTM_OPT("-n %s",      dev_name),
-    PTM_OPT("--name=%s",  dev_name),
-    PTM_OPT("-r %s",      runas),
-    PTM_OPT("--runas=%s", runas),
-    PTM_OPT("--log %s",   logging),
-    PTM_OPT("--key %s",   keydata),
-    PTM_OPT("--migration-key %s",   migkeydata),
-    PTM_OPT("--pid %s",   piddata),
-    PTM_OPT("--tpmstate %s", tpmstatedata),
-    FUSE_OPT_KEY("-h",        0),
-    FUSE_OPT_KEY("--help",    0),
-    FUSE_OPT_KEY("-v",        1),
-    FUSE_OPT_KEY("--version", 1),
-    FUSE_OPT_END
-};
-
-static int ptm_process_arg(void *data, const char *arg, int key,
-                           struct fuse_args *outargs)
-{
-    struct ptm_param *param = data;
-
-    switch (key) {
-    case 0:
-        param->is_help = 1;
-        fprintf(stdout, usage, param->prgname);
-        return fuse_opt_add_arg(outargs, "-ho");
-    case 1:
-        param->is_help = 1;
-        fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
-                "Copyright (c) 2014 IBM Corp.\n",
-                SWTPM_VER_MAJOR,
-                SWTPM_VER_MINOR,
-                SWTPM_VER_MICRO);
-        return 0;
-    default:
-        return -1;
-    }
-    return 0;
-}
-
 int main(int argc, char **argv)
 {
-    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-    struct ptm_param param = {
-        .major = 0,
-        .minor = 0,
-        .dev_name = NULL,
-        .is_help = 0,
-        .prgname = argv[0],
-        .runas = NULL,
-        .logging = NULL,
-        .keydata = NULL,
-        .migkeydata = NULL,
-        .piddata = NULL,
-        .tpmstatedata = NULL,
+    int opt, longindex = 0;
+    static struct option longopts[] = {
+        {"maj"           , required_argument, 0, 'M'},
+        {"min"           , required_argument, 0, 'm'},
+        {"name"          , required_argument, 0, 'n'},
+        {"runas"         , required_argument, 0, 'r'},
+        {"log"           , required_argument, 0, 'l'},
+        {"key"           , required_argument, 0, 'k'},
+        {"migration-key" , required_argument, 0, 'K'},
+        {"pid"           , required_argument, 0, 'p'},
+        {"tpmstate"      , required_argument, 0, 's'},
+        {"help"          ,       no_argument, 0, 'h'},
+        {"version"       ,       no_argument, 0, 'v'},
+        {NULL            , 0                , 0, 0  },
     };
-    char dev_name[128] = "DEVNAME=";
-    const char *dev_info_argv[] = { dev_name };
-    struct cuse_info ci;
+    struct cuse_info cinfo;
+    struct cuse_param param;
+    const char *devname = NULL;
+    char *cinfo_argv[1];
+    unsigned int num;
+    struct passwd *passwd;
     const char *tpmdir;
-    int ret, n, tpmfd;
+    int n, tpmfd;
     char path[PATH_MAX];
 
-    if ((ret = fuse_opt_parse(&args, &param, ptm_opts, ptm_process_arg))) {
-        fprintf(stderr, "Error: Could not parse option\n");
-        return ret;
+    memset(&cinfo, 0, sizeof(cinfo));
+    memset(&param, 0, sizeof(param));
+
+    while (true) {
+        opt = getopt_long(argc, argv, "M:m:n:r:hv", longopts, &longindex);
+
+        if (opt == -1)
+            break;
+
+        switch (opt) {
+        case 'M': /* major */
+            if (sscanf(optarg, "%u", &num) != 1) {
+                fprintf(stderr, "Could not parse major number\n");
+                return -1;
+            }
+            if (num < 0 || num > 65535) {
+                fprintf(stderr, "Major number outside valid range [0 - 65535]\n");
+                return -1;
+            }
+            cinfo.dev_major = num;
+            break;
+        case 'm': /* minor */
+            if (sscanf(optarg, "%u", &num) != 1) {
+                fprintf(stderr, "Could not parse major number\n");
+                return -1;
+            }
+            if (num < 0 || num > 65535) {
+                fprintf(stderr, "Major number outside valid range [0 - 65535]\n");
+                return -1;
+            }
+            cinfo.dev_minor = num;
+            break;
+        case 'n': /* name */
+            if (!cinfo.dev_info_argc) {
+                cinfo_argv[0] = calloc(1, strlen("DEVNAME=") + strlen(optarg) + 1);
+                if (!cinfo_argv[0]) {
+                    fprintf(stderr, "Out of memory\n");
+                    return -1;
+                }
+                devname = optarg;
+
+                strcpy(cinfo_argv[0], "DEVNAME=");
+                strcat(cinfo_argv[0], optarg);
+
+                cinfo.dev_info_argc = 1;
+                cinfo.dev_info_argv = (const char **)cinfo_argv;
+            }
+            break;
+        case 'r': /* runas */
+            param.runas = optarg;
+            break;
+        case 'l': /* log */
+            param.logging = optarg;
+            break;
+        case 'k': /* key */
+            param.keydata = optarg;
+            break;
+        case 'K': /* migration-key */
+            param.migkeydata = optarg;
+            break;
+        case 'p': /* pid */
+            param.piddata = optarg;
+            break;
+        case 's': /* tpmstate */
+            param.tpmstatedata = optarg;
+            break;
+        case 'h': /* help */
+            fprintf(stdout, usage, argv[0]);
+            return 0;
+        case 'v': /* version */
+            fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
+                    "Copyright (c) 2014-2015 IBM Corp.\n",
+                    SWTPM_VER_MAJOR,
+                    SWTPM_VER_MINOR,
+                    SWTPM_VER_MICRO);
+            return 0;
+        }
     }
 
-    if (!param.is_help) {
-        if (!param.dev_name) {
-            fprintf(stderr, "Error: device name missing\n");
-            return -2;
-        }
-        strncat(dev_name, param.dev_name, sizeof(dev_name) - 9);
-    } else {
-        return 0;
+    if (!cinfo.dev_info_argv) {
+        fprintf(stderr, "Error: device name missing\n");
+        return -2;
     }
 
     if (handle_log_options(param.logging) < 0 ||
@@ -1382,7 +1490,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    n = snprintf(path, sizeof(path), "/dev/%s", param.dev_name);
+    n = snprintf(path, sizeof(path), "/dev/%s", devname);
     if (n < 0) {
         fprintf(stderr,
                 "Error: Could not create device file name\n");
@@ -1403,12 +1511,6 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    memset(&ci, 0, sizeof(ci));
-    ci.dev_major = param.major;
-    ci.dev_minor = param.minor;
-    ci.dev_info_argc = 1;
-    ci.dev_info_argv = dev_info_argv;
-
 #if GLIB_MINOR_VERSION >= 32
     g_mutex_init(THREAD_BUSY_LOCK);
     g_cond_init(THREAD_BUSY_SIGNAL);
@@ -1420,6 +1522,5 @@ int main(int argc, char **argv)
     FILE_OPS_LOCK = g_mutex_new();
 #endif
 
-    return cuse_lowlevel_main(args.argc, args.argv, &ci, &ptm_clop,
-                              &param);
+    return cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
 }
