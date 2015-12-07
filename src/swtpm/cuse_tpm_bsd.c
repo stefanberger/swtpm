@@ -49,6 +49,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <pwd.h>
+#include <grp.h>
 #include <limits.h>
 
 #include <fuse/cuse_lowlevel.h>
@@ -58,6 +59,8 @@
 #include "swtpm.h"
 #include "common.h"
 #include "tpmstate.h"
+#include "pidfile.h"
+#include "logging.h"
 
 #define MAX_BUF_SIZE 128
 
@@ -180,12 +183,52 @@ static void c_ioctl(fuse_req_t req, int cmd, void *arg, struct fuse_file_info *f
 
 }
 
+static void ptm_init_done(void *userdata)
+{
+    struct cuse_param *param = userdata;
+    struct passwd *passwd = NULL;
+
+    /* at this point the entry in /dev/ is available */
+    if (pidfile_write(getpid()) < 0) {
+        exit(-13);
+    }
+
+    if (param->runas) {
+        passwd = getpwnam(param->runas);
+        if (!passwd) {
+            logprintf(STDERR_FILENO,
+                      "Error: User '%s' does not exist.\n",
+                      param->runas);
+            exit(-14);
+        }
+        if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Error: initgroups(%s, %d) failed.\n",
+                      passwd->pw_name, passwd->pw_gid);
+            exit(-10);
+        }
+        if (setgid(passwd->pw_gid) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Error: setgid(%d) failed.\n",
+                      passwd->pw_gid);
+            exit(-11);
+        }
+        if (setuid(passwd->pw_uid) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Error: setuid(%d) failed.\n",
+                      passwd->pw_uid);
+            exit(-12);
+        }
+    }
+}
+
 static const struct cuse_lowlevel_ops clops = {
     .open = c_open,
     .release = c_release,
     .read = c_read,
     .write = c_write,
     .ioctl = c_ioctl,
+    .init_done = ptm_init_done,
 };
 
 int main(int argc, char **argv)
@@ -359,5 +402,5 @@ int main(int argc, char **argv)
     FILE_OPS_LOCK = g_mutex_new();
 #endif
 
-    return cuse_lowlevel_main(1, argv, &cinfo, &clops, NULL);
+    return cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
 }
