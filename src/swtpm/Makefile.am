@@ -65,6 +65,7 @@ swtpm_SOURCES = \
 		swtpm_chardev.c
 
 swtpm_CFLAGS = \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(HARDENING_CFLAGS)
 
@@ -89,6 +90,7 @@ swtpm_cuse_SOURCES = \
 	cuse_tpm.c
 
 swtpm_cuse_CFLAGS = \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(GLIB_CFLAGS) \
 	$(LIBFUSE_CFLAGS) \
