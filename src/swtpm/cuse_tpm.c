@@ -52,6 +52,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <dirent.h>
 
 #include <fuse/cuse_lowlevel.h>
 
