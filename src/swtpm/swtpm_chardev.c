@@ -430,8 +430,15 @@ static int mainLoop(struct mainLoopParams *mlp)
             }
             /* write the results */
             if (rc == 0) {
-                /* ignore return value since we will close anyway */
-                write(mlp->fd, rbuffer, rlength);
+                n = write(mlp->fd, rbuffer, rlength);
+                if (n < 0) {
+                    logprintf(STDERR_FILENO, "Could not write to device: %s (%d)\n",
+                              strerror(errno), errno);
+                    rc = TPM_IOERROR;
+                } else if ((uint32_t)n != rlength) {
+                    logprintf(STDERR_FILENO, "Could not write complete response.\n");
+                    rc = TPM_IOERROR;
+                }
             }
         }
 
