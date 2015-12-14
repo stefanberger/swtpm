@@ -43,10 +43,7 @@ if [ -z "$ECHO" ]; then
 	exit 1
 fi
 
-modprobe cuse
-if [ $? -ne 0 ]; then
-    exit 1
-fi
+source test_cuse
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 

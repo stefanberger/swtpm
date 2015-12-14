@@ -32,10 +32,7 @@ function cleanup()
 
 trap "cleanup" EXIT
 
-modprobe cuse
-if [ $? -ne 0 ]; then
-    exit 1
-fi
+source test_cuse
 
 export TPM_PATH=$tpmstatedir
 

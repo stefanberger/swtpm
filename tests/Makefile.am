@@ -50,4 +50,5 @@ EXTRA_DIST=$(TESTS) \
 	data/tpmstate2/tpm-00.volatilestate \
 	data/tpmstate2/pwdfile.txt \
 	data/tpmstate2/README \
+	test_cuse \
 	test_swtpm_cert

@@ -1,0 +1,9 @@
+
+# For the license, see the LICENSE file in the root directory.
+
+if [ ! -c /dev/cuse ]; then
+	modprobe cuse
+	if [ $? -ne 0 ]; then
+		exit 1
+	fi
+fi
