@@ -169,7 +169,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     };
 
     while (TRUE) {
-        opt = getopt_long(argc, argv, "dhc:f:l:k:P:s:", longopts, &longindex);
+        opt = getopt_long(argc, argv, "dhc:f:", longopts, &longindex);
 
         if (opt == -1)
             break;

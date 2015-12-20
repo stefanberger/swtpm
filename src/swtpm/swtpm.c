@@ -162,7 +162,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     };
 
     while (TRUE) {
-        opt = getopt_long(argc, argv, "dhp:f:tk:P:s:", longopts, &longindex);
+        opt = getopt_long(argc, argv, "dhp:f:t", longopts, &longindex);
 
         if (opt == -1)
             break;
