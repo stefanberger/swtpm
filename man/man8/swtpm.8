@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2015-11-08" "swtpm" ""
+.TH swtpm 8 "2015-12-20" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,11 +145,14 @@ swtpm
 \&\fBswtpm socket [\s-1OPTIONS\s0]\fR
 .PP
 \&\fBswtpm chardev [\s-1OPTIONS\s0]\fR
+.PP
+\&\fBswtpm cuse [\s-1OPTIONS\s0]\fR
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBswtpm\fR implements a \s-1TPM\s0 software emulator built on libtpms.
 It provides access to \s-1TPM\s0 functionality over a \s-1TCP/IP\s0 socket interface
-or it can listend for commands on a character device.
+or it can listend for commands on a character device, or create a \s-1CUSE
+\&\s0(character device in userspace) interface for receiving of \s-1TPM\s0 commands.
 .PP
 Unless corresponding command line parameters are used, the
 \&\fBswtpm\fR socket version requires that the environment variable \fI\s-1TPM_PORT\s0\fR
@@ -162,6 +165,8 @@ state into.
 .PP
 The \fBswtpm\fR process can be gracefully terminated by sending a
 \&\fI\s-1SIGTERM\s0\fR signal to it.
+.PP
+The \fBswtpm\fR cuse version requires root rights to start the \s-1TPM.\s0
 .SH "Options for socket interface"
 .IX Header "Options for socket interface"
 The following options are supported if the \fIsocket\fR interface is chosen:
@@ -173,21 +178,82 @@ Use the given port rather than using the environment variable \s-1TPM_PORT.\s0
 Terminate the \s-1TPM\s0 after the client has closed the connection.
 .SH "Options for character device interface"
 .IX Header "Options for character device interface"
-The following options are support if the \fIchardev\fR interface is chosen:
+The following options are supported if the \fIchardev\fR interface is chosen:
 .IP "\fB\-c|\-\-chardev <device path\fR>" 4
 .IX Item "-c|--chardev <device path>"
 Use the given device to listen for \s-1TPM\s0 commands and send response on.
-.SH "Optiosn for both interfaces"
-.IX Header "Optiosn for both interfaces"
-The following options are support by both interfaces:
+.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor>] \fR" 4
+.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor>] "
+This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
+a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
+.Sp
+The control channel enables out-of-band control of the \s-1TPM,\s0 such as resetting the \s-1TPM.\s0
+.SH "Options for the CUSE interface"
+.IX Header "Options for the CUSE interface"
+The following options are supported if the \fIcuse\fR interface is chosen:
+.IP "\fB\-n|\-\-name <\s-1NAME\s0\fR>" 4
+.IX Item "-n|--name <NAME>"
+The \s-1TPM\s0 will use a device with the given name. A device with the given name
+will be created in /dev. This is a mandatory option.
+.IP "\fB\-M|\-\-maj <\s-1MAJOR\s0\fR>" 4
+.IX Item "-M|--maj <MAJOR>"
+Create the device with the given major number.
+.IP "\fB\-m|\-\-min <\s-1MINOR\s0\fR>" 4
+.IX Item "-m|--min <MINOR>"
+Create the device with the given minor number.
+.IP "\fB\-\-migration\-key file=<keyfile>[,format=<hex|binary>][,mode=aes\-cbc],[remove[=true|false]]\fR" 4
+.IX Item "--migration-key file=<keyfile>[,format=<hex|binary>][,mode=aes-cbc],[remove[=true|false]]"
+The availability of a migration key ensures that the state of the \s-1TPM\s0
+will not be revealed in unencrypted form when
+the \s-1TPM\s0 state blobs are retreived through the ioctl interface.
+The migration key is not used for encrypting \s-1TPM\s0 state written to files,
+this is what the \fI\-\-key\fR parameter is used for.
+.Sp
+The migration key and the key used for encrypting the \s-1TPM\s0 state files may be the same.
+.Sp
+While the key for the \s-1TPM\s0 state files needs to stay with those files it encrypts, the
+migration key needs to stay with the \s-1TPM\s0 state blobs. If for example the state of the
+\&\s-1TPM\s0 is migrated between hosts in a data center, then the \s-1TPM\s0 migration key must be
+available at all the destinations, so in effect it may have to be a key shared across
+all machines in the datacenter. In contrast to that, the key used for encrypting the
+\&\s-1TPM\s0 state \fBfiles\fR can be different for each \s-1TPM\s0 and need only be available
+on the host where the \s-1TPM\s0 state resides.
+.Sp
+The migration key enables the encryption of the \s-1TPM\s0 state blobs of the \s-1TPM.\s0
+The keyfile must contain an \s-1AES\s0 key of supported size; currently only 128 bit (16 bytes)
+keys are supported.
+.Sp
+The key may be in binary format, in which case the file size must be 16 bytes.
+If the key is in hex format (default), the key may consist of 32 hex digits
+starting with an optional '0x'.
+.Sp
+The \fImode\fR parameter indicates which block chaining mode is to be used.
+Currently only aes-cbc is supported.
+.Sp
+The \fIremove\fR parameter will attempt to remove the given keyfile once the key
+has been read.
+.IP "\fB\-\-migration\-key pwdfile=<passphrase file>[,mode=aes\-cbc],[remove[=true|false]]\fR" 4
+.IX Item "--migration-key pwdfile=<passphrase file>[,mode=aes-cbc],[remove[=true|false]]"
+This variant of the migration key parameter allows to provide a passphrase in a file.
+A maximum of 32 bytes are read from the file and a key is derived from it using a
+\&\s-1SHA512\s0 hash. Currently only 128 bit keys are supported.
+.SH "Options for socket and character device interfaces:"
+.IX Header "Options for socket and character device interfaces:"
+The following options are supported by the socket and character device interfaces:
+.IP "\fB\-f|\-\-fd <fd\fR>" 4
+.IX Item "-f|--fd <fd>"
+Use the given socket file descriptor or character device file descriptor
+for receiving \s-1TPM\s0 commands and sending responses.
+For the socket interface, this option automatically assumes \-t.
+.IP "\fB\-d|\-\-daemon\fR" 4
+.IX Item "-d|--daemon"
+Daemonize the process.
+.SH "Options for all interfaces"
+.IX Header "Options for all interfaces"
+The following options are support by all interfaces:
 .IP "\fB\-\-tpmstate dir=<dir>\fR" 4
 .IX Item "--tpmstate dir=<dir>"
 Use the given path rather than using the environment variable \s-1TPM_PATH.\s0
-.IP "\fB\-f|\-\-fd <fd\fR>" 4
-.IX Item "-f|--fd <fd>"
-Use the given socket file descriptor or character device file descript for
-receiving \s-1TPM\s0 commands and sending responses.
-For the socket interface, this option automatically assumes \-t.
 .IP "\fB\-\-log fd=<fd>|file=<path>\fR" 4
 .IX Item "--log fd=<fd>|file=<path>"
 Enable logging to a file given its file descriptor or its path. Use '\-' for path to
@@ -212,22 +278,13 @@ has been read.
 This variant of the key parameter allows to provide a passphrase in a file.
 A maximum of 32 bytes are read from the file and a key is derived from it using a
 \&\s-1SHA512\s0 hash. Currently only 128 bit keys are supported.
-.IP "\fB\-d|\-\-daemon\fR" 4
-.IX Item "-d|--daemon"
-Daemonize the process.
 .IP "\fB\-\-pid file=<pidfile>\fR" 4
 .IX Item "--pid file=<pidfile>"
 This options allows to set the name of file where the process \s-1ID \s0(pid) of the \s-1TPM\s0
 will be written into.
-.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>,[port=<port>][,fd=<filedescriptor>] \fR" 4
-.IX Item "--ctrl type=[unixio|tcp][,path=<path>,[port=<port>][,fd=<filedescriptor>] "
-This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
-a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
-.Sp
-The control channel enables out-of-band control of the \s-1TPM,\s0 such as resetting the \s-1TPM.\s0
 .IP "\fB\-h|\-\-help\fR" 4
 .IX Item "-h|--help"
 Display usage info.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBswtpm_bios\fR
+\&\fBswtpm_bios\fR, \fBswtpm_cuse\fR

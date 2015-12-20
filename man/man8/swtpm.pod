@@ -8,11 +8,14 @@ B<swtpm socket [OPTIONS]>
 
 B<swtpm chardev [OPTIONS]>
 
+B<swtpm cuse [OPTIONS]>
+
 =head1 DESCRIPTION
 
 B<swtpm> implements a TPM software emulator built on libtpms.
 It provides access to TPM functionality over a TCP/IP socket interface
-or it can listend for commands on a character device.
+or it can listend for commands on a character device, or create a CUSE
+(character device in userspace) interface for receiving of TPM commands.
 
 Unless corresponding command line parameters are used, the
 B<swtpm> socket version requires that the environment variable I<TPM_PORT>
@@ -25,6 +28,8 @@ state into.
 
 The B<swtpm> process can be gracefully terminated by sending a
 I<SIGTERM> signal to it.
+
+The B<swtpm> cuse version requires root rights to start the TPM.
 
 =head1 Options for socket interface
 
@@ -45,7 +50,7 @@ Terminate the TPM after the client has closed the connection.
 
 =head1 Options for character device interface
 
-The following options are support if the I<chardev> interface is chosen:
+The following options are supported if the I<chardev> interface is chosen:
 
 =over 4
 
@@ -53,24 +58,104 @@ The following options are support if the I<chardev> interface is chosen:
 
 Use the given device to listen for TPM commands and send response on.
 
+=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>][,fd=E<lt>filedescriptorE<gt>] >
+
+This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
+a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
+
+The control channel enables out-of-band control of the TPM, such as resetting the TPM.
+
 =back
 
 
-=head1 Optiosn for both interfaces
+=head1 Options for the CUSE interface
 
-The following options are support by both interfaces:
+The following options are supported if the I<cuse> interface is chosen:
 
 =over 4
 
-=item B<--tpmstate dir=E<lt>dirE<gt>>
+=item B<-n|--name <NAME>>
 
-Use the given path rather than using the environment variable TPM_PATH.
+The TPM will use a device with the given name. A device with the given name
+will be created in /dev. This is a mandatory option.
+
+=item B<-M|--maj <MAJOR>>
+
+Create the device with the given major number.
+
+=item B<-m|--min <MINOR>>
+
+Create the device with the given minor number.
+
+=item B<--migration-key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
+
+The availability of a migration key ensures that the state of the TPM
+will not be revealed in unencrypted form when
+the TPM state blobs are retreived through the ioctl interface.
+The migration key is not used for encrypting TPM state written to files,
+this is what the I<--key> parameter is used for.
+
+The migration key and the key used for encrypting the TPM state files may be the same.
+
+While the key for the TPM state files needs to stay with those files it encrypts, the
+migration key needs to stay with the TPM state blobs. If for example the state of the
+TPM is migrated between hosts in a data center, then the TPM migration key must be
+available at all the destinations, so in effect it may have to be a key shared across
+all machines in the datacenter. In contrast to that, the key used for encrypting the
+TPM state B<files> can be different for each TPM and need only be available
+on the host where the TPM state resides.
+
+The migration key enables the encryption of the TPM state blobs of the TPM.
+The keyfile must contain an AES key of supported size; currently only 128 bit (16 bytes)
+keys are supported.
+
+The key may be in binary format, in which case the file size must be 16 bytes.
+If the key is in hex format (default), the key may consist of 32 hex digits
+starting with an optional '0x'.
+
+The I<mode> parameter indicates which block chaining mode is to be used.
+Currently only aes-cbc is supported.
+
+The I<remove> parameter will attempt to remove the given keyfile once the key
+has been read.
+
+=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc],[remove[=true|false]]>
+
+This variant of the migration key parameter allows to provide a passphrase in a file.
+A maximum of 32 bytes are read from the file and a key is derived from it using a
+SHA512 hash. Currently only 128 bit keys are supported.
+
+=back
+
+
+=head1 Options for socket and character device interfaces:
+
+The following options are supported by the socket and character device interfaces:
+
+=over 4
 
 =item B<-f|--fd <fd>>
 
 Use the given socket file descriptor or character device file descriptor
 for receiving TPM commands and sending responses.
 For the socket interface, this option automatically assumes -t.
+
+=item B<-d|--daemon>
+
+Daemonize the process.
+
+=back
+
+
+=head1 Options for all interfaces
+
+The following options are support by all interfaces:
+
+=over 4
+
+=item B<--tpmstate dir=E<lt>dirE<gt>>
+
+Use the given path rather than using the environment variable TPM_PATH.
 
 =item B<--log fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>>
 
@@ -99,21 +184,10 @@ This variant of the key parameter allows to provide a passphrase in a file.
 A maximum of 32 bytes are read from the file and a key is derived from it using a
 SHA512 hash. Currently only 128 bit keys are supported.
 
-=item B<-d|--daemon>
-
-Daemonize the process.
-
 =item B<--pid file=E<lt>pidfileE<gt>>
 
 This options allows to set the name of file where the process ID (pid) of the TPM
 will be written into.
-
-=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>,[port=E<lt>portE<gt>][,fd=E<lt>filedescriptorE<gt>] >
-
-This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
-a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
-
-The control channel enables out-of-band control of the TPM, such as resetting the TPM.
 
 =item B<-h|--help>
 
@@ -124,4 +198,4 @@ Display usage info.
 
 =head1 SEE ALSO
 
-B<swtpm_bios>
+B<swtpm_bios>, B<swtpm_cuse>

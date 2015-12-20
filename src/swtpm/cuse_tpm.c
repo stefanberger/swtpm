@@ -72,6 +72,7 @@
 #include "tpm_ioctl.h"
 #include "swtpm_nvfile.h"
 #include "tpmlib.h"
+#include "main.h"
 
 /* maximum size of request buffer */
 #define TPM_REQ_MAX 4096
@@ -184,7 +185,7 @@ typedef struct TPM_Response_Header {
 /*********************************** data *************************************/
 
 static const char *usage =
-"usage: %s [options]\n"
+"usage: %s %s [options]\n"
 "\n"
 "The following options are supported:\n"
 "\n"
@@ -200,7 +201,7 @@ static const char *usage =
 "--key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
 "                    :  provide a passphrase in a file; the AES key will be\n"
 "                       derived from this passphrase\n"
-"--migration-key file=<path>,[,mode=aes-cbc][,format=hex|binary][,remove=[true|false]]\n"
+"--migration-key file=<path>[,mode=aes-cbc][,format=hex|binary][,remove=[true|false]]\n"
 "                    :  use an AES key for the encryption of the TPM's state\n"
 "                       when it is retrieved from the TPM via ioctls;\n"
 "                       Setting this key ensures that the TPM's state will always\n"
@@ -1352,8 +1353,15 @@ static const struct cuse_lowlevel_ops clops = {
     .init_done = ptm_init_done,
 };
 
+#ifndef HAVE_SWTPM_CUSE_MAIN
 int main(int argc, char **argv)
 {
+    const char *prgname = argv[0];
+    const char *iface = "";
+#else
+int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *iface)
+{
+#endif
     int opt, longindex = 0;
     static struct option longopts[] = {
         {"maj"           , required_argument, 0, 'M'},
@@ -1446,7 +1454,7 @@ int main(int argc, char **argv)
             param.tpmstatedata = optarg;
             break;
         case 'h': /* help */
-            fprintf(stdout, usage, argv[0]);
+            fprintf(stdout, usage, prgname, iface);
             return 0;
         case 'v': /* version */
             fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "

@@ -39,7 +39,12 @@
 #define _SWTPM_MAIN_H
 
 int swtpm_main(int argc, char **argv, const char *prgname, const char *iface);
-int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *iface);
+int swtpm_chardev_main(int argc, char **argv, const char *prgname,
+                       const char *iface);
+#ifdef HAVE_SWTPM_CUSE_MAIN
+int swtpm_cuse_main(int argc, char **argv, const char *prgname,
+                    const char *iface);
+#endif
 
 #endif /* _SWPTM_MAIN_H */
 

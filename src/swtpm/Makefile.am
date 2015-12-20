@@ -62,12 +62,16 @@ swtpm_DEPENDENCIES = $(lib_LTLIBRARIES)
 swtpm_SOURCES = \
 		main.c \
 		swtpm.c \
-		swtpm_chardev.c
+		swtpm_chardev.c \
+		cuse_tpm.c
 
 swtpm_CFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
-	$(HARDENING_CFLAGS)
+	$(HARDENING_CFLAGS) \
+	$(GLIB_CFLAGS) \
+	$(LIBFUSE_CFLAGS) \
+	-DHAVE_SWTPM_CUSE_MAIN
 
 if SWTPM_USE_FREEBL
 swtpm_CFLAGS += \
@@ -77,6 +81,9 @@ endif
 
 swtpm_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
+	$(LIBFUSE_LIBS) \
+	$(GLIB_LIBS) \
+	$(GTHREAD_LIBS) \
 	$(LIBTPMS_LIBS)
 
 if SWTPM_USE_FREEBL
