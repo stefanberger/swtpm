@@ -1,3 +1,4 @@
+#include <stdio.h>
 /*
  * ctrlchannel.c -- control channel implementation
  *
@@ -45,6 +46,7 @@
 #include <endian.h>
 
 #include <libtpms/tpm_library.h>
+#include <libtpms/tpm_error.h>
 
 #include "ctrlchannel.h"
 #include "logging.h"
@@ -77,7 +79,8 @@ int ctrlchannel_get_fd(struct ctrlchannel *cc)
 }
 
 int ctrlchannel_process_fd(int fd,
-                           struct libtpms_callbacks *cbs)
+                           struct libtpms_callbacks *cbs,
+                           bool *terminate)
 {
     struct input {
         uint32_t cmd;
@@ -88,15 +91,20 @@ int ctrlchannel_process_fd(int fd,
     } output;
     ssize_t n;
     ptm_init *init_p;
-    ptm_cap *ptm_caps;
-    TPM_RESULT *res_p;
+    ptm_cap *ptm_caps = (ptm_cap *)&output.body;
+    ptm_res *res_p = (ptm_res *)&output.body;
     size_t out_len = 0;
+    TPM_RESULT res;
 
     if (fd < 0)
         return -1;
 
     n = read(fd, &input, sizeof(input));
     if (n < 0) {
+        goto err_socket;
+    }
+    if (n == 0) {
+        /* remote socket closed */
         goto err_socket;
     }
     if ((size_t)n < sizeof(input.cmd)) {
@@ -107,8 +115,9 @@ int ctrlchannel_process_fd(int fd,
 
     switch (be32toh(input.cmd)) {
     case CMD_GET_CAPABILITY:
-        ptm_caps = (ptm_cap *)&output.body;
-        *ptm_caps = htobe64(PTM_CAP_INIT);
+        *ptm_caps = htobe64(
+            PTM_CAP_INIT |
+            PTM_CAP_SHUTDOWN);
 
         out_len = sizeof(*ptm_caps);
         break;
@@ -118,24 +127,41 @@ int ctrlchannel_process_fd(int fd,
             goto err_bad_input;
         } else {
             init_p = (ptm_init *)input.body;
-            res_p = (TPM_RESULT *)output.body;
-            out_len = sizeof(*res_p);
+            out_len = sizeof(ptm_res);
 
             TPMLIB_Terminate();
 
-            *res_p = tpmlib_start(cbs, be32toh(init_p->u.req.init_flags));
-            if (*res_p) {
+            res = tpmlib_start(cbs, be32toh(init_p->u.req.init_flags));
+            if (res) {
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM\n");
             }
+            *res_p = htobe32(res);
+        }
+        break;
+
+    case CMD_SHUTDOWN:
+        if (n != 0) {
+            goto err_bad_input;
+        } else {
+            out_len = sizeof(ptm_res);
+
+            TPMLIB_Terminate();
+
+            *res_p = htobe32(TPM_SUCCESS);
+
+            *terminate = true;
         }
         break;
 
     default:
         logprintf(STDERR_FILENO,
                   "Error: Unknown command\n");
+        out_len = sizeof(ptm_res);
+        *res_p = htobe32(TPM_BAD_ORDINAL);
     }
 
+send_resp:
     n = write(fd, output.body, out_len);
     if (n < 0) {
         logprintf(STDERR_FILENO,
@@ -145,8 +171,13 @@ int ctrlchannel_process_fd(int fd,
                   "Error: Could not send complete response\n");
     }
 
-err_bad_input:
     return fd;
+
+err_bad_input:
+    out_len = sizeof(ptm_res);
+    *res_p = htobe32(TPM_BAD_PARAMETER);
+
+    goto send_resp;
 
 err_socket:
     close(fd);

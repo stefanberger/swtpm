@@ -218,6 +218,7 @@ enum {
 enum {
     CMD_GET_CAPABILITY = 1,
     CMD_INIT,
+    CMD_SHUTDOWN,
 };
 
 #endif /* _TPM_IOCTL_H */

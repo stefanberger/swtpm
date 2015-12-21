@@ -38,12 +38,15 @@
 #ifndef _SWTPM_CTRLCHANNEL_H_
 #define _SWTPM_CTRLCHANNEL_H_
 
+#include <stdbool.h>
+
 struct ctrlchannel;
 struct libtpms_callbacks;
 
 struct ctrlchannel *ctrlchannel_new(int fd);
 int ctrlchannel_get_fd(struct ctrlchannel *cc);
 int ctrlchannel_process_fd(int fd,
-                           struct libtpms_callbacks *cbs);
+                           struct libtpms_callbacks *cbs,
+                           bool *terminate);
 
 #endif /* _SWTPM_CTRLCHANNEL_H_ */

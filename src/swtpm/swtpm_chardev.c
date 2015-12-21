@@ -65,7 +65,7 @@
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
-static TPM_BOOL terminate;
+static bool terminate;
 
 static struct libtpms_callbacks callbacks = {
     .sizeOfStruct            = sizeof(struct libtpms_callbacks),
@@ -94,7 +94,7 @@ static void sigterm_handler(int sig __attribute__((unused)))
         logprintf(STDERR_FILENO, "Error: sigterm notification failed: %s\n",
                   strerror(errno));
     }
-    terminate = TRUE;
+    terminate = true;
 }
 
 static void usage(FILE *file, const char *prgname, const char *iface)
@@ -391,15 +391,19 @@ static int mainLoop(struct mainLoopParams *mlp)
             }
 
             if ((pollfds[0].revents & POLLHUP)) {
-                terminate = 1;
+                terminate = true;
                 break;
             }
 
             if (pollfds[2].revents & POLLIN)
                 ctrlclntfd = accept(ctrlfd, NULL, 0);
 
-            if (pollfds[3].revents & POLLIN)
-                ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, &callbacks);
+            if (pollfds[3].revents & POLLIN) {
+                ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, &callbacks,
+                                                    &terminate);
+                if (terminate)
+                    break;
+            }
 
             if (pollfds[3].revents & POLLHUP) {
                 if (ctrlclntfd >= 0)
