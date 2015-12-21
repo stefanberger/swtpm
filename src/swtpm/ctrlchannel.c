@@ -1,4 +1,3 @@
-#include <stdio.h>
 /*
  * ctrlchannel.c -- control channel implementation
  *

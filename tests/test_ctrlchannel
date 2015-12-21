@@ -39,7 +39,7 @@ PID="$(cat $PID_FILE)"
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 echo -en '\x00\x00\x00\x01' > $CMD_PATH
-socat -x FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CLIENT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
@@ -53,7 +53,7 @@ fi
 
 # Send TPM_Init to the TPM: CMD_INIT = 0x00 00 00 02 + flags
 echo -en '\x00\x00\x00\x02\x00\x00\x00\x00' > $CMD_PATH
-socat -x FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
@@ -67,7 +67,7 @@ fi
 
 # Send unknown command to the TPM
 echo -en '\x00\x00\xff\xff' > $CMD_PATH
-socat -x FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
@@ -81,7 +81,7 @@ fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
 echo -en '\x00\x00\x00\x03' > $CMD_PATH
-socat -x FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
