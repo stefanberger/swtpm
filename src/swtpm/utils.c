@@ -37,6 +37,8 @@
 
 #include "config.h"
 
+#include <grp.h>
+#include <pwd.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -65,4 +67,36 @@ err_close_pipe:
 
 err_exit:
     return -1;
+}
+
+int
+change_process_owner(const char *user)
+{
+    struct passwd *passwd = getpwnam(user);
+
+    if (!passwd) {
+        logprintf(STDERR_FILENO,
+                  "Error: User '%s' does not exist.\n",
+                  user);
+        return 14;
+    }
+    if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
+        logprintf(STDERR_FILENO,
+                  "Error: initgroups(%s, %d) failed.\n",
+                  passwd->pw_name, passwd->pw_gid);
+        return -10;
+    }
+    if (setgid(passwd->pw_gid) < 0) {
+        logprintf(STDERR_FILENO,
+                  "Error: setgid(%d) failed.\n",
+                  passwd->pw_gid);
+        return -11;
+    }
+    if (setuid(passwd->pw_uid) < 0) {
+        logprintf(STDERR_FILENO,
+                  "Error: setuid(%d) failed.\n",
+                  passwd->pw_uid);
+        return -12;
+    }
+    return 0;
 }

@@ -189,6 +189,10 @@ SHA512 hash. Currently only 128 bit keys are supported.
 This options allows to set the name of file where the process ID (pid) of the TPM
 will be written into.
 
+=item B<-r|--runas E<lt>ownerE<gt>>
+
+Switch to the given user. This option can only be used when swtpm is started as root.
+
 =item B<-h|--help>
 
 Display usage info.

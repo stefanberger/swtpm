@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2015-12-20" "swtpm" ""
+.TH swtpm 8 "2015-12-26" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -282,6 +282,9 @@ A maximum of 32 bytes are read from the file and a key is derived from it using 
 .IX Item "--pid file=<pidfile>"
 This options allows to set the name of file where the process \s-1ID \s0(pid) of the \s-1TPM\s0
 will be written into.
+.IP "\fB\-r|\-\-runas <owner>\fR" 4
+.IX Item "-r|--runas <owner>"
+Switch to the given user. This option can only be used when swtpm is started as root.
 .IP "\fB\-h|\-\-help\fR" 4
 .IX Item "-h|--help"
 Display usage info.

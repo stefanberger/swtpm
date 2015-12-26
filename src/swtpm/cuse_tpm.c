@@ -73,6 +73,7 @@
 #include "swtpm_nvfile.h"
 #include "tpmlib.h"
 #include "main.h"
+#include "utils.h"
 
 /* maximum size of request buffer */
 #define TPM_REQ_MAX 4096
@@ -217,6 +218,8 @@ static const char *usage =
 "                    :  set the directory where the TPM's state will be written\n"
 "                       into; the TPM_PATH environment variable can be used\n"
 "                       instead\n"
+"-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
+"                       user\n"
 ""
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
@@ -1309,7 +1312,7 @@ error_not_running:
 static void ptm_init_done(void *userdata)
 {
     struct cuse_param *param = userdata;
-    struct passwd *passwd = NULL;
+    int ret;
 
     /* at this point the entry in /dev/ is available */
     if (pidfile_write(getpid()) < 0) {
@@ -1317,31 +1320,9 @@ static void ptm_init_done(void *userdata)
     }
 
     if (param->runas) {
-        passwd = getpwnam(param->runas);
-        if (!passwd) {
-            logprintf(STDERR_FILENO,
-                      "Error: User '%s' does not exist.\n",
-                      param->runas);
-            exit(-14);
-        }
-        if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
-            logprintf(STDERR_FILENO,
-                      "Error: initgroups(%s, %d) failed.\n",
-                      passwd->pw_name, passwd->pw_gid);
-            exit(-10);
-        }
-        if (setgid(passwd->pw_gid) < 0) {
-            logprintf(STDERR_FILENO,
-                      "Error: setgid(%d) failed.\n",
-                      passwd->pw_gid);
-            exit(-11);
-        }
-        if (setuid(passwd->pw_uid) < 0) {
-            logprintf(STDERR_FILENO,
-                      "Error: setuid(%d) failed.\n",
-                      passwd->pw_uid);
-            exit(-12);
-        }
+        ret = change_process_owner(param->runas);
+        if (ret)
+            exit(ret);
     }
 }
 

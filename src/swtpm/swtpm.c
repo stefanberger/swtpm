@@ -125,6 +125,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : set the directory where the TPM's state will be written\n"
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead\n"
+    "-r|--runas <user>: change to the given user\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -146,6 +147,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *logdata = NULL;
     char *piddata = NULL;
     char *tpmstatedata = NULL;
+    char *runas = NULL;
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -154,6 +156,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"help"      ,       no_argument, 0, 'h'},
         {"port"      , required_argument, 0, 'p'},
         {"fd"        , required_argument, 0, 'f'},
+        {"runas"     , required_argument, 0, 'r'},
         {"terminate" ,       no_argument, 0, 't'},
         {"log"       , required_argument, 0, 'l'},
         {"key"       , required_argument, 0, 'k'},
@@ -163,7 +166,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     };
 
     while (TRUE) {
-        opt = getopt_long(argc, argv, "dhp:f:t", longopts, &longindex);
+        opt = getopt_long(argc, argv, "dhp:f:tr:", longopts, &longindex);
 
         if (opt == -1)
             break;
@@ -238,10 +241,20 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
 
+        case 'r':
+            runas = optarg;
+            break;
+
         default:
             usage(stderr, prgname, iface);
             exit(EXIT_FAILURE);
         }
+    }
+
+    /* change process ownership before accessing files */
+    if (runas) {
+        if (change_process_owner(runas) < 0)
+            return EXIT_FAILURE;
     }
 
     if (handle_log_options(logdata) < 0 ||

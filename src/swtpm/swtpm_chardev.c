@@ -131,6 +131,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : set the directory where the TPM's state will be written\n"
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead\n"
+    "-r|--runas <user>: change to the given user\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -152,6 +153,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *piddata = NULL;
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
+    char *runas = NULL;
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -160,6 +162,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"help"      ,       no_argument, 0, 'h'},
         {"chardev"   , required_argument, 0, 'c'},
         {"fd"        , required_argument, 0, 'f'},
+        {"runas"     , required_argument, 0, 'r'},
         {"log"       , required_argument, 0, 'l'},
         {"key"       , required_argument, 0, 'k'},
         {"pid"       , required_argument, 0, 'P'},
@@ -169,7 +172,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     };
 
     while (TRUE) {
-        opt = getopt_long(argc, argv, "dhc:f:", longopts, &longindex);
+        opt = getopt_long(argc, argv, "dhc:f:r:", longopts, &longindex);
 
         if (opt == -1)
             break;
@@ -240,6 +243,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
 
+        case 'r':
+            runas = optarg;
+            break;
+
         default:
             usage(stderr, prgname, iface);
             exit(EXIT_FAILURE);
@@ -249,6 +256,12 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if (mlp.fd < 0) {
         logprintf(STDERR_FILENO, "Error: Missing character device or file descriptor\n");
         return EXIT_FAILURE;
+    }
+
+    /* change process ownership before accessing files */
+    if (runas) {
+        if (change_process_owner(runas) < 0)
+            return EXIT_FAILURE;
     }
 
     if (handle_log_options(logdata) < 0 ||
