@@ -74,6 +74,7 @@
 #include "tpmlib.h"
 #include "main.h"
 #include "utils.h"
+#include "threadpool.h"
 
 /* maximum size of request buffer */
 #define TPM_REQ_MAX 4096
@@ -93,29 +94,15 @@ static TPM_MODIFIER_INDICATOR locality;
 /* whether the TPM is running (TPM_Init was received) */
 static bool tpm_running;
 
-/* whether the worker thread is busy processing a command */
-static bool thread_busy;
-
-/* thread pool with one single TPM thread */
-static GThreadPool *pool;
-
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
-GCond thread_busy_signal;
-GMutex thread_busy_lock;
 GMutex file_ops_lock;
-#  define THREAD_BUSY_SIGNAL &thread_busy_signal
-#  define THREAD_BUSY_LOCK &thread_busy_lock
 #  define FILE_OPS_LOCK &file_ops_lock
 
 # else
 
-GCond *thread_busy_signal;
-GMutex *thread_busy_lock;
 GMutex *file_ops_lock;
-#  define THREAD_BUSY_SIGNAL thread_busy_signal
-#  define THREAD_BUSY_LOCK thread_busy_lock
 #  define FILE_OPS_LOCK file_ops_lock
 
 # endif
@@ -134,16 +121,8 @@ struct cuse_param {
     char *tpmstatedata;
 };
 
-enum msg_type {
-    MESSAGE_TPM_CMD = 1,
-    MESSAGE_IOCTL,
-};
-
-/* the message we are sending to the thread in the pool */
-struct thread_message {
-    enum msg_type type;
-    fuse_req_t    req;
-};
+/* single message to send to the worker thread */
+static struct thread_message msg;
 
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
@@ -251,9 +230,6 @@ static struct libtpms_callbacks cbs = {
     .tpm_nvram_deletename   = SWTPM_NVRAM_DeleteName,
     .tpm_io_getlocality     = ptm_io_getlocality,
 };
-
-/* single message to send to the worker thread */
-static struct thread_message msg;
 
 /* the current state the transfer interface is in */
 static transfer_state tx_state;
@@ -401,70 +377,7 @@ static int cached_stateblob_copy(void *dest, size_t destlen,
     return ret;
 }
 
-
 /************************* worker thread ************************************/
-
-/*
- * worker_thread_wait_done: wait until the worker thread is done
- */
-static void worker_thread_wait_done(void)
-{
-    g_mutex_lock(THREAD_BUSY_LOCK);
-    while (thread_busy) {
-#if GLIB_MINOR_VERSION >= 32
-        gint64 end_time = g_get_monotonic_time() +
-            1 * G_TIME_SPAN_SECOND;
-        g_cond_wait_until(THREAD_BUSY_SIGNAL,
-                          THREAD_BUSY_LOCK,
-                          end_time);
-#else
-        GTimeVal abs_time;
-        /*
-         * seems like occasionally the g_cond_signal did not wake up
-         * the sleeping task; so we poll [TIS Test in BIOS]
-         */
-        abs_time.tv_sec = 1;
-        abs_time.tv_usec = 0;
-        g_cond_timed_wait(THREAD_BUSY_SIGNAL,
-                          THREAD_BUSY_LOCK,
-                          &abs_time);
-#endif
-    }
-    g_mutex_unlock(THREAD_BUSY_LOCK);
-}
-
-/*
- * worker_thread_mark_busy: mark the workder thread as busy
- */
-static void worker_thread_mark_busy(void)
-{
-    g_mutex_lock(THREAD_BUSY_LOCK);
-    thread_busy = true;
-    g_mutex_unlock(THREAD_BUSY_LOCK);
-}
-
-/*
- * work_tread_mark_done: mark the worker thread as having completed
- *
- * Mark the worker thread as done and wake up the waiting thread.
- */
-static void worker_thread_mark_done(void)
-{
-    g_mutex_lock(THREAD_BUSY_LOCK);
-    thread_busy = false;
-    g_cond_signal(THREAD_BUSY_SIGNAL);
-    g_mutex_unlock(THREAD_BUSY_LOCK);
-}
-
-/*
- * worker_thread_is_busy: is the worker thread busy?
- *
- * Determine whether the worker thread is busy.
- */
-static int worker_thread_is_busy()
-{
-    return thread_busy;
-}
 
 /*
  * worker_thread: the worker thread
@@ -484,18 +397,6 @@ static void worker_thread(gpointer data, gpointer user_data)
 
     /* results are ready */
     worker_thread_mark_done();
-}
-
-/*
- * worker_thread_end: cleanup once worker thread is all done
- */
-static void worker_thread_end()
-{
-    if (pool) {
-        worker_thread_wait_done();
-        g_thread_pool_free(pool, TRUE, TRUE);
-        pool = NULL;
-    }
 }
 
 /***************************** utility functions ****************************/
@@ -520,7 +421,6 @@ static TPM_RESULT _TPM_IO_TpmEstablished_Reset(fuse_req_t req,
     memcpy(ptm_request, TPM_ResetEstablishmentBit, ptm_req_len);
 
     msg.type = MESSAGE_TPM_CMD;
-    msg.req = req;
 
     worker_thread_mark_busy();
 
@@ -961,7 +861,6 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size)
         memcpy(ptm_request, buf, ptm_req_len);
 
         msg.type = MESSAGE_TPM_CMD;
-        msg.req = req;
 
         worker_thread_mark_busy();
 
@@ -1501,14 +1400,11 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         return -1;
     }
 
+    worker_thread_init();
+
 #if GLIB_MINOR_VERSION >= 32
-    g_mutex_init(THREAD_BUSY_LOCK);
-    g_cond_init(THREAD_BUSY_SIGNAL);
     g_mutex_init(FILE_OPS_LOCK);
 #else
-    g_thread_init(NULL);
-    THREAD_BUSY_LOCK = g_mutex_new();
-    THREAD_BUSY_SIGNAL = g_cond_new();
     FILE_OPS_LOCK = g_mutex_new();
 #endif
 

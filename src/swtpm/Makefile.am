@@ -35,11 +35,13 @@ libswtpm_libtpms_la_SOURCES = \
 	swtpm_nvfile.c \
 	tpmlib.c \
 	tpmstate.c \
+	threadpool.c \
 	utils.c
 
 libswtpm_libtpms_la_CFLAGS = \
 	-I$(top_srcdir)/include/swtpm \
-	$(HARDENING_CFLAGS)
+	$(HARDENING_CFLAGS) \
+	$(GLIB_CFLAGS)
 
 if SWTPM_USE_FREEBL
 libswtpm_libtpms_la_CFLAGS += \
