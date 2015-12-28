@@ -90,7 +90,10 @@ get_config_value() {
 	return 0
 }
 
-
+# Get the next serial number for the certificate
+#
+# If an error occurs nothing is echo'ed and the return code 1 is returned,
+# otherwise the next serial number is echo'ed with a return code of 0.
 get_next_cert_serial() {
 	local serial
 
@@ -98,6 +101,10 @@ get_next_cert_serial() {
 	(
 		# Avoid concurrent creation of next serial
 		flock -e 200
+		if [ $? -ne 0 ]; then
+			logerr "Could not get lock ${LOCK}"
+			return 1
+		fi
 		if [ ! -r ${CERTSERIAL} ]; then
 			echo -n "0" > ${CERTSERIAL}
 		fi
@@ -108,8 +115,14 @@ get_next_cert_serial() {
 			serial=$((serial+1))
 		fi
 		echo -n $serial > ${CERTSERIAL}
+		if [ $? -ne 0 ]; then
+			logerr "Could not write cert serial number file"
+			return 1
+		fi
 		echo $serial
 	) 200>${LOCK}
+
+	return 0
 }
 
 create_cert() {
@@ -120,7 +133,11 @@ create_cert() {
 
 	local serial=$(get_next_cert_serial)
 	local options rc=0
-	
+
+	if [ -z "$serial" ]; then
+		return 1
+	fi
+
 	if [ -r "${LOCALCA_OPTIONS}" ]; then
 		options=$(cat ${LOCALCA_OPTIONS})
 	fi
@@ -179,6 +196,10 @@ create_localca_cert() {
 	(
 		# Avoid concurrent creation of keys and certs
 		flock -e 200
+		if [ $? -ne 0 ]; then
+			logerr "Could not get lock ${LOCK}"
+			return 1
+		fi
 		if [ ! -d ${STATEDIR} ]; then
 			# RPM installation must have created this already ...
 			# so user tss can use it (user tss cannot create it)
@@ -200,6 +221,8 @@ create_localca_cert() {
 			rm -f ${tmp}
 		fi
 	) 200>${LOCK}
+
+	return 0
 }
 
 main() {
@@ -294,6 +317,10 @@ main() {
 		# Create the signing key and issuer cert since it will be missing
 		logit "Creating local CA's signing key and self signed issuer cert."
 		create_localca_cert
+		if [ $? -ne 0 ]; then
+			logerr "Error creating local CA's signing key and cert"
+			exit 1
+		fi
 	fi
 
 	if [ ! -r "$SIGNKEY" ]; then
