@@ -51,7 +51,7 @@ if [ -n "$SWTPM" ]; then
 fi
 TCSD=`type -P tcsd`
 if [ -z "$TCSD" ]; then
-    echo "Error: tcsd program not found."
+    echo "Error: tcsd program not found. (PATH=$PATH)"
     exit 1
 fi
 
@@ -210,9 +210,6 @@ start_tpm()
 	local swtpm_state="$2"
 	local ctr=0
 
-	export TPM_PORT
-	export TPM_PATH=$swtpm_state
-
 	while [ $ctr -lt 100 ]; do
 		TPM_PORT=$(shuf -i 30000-65535 -n 1)
 
@@ -224,7 +221,7 @@ start_tpm()
 			continue
 		fi
 
-		$swtpm 2>&1 1>/dev/null &
+		$swtpm -p $TPM_PORT --tpmstate dir=$swtpm_state 2>&1 1>/dev/null &
 		SWTPM_PID=$!
 
 		# poll for open port (good) or the process to have
@@ -277,9 +274,15 @@ start_tcsd()
 
 	export TSS_TCSD_PORT
 
-	TCSD_CONFIG=`mktemp`
-	TCSD_DATA_DIR=`mktemp -d`
-	TCSD_DATA_FILE=`mktemp --tmpdir=$TCSD_DATA_DIR`
+	TCSD_CONFIG="$(mktemp)"
+	TCSD_DATA_DIR="$(mktemp -d)"
+	TCSD_DATA_FILE="$(mktemp --tmpdir=$TCSD_DATA_DIR)"
+
+	if [ -z "$TCSD_CONFIG" ] || [ -z "$TCSD_DATA_DIR" ] || \
+	   [ -z "$TCSD_DATA_FILE" ]; then
+		logerr "Could not create temporary file; TMPDIR=$TMPDIR"
+		return 1
+	fi
 
 	while [ $ctr -lt 100 ]; do
 		TSS_TCSD_PORT=$(shuf -i 30000-65535 -n 1)
@@ -299,7 +302,6 @@ EOF
 		# tcsd requires @TSS_USER@:@TSS_GROUP@ and 0600 on TCSD_CONFIG
 		# -> only root can start
 		chmod 600 $TCSD_CONFIG
-		#ls -l $TCSD_CONFIG
 		if [ $(id -u) -eq 0 ]; then
 			chown @TSS_USER@:@TSS_GROUP@ $TCSD_CONFIG 2>/dev/null
 			chown @TSS_USER@:@TSS_GROUP@ $TCSD_DATA_DIR 2>/dev/null
@@ -395,7 +397,7 @@ init_tpm()
 
 	# where external app writes certs into
 	local certsdir="$tpm_state_path"
-	local ek tmp
+	local ek tmp output
 
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
@@ -410,9 +412,9 @@ init_tpm()
 	export TCSD_USE_TCP_DEVICE=1
 	export TCSD_TCP_DEVICE_PORT=$TPM_PORT
 
-	swtpm_bios
+	output="$(swtpm_bios 2>&1)"
 	if [ $? -ne 0 ]; then
-		logerr "swtpm_bios failed"
+		logerr "swtpm_bios failed: $output"
 		return 1
 	fi
 
@@ -424,9 +426,9 @@ init_tpm()
 	fi
 
 	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
-		tpm_createek 2>&1 1>/dev/null
+		output="$(tpm_createek 2>&1)"
 		if [ $? -ne 0 ]; then
-			logerr "tpm_createek failed"
+			logerr "tpm_createek failed: $output"
 			return 1
 		fi
 		logit "Successfully created EK."
@@ -498,34 +500,42 @@ init_tpm()
 
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] && \
 	   [ -r "${EK_CERT_FILE}" ]; then
-		tpm_nvdefine \
+		output="$(tpm_nvdefine \
 			-i $((TPM_NV_INDEX_EKCert|TPM_NV_INDEX_D_BIT)) \
 			-p "${nvramauth}" \
-			-s $(stat -c%s "${EK_CERT_FILE}") 2>&1 >/dev/null
+			-s $(stat -c%s "${EK_CERT_FILE}") 2>&1)"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area for EK certificate."
 			return 1
 		fi
-		tpm_nvwrite -i $((TPM_NV_INDEX_EKCert|TPM_NV_INDEX_D_BIT)) \
-			-f "${EK_CERT_FILE}" 2>&1 >/dev/null
+		output="$(tpm_nvwrite -i $((TPM_NV_INDEX_EKCert|TPM_NV_INDEX_D_BIT)) \
+			  -f "${EK_CERT_FILE}" 2>&1)"
+		if [ $? -ne 0 ]; then
+			logerr "Could not write EK cert to NVRAM: $output"
+			return 1
+		fi
 		logit "Successfully created NVRAM area for EK certificate."
 		rm -f ${EK_CERT_FILE}
 	fi
 
 	if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ] && \
 	   [ -r "${PLATFORM_CERT_FILE}" ] ; then
-		tpm_nvdefine \
+		output="$(tpm_nvdefine \
 			-i $((TPM_NV_INDEX_PlatformCert|TPM_NV_INDEX_D_BIT)) \
 			-p "${nvramauth}" \
-			-s $(stat -c%s "${PLATFORM_CERT_FILE}") 2>&1 >/dev/null
+			-s $(stat -c%s "${PLATFORM_CERT_FILE}") 2>&1)"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area for platform" \
 			       "certificate."
 			return 1
 		fi
-		tpm_nvwrite \
-			-i $((TPM_NV_INDEX_PlatformCert|TPM_NV_INDEX_D_BIT)) \
-			-f "$PLATFORM_CERT_FILE" 2>&1 >/dev/null
+		output="$(tpm_nvwrite \
+			  -i $((TPM_NV_INDEX_PlatformCert|TPM_NV_INDEX_D_BIT)) \
+			  -f "$PLATFORM_CERT_FILE" 2>&1)"
+		if [ $? -ne 0 ]; then
+			logerr "Could not write EK cert to NVRAM: $output"
+			return 1
+		fi
 		logit "Successfully created NVRAM area for platform" \
 		       "certificate."
 		rm -f ${PLATFORM_CERT_FILE}
@@ -542,9 +552,9 @@ init_tpm()
 
 	# Last thing is to lock the NVRAM area
 	if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
-		tpm_nvdefine -i $TPM_NV_INDEX_LOCK 2>&1 >/dev/null
+		output="$(tpm_nvdefine -i $TPM_NV_INDEX_LOCK 2>&1)"
 		if [ $? -ne 0 ]; then
-			logerr "Could not lock NVRAM access."
+			logerr "Could not lock NVRAM access: $output"
 			return 1
 		fi
 		logit "Successfully locked NVRAM access."
@@ -578,9 +588,9 @@ init_tpm()
 		fi
 
 		TCSD_TCP_DEVICE_PORT=$TPM_PORT
-		swtpm_bios -c
+		output="$(swtpm_bios -c)"
 		if [ $? -ne 0 ]; then
-			logerr "swtpm_bios -c -o failed"
+			logerr "swtpm_bios -c -o failed: $output"
 			return 1
 		fi
 		logit "Successfully enabled and activated the TPM"
