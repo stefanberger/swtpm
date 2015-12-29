@@ -108,8 +108,13 @@ static int talk(const unsigned char *buf, size_t count, int *tpm_errcode)
 	ssize_t len;
 	unsigned int pkt_len;
 	int rc = -1;
-	int fd;
+	int fd, n;
 	unsigned char buffer[1024];
+	struct timeval timeout = {
+	        .tv_sec = 1,
+                .tv_usec = 0,
+	};
+	fd_set rfds;
 
 	fd = open_connection();
 	if (fd < 0) {
@@ -120,6 +125,18 @@ static int talk(const unsigned char *buf, size_t count, int *tpm_errcode)
 	if (len < 0 || (size_t)len != count) {
 		printf("Write to file descriptor failed.\n");
 		goto err_close_fd;
+	}
+
+	FD_ZERO(&rfds);
+	FD_SET(fd, &rfds);
+
+	n = select(fd + 1, &rfds, NULL, NULL, &timeout);
+	if (n == 0) {
+	        printf("TPM did not respond in time.\n");
+	        goto err_close_fd;
+	} else if (n < 0) {
+	        printf("Error on select call: %s\n", strerror(errno));
+	        goto err_close_fd;
 	}
 
 	len = read(fd, buffer, sizeof(buffer));
