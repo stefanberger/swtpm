@@ -49,6 +49,15 @@
 
 #include "swtpm.h"
 
+/*
+ * durations of the commands
+ * On slow machines with much concurrency short timeouts may result in
+ * errors; so we scale them up by 10.
+ */
+#define TPM_DURATION_SHORT   (2 * 10) /* seconds */
+#define TPM_DURATION_MEDIUM (20 * 10) /* seconds */
+#define TPM_DURATION_LONG   (60 * 10) /* seconds */
+
 static int open_connection(void)
 {
 	int fd = -1, tcp_device_port;
@@ -103,7 +112,8 @@ static int open_connection(void)
 }
 
 
-static int talk(const unsigned char *buf, size_t count, int *tpm_errcode)
+static int talk(const unsigned char *buf, size_t count, int *tpm_errcode,
+                unsigned int to_seconds)
 {
 	ssize_t len;
 	unsigned int pkt_len;
@@ -111,7 +121,7 @@ static int talk(const unsigned char *buf, size_t count, int *tpm_errcode)
 	int fd, n;
 	unsigned char buffer[1024];
 	struct timeval timeout = {
-	        .tv_sec = 1,
+	        .tv_sec = to_seconds,
                 .tv_usec = 0,
 	};
 	fd_set rfds;
@@ -132,7 +142,7 @@ static int talk(const unsigned char *buf, size_t count, int *tpm_errcode)
 
 	n = select(fd + 1, &rfds, NULL, NULL, &timeout);
 	if (n == 0) {
-	        printf("TPM did not respond in time.\n");
+	        printf("TPM did not respond after %u seconds.\n", to_seconds);
 	        goto err_close_fd;
 	} else if (n < 0) {
 	        printf("Error on select call: %s\n", strerror(errno));
@@ -177,7 +187,8 @@ static int TPM_Startup(unsigned char parm, int *tpm_errcode)
 	};
 	tpm_startup[11] = parm;
 
-	return talk(tpm_startup, sizeof(tpm_startup), tpm_errcode);
+	return talk(tpm_startup, sizeof(tpm_startup), tpm_errcode,
+		    TPM_DURATION_SHORT);
 }
 
 
@@ -190,7 +201,7 @@ static int TSC_PhysicalPresence(unsigned short parm, int *tpm_errcode)
 	tsc_pp[10] = parm >> 8;
 	tsc_pp[11] = parm;
 
-	return talk(tsc_pp, sizeof(tsc_pp), tpm_errcode);
+	return talk(tsc_pp, sizeof(tsc_pp), tpm_errcode, TPM_DURATION_SHORT);
 }
 
 static int TPM_PhysicalEnable(int *tpm_errcode)
@@ -199,7 +210,7 @@ static int TPM_PhysicalEnable(int *tpm_errcode)
 		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x6f
 	};
 
-	return talk(tpm_pe, sizeof(tpm_pe), tpm_errcode);
+	return talk(tpm_pe, sizeof(tpm_pe), tpm_errcode, TPM_DURATION_SHORT);
 }
 
 static int TPM_PhysicalSetDeactivated(unsigned char parm, int *tpm_errcode)
@@ -210,7 +221,7 @@ static int TPM_PhysicalSetDeactivated(unsigned char parm, int *tpm_errcode)
 	};
 	tpm_psd[10] = parm;
 
-	return talk(tpm_psd, sizeof(tpm_psd), tpm_errcode);
+	return talk(tpm_psd, sizeof(tpm_psd), tpm_errcode, TPM_DURATION_SHORT);
 }
 
 static int TPM_ContinueSelfTest(int *tpm_errcode)
@@ -219,7 +230,7 @@ static int TPM_ContinueSelfTest(int *tpm_errcode)
 		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x53
 	};
 
-	return talk(tpm_cst, sizeof(tpm_cst), tpm_errcode);
+	return talk(tpm_cst, sizeof(tpm_cst), tpm_errcode, TPM_DURATION_LONG);
 }
 
 static void versioninfo(void)
