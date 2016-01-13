@@ -47,3 +47,12 @@ Makefile
 tests/*.log
 tests/*.trs
 tests/test_config
+/debian/*debhelper*
+/debian/*substvars
+/debian/files
+/debian/swtpm
+/debian/swtpm-cuse
+/debian/swtpm-dev
+/debian/swtpm-libs
+/debian/swtpm-tools
+/debian/tmp

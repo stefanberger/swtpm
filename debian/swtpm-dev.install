@@ -1,0 +1,3 @@
+#! /usr/bin/dh-exec
+/usr/lib/*/*.so
+/usr/include/swtpm/tpm_ioctl.h
