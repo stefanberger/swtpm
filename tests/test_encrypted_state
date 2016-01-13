@@ -50,6 +50,8 @@ ps aux | grep $SWTPM | grep -v grep
 kill -0 $PID
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM did not start."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -57,12 +59,16 @@ fi
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM initialization failed."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -81,6 +87,8 @@ fi
 $CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Hash command did not work."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -99,22 +107,30 @@ fi
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Saving the volatile state failed."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 tmp=$($CUSE_TPM_IOCTL -g /dev/$VTPM_NAME | cut -d":" -f2)
 if [ $? -ne 0 ]; then
 	echo "Error: Could not get the configration flags of the CUSE TPM."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 if [ "$tmp" != " 0x1" ]; then
 	echo "Error: Unexpected configuration flags: $tmp; expected 0x1."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -123,6 +139,8 @@ exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the CUSE TPM."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -137,11 +155,15 @@ ps aux | grep $SWTPM | grep -v grep
 kill -0 $PID
 if [ $? -ne 0 ]; then
 	echo "Error (2): CUSE TPM did not start."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 if [ -r $keyfile ]; then
 	echo "Error: Keyfile $keyfile was not removed by swtpm_cuse."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -149,12 +171,16 @@ fi
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM initialization failed."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -174,11 +200,15 @@ fi
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Saving the volatile state failed."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -186,12 +216,16 @@ fi
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM initialization failed."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -213,6 +247,8 @@ exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the CUSE TPM."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -221,11 +257,15 @@ sleep 0.5
 kill -0 $PID 2>/dev/null
 if [ $? -eq 0 ]; then
 	echo "Error: CUSE TPM should not be running anymore."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 if [ ! -e $STATE_FILE ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 

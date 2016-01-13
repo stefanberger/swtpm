@@ -57,6 +57,8 @@ ps aux | grep $SWTPM | grep -v grep
 kill -0 $PID
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM did not start."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -64,12 +66,16 @@ fi
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM initialization failed."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 kill -0 $PID 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -88,6 +94,8 @@ fi
 $CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not hash the data."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -134,10 +142,14 @@ fi
 $CUSE_TPM_IOCTL --save permanent $MY_PERMANENT_STATE_FILE /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not write permanent state file $MY_PERMANENT_STATE_FILE."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 if [ ! -r $MY_PERMANENT_STATE_FILE ]; then
 	echo "Error: Permanent state file $MY_PERMANENT_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 echo "Saved permanent state."
@@ -145,10 +157,14 @@ echo "Saved permanent state."
 $CUSE_TPM_IOCTL --save volatile $MY_VOLATILE_STATE_FILE /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not write volatile state file $MY_PERMANENT_STATE_FILE."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 if [ ! -r $MY_VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $MY_VOLATILE_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 echo "Saved volatile state."
@@ -166,6 +182,8 @@ $CUSE_TPM_IOCTL --stop /dev/$VTPM_NAME
 kill -0 $PID
 if [ $? -ne 0 ]; then
 	echo "Error (2): CUSE TPM is not running anymore."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -173,6 +191,8 @@ fi
 $CUSE_TPM_IOCTL --load permanent $MY_PERMANENT_STATE_FILE /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Could not load permanent state into vTPM"
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 echo "Loaded permanent state."
@@ -180,6 +200,8 @@ echo "Loaded permanent state."
 $CUSE_TPM_IOCTL --load volatile $MY_VOLATILE_STATE_FILE /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Could not load volatile state into vTPM"
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 echo "Loaded volatile state."
@@ -191,12 +213,16 @@ echo "Loaded volatile state."
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "TPM Init failed."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -216,10 +242,14 @@ fi
 $CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 if [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -227,12 +257,16 @@ fi
 $CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM initialization failed."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 # Volatile state must have been removed by TPM now
 if [ -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
@@ -253,6 +287,8 @@ exec 100>&-
 $CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the CUSE TPM."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 sleep 0.5
@@ -260,11 +296,15 @@ sleep 0.5
 kill -0 $PID 2>/dev/null
 if [ $? -eq 0 ]; then
 	echo "Error: CUSE TPM should not be running anymore."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 
 if [ ! -e $STATE_FILE ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
 	exit 1
 fi
 

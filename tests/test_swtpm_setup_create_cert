@@ -65,21 +65,29 @@ $SWTPM_SETUP \
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
 	exit 1
 fi
 
 if [ ! -r "${SIGNINGKEY}" ]; then
 	echo "Error: Signingkey file ${SIGNINGKEY} was not created."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
 	exit 1
 fi
 
 if [ ! -r "${ISSUERCERT}" ]; then
 	echo "Error: Issuer cert file ${ISSUERCERT} was not created."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
 	exit 1
 fi
 
 if [ ! -r "${CERTSERIAL}" ]; then
 	echo "Error: Cert serial number file ${CERTSERIAL} was not created."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
 	exit 1
 fi
 
