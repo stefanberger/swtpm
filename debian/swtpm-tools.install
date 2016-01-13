@@ -1,6 +1,6 @@
 #! /usr/bin/dh-exec
 /usr/bin/swtpm_bios
-#/usr/bin/swtpm_cert
+/usr/bin/swtpm_cert
 /usr/bin/swtpm_setup
 /usr/bin/swtpm_setup.sh
 /usr/bin/swtpm_ioctl

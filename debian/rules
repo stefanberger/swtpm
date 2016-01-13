@@ -4,6 +4,14 @@
 	dh $@ --parallel
 
 override_dh_auto_configure:
+	./bootstrap.sh
 	dh_auto_configure -- --with-openssl
+
+override_dh_install:
+	EXCLUDES=""
+	if test -z $(find debian/tmp -name swtpm_cert); then \
+		EXCLUDES="-Xswtpm_cert"; \
+	fi ; \
+	dh_install $$EXCLUDES --
 
 override_dh_usrlocal:
