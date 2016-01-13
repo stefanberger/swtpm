@@ -1,9 +1,5 @@
 #! /usr/bin/dh-exec
-/usr/bin/swtpm_bios
-#/usr/bin/swtpm_cert
-/usr/bin/swtpm_setup
-/usr/bin/swtpm_setup.sh
-/usr/bin/swtpm_ioctl
+/usr/bin/swtpm_*
 /usr/share/man/man8/swtpm_bios.8*
 /usr/share/man/man8/swtpm_cert.8*
 /usr/share/man/man8/swtpm_ioctl.8*
