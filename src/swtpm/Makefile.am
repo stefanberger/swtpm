@@ -51,7 +51,8 @@ libswtpm_libtpms_la_CFLAGS += \
 endif
 
 libswtpm_libtpms_la_LIBADD = \
-	$(LIBTPMS_LIBS)
+	$(LIBTPMS_LIBS) \
+	$(GLIB_LIBS)
 
 if SWTPM_USE_FREEBL
 libswtpm_libtpms_la_LIBADD += \
