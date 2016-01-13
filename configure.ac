@@ -233,6 +233,13 @@ if test $? -ne 0; then
 fi
 AC_SUBST([LIBFUSE_LIBS])
 
+AC_ARG_WITH([gnutls],
+            AC_HELP_STRING([--with-gnutls],
+                           [build with gnutls library]),
+            [],
+            [with_gnutls=check]
+)
+
 if test "x$with_gnutls" != "xno"; then
     GNUTLS_LDFLAGS=$(pkg-config --libs gnutls)
     if test $? -ne 0; then
@@ -246,7 +253,7 @@ fi
 
 if test "x$with_gnutls" != "xno"; then
     GNUTLS_CFLAGS=$(pkg-config gnutls --cflags)
-    AC_CHECK_LIB([gnutls], [gnutls_x509_crt_set_key], [
+    AC_CHECK_LIB([gnutls], [gnutls_load_file], [
                  GNUTLS_LIBS=-lgnutls
              ],
              [if test "x$with_gnutls" == "xyes"; then
@@ -343,18 +350,21 @@ AC_CONFIG_FILES([Makefile                    \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_setup/Makefile    \
 		src/swtpm_setup/swtpm_setup.h  \
-		src/swtpm_setup/swtpm_setup.sh \
 		man/Makefile                \
 		man/man3/Makefile           \
 		man/man8/Makefile           \
 		tests/Makefile              \
 		tests/test_config           \
-		], [chmod 755 src/swtpm_setup/swtpm_setup.sh])
+		])
+AC_CONFIG_FILES([src/swtpm_setup/swtpm_setup.sh],
+		[chmod 755 src/swtpm_setup/swtpm_setup.sh])
 AC_OUTPUT
 
 echo
 printf "with_gnutls : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
 printf "with_selinux: %5s  (no = SELinux policy extenions will NOT be build)\n" $with_selinux
+echo
+echo "cryptolib: $cryptolib"
 echo
 echo "CFLAGS=$CFLAGS"
 echo "HARDENING_CFLAGS=$HARDENING_CFLAGS"
