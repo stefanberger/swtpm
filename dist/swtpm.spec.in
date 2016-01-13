@@ -24,7 +24,7 @@ BuildRequires:  automake autoconf bash coreutils libtool sed
 BuildRequires:  libtpms-devel fuse-devel glib2-devel gmp-devel
 BuildRequires:  expect bash net-tools nss-devel socat
 %if %{with_gnutls}
-BuildRequires:  gnutls >= 3.1.0 gnutls-devel
+BuildRequires:  gnutls >= 3.1.0 gnutls-devel gnutls-utils
 BuildRequires:  libtasn1-devel libtasn1 kernel-modules-extra
 %if 0%{?fedora}
 BuildRequires:  libtasn1-tools
@@ -65,7 +65,7 @@ Summary:        Tools for the TPM emulator
 License:        BSD
 Group:          Applications/Emulators
 Requires:       swtpm fuse
-Requires:       trousers >= 0.3.9 tpm-tools >= 1.3.8-6 expect bash net-tools
+Requires:       trousers >= 0.3.9 tpm-tools >= 1.3.8-6 expect bash net-tools gnutls-utils
 
 %description    tools
 Tools for the TPM emulator from the swtpm package
