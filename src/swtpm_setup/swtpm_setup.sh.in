@@ -55,6 +55,12 @@ if [ -z "$TCSD" ]; then
     exit 1
 fi
 
+ECHO=`which echo`
+if [ -z "$ECHO" ]; then
+    echo "Error: external echo program not found."
+    exit 1
+fi
+
 SETUP_CREATE_EK_F=1
 SETUP_TAKEOWN_F=2
 SETUP_EK_CERT_F=4
@@ -378,6 +384,43 @@ cleanup()
 	rm -rf "$TCSD_CONFIG" "$TCSD_DATA_FILE" "$TCSD_DATA_DIR"
 }
 
+# Transfer a request to the TPM and receive the response
+#
+# @param1: The request to send
+tpm_transfer()
+{
+	exec 100<>/dev/tcp/127.0.0.1/${TPM_PORT}
+	$ECHO -en "$1" >&100
+
+	od -t x1 -A n -w512 <&100
+	exec 100>&-
+}
+
+# Create an endorsement key
+tpm_createendorsementkeypair()
+{
+	local req rsp exp
+
+	req='\x00\xc1\x00\x00\x00\x36\x00\x00\x00\x78\x38\xf0\x30\x81\x07\x2b'
+	req+='\x0c\xa9\x10\x98\x08\xc0\x4B\x05\x11\xc9\x50\x23\x52\xc4\x00\x00'
+	req+='\x00\x01\x00\x03\x00\x02\x00\x00\x00\x0c\x00\x00\x08\x00\x00\x00'
+	req+='\x00\x02\x00\x00\x00\x00'
+
+	rsp="$(tpm_transfer "${req}")"
+
+	exp=' 00 c4 00 00 01 3a 00 00 00 00'
+	if [ "${rsp:0:30}" != "$exp" ]; then
+		logerr "TPM_CreateEndorsementKeyPair() failed"
+		logerr "     expected: $exp"
+		logerr "     received: ${rsp:0:30}"
+		return 1
+	fi
+
+	echo "${rsp:114:768}" | tr -d " "
+
+	return 0
+}
+
 # Initialize the TPM
 #
 # @param1: the flags
@@ -418,26 +461,25 @@ init_tpm()
 		return 1
 	fi
 
+	# Creating EK is simple enough to do without the tcsd
+	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
+		ek="$(tpm_createendorsementkeypair)"
+		if [ $? -ne 0 ]; then
+			logerr "tpm_createendorsementkeypair failed."
+			return 1
+		fi
+		logit "Successfully created EK."
+
+		if [ $((flags & ~$SETUP_CREATE_EK_F)) -eq 0 ]; then
+			return 0
+		fi
+	fi
+
 	# TPM is enabled and activated upon first start
 
 	start_tcsd $TCSD
 	if [ $? -ne 0 ]; then
 		return 1
-	fi
-
-	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
-		output="$(tpm_createek 2>&1)"
-		if [ $? -ne 0 ]; then
-			logerr "tpm_createek failed: $output"
-			return 1
-		fi
-		logit "Successfully created EK."
-		# Get the value of the EK
-		ek=$(tpm_getpubek |
-		     sed '1,/Public Key:/d' |
-		     tr -d " " |
-		     tr -d '\t' |
-		     tr -d '\n')
 	fi
 
 	# temporarily take ownership if an EK was created
