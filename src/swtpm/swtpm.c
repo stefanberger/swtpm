@@ -4,7 +4,7 @@
 /*                 Written by Ken Goldman, Stefan Berger                        */
 /*                     IBM Thomas J. Watson Research Center                     */
 /*                                                                              */
-/* (c) Copyright IBM Corporation 2006, 2010.					*/
+/* (c) Copyright IBM Corporation 2006, 2010, 2016.				*/
 /*										*/
 /* All rights reserved.								*/
 /* 										*/
@@ -207,9 +207,14 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
                         strerror(errno));
                 exit(1);
             }
-            if (!S_ISSOCK(statbuf.st_mode)) {
+            /*
+             * test for wrong file types; anonymous fd's do not seem to be any of the wrong
+             * ones but are also not character devices
+             */
+            if (S_ISREG(statbuf.st_mode) || S_ISDIR(statbuf.st_mode) || S_ISBLK(statbuf.st_mode)
+                || S_ISLNK(statbuf.st_mode)) {
                 fprintf(stderr,
-                        "Given file descriptor is not for a socket.\n");
+                        "Given file descriptor type is not supported.\n");
                 exit(1);
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
