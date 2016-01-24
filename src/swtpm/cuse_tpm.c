@@ -927,7 +927,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                       struct fuse_file_info *fi, unsigned flags,
                       const void *in_buf, size_t in_bufsz, size_t out_bufsz)
 {
-    TPM_RESULT res;
+    TPM_RESULT res = TPM_FAIL;
     bool exit_prg = FALSE;
     ptm_init *init_p;
 
@@ -1001,9 +1001,11 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM.\n");
             } else {
+                res = TPM_SUCCESS;
                 tpm_running = true;
             }
-            fuse_reply_ioctl(req, 0, &res, sizeof(res));
+            init_p->u.resp.tpm_result = res;
+            fuse_reply_ioctl(req, 0, init_p, sizeof(*init_p));
         }
         break;
 
@@ -1077,10 +1079,11 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             if (l->u.req.loc > 4) {
                 res = TPM_BAD_LOCALITY;
             } else {
-                res = 0;
+                res = TPM_SUCCESS;
                 locality = l->u.req.loc;
             }
-            fuse_reply_ioctl(req, 0, &res, sizeof(res));
+            l->u.resp.tpm_result = res;
+            fuse_reply_ioctl(req, 0, l, sizeof(*l));
         }
         break;
 
@@ -1107,7 +1110,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             } else {
                 res = TPM_FAIL;
             }
-            fuse_reply_ioctl(req, 0, &res, sizeof(res));
+            data->u.resp.tpm_result = res;
+            fuse_reply_ioctl(req, 0, data, sizeof(*data));
         }
         break;
 
