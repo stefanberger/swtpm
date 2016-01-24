@@ -46,8 +46,10 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <sys/un.h>
+#include <endian.h>
 
 #include "swtpm.h"
+#include "tpm_bios.h"
 
 /*
  * durations of the commands
@@ -98,9 +100,9 @@ static int open_connection(void)
 			printf("Could not connect using TCP socket.\n");
 		}
 	} else {
-	        char *devname = getenv("TPM_DEVICE");
-	        if (!devname)
-	                devname = "/dev/tpm0";
+		char *devname = getenv("TPM_DEVICE");
+		if (!devname)
+			devname = "/dev/tpm0";
 
 		fd = open(devname, O_RDWR );
 		if ( fd < 0 ) {
@@ -112,8 +114,8 @@ static int open_connection(void)
 }
 
 
-static int talk(const unsigned char *buf, size_t count, int *tpm_errcode,
-                unsigned int to_seconds)
+static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
+		unsigned int to_seconds)
 {
 	ssize_t len;
 	unsigned int pkt_len;
@@ -121,8 +123,8 @@ static int talk(const unsigned char *buf, size_t count, int *tpm_errcode,
 	int fd, n;
 	unsigned char buffer[1024];
 	struct timeval timeout = {
-	        .tv_sec = to_seconds,
-                .tv_usec = 0,
+		.tv_sec = to_seconds,
+		.tv_usec = 0,
 	};
 	fd_set rfds;
 
@@ -131,7 +133,7 @@ static int talk(const unsigned char *buf, size_t count, int *tpm_errcode,
 		goto err_exit;
 	}
 
-	len = write(fd, buf, count);
+	len = write(fd, hdr, count);
 	if (len < 0 || (size_t)len != count) {
 		printf("Write to file descriptor failed.\n");
 		goto err_close_fd;
@@ -142,11 +144,11 @@ static int talk(const unsigned char *buf, size_t count, int *tpm_errcode,
 
 	n = select(fd + 1, &rfds, NULL, NULL, &timeout);
 	if (n == 0) {
-	        printf("TPM did not respond after %u seconds.\n", to_seconds);
-	        goto err_close_fd;
+		printf("TPM did not respond after %u seconds.\n", to_seconds);
+		goto err_close_fd;
 	} else if (n < 0) {
-	        printf("Error on select call: %s\n", strerror(errno));
-	        goto err_close_fd;
+		printf("Error on select call: %s\n", strerror(errno));
+		goto err_close_fd;
 	}
 
 	len = read(fd, buffer, sizeof(buffer));
@@ -181,68 +183,84 @@ err_exit:
 
 static int TPM_Startup(unsigned char parm, int *tpm_errcode)
 {
-	unsigned char tpm_startup[] = {
-		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x99,
-		0x00, 0x01
+	struct tpm_startup tss  = {
+		.hdr = {
+			.tag = htobe16(TPM_TAG_RQU_COMMAND),
+			.length = htobe32(sizeof(tss)),
+			.ordinal = htobe32(TPM_ORD_Startup),
+		},
+		.startup_type = htobe16(parm),
 	};
-	tpm_startup[11] = parm;
 
-	return talk(tpm_startup, sizeof(tpm_startup), tpm_errcode,
-		    TPM_DURATION_SHORT);
+	return talk(&tss.hdr, sizeof(tss), tpm_errcode, TPM_DURATION_SHORT);
 }
 
 
-static int TSC_PhysicalPresence(unsigned short parm, int *tpm_errcode)
+static int TSC_PhysicalPresence(unsigned short physical_presence,
+				int *tpm_errcode)
 {
-	unsigned char tsc_pp[] = {
-		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0c, 0x40, 0x00, 0x00, 0x0a,
-		0x00, 0x20
+	struct tsc_physical_presence tpp = {
+		.hdr = {
+			.tag = htobe16(TPM_TAG_RQU_COMMAND),
+			.length = htobe32(sizeof(tpp)),
+			.ordinal = htobe32(TPM_ORD_PhysicalPresence),
+		},
+		.physical_presence = htobe16(physical_presence),
 	};
-	tsc_pp[10] = parm >> 8;
-	tsc_pp[11] = parm;
 
-	return talk(tsc_pp, sizeof(tsc_pp), tpm_errcode, TPM_DURATION_SHORT);
+	return talk(&tpp.hdr, sizeof(tpp), tpm_errcode, TPM_DURATION_SHORT);
 }
 
 static int TPM_PhysicalEnable(int *tpm_errcode)
 {
-	unsigned char tpm_pe[] = {
-		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x6f
+	struct tpm_physical_enable tpe = {
+		.hdr = {
+			.tag = htobe16(TPM_TAG_RQU_COMMAND),
+			.length = htobe32(sizeof(tpe)),
+			.ordinal = htobe32(TPM_ORD_PhysicalEnable),
+		},
 	};
 
-	return talk(tpm_pe, sizeof(tpm_pe), tpm_errcode, TPM_DURATION_SHORT);
+	return talk(&tpe.hdr, sizeof(tpe), tpm_errcode, TPM_DURATION_SHORT);
 }
 
 static int TPM_PhysicalSetDeactivated(unsigned char parm, int *tpm_errcode)
 {
-	unsigned char tpm_psd[] = {
-		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x72,
-		0x00
+	struct tpm_physical_set_deactivated tpsd = {
+		.hdr = {
+			.tag = htobe16(TPM_TAG_RQU_COMMAND),
+			.length = htobe32(sizeof(tpsd)),
+			.ordinal = htobe32(TPM_ORD_PhysicalSetDeactivated),
+		},
+		.state = parm,
 	};
-	tpm_psd[10] = parm;
 
-	return talk(tpm_psd, sizeof(tpm_psd), tpm_errcode, TPM_DURATION_SHORT);
+	return talk(&tpsd.hdr, sizeof(tpsd), tpm_errcode, TPM_DURATION_SHORT);
 }
 
 static int TPM_ContinueSelfTest(int *tpm_errcode)
 {
-	unsigned char tpm_cst[] = {
-		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x53
+	struct tpm_continue_selftest tcs = {
+		.hdr = {
+			.tag = htobe16(TPM_TAG_RQU_COMMAND),
+			.length = htobe32(sizeof(tcs)),
+			.ordinal = htobe32(TPM_ORD_ContinueSelfTest),
+		},
 	};
 
-	return talk(tpm_cst, sizeof(tpm_cst), tpm_errcode, TPM_DURATION_LONG);
+	return talk(&tcs.hdr, sizeof(tcs), tpm_errcode, TPM_DURATION_LONG);
 }
 
 static void versioninfo(void)
 {
-        printf(
+	printf(
 "TPM emulator BIOS emulator version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
 ,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO);
 }
 
 static void print_usage(const char *prgname)
 {
-        versioninfo();
+	versioninfo();
 	printf(
 "\n"
 "%s [options]\n"
@@ -269,20 +287,21 @@ int main(int argc, char *argv[])
 	int   i;			/* argc iterator */
 	int   do_more = 1;
 	int   contselftest = 0;
-	unsigned char  startupparm = 0x1;      /* parameter for TPM_Startup(); */
+	unsigned char  startupparm = TPM_ST_CLEAR;      /* parameter for TPM_Startup(); */
 	int   tpm_errcode = 0;
 	int   unassert_pp = 0;
 	int   tpm_error = 0;
+	unsigned short physical_presence;
 
 	/* command line argument defaults */
 
 	for (i = 1 ; i < argc; i++) {
 		if (strcmp(argv[i],"-c") == 0) {
-			startupparm = 0x01;
+			startupparm = TPM_ST_CLEAR;
 			do_more = 1;
 		} else if (strcmp(argv[i],"-d") == 0) {
 			do_more = 0;
-			startupparm = 0x03;
+			startupparm = TPM_ST_DEACTIVATED;
 		} else if (strcmp(argv[i],"-h") == 0) {
 			print_usage(argv[0]);
 			exit(EXIT_SUCCESS);
@@ -293,7 +312,7 @@ int main(int argc, char *argv[])
 			startupparm = 0xff;
 			do_more = 1;
 		} else if (strcmp(argv[i],"-s") == 0) {
-			startupparm = 0x2;
+			startupparm = TPM_ST_STATE;
 			do_more = 1;
 		} else if (strcmp(argv[i],"-o") == 0) {
 			do_more = 0;
@@ -321,7 +340,8 @@ int main(int argc, char *argv[])
 
 	/* Sends the TSC_PhysicalPresence command to turn on physicalPresenceCMDEnable */
 	if ((ret == 0) && do_more) {
-		ret = TSC_PhysicalPresence(0x20, &tpm_errcode);
+		physical_presence = TPM_PHYSICAL_PRESENCE_CMD_ENABLE;
+		ret = TSC_PhysicalPresence(physical_presence, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
 			printf("TSC_PhysicalPresence(CMD_ENABLE) returned error code "
@@ -331,7 +351,8 @@ int main(int argc, char *argv[])
 
 	/* Sends the TSC_PhysicalPresence command to turn on physicalPresence */
 	if ((ret == 0) && do_more) {
-		ret = TSC_PhysicalPresence(0x08, &tpm_errcode);
+		physical_presence = TPM_PHYSICAL_PRESENCE_PRESENT;
+		ret = TSC_PhysicalPresence(physical_presence, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
 			printf("TSC_PhysicalPresence(PRESENT) returned error code "
@@ -368,7 +389,8 @@ int main(int argc, char *argv[])
 
 	/* Sends the TSC_PhysicalPresence command to turn on physicalPresenceCMDEnable */
 	if ((ret == 0) && unassert_pp) {
-		ret = TSC_PhysicalPresence(0x20, &tpm_errcode);
+		physical_presence = TPM_PHYSICAL_PRESENCE_CMD_ENABLE;
+		ret = TSC_PhysicalPresence(physical_presence, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
 			printf("TSC_PhysicalPresence(CMD_ENABLE) returned error code "
@@ -378,7 +400,9 @@ int main(int argc, char *argv[])
 
 	/* Sends the TSC_PhysicalPresence command to unassert physical presence and lock it */
 	if ((ret == 0) && unassert_pp) {
-		ret = TSC_PhysicalPresence(0x14, &tpm_errcode);
+		physical_presence = TPM_PHYSICAL_PRESENCE_NOTPRESENT |
+				    TPM_PHYSICAL_PRESENCE_LOCK;
+		ret = TSC_PhysicalPresence(physical_presence, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
 			printf("TSC_PhysicalPresence(NOT_PRESENT|LOCK) returned error code "
@@ -387,7 +411,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!ret && tpm_error)
-	        ret = 0x80;
+		ret = 0x80;
 
 	return ret;
 }
