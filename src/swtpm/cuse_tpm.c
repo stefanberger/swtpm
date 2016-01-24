@@ -1297,7 +1297,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
                 fprintf(stderr, "Could not parse major number\n");
                 return -1;
             }
-            if (num < 0 || num > 65535) {
+            if (num > 65535) {
                 fprintf(stderr, "Major number outside valid range [0 - 65535]\n");
                 return -1;
             }
