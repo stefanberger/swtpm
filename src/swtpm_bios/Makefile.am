@@ -4,7 +4,8 @@
 # For the license, see the LICENSE file in the root directory.
 #
 
-noinst_HEADERS =
+noinst_HEADERS = \
+	tpm_bios.h
 
 bin_PROGRAMS = \
 	swtpm_bios
