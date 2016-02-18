@@ -49,6 +49,7 @@
 #define TPM_ST_DEACTIVATED   0x0003
 
 #define TPM_ORD_ContinueSelfTest        0x00000053
+#define TPM_ORD_GetCapability           0x00000065
 #define TPM_ORD_PhysicalEnable          0x0000006f
 #define TPM_ORD_PhysicalDisable         0x00000070
 #define TPM_ORD_PhysicalSetDeactivated  0x00000072
@@ -60,12 +61,23 @@
 #define TPM_PHYSICAL_PRESENCE_NOTPRESENT   0x0010
 #define TPM_PHYSICAL_PRESENCE_CMD_ENABLE   0x0020
 
+#define TPM_CAP_FLAG                    0x00000004
+#define TPM_CAP_FLAG_PERMANENT          0x00000108
+
+#define TPM_PERM_FLAG_DEACTIVATED_IDX   2
+
 /* data structures for TPM 1.2 */
 
 struct tpm_header {
 	uint16_t tag;
 	uint32_t length;
 	uint32_t ordinal;
+} __attribute__((packed));
+
+struct tpm_resp_header {
+	uint16_t tag;
+	uint32_t length;
+	uint32_t result;
 } __attribute__((packed));
 
 struct tpm_startup {
@@ -89,6 +101,20 @@ struct tpm_physical_set_deactivated {
 
 struct tpm_continue_selftest {
 	struct tpm_header hdr;
+} __attribute__((packed));
+
+struct tpm_get_capability_subcap {
+	struct tpm_header hdr;
+	uint32_t cap;
+	uint32_t subcap_size;
+	uint32_t subcap;
+} __attribute__((packed));
+
+struct tpm_get_capability_permflags_res {
+	struct tpm_resp_header hdr;
+	uint32_t size;
+	uint16_t tag;
+	uint8_t flags[20];
 } __attribute__((packed));
 
 #endif /* _SWTPM_BIOS_H */

@@ -23,7 +23,8 @@ the environment variable I<TCSD_TCP_DEVICE_PORT> indicates another port.
 
 In case of success 0 will be returned. In case a TPM error was
 encountered the return code will be 128. In case of communcation
-failure 255 is returned.
+failure 255 is returned. In case the TPM needs to be reset to become
+activated, 129 will be returned.
 
 This command will send the following sequence of commands to the TPM.
 
@@ -34,6 +35,8 @@ This command will send the following sequence of commands to the TPM.
 =item B<TSC_PhysicalPresence(0x20)> -- PhysicalPresenceCMDEnable
 
 =item B<TSC_PhysicalPresence(0x08)> -- turn on physical presence
+
+=item B<TPM_GetCapability> -- get permanent flags
 
 =item B<TPM_PhysicalEnable> -- enable the TPM
 
@@ -73,6 +76,11 @@ Don't send a TPM_Startup command.
 =item B<-o>
 
 Only send the startup command and nothing else.
+
+=item B<-ea>
+
+Make sure that the TPM is activated; if the TPM requires a reset, the program
+will exist and return a return code of 129.
 
 =item B<-cs>
 

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_bios 8"
-.TH swtpm_bios 8 "2015-12-04" "swtpm" ""
+.TH swtpm_bios 8 "2016-02-18" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -160,7 +160,8 @@ the environment variable \fI\s-1TCSD_TCP_DEVICE_PORT\s0\fR indicates another por
 .PP
 In case of success 0 will be returned. In case a \s-1TPM\s0 error was
 encountered the return code will be 128. In case of communcation
-failure 255 is returned.
+failure 255 is returned. In case the \s-1TPM\s0 needs to be reset to become
+activated, 129 will be returned.
 .PP
 This command will send the following sequence of commands to the \s-1TPM.\s0
 .IP "\fBTPM_Startup(chosen mode)\fR \*(-- startup \s-1TPM\s0" 4
@@ -170,6 +171,8 @@ This command will send the following sequence of commands to the \s-1TPM.\s0
 .IX Item "TSC_PhysicalPresence(0x20) PhysicalPresenceCMDEnable"
 .IP "\fBTSC_PhysicalPresence(0x08)\fR \*(-- turn on physical presence" 4
 .IX Item "TSC_PhysicalPresence(0x08) turn on physical presence"
+.IP "\fBTPM_GetCapability\fR \*(-- get permanent flags" 4
+.IX Item "TPM_GetCapability get permanent flags"
 .IP "\fBTPM_PhysicalEnable\fR \*(-- enable the \s-1TPM\s0" 4
 .IX Item "TPM_PhysicalEnable enable the TPM"
 .IP "\fBTPM_PhysicalSetDeactivated(0x0)\fR \*(-- activate \s-1TPM\s0" 4
@@ -201,6 +204,10 @@ Don't send a TPM_Startup command.
 .IP "\fB\-o\fR" 4
 .IX Item "-o"
 Only send the startup command and nothing else.
+.IP "\fB\-ea\fR" 4
+.IX Item "-ea"
+Make sure that the \s-1TPM\s0 is activated; if the \s-1TPM\s0 requires a reset, the program
+will exist and return a return code of 129.
 .IP "\fB\-cs\fR" 4
 .IX Item "-cs"
 Send a TPM_ContinueSelfTest command.

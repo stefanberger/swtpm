@@ -42,7 +42,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <netinet/in.h>
 #include <stdlib.h>
 #include <netdb.h>
 #include <sys/un.h>
@@ -59,6 +58,8 @@
 #define TPM_DURATION_SHORT   (2 * 10) /* seconds */
 #define TPM_DURATION_MEDIUM (20 * 10) /* seconds */
 #define TPM_DURATION_LONG   (60 * 10) /* seconds */
+
+#define MIN(A, B) ((A) < (B) ? (A) : (B))
 
 static int open_connection(void)
 {
@@ -115,10 +116,11 @@ static int open_connection(void)
 
 
 static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
-		unsigned int to_seconds)
+		unsigned int to_seconds,
+		struct tpm_resp_header *res, size_t res_size)
 {
 	ssize_t len;
-	unsigned int pkt_len;
+	size_t pkt_len;
 	int rc = -1;
 	int fd, n;
 	unsigned char buffer[1024];
@@ -162,13 +164,16 @@ static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
 		goto err_close_fd;
 	}
 
-	pkt_len = ntohl( *((uint32_t *)(buffer + 2)));
+	pkt_len = be32toh( *((uint32_t *)(buffer + 2)));
 	if ((unsigned int)len != pkt_len) {
 		printf("Malformed response.\n");
 		goto err_close_fd;
 	}
 
-	*tpm_errcode = ntohl( *((uint32_t *)(buffer + 6)));
+	if (res)
+		memcpy(res, buffer, MIN(pkt_len, res_size));
+
+	*tpm_errcode = be32toh( *((uint32_t *)(buffer + 6)));
 
 	rc = 0;
 
@@ -179,7 +184,6 @@ err_close_fd:
 err_exit:
 	return rc;
 }
-
 
 static int TPM_Startup(unsigned char parm, int *tpm_errcode)
 {
@@ -192,9 +196,9 @@ static int TPM_Startup(unsigned char parm, int *tpm_errcode)
 		.startup_type = htobe16(parm),
 	};
 
-	return talk(&tss.hdr, sizeof(tss), tpm_errcode, TPM_DURATION_SHORT);
+	return talk(&tss.hdr, sizeof(tss), tpm_errcode, TPM_DURATION_SHORT,
+		    NULL, 0);
 }
-
 
 static int TSC_PhysicalPresence(unsigned short physical_presence,
 				int *tpm_errcode)
@@ -208,7 +212,27 @@ static int TSC_PhysicalPresence(unsigned short physical_presence,
 		.physical_presence = htobe16(physical_presence),
 	};
 
-	return talk(&tpp.hdr, sizeof(tpp), tpm_errcode, TPM_DURATION_SHORT);
+	return talk(&tpp.hdr, sizeof(tpp), tpm_errcode, TPM_DURATION_SHORT,
+		    NULL, 0);
+}
+
+static int TPM_GetCapability_Subcap(uint32_t cap, uint32_t subcap,
+				    struct tpm_resp_header *res, size_t res_size,
+				    int *tpm_errcode)
+{
+	struct tpm_get_capability_subcap tgc = {
+		.hdr = {
+			.tag = htobe16(TPM_TAG_RQU_COMMAND),
+			.length = htobe32(sizeof(tgc)),
+			.ordinal = htobe32(TPM_ORD_GetCapability),
+		},
+		.cap = htobe32(cap),
+		.subcap_size = htobe32(sizeof(tgc.subcap)),
+		.subcap = htobe32(subcap),
+	};
+
+	return talk(&tgc.hdr, sizeof(tgc), tpm_errcode, TPM_DURATION_SHORT,
+		    res, res_size);
 }
 
 static int TPM_PhysicalEnable(int *tpm_errcode)
@@ -221,7 +245,8 @@ static int TPM_PhysicalEnable(int *tpm_errcode)
 		},
 	};
 
-	return talk(&tpe.hdr, sizeof(tpe), tpm_errcode, TPM_DURATION_SHORT);
+	return talk(&tpe.hdr, sizeof(tpe), tpm_errcode, TPM_DURATION_SHORT,
+		    NULL, 0);
 }
 
 static int TPM_PhysicalSetDeactivated(unsigned char parm, int *tpm_errcode)
@@ -235,7 +260,8 @@ static int TPM_PhysicalSetDeactivated(unsigned char parm, int *tpm_errcode)
 		.state = parm,
 	};
 
-	return talk(&tpsd.hdr, sizeof(tpsd), tpm_errcode, TPM_DURATION_SHORT);
+	return talk(&tpsd.hdr, sizeof(tpsd), tpm_errcode, TPM_DURATION_SHORT,
+		    NULL, 0);
 }
 
 static int TPM_ContinueSelfTest(int *tpm_errcode)
@@ -248,7 +274,8 @@ static int TPM_ContinueSelfTest(int *tpm_errcode)
 		},
 	};
 
-	return talk(&tcs.hdr, sizeof(tcs), tpm_errcode, TPM_DURATION_LONG);
+	return talk(&tcs.hdr, sizeof(tcs), tpm_errcode, TPM_DURATION_LONG,
+		    NULL, 0);
 }
 
 static void versioninfo(void)
@@ -275,6 +302,8 @@ static void print_usage(const char *prgname)
 "\t-n  no startup\n"
 "\t-o  startup only\n"
 "\t-cs run TPM_ContinueSelfTest\n"
+"\t-ea make sure that the TPM is activated; terminate with exit code 129 if\n"
+"\t    the TPM needs to be reset\n"
 "\t-u  give up physical presence\n"
 "\t-v  display version and exit\n"
 "\t-h  display this help screen and exit\n"
@@ -286,12 +315,14 @@ int main(int argc, char *argv[])
 	int   ret = 0;
 	int   i;			/* argc iterator */
 	int   do_more = 1;
+	int   ensure_activated = 0;
 	int   contselftest = 0;
 	unsigned char  startupparm = TPM_ST_CLEAR;      /* parameter for TPM_Startup(); */
 	int   tpm_errcode = 0;
 	int   unassert_pp = 0;
 	int   tpm_error = 0;
 	unsigned short physical_presence;
+	struct tpm_get_capability_permflags_res perm_flags;
 
 	/* command line argument defaults */
 
@@ -318,6 +349,8 @@ int main(int argc, char *argv[])
 			do_more = 0;
 		} else if (strcmp(argv[i],"-cs") == 0) {
 			contselftest = 1;
+		} else if (strcmp(argv[i],"-ea") == 0) {
+			ensure_activated = 1;
 		} else if (strcmp(argv[i],"-u") == 0) {
 			unassert_pp = 1;
 		} else {
@@ -359,6 +392,17 @@ int main(int argc, char *argv[])
 			       "0x%08x\n", tpm_errcode);
 		}
 	}
+	/* Determine the permanent flags */
+	if ((ret == 0) && do_more && ensure_activated) {
+		ret = TPM_GetCapability_Subcap(TPM_CAP_FLAG, TPM_CAP_FLAG_PERMANENT,
+					       &perm_flags.hdr, sizeof(perm_flags),
+					       &tpm_errcode);
+		if (tpm_errcode != 0) {
+			tpm_error = 1;
+			printf("TPM_GetCapability() returned error "
+			       "code 0x%08x\n", tpm_errcode);
+		}
+	}
 	/* Sends the TPM_Process_PhysicalEnable command to clear disabled */
 	if ((ret == 0) && do_more) {
 		ret = TPM_PhysicalEnable(&tpm_errcode);
@@ -375,6 +419,13 @@ int main(int argc, char *argv[])
 			tpm_error = 1;
 			printf("TPM_PhysicalSetDeactivated returned error "
 			       "code 0x%08x\n", tpm_errcode);
+		}
+		if (ensure_activated) {
+			/* activation will require resetting the TPM */
+			if (perm_flags.flags[TPM_PERM_FLAG_DEACTIVATED_IDX]) {
+				ret = 0x81;
+				printf("TPM requires a reset\n");
+			}
 		}
 	}
 
