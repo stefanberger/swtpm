@@ -854,17 +854,23 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size)
             goto cleanup;
         }
 
-        /* have command processed by thread pool */
         if (ptm_req_len > TPM_REQ_MAX)
             ptm_req_len = TPM_REQ_MAX;
 
-        memcpy(ptm_request, buf, ptm_req_len);
+        if (tpmlib_is_request_cancelable(ptm_request, ptm_req_len)) {
+            /* have command processed by thread pool */
+            memcpy(ptm_request, buf, ptm_req_len);
 
-        msg.type = MESSAGE_TPM_CMD;
+            msg.type = MESSAGE_TPM_CMD;
 
-        worker_thread_mark_busy();
+            worker_thread_mark_busy();
 
-        g_thread_pool_push(pool, &msg, NULL);
+            g_thread_pool_push(pool, &msg, NULL);
+        } else {
+            /* direct processing */
+            TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
+                           (unsigned char *)buf, ptm_req_len);
+        }
     } else {
         /* TPM not initialized; return error */
         ptm_write_fatal_error_response();

@@ -38,6 +38,7 @@
 #include "config.h"
 
 #include <assert.h>
+#include <endian.h>
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
@@ -95,4 +96,19 @@ int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop)
     assert(res == TPM_SUCCESS);
 
     return result;
+}
+
+bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len)
+{
+    struct tpm_req_header *hdr;
+    uint32_t ordinal;
+
+    if (req_len < sizeof(struct tpm_req_header))
+        return false;
+
+    hdr = (struct tpm_req_header *)request;
+    ordinal = be32toh(hdr->ordinal);
+
+    return (ordinal == TPMLIB_TPM_ORD_TakeOwnership ||
+            ordinal == TPMLIB_TPM_ORD_CreateWrapKey);
 }

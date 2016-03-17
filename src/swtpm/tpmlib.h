@@ -39,10 +39,22 @@
 #define _SWTPM_TPMLIB_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include <libtpms/tpm_library.h>
 
 TPM_RESULT tpmlib_start(struct libtpms_callbacks *cbs, uint32_t flags);
 int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
+bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len);
+
+struct tpm_req_header {
+    uint16_t tag;
+    uint32_t size;
+    uint32_t ordinal;
+};
+
+/* TPM 1.2 ordinals */
+#define TPMLIB_TPM_ORD_TakeOwnership   0x0000000d
+#define TPMLIB_TPM_ORD_CreateWrapKey   0x0000001f
 
 #endif /* _SWTPM_TPMLIB_H_ */
