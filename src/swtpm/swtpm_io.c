@@ -49,6 +49,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <limits.h>
 #include <arpa/inet.h>
@@ -110,11 +111,13 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
                          unsigned char *buffer,   /* output: command stream */
                          uint32_t *bufferLength,  /* output: command stream length */
                          size_t bufferSize,       /* input: max size of output buffer */
-                         void *mainLoopArgs)
+                         void *mainLoopArgs,
+                         bool readall)
 {
     TPM_RESULT          rc = 0;
     uint32_t            headerSize;     /* minimum required bytes in command through paramSize */
     uint32_t            paramSize;      /* from command stream */
+    ssize_t             n;
 
     /* check that the buffer can at least fit the command through the paramSize */
     if (rc == 0) {
@@ -124,6 +127,14 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
                    (unsigned long)bufferSize, headerSize);
             rc = TPM_SIZE;
         }
+    }
+    if (rc == 0 && readall) {
+        n = read(connection_fd->fd, buffer, bufferSize);
+        if (n > 0)
+            *bufferLength = n;
+        else
+            rc = TPM_IOERROR;
+        return rc;
     }
     /* read the command through the paramSize from the socket stream */
     if (rc == 0) {

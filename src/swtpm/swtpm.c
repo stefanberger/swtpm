@@ -441,7 +441,7 @@ static int mainLoop(struct mainLoopParams *mlp)
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
             if (rc == 0) {
                 rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
-                                   max_command_length, mlp);
+                                   max_command_length, mlp, false);
                 if (rc != 0) {
                     /* connection broke */
                     SWTPM_IO_Disconnect(&connection_fd);

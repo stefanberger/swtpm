@@ -50,6 +50,9 @@ extern bool mainloop_terminate;
 struct mainLoopParams {
     uint32_t flags;
 #define MAIN_LOOP_FLAG_TERMINATE  (1 << 0)
+#define MAIN_LOOP_FLAG_USE_FD     (1 << 1)
+#define MAIN_LOOP_FLAG_KEEP_CONNECTION (1 << 2)
+#define MAIN_LOOP_FLAG_READALL    (1 << 3)
 
     int fd;
     struct ctrlchannel *cc;

@@ -43,6 +43,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <poll.h>
 #include <sys/stat.h>
@@ -54,6 +55,7 @@
 #include <libtpms/tpm_memory.h>
 
 #include "swtpm_debug.h"
+#include "swtpm_io.h"
 #include "tpmlib.h"
 #include "logging.h"
 #include "ctrlchannel.h"
@@ -67,6 +69,7 @@ int mainLoop(struct mainLoopParams *mlp,
              struct libtpms_callbacks *callbacks)
 {
     TPM_RESULT          rc = 0;
+    TPM_CONNECTION_FD   connection_fd;             /* file descriptor for read/write */
     unsigned char       *command = NULL;           /* command buffer */
     uint32_t            command_length;            /* actual length of command bytes */
     uint32_t            max_command_length;        /* command buffer size */
@@ -74,9 +77,9 @@ int mainLoop(struct mainLoopParams *mlp,
     unsigned char       *rbuffer = NULL;           /* actual response bytes */
     uint32_t            rlength = 0;               /* bytes in response buffer */
     uint32_t            rTotal = 0;                /* total allocated bytes */
-    int                 n;
     int                 ctrlfd;
     int                 ctrlclntfd;
+    bool                readall;
 
     TPM_DEBUG("mainLoop:\n");
 
@@ -89,15 +92,35 @@ int mainLoop(struct mainLoopParams *mlp,
         return rc;
     }
 
+    connection_fd.fd = -1;
     ctrlfd = ctrlchannel_get_fd(mlp->cc);
     ctrlclntfd = -1;
 
+    readall = (mlp->flags & MAIN_LOOP_FLAG_READALL);
+
     while (!mainloop_terminate) {
+
+        /* connect to the client */
+        while (rc == 0) {
+            if (connection_fd.fd >= 0)
+                break;
+
+            /* TCP: accept new connection */
+            if (!(mlp->flags & MAIN_LOOP_FLAG_USE_FD)) {
+                rc = SWTPM_IO_Connect(&connection_fd,
+                                      notify_fd,
+                                      mlp);
+            } else {
+                connection_fd.fd = mlp->fd;
+            }
+
+            break;
+        }
 
         while (rc == 0) {
             struct pollfd pollfds[] = {
                 {
-                    .fd = mlp->fd,
+                    .fd = connection_fd.fd,
                     .events = POLLIN | POLLHUP,
                     .revents = 0,
                 }, {
@@ -117,6 +140,7 @@ int mainLoop(struct mainLoopParams *mlp,
 
             if (poll(pollfds, 4, -1) < 0 ||
                 (pollfds[1].revents & POLLIN) != 0) {
+                SWTPM_IO_Disconnect(&connection_fd);
                 break;
             }
 
@@ -146,11 +170,11 @@ int mainLoop(struct mainLoopParams *mlp,
 
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
             if (rc == 0) {
-                n = read(mlp->fd, command, max_command_length);
-                if (n > 0) {
-                    command_length = n;
-                } else {
-                    rc = TPM_IOERROR;
+                rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
+                                   max_command_length, mlp, readall);
+                if (rc != 0) {
+                    /* connection broke */
+                    SWTPM_IO_Disconnect(&connection_fd);
                 }
             }
 
@@ -164,22 +188,19 @@ int mainLoop(struct mainLoopParams *mlp,
             }
             /* write the results */
             if (rc == 0) {
-                n = write(mlp->fd, rbuffer, rlength);
-                if (n < 0) {
-                    logprintf(STDERR_FILENO, "Could not write to device: %s (%d)\n",
-                              strerror(errno), errno);
-                    rc = TPM_IOERROR;
-                } else if ((uint32_t)n != rlength) {
-                    logprintf(STDERR_FILENO, "Could not write complete response.\n");
-                    rc = TPM_IOERROR;
-                }
+                SWTPM_IO_Write(&connection_fd, rbuffer, rlength);
+            }
+
+            if (!(mlp->flags & MAIN_LOOP_FLAG_KEEP_CONNECTION)) {
+                SWTPM_IO_Disconnect(&connection_fd);
+                break;
             }
         }
 
         rc = 0; /* A fatal TPM_Process() error should cause the TPM to enter shutdown.  IO errors
                    are outside the TPM, so the TPM does not shut down.  The main loop should
                    continue to function.*/
-        if (mlp->flags & MAIN_LOOP_FLAG_TERMINATE)
+        if (connection_fd.fd < 0 && mlp->flags & MAIN_LOOP_FLAG_TERMINATE)
             break;
     }
 

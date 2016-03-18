@@ -39,6 +39,7 @@
 #include <config.h>
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -54,6 +55,7 @@
 
 #include "main.h"
 #include "swtpm_debug.h"
+#include "swtpm_io.h"
 #include "swtpm_nvfile.h"
 #include "common.h"
 #include "logging.h"
@@ -181,6 +183,9 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                         optarg, strerror(errno));
                 exit(1);
             }
+            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
+                         MAIN_LOOP_FLAG_READALL;
+            SWTPM_IO_SetSocketFD(mlp.fd);
             break;
 
         case 'f':
@@ -209,7 +214,9 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                         "Given file descriptor type is not supported.\n");
                 exit(1);
             }
-            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE;
+            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
+                         MAIN_LOOP_FLAG_READALL;
+            SWTPM_IO_SetSocketFD(mlp.fd);
 
             break;
 
@@ -312,6 +319,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
         goto error_no_sighandlers;
+
+    mlp.flags |= MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION;
 
     rc = mainLoop(&mlp, notify_fd[0], &callbacks);
 
