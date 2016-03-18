@@ -1,7 +1,7 @@
 /*
- * common.h -- Header file for Common code for swtpm and swtpm_cuse
+ * connect.c -- connection parameters
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2016.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,18 +34,38 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _SWTPM_COMMON_H_
-#define _SWTPM_COMMON_H_
 
-int handle_log_options(char *options);
-int handle_key_options(char *options);
-int handle_migration_key_options(char *options);
-int handle_pid_options(char *options);
-int handle_tpmstate_options(char *options);
-struct ctrlchannel;
-int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc);
-struct connect;
-int handle_connect_options(char *options, struct connect **c);
+#include <stdlib.h>
 
-#endif /* _SWTPM_COMMON_H_ */
+#include "logging.h"
+#include "connect.h"
 
+struct connect {
+   int fd;
+   unsigned int flags;
+};
+
+struct connect *connect_new(int fd, unsigned int flags)
+{
+    struct connect *c = malloc(sizeof(struct connect));
+
+    if (!c) {
+        logprintf(STDERR_FILENO, "Out of memory");
+        return NULL;
+    }
+
+    c->fd = fd;
+    c->flags = flags;
+
+    return c;
+}
+
+int connect_get_fd(struct connect *c)
+{
+    return c->fd;
+}
+
+unsigned int connect_get_flags(struct connect *c)
+{
+    return c->flags;
+}

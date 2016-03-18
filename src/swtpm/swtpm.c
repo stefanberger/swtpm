@@ -56,6 +56,7 @@
 #include "swtpm_debug.h"
 #include "swtpm_io.h"
 #include "swtpm_nvfile.h"
+#include "connect.h"
 #include "common.h"
 #include "logging.h"
 #include "pidfile.h"
@@ -81,6 +82,7 @@ struct mainLoopParams {
 };
 #define MAIN_LOOP_FLAG_TERMINATE  (1 << 0)
 #define MAIN_LOOP_FLAG_USE_FD     (1 << 1)
+#define MAIN_LOOP_FLAG_KEEP_CONNECTION (1 << 2)
 
 /* local function prototypes */
 static int mainLoop(struct mainLoopParams *mlp);
@@ -125,6 +127,11 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : set the directory where the TPM's state will be written\n"
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead\n"
+    "--connect [type=tcp][,port=port][,fd=fd][,disconnect]\n"
+    "                 : Expect TCP connections on the given port;\n"
+    "                   if fd is provided, packets will be read from it directly;\n"
+    "                   the disconnect parameter closes the connection after\n"
+    "                   sending a response back to the client\n"
     "-r|--runas <user>: change to the given user\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
@@ -139,7 +146,9 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     struct stat statbuf;
     struct mainLoopParams mlp = {
         .flags = 0,
+        .fd = -1,
     };
+    struct connect *connect = NULL;
     unsigned long val;
     char *end_ptr;
     char buf[20];
@@ -147,6 +156,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *logdata = NULL;
     char *piddata = NULL;
     char *tpmstatedata = NULL;
+    char *connectdata = NULL;
     char *runas = NULL;
 #ifdef DEBUG
     time_t              start_time;
@@ -156,6 +166,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"help"      ,       no_argument, 0, 'h'},
         {"port"      , required_argument, 0, 'p'},
         {"fd"        , required_argument, 0, 'f'},
+        {"connect"   , required_argument, 0, 'c'},
         {"runas"     , required_argument, 0, 'r'},
         {"terminate" ,       no_argument, 0, 't'},
         {"log"       , required_argument, 0, 'l'},
@@ -222,6 +233,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
             break;
 
+        case 'c':
+            connectdata = optarg;
+            break;
+
         case 't':
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE;
             break;
@@ -265,14 +280,29 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
-        handle_tpmstate_options(tpmstatedata) < 0)
+        handle_tpmstate_options(tpmstatedata) < 0 ||
+        handle_connect_options(connectdata, &connect))
         return EXIT_FAILURE;
 
+    if (connect) {
+        if (connect_get_fd(connect) >= 0) {
+            mlp.fd = connect_get_fd(connect);
+            SWTPM_IO_SetSocketFD(mlp.fd);
+        }
+
+        mlp.flags |= MAIN_LOOP_FLAG_KEEP_CONNECTION;
+        if ((connect_get_flags(connect) & CONNECT_FLAG_DISCONNECT))
+            mlp.flags |= ~MAIN_LOOP_FLAG_KEEP_CONNECTION;
+
+        if ((connect_get_flags(connect) & CONNECT_FLAG_FD_GIVEN))
+            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
+    }
+
     if (daemonize) {
-       if (0 != daemon(0, 0)) {
-           logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
-           return EXIT_FAILURE;
-       }
+        if (0 != daemon(0, 0)) {
+            logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
+            return EXIT_FAILURE;
+        }
     }
 
     if (pidfile_write(getpid()) < 0) {
@@ -371,7 +401,11 @@ static int mainLoop(struct mainLoopParams *mlp)
 
     while (!terminate) {
         /* connect to the client */
-        if (rc == 0) {
+        while (rc == 0) {
+            if (connection_fd.fd >= 0)
+                break;
+
+            /* accept new connection */
             if (!(mlp->flags & MAIN_LOOP_FLAG_USE_FD)) {
                 rc = SWTPM_IO_Connect(&connection_fd,
                                       notify_fd[0],
@@ -379,6 +413,8 @@ static int mainLoop(struct mainLoopParams *mlp)
             } else {
                 connection_fd.fd = mlp->fd;
             }
+
+            break;
         }
         /* was connecting successful? */
         while (rc == 0) {
@@ -406,6 +442,10 @@ static int mainLoop(struct mainLoopParams *mlp)
             if (rc == 0) {
                 rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
                                    max_command_length, mlp);
+                if (rc != 0) {
+                    /* connection broke */
+                    SWTPM_IO_Disconnect(&connection_fd);
+                }
             }
             if (rc == 0) {
                 rlength = 0;                                /* clear the response buffer */
@@ -424,14 +464,17 @@ static int mainLoop(struct mainLoopParams *mlp)
              * only allow a single command per connection, otherwise
              * we may get stuck in the poll() above.
              */
-            break;
+            if (!(mlp->flags & MAIN_LOOP_FLAG_KEEP_CONNECTION)) {
+                SWTPM_IO_Disconnect(&connection_fd);
+                break;
+            }
         }
-        SWTPM_IO_Disconnect(&connection_fd);
+
         /* clear the response buffer, does not deallocate memory */
         rc = 0; /* A fatal TPM_Process() error should cause the TPM to enter shutdown.  IO errors
                    are outside the TPM, so the TPM does not shut down.  The main loop should
                    continue to function.*/
-        if (mlp->flags & MAIN_LOOP_FLAG_TERMINATE)
+        if (connection_fd.fd < 0 && mlp->flags & MAIN_LOOP_FLAG_TERMINATE)
             break;
     }
 

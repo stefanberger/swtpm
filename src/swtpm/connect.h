@@ -1,7 +1,7 @@
 /*
- * common.h -- Header file for Common code for swtpm and swtpm_cuse
+ * connect.h -- connection parameters
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2016.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -34,18 +34,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _SWTPM_COMMON_H_
-#define _SWTPM_COMMON_H_
 
-int handle_log_options(char *options);
-int handle_key_options(char *options);
-int handle_migration_key_options(char *options);
-int handle_pid_options(char *options);
-int handle_tpmstate_options(char *options);
-struct ctrlchannel;
-int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc);
+#ifndef _SWTPM_CONNECT_H_
+#define _SWTPM_CONNECT_H_
+
 struct connect;
-int handle_connect_options(char *options, struct connect **c);
 
-#endif /* _SWTPM_COMMON_H_ */
+#define CONNECT_FLAG_DISCONNECT (1 << 0)
+#define CONNECT_FLAG_FD_GIVEN   (1 << 1)
 
+struct connect *connect_new(int fd, unsigned int flags);
+int connect_get_fd(struct connect *c);
+unsigned int connect_get_flags(struct connect *c);
+
+#endif /* _SWTPM_CONNECT_H_ */

@@ -59,6 +59,7 @@
 #include "pidfile.h"
 #include "tpmstate.h"
 #include "ctrlchannel.h"
+#include "connect.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -127,6 +128,23 @@ static const OptionDesc ctrl_opt_desc[] = {
     {
         .name = "fd",
         .type = OPT_TYPE_INT,
+    },
+    END_OPTION_DESC
+};
+
+static const OptionDesc connect_opt_desc[] = {
+    {
+        .name = "type",
+        .type = OPT_TYPE_STRING,
+    }, {
+        .name = "port",
+        .type = OPT_TYPE_INT,
+    }, {
+        .name = "fd",
+        .type = OPT_TYPE_INT,
+    }, {
+        .name = "disconnect",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -674,6 +692,101 @@ int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc)
         return 0;
 
     if (parse_ctrlchannel_options(options, cc) < 0)
+        return -1;
+
+    return 0;
+}
+
+/*
+ * parse_connect_options:
+ * Parse the 'connect' options.
+ *
+ * @options: the connect options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+static int parse_connect_options(char *options, struct connect **c)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+    const char *type;
+    int fd, port;
+    struct stat stat;
+    unsigned int flags = 0;
+
+    ovs = options_parse(options, ctrl_opt_desc, &error);
+    if (!ovs) {
+        fprintf(stderr, "Error parsing connect options: %s\n", error);
+        goto error;
+    }
+
+    type = option_get_string(ovs, "type", "tcp");
+
+    if (option_get_bool(ovs, "disconnect", false))
+        flags |= CONNECT_FLAG_DISCONNECT;
+
+    if (!strcmp(type, "tcp")) {
+        port = option_get_int(ovs, "port", -1);
+        fd = option_get_int(ovs, "fd", -1);
+        if (fd >= 0) {
+            if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
+               fprintf(stderr,
+                       "Bad filedescriptor %d for TCP socket\n", fd);
+               goto error;
+            }
+
+            flags |= CONNECT_FLAG_FD_GIVEN;
+
+            *c = connect_new(fd, flags);
+        } else if (port >= 0) {
+            if (port >= 0x10000) {
+                fprintf(stderr,
+                        "TCP socket port outside valid range\n");
+                goto error;
+            }
+
+            fd = tcp_open_socket(port);
+            if (fd < 0)
+                goto error;
+
+            *c = connect_new(fd, flags);
+        } else {
+            fprintf(stderr,
+                    "Missing port and fd options for TCP socket\n");
+            goto error;
+        }
+    } else {
+        fprintf(stderr, "Unsupport socket type: %s\n", type);
+        goto error;
+    }
+
+    if (*c == NULL)
+        goto error;
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+
+    return -1;
+}
+
+/*
+ * handle_connect_options:
+ * Parse and act upon the parsed 'connect' options.
+ *
+ * @options: the connect options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int handle_connect_options(char *options, struct connect **c)
+{
+    if (!options)
+        return 0;
+
+    if (parse_connect_options(options, c) < 0)
         return -1;
 
     return 0;
