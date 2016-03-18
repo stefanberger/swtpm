@@ -59,6 +59,7 @@ TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,
                           size_t buffer_length);
 TPM_RESULT SWTPM_IO_Disconnect(TPM_CONNECTION_FD *connection_fd);
 TPM_RESULT SWTPM_IO_SetSocketFD(int fd);
+int SWTPM_IO_GetSocketFD(void);
 
 #define LOAD32(buffer,offset)         ( ntohl(*(uint32_t *)&(buffer)[(offset)]) )
 #define LOAD16(buffer,offset)         ( ntohs(*(uint16_t *)&(buffer)[(offset)]) )

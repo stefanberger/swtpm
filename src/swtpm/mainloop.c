@@ -80,6 +80,7 @@ int mainLoop(struct mainLoopParams *mlp,
     int                 ctrlfd;
     int                 ctrlclntfd;
     bool                readall;
+    int                 sockfd;
 
     TPM_DEBUG("mainLoop:\n");
 
@@ -96,28 +97,16 @@ int mainLoop(struct mainLoopParams *mlp,
     ctrlfd = ctrlchannel_get_fd(mlp->cc);
     ctrlclntfd = -1;
 
+    sockfd = SWTPM_IO_GetSocketFD();
+
     readall = (mlp->flags & MAIN_LOOP_FLAG_READALL);
 
     while (!mainloop_terminate) {
 
-        /* connect to the client */
         while (rc == 0) {
-            if (connection_fd.fd >= 0)
-                break;
-
-            /* TCP: accept new connection */
-            if (!(mlp->flags & MAIN_LOOP_FLAG_USE_FD)) {
-                rc = SWTPM_IO_Connect(&connection_fd,
-                                      notify_fd,
-                                      mlp);
-            } else {
+            if (mlp->flags & MAIN_LOOP_FLAG_USE_FD)
                 connection_fd.fd = mlp->fd;
-            }
 
-            break;
-        }
-
-        while (rc == 0) {
             struct pollfd pollfds[] = {
                 {
                     .fd = connection_fd.fd,
@@ -135,10 +124,18 @@ int mainLoop(struct mainLoopParams *mlp,
                     .fd = ctrlclntfd,
                     .events = POLLIN | POLLHUP,
                     .revents = 0,
+                } , {
+                    /* listen socket for accepting clients */
+                    .fd = -1,
+                    .events = POLLIN,
+                    .revents = 0,
                 }
             };
 
-            if (poll(pollfds, 4, -1) < 0 ||
+            if (connection_fd.fd < 0 && sockfd != mlp->fd)
+                pollfds[4].fd = sockfd;
+
+            if (poll(pollfds, 5, -1) < 0 ||
                 (pollfds[1].revents & POLLIN) != 0) {
                 SWTPM_IO_Disconnect(&connection_fd);
                 break;
@@ -148,6 +145,9 @@ int mainLoop(struct mainLoopParams *mlp,
                 mainloop_terminate = true;
                 break;
             }
+
+            if (pollfds[4].revents & POLLIN)
+                connection_fd.fd = accept(pollfds[4].fd, NULL, 0);
 
             if (pollfds[2].revents & POLLIN)
                 ctrlclntfd = accept(ctrlfd, NULL, 0);

@@ -190,12 +190,6 @@ The following options are supported if the \fIchardev\fR interface is chosen:
 .IP "\fB\-c|\-\-chardev <device path\fR>" 4
 .IX Item "-c|--chardev <device path>"
 Use the given device to listen for \s-1TPM\s0 commands and send response on.
-.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor>] \fR" 4
-.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor>] "
-This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
-a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
-.Sp
-The control channel enables out-of-band control of the \s-1TPM,\s0 such as resetting the \s-1TPM.\s0
 .SH "Options for the CUSE interface"
 .IX Header "Options for the CUSE interface"
 The following options are supported if the \fIcuse\fR interface is chosen:
@@ -256,6 +250,12 @@ For the socket interface, this option automatically assumes \-t.
 .IP "\fB\-d|\-\-daemon\fR" 4
 .IX Item "-d|--daemon"
 Daemonize the process.
+.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor>] \fR" 4
+.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor>] "
+This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
+a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
+.Sp
+The control channel enables out-of-band control of the \s-1TPM,\s0 such as resetting the \s-1TPM.\s0
 .SH "Options for all interfaces"
 .IX Header "Options for all interfaces"
 The following options are support by all interfaces:

@@ -67,13 +67,6 @@ The following options are supported if the I<chardev> interface is chosen:
 
 Use the given device to listen for TPM commands and send response on.
 
-=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>][,fd=E<lt>filedescriptorE<gt>] >
-
-This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
-a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
-
-The control channel enables out-of-band control of the TPM, such as resetting the TPM.
-
 =back
 
 
@@ -152,6 +145,13 @@ For the socket interface, this option automatically assumes -t.
 =item B<-d|--daemon>
 
 Daemonize the process.
+
+=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>][,fd=E<lt>filedescriptorE<gt>] >
+
+This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
+a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
+
+The control channel enables out-of-band control of the TPM, such as resetting the TPM.
 
 =back
 

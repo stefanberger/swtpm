@@ -97,6 +97,11 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "-f|--fd <fd>     : use the given socket file descriptor\n"
     "-t|--terminate   : terminate the TPM once a connection has been lost\n"
     "-d|--daemon      : daemonize the TPM\n"
+    "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor]\n"
+    "                 : TPM control channel using either UnixIO or TCP sockets;\n"
+    "                   the path is only valid for Unixio channels; the port must\n"
+    "                   be given in case the type is TCP; the TCP socket is bound\n"
+    "                   to 127.0.0.1\n"
     "--log file=<path>|fd=<filedescriptor>\n"
     "                 : write the TPM's log into the given file rather than\n"
     "                   to the console; provide '-' for path to avoid logging\n"
@@ -144,6 +149,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *logdata = NULL;
     char *piddata = NULL;
     char *tpmstatedata = NULL;
+    char *ctrlchdata = NULL;
     char *connectdata = NULL;
     char *runas = NULL;
 #ifdef DEBUG
@@ -161,6 +167,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"key"       , required_argument, 0, 'k'},
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
+        {"ctrl"      , required_argument, 0, 'C'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -245,6 +252,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             tpmstatedata = optarg;
             break;
 
+        case 'C':
+            ctrlchdata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -269,6 +280,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_key_options(keydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
+        handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
         handle_connect_options(connectdata, &connect))
         return EXIT_FAILURE;
 

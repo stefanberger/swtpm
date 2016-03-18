@@ -174,6 +174,11 @@ TPM_RESULT SWTPM_IO_SetSocketFD(int fd)
     return 0;
 }
 
+int SWTPM_IO_GetSocketFD(void)
+{
+    return sock_fd;
+}
+
 
 /* SWTPM_IO_Init initializes the TPM to host interface.
 
