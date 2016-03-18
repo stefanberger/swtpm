@@ -62,10 +62,10 @@
 #include "pidfile.h"
 #include "tpmlib.h"
 #include "utils.h"
+#include "mainloop.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
-static bool terminate;
 
 static struct libtpms_callbacks callbacks = {
     .sizeOfStruct            = sizeof(struct libtpms_callbacks),
@@ -76,18 +76,6 @@ static struct libtpms_callbacks callbacks = {
     .tpm_io_init             = SWTPM_IO_Init,
 };
 
-struct mainLoopParams {
-    uint32_t flags;
-    int fd;
-};
-#define MAIN_LOOP_FLAG_TERMINATE  (1 << 0)
-#define MAIN_LOOP_FLAG_USE_FD     (1 << 1)
-#define MAIN_LOOP_FLAG_KEEP_CONNECTION (1 << 2)
-
-/* local function prototypes */
-static int mainLoop(struct mainLoopParams *mlp);
-
-
 static void sigterm_handler(int sig __attribute__((unused)))
 {
     TPM_DEBUG("Terminating...\n");
@@ -95,7 +83,7 @@ static void sigterm_handler(int sig __attribute__((unused)))
         logprintf(STDERR_FILENO, "Error: sigterm notification failed: %s\n",
                   strerror(errno));
     }
-    terminate = true;
+    mainloop_terminate = true;
 }
 
 static void usage(FILE *file, const char *prgname, const char *iface)
@@ -346,7 +334,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
         goto error_no_sighandlers;
 
-    rc = mainLoop(&mlp);
+    rc = mainLoop(&mlp, notify_fd[0], &callbacks);
 
 error_no_sighandlers:
     TPMLIB_Terminate();
@@ -367,119 +355,4 @@ error_no_tpm:
         TPM_DEBUG("main: TPM initialization failure %08x, exiting\n", rc);
         return EXIT_FAILURE;
     }
-}
-
-/* mainLoop() is the main server loop.
-
-   It reads a TPM request, processes the ordinal, and writes the response
-*/
-
-static int mainLoop(struct mainLoopParams *mlp)
-{
-    TPM_RESULT          rc = 0;
-    TPM_CONNECTION_FD   connection_fd;             /* file descriptor for read/write */
-    unsigned char       *command = NULL;           /* command buffer */
-    uint32_t            command_length;            /* actual length of command bytes */
-    uint32_t            max_command_length;        /* command buffer size */
-    /* The response buffer is reused for each command. Thus it can grow but never shrink */
-    unsigned char       *rbuffer = NULL;           /* actual response bytes */
-    uint32_t            rlength = 0;               /* bytes in response buffer */
-    uint32_t            rTotal = 0;                /* total allocated bytes */
-
-    TPM_DEBUG("mainLoop:\n");
-
-    max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX);
-
-    rc = TPM_Malloc(&command, max_command_length);
-    if (rc != TPM_SUCCESS) {
-        fprintf(stderr, "Could not allocate %u bytes for buffer.\n",
-                max_command_length);
-        return rc;
-    }
-
-    connection_fd.fd = -1;
-
-    while (!terminate) {
-        /* connect to the client */
-        while (rc == 0) {
-            if (connection_fd.fd >= 0)
-                break;
-
-            /* accept new connection */
-            if (!(mlp->flags & MAIN_LOOP_FLAG_USE_FD)) {
-                rc = SWTPM_IO_Connect(&connection_fd,
-                                      notify_fd[0],
-                                      mlp);
-            } else {
-                connection_fd.fd = mlp->fd;
-            }
-
-            break;
-        }
-        /* was connecting successful? */
-        while (rc == 0) {
-            struct pollfd pollfds = {
-                .fd = connection_fd.fd,
-                .events = POLLIN | POLLHUP,
-                .revents = 0,
-            };
-
-            /*
-             * all these check (seem to) prevent that we get
-             * stuck with a closed connection.
-             */
-            if (poll(&pollfds, 1, -1) < 0 ||
-                (pollfds.revents & POLLHUP) != 0 ||
-                (pollfds.revents & POLLIN) == 0 ) {
-                SWTPM_IO_Disconnect(&connection_fd);
-                break;
-            }
-
-            if (!(pollfds.revents & POLLIN))
-                continue;
-
-            /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
-            if (rc == 0) {
-                rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
-                                   max_command_length, mlp, false);
-                if (rc != 0) {
-                    /* connection broke */
-                    SWTPM_IO_Disconnect(&connection_fd);
-                }
-            }
-            if (rc == 0) {
-                rlength = 0;                                /* clear the response buffer */
-                rc = TPMLIB_Process(&rbuffer,
-                                    &rlength,
-                                    &rTotal,
-                                    command,                /* complete command array */
-                                    command_length);        /* actual bytes in command */
-            }
-            /* write the results */
-            if (rc == 0) {
-                /* ignore return value since we will close anyway */
-                SWTPM_IO_Write(&connection_fd, rbuffer, rlength);
-            }
-            /*
-             * only allow a single command per connection, otherwise
-             * we may get stuck in the poll() above.
-             */
-            if (!(mlp->flags & MAIN_LOOP_FLAG_KEEP_CONNECTION)) {
-                SWTPM_IO_Disconnect(&connection_fd);
-                break;
-            }
-        }
-
-        /* clear the response buffer, does not deallocate memory */
-        rc = 0; /* A fatal TPM_Process() error should cause the TPM to enter shutdown.  IO errors
-                   are outside the TPM, so the TPM does not shut down.  The main loop should
-                   continue to function.*/
-        if (connection_fd.fd < 0 && mlp->flags & MAIN_LOOP_FLAG_TERMINATE)
-            break;
-    }
-
-    TPM_Free(rbuffer);
-    TPM_Free(command);
-
-    return rc;
 }
