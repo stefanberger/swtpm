@@ -44,7 +44,6 @@
 #include <time.h>
 #include <getopt.h>
 #include <errno.h>
-#include <poll.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -62,10 +61,10 @@
 #include "tpmlib.h"
 #include "utils.h"
 #include "ctrlchannel.h"
+#include "mainloop.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
-static bool terminate;
 
 static struct libtpms_callbacks callbacks = {
     .sizeOfStruct            = sizeof(struct libtpms_callbacks),
@@ -76,17 +75,6 @@ static struct libtpms_callbacks callbacks = {
     .tpm_io_init             = NULL,
 };
 
-struct mainLoopParams {
-    uint32_t flags;
-    int fd;
-    struct ctrlchannel *cc;
-};
-
-#define MAIN_LOOP_FLAG_TERMINATE  (1 << 0)
-
-/* local function prototypes */
-static int mainLoop(struct mainLoopParams *mlp);
-
 static void sigterm_handler(int sig __attribute__((unused)))
 {
     TPM_DEBUG("Terminating...\n");
@@ -94,7 +82,7 @@ static void sigterm_handler(int sig __attribute__((unused)))
         logprintf(STDERR_FILENO, "Error: sigterm notification failed: %s\n",
                   strerror(errno));
     }
-    terminate = true;
+    mainloop_terminate = true;
 }
 
 static void usage(FILE *file, const char *prgname, const char *iface)
@@ -136,6 +124,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "\n",
     prgname, iface);
 }
+
 int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *iface)
 {
     TPM_RESULT rc = 0;
@@ -324,7 +313,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
         goto error_no_sighandlers;
 
-    rc = mainLoop(&mlp);
+    rc = mainLoop(&mlp, notify_fd[0], &callbacks);
 
 error_no_sighandlers:
     TPMLIB_Terminate();
@@ -345,137 +334,4 @@ error_no_tpm:
         TPM_DEBUG("main: TPM initialization failure %08x, exiting\n", rc);
         return EXIT_FAILURE;
     }
-}
-
-/* mainLoop() is the main server loop.
-
-   It reads a TPM request, processes the ordinal, and writes the response
-*/
-
-static int mainLoop(struct mainLoopParams *mlp)
-{
-    TPM_RESULT          rc = 0;
-    unsigned char       *command = NULL;           /* command buffer */
-    uint32_t            command_length;            /* actual length of command bytes */
-    uint32_t            max_command_length;        /* command buffer size */
-    /* The response buffer is reused for each command. Thus it can grow but never shrink */
-    unsigned char       *rbuffer = NULL;           /* actual response bytes */
-    uint32_t            rlength = 0;               /* bytes in response buffer */
-    uint32_t            rTotal = 0;                /* total allocated bytes */
-    int                 n;
-    int                 ctrlfd;
-    int                 ctrlclntfd;
-
-    TPM_DEBUG("mainLoop:\n");
-
-    max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX);
-
-    rc = TPM_Malloc(&command, max_command_length);
-    if (rc != TPM_SUCCESS) {
-        fprintf(stderr, "Could not allocate %u bytes for buffer.\n",
-                max_command_length);
-        return rc;
-    }
-
-    ctrlfd = ctrlchannel_get_fd(mlp->cc);
-    ctrlclntfd = -1;
-
-    while (!terminate) {
-
-        while (rc == 0) {
-            struct pollfd pollfds[] = {
-                {
-                    .fd = mlp->fd,
-                    .events = POLLIN | POLLHUP,
-                    .revents = 0,
-                }, {
-                    .fd = notify_fd[0],
-                    .events = POLLIN,
-                    .revents = 0,
-                }, {
-                    .fd = ctrlfd,
-                    .events = POLLIN,
-                    .revents = 0,
-                } , {
-                    .fd = ctrlclntfd,
-                    .events = POLLIN | POLLHUP,
-                    .revents = 0,
-                }
-            };
-
-            if (poll(pollfds, 4, -1) < 0 ||
-                (pollfds[1].revents & POLLIN) != 0) {
-                break;
-            }
-
-            if ((pollfds[0].revents & POLLHUP)) {
-                terminate = true;
-                break;
-            }
-
-            if (pollfds[2].revents & POLLIN)
-                ctrlclntfd = accept(ctrlfd, NULL, 0);
-
-            if (pollfds[3].revents & POLLIN) {
-                ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, &callbacks,
-                                                    &terminate);
-                if (terminate)
-                    break;
-            }
-
-            if (pollfds[3].revents & POLLHUP) {
-                if (ctrlclntfd >= 0)
-                    close(ctrlclntfd);
-                ctrlclntfd = -1;
-            }
-
-            if (!(pollfds[0].revents & POLLIN))
-                continue;
-
-            /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
-            if (rc == 0) {
-                n = read(mlp->fd, command, max_command_length);
-                if (n > 0) {
-                    command_length = n;
-                } else {
-                    rc = TPM_IOERROR;
-                }
-            }
-
-            if (rc == 0) {
-                rlength = 0;                                /* clear the response buffer */
-                rc = TPMLIB_Process(&rbuffer,
-                                    &rlength,
-                                    &rTotal,
-                                    command,                /* complete command array */
-                                    command_length);        /* actual bytes in command */
-            }
-            /* write the results */
-            if (rc == 0) {
-                n = write(mlp->fd, rbuffer, rlength);
-                if (n < 0) {
-                    logprintf(STDERR_FILENO, "Could not write to device: %s (%d)\n",
-                              strerror(errno), errno);
-                    rc = TPM_IOERROR;
-                } else if ((uint32_t)n != rlength) {
-                    logprintf(STDERR_FILENO, "Could not write complete response.\n");
-                    rc = TPM_IOERROR;
-                }
-            }
-        }
-
-        rc = 0; /* A fatal TPM_Process() error should cause the TPM to enter shutdown.  IO errors
-                   are outside the TPM, so the TPM does not shut down.  The main loop should
-                   continue to function.*/
-        if (mlp->flags & MAIN_LOOP_FLAG_TERMINATE)
-            break;
-    }
-
-    TPM_Free(rbuffer);
-    TPM_Free(command);
-
-    if (ctrlclntfd >= 0)
-        close(ctrlclntfd);
-
-    return rc;
 }

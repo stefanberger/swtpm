@@ -11,6 +11,7 @@ noinst_HEADERS = \
 	key.h \
 	logging.h \
 	main.h \
+	mainloop.h \
 	options.h \
 	pidfile.h \
 	swtpm_aes.h \
@@ -30,6 +31,7 @@ libswtpm_libtpms_la_SOURCES = \
 	ctrlchannel.c \
 	key.c \
 	logging.c \
+	mainloop.c \
 	options.c \
 	pidfile.c \
 	swtpm_aes.c \
