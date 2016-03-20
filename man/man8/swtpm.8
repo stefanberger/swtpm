@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2016-03-18" "swtpm" ""
+.TH swtpm 8 "2016-03-20" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -176,11 +176,15 @@ Use the given port rather than using the environment variable \s-1TPM_PORT.\s0
 .IP "\fB\-t|\-\-terminate\fR" 4
 .IX Item "-t|--terminate"
 Terminate the \s-1TPM\s0 after the client has closed the connection.
-.IP "\fB\-\-connect [type=tcp][,port=<port>][,fd=<fd>][,disconnect]\fR" 4
-.IX Item "--connect [type=tcp][,port=<port>][,fd=<fd>][,disconnect]"
+.IP "\fB\-\-connect [type=tcp][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<fd>][,disconnect]\fR" 4
+.IX Item "--connect [type=tcp][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<fd>][,disconnect]"
 Expect \s-1TCP\s0 connections on the given port; if a port is not provided a file descriptor
 must be passed with the fd parameter and the commands are read from this file
 descriptor then.
+If a port is provided the \fIbind address\fR on which to listen for \s-1TCP\s0 connections
+can be provided as well; the default bind address is 127.0.0.1. If a link
+local IPv6 addresss if provided, the name of the interface to bind to must be
+provided with \fIifname\fR.
 .Sp
 This parameter enables a persistent connection by default unless the disconnect option
 is given. This parameter should be used rather than the \-p and \-\-fd options.
@@ -250,10 +254,14 @@ For the socket interface, this option automatically assumes \-t.
 .IP "\fB\-d|\-\-daemon\fR" 4
 .IX Item "-d|--daemon"
 Daemonize the process.
-.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor>] \fR" 4
-.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>][,fd=<filedescriptor>] "
+.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>] \fR" 4
+.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>] "
 This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
 a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
+If a port is provided the \fIbind address\fR on which to listen for \s-1TCP\s0 connections
+can be provided as well; the default bind address is 127.0.0.1. If a link
+local IPv6 addresss if provided, the name of the interface to bind to must be
+provided with \fIifname\fR.
 .Sp
 The control channel enables out-of-band control of the \s-1TPM,\s0 such as resetting the \s-1TPM.\s0
 .SH "Options for all interfaces"

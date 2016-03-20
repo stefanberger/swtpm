@@ -45,11 +45,15 @@ Use the given port rather than using the environment variable TPM_PORT.
 
 Terminate the TPM after the client has closed the connection.
 
-=item B<--connect [type=tcp][,port=E<lt>portE<gt>][,fd=E<lt>fdE<gt>][,disconnect]>
+=item B<--connect [type=tcp][,port=E<lt>portE<gt>[,bindaddress=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>fdE<gt>][,disconnect]>
 
 Expect TCP connections on the given port; if a port is not provided a file descriptor
 must be passed with the fd parameter and the commands are read from this file
 descriptor then.
+If a port is provided the I<bind address> on which to listen for TCP connections
+can be provided as well; the default bind address is 127.0.0.1. If a link
+local IPv6 addresss if provided, the name of the interface to bind to must be
+provided with I<ifname>.
 
 This parameter enables a persistent connection by default unless the disconnect option
 is given. This parameter should be used rather than the -p and --fd options.
@@ -146,10 +150,14 @@ For the socket interface, this option automatically assumes -t.
 
 Daemonize the process.
 
-=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>][,fd=E<lt>filedescriptorE<gt>] >
+=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>[,bindaddress=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>filedescriptorE<gt>] >
 
 This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
 a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
+If a port is provided the I<bind address> on which to listen for TCP connections
+can be provided as well; the default bind address is 127.0.0.1. If a link
+local IPv6 addresss if provided, the name of the interface to bind to must be
+provided with I<ifname>.
 
 The control channel enables out-of-band control of the TPM, such as resetting the TPM.
 

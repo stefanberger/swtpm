@@ -48,6 +48,8 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+#include <net/if.h>
 
 #include <libtpms/tpm_error.h>
 
@@ -116,16 +118,19 @@ static const OptionDesc ctrl_opt_desc[] = {
     {
         .name = "type",
         .type = OPT_TYPE_STRING,
-    },
-    {
+    }, {
         .name = "path",
         .type = OPT_TYPE_STRING,
-    },
-    {
+    }, {
         .name = "port",
         .type = OPT_TYPE_INT,
-    },
-    {
+    }, {
+        .name = "bindaddr",
+        .type = OPT_TYPE_STRING,
+    }, {
+        .name = "ifname",
+        .type = OPT_TYPE_STRING,
+    }, {
         .name = "fd",
         .type = OPT_TYPE_INT,
     },
@@ -139,6 +144,12 @@ static const OptionDesc connect_opt_desc[] = {
     }, {
         .name = "port",
         .type = OPT_TYPE_INT,
+    }, {
+        .name = "bindaddr",
+        .type = OPT_TYPE_STRING,
+    }, {
+        .name = "ifname",
+        .type = OPT_TYPE_STRING,
     }, {
         .name = "fd",
         .type = OPT_TYPE_INT,
@@ -542,24 +553,72 @@ error:
  * tcp_open_socket: Open a TCP port and return the file descriptor
  *
  * @port: port number
+ * @bindadddr: the address to bind the socket to
  */
-static int tcp_open_socket(unsigned short port)
+static int tcp_open_socket(unsigned short port, const char *bindaddr,
+                           const char *ifname)
 {
-    int fd = -1, n;
+    int fd = -1, n, af;
     struct sockaddr_in si;
+    struct sockaddr_in6 si6;
+    struct sockaddr *sa;
+    socklen_t sa_len;
+    void *dst;
 
-    fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (index(bindaddr, ':')) {
+        af = AF_INET6;
+
+        memset(&si6, 0, sizeof(si6));
+        si6.sin6_family = af;
+        si6.sin6_port = htons(port);
+
+        dst = &si6.sin6_addr.s6_addr;
+        sa = (struct sockaddr *)&si6;
+        sa_len = sizeof(si6);
+    } else {
+        af = AF_INET;
+
+        si.sin_family = af;
+        si.sin_port = htons(port);
+        memset(&si.sin_zero, 0, sizeof(si.sin_zero));
+
+        dst = &si.sin_addr.s_addr;
+        sa = (struct sockaddr *)&si;
+        sa_len = sizeof(si);
+    }
+
+    n = inet_pton(af, bindaddr, dst);
+    if (n <= 0) {
+        fprintf(stderr, "Could not parse the bind address '%s': %s\n",
+                bindaddr, strerror(errno));
+        return -1;
+    }
+
+    if (af == AF_INET6) {
+        if (IN6_IS_ADDR_LINKLOCAL(&si6.sin6_addr)) {
+            if (!ifname) {
+                fprintf(stderr,
+                        "Missing interface name for link local address\n");
+                return -1;
+            }
+            n = if_nametoindex(ifname);
+            if (!n) {
+                fprintf(stderr,
+                        "Could not convert interface name '%s' to index: %s\n",
+                        ifname, strerror(errno));
+                return -1;
+            }
+            si6.sin6_scope_id = n;
+        }
+    }
+
+    fd = socket(af, SOCK_STREAM, 0);
     if (fd < 0) {
         fprintf(stderr, "Could not open TCP socket\n");
         return -1;
     }
 
-    si.sin_family = AF_INET;
-    si.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    si.sin_port = htons(port);
-    memset(&si.sin_zero, 0, sizeof(si.sin_zero));
-
-    n = bind(fd, (struct sockaddr *)&si, sizeof(si));
+    n = bind(fd, sa, sa_len);
     if (n < 0) {
         fprintf(stderr, "Could not open TCP socket: %s\n",
                 strerror(errno));
@@ -593,7 +652,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
-    const char *type, *path;
+    const char *type, *path, *bindaddr, *ifname;
     int fd, port;
     struct stat stat;
 
@@ -650,7 +709,10 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
                 goto error;
             }
 
-            fd = tcp_open_socket(port);
+            bindaddr = option_get_string(ovs, "bindaddr", "127.0.0.1");
+            ifname = option_get_string(ovs, "ifname", NULL);
+
+            fd = tcp_open_socket(port, bindaddr, ifname);
             if (fd < 0)
                 goto error;
 
@@ -709,6 +771,7 @@ static int parse_connect_options(char *options, struct connect **c)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
+    const char *bindaddr, *ifname;
     const char *type;
     int fd, port;
     struct stat stat;
@@ -745,7 +808,10 @@ static int parse_connect_options(char *options, struct connect **c)
                 goto error;
             }
 
-            fd = tcp_open_socket(port);
+            bindaddr = option_get_string(ovs, "bindaddr", "127.0.0.1");
+            ifname = option_get_string(ovs, "ifname", NULL);
+
+            fd = tcp_open_socket(port, bindaddr, ifname);
             if (fd < 0)
                 goto error;
 
