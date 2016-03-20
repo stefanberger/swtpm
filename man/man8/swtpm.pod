@@ -45,7 +45,7 @@ Use the given port rather than using the environment variable TPM_PORT.
 
 Terminate the TPM after the client has closed the connection.
 
-=item B<--connect [type=tcp][,port=E<lt>portE<gt>[,bindaddress=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>fdE<gt>][,disconnect]>
+=item B<--server [type=tcp][,port=E<lt>portE<gt>[,bindaddress=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>fdE<gt>][,disconnect]>
 
 Expect TCP connections on the given port; if a port is not provided a file descriptor
 must be passed with the fd parameter and the commands are read from this file

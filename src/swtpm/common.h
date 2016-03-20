@@ -44,8 +44,8 @@ int handle_pid_options(char *options);
 int handle_tpmstate_options(char *options);
 struct ctrlchannel;
 int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc);
-struct connect;
-int handle_connect_options(char *options, struct connect **c);
+struct server;
+int handle_server_options(char *options, struct server **s);
 
 #endif /* _SWTPM_COMMON_H_ */
 

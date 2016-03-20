@@ -1,5 +1,5 @@
 /*
- * connect.c -- connection parameters
+ * server.h -- server parameters
  *
  * (c) Copyright IBM Corporation 2016.
  *
@@ -35,37 +35,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
+#ifndef _SWTPM_SERVER_H_
+#define _SWTPM_SERVER_H_
 
-#include "logging.h"
-#include "connect.h"
+struct server;
 
-struct connect {
-   int fd;
-   unsigned int flags;
-};
+#define SERVER_FLAG_DISCONNECT (1 << 0)
+#define SERVER_FLAG_FD_GIVEN   (1 << 1)
 
-struct connect *connect_new(int fd, unsigned int flags)
-{
-    struct connect *c = malloc(sizeof(struct connect));
+struct server *server_new(int fd, unsigned int flags);
+int server_get_fd(struct server *c);
+unsigned int server_get_flags(struct server *c);
 
-    if (!c) {
-        logprintf(STDERR_FILENO, "Out of memory");
-        return NULL;
-    }
-
-    c->fd = fd;
-    c->flags = flags;
-
-    return c;
-}
-
-int connect_get_fd(struct connect *c)
-{
-    return c->fd;
-}
-
-unsigned int connect_get_flags(struct connect *c)
-{
-    return c->flags;
-}
+#endif /* _SWTPM_SERVER_H_ */

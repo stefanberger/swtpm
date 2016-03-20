@@ -56,7 +56,7 @@
 #include "swtpm_debug.h"
 #include "swtpm_io.h"
 #include "swtpm_nvfile.h"
-#include "connect.h"
+#include "server.h"
 #include "common.h"
 #include "logging.h"
 #include "pidfile.h"
@@ -121,7 +121,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : set the directory where the TPM's state will be written\n"
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead\n"
-    "--connect [type=tcp][,port=port][,fd=fd][,disconnect]\n"
+    "--server [type=tcp][,port=port][,fd=fd][,disconnect]\n"
     "                 : Expect TCP connections on the given port;\n"
     "                   if fd is provided, packets will be read from it directly;\n"
     "                   the disconnect parameter closes the connection after\n"
@@ -144,7 +144,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         .flags = 0,
         .fd = -1,
     };
-    struct connect *connect = NULL;
+    struct server *server = NULL;
     unsigned long val;
     char *end_ptr;
     char buf[20];
@@ -153,7 +153,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *piddata = NULL;
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
-    char *connectdata = NULL;
+    char *serverdata = NULL;
     char *runas = NULL;
 #ifdef DEBUG
     time_t              start_time;
@@ -163,7 +163,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"help"      ,       no_argument, 0, 'h'},
         {"port"      , required_argument, 0, 'p'},
         {"fd"        , required_argument, 0, 'f'},
-        {"connect"   , required_argument, 0, 'c'},
+        {"server"   , required_argument, 0, 'c'},
         {"runas"     , required_argument, 0, 'r'},
         {"terminate" ,       no_argument, 0, 't'},
         {"log"       , required_argument, 0, 'l'},
@@ -232,7 +232,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             break;
 
         case 'c':
-            connectdata = optarg;
+            serverdata = optarg;
             break;
 
         case 't':
@@ -284,20 +284,20 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
-        handle_connect_options(connectdata, &connect))
+        handle_server_options(serverdata, &server))
         return EXIT_FAILURE;
 
-    if (connect) {
-        if (connect_get_fd(connect) >= 0) {
-            mlp.fd = connect_get_fd(connect);
+    if (server) {
+        if (server_get_fd(server) >= 0) {
+            mlp.fd = server_get_fd(server);
             SWTPM_IO_SetSocketFD(mlp.fd);
         }
 
         mlp.flags |= MAIN_LOOP_FLAG_KEEP_CONNECTION;
-        if ((connect_get_flags(connect) & CONNECT_FLAG_DISCONNECT))
+        if ((server_get_flags(server) & SERVER_FLAG_DISCONNECT))
             mlp.flags |= ~MAIN_LOOP_FLAG_KEEP_CONNECTION;
 
-        if ((connect_get_flags(connect) & CONNECT_FLAG_FD_GIVEN))
+        if ((server_get_flags(server) & SERVER_FLAG_FD_GIVEN))
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
     }
 

@@ -61,7 +61,7 @@
 #include "pidfile.h"
 #include "tpmstate.h"
 #include "ctrlchannel.h"
-#include "connect.h"
+#include "server.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -137,7 +137,7 @@ static const OptionDesc ctrl_opt_desc[] = {
     END_OPTION_DESC
 };
 
-static const OptionDesc connect_opt_desc[] = {
+static const OptionDesc server_opt_desc[] = {
     {
         .name = "type",
         .type = OPT_TYPE_STRING,
@@ -760,14 +760,14 @@ int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc)
 }
 
 /*
- * parse_connect_options:
- * Parse the 'connect' options.
+ * parse_server_options:
+ * Parse the 'server' options.
  *
- * @options: the connect options to parse
+ * @options: the server options to parse
  *
  * Returns 0 on success, -1 on failure.
  */
-static int parse_connect_options(char *options, struct connect **c)
+static int parse_server_options(char *options, struct server **c)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -779,14 +779,14 @@ static int parse_connect_options(char *options, struct connect **c)
 
     ovs = options_parse(options, ctrl_opt_desc, &error);
     if (!ovs) {
-        fprintf(stderr, "Error parsing connect options: %s\n", error);
+        fprintf(stderr, "Error parsing server options: %s\n", error);
         goto error;
     }
 
     type = option_get_string(ovs, "type", "tcp");
 
     if (option_get_bool(ovs, "disconnect", false))
-        flags |= CONNECT_FLAG_DISCONNECT;
+        flags |= SERVER_FLAG_DISCONNECT;
 
     if (!strcmp(type, "tcp")) {
         port = option_get_int(ovs, "port", -1);
@@ -798,9 +798,9 @@ static int parse_connect_options(char *options, struct connect **c)
                goto error;
             }
 
-            flags |= CONNECT_FLAG_FD_GIVEN;
+            flags |= SERVER_FLAG_FD_GIVEN;
 
-            *c = connect_new(fd, flags);
+            *c = server_new(fd, flags);
         } else if (port >= 0) {
             if (port >= 0x10000) {
                 fprintf(stderr,
@@ -815,7 +815,7 @@ static int parse_connect_options(char *options, struct connect **c)
             if (fd < 0)
                 goto error;
 
-            *c = connect_new(fd, flags);
+            *c = server_new(fd, flags);
         } else {
             fprintf(stderr,
                     "Missing port and fd options for TCP socket\n");
@@ -840,19 +840,19 @@ error:
 }
 
 /*
- * handle_connect_options:
- * Parse and act upon the parsed 'connect' options.
+ * handle_server_options:
+ * Parse and act upon the parsed 'server' options.
  *
- * @options: the connect options to parse
+ * @options: the server options to parse
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_connect_options(char *options, struct connect **c)
+int handle_server_options(char *options, struct server **c)
 {
     if (!options)
         return 0;
 
-    if (parse_connect_options(options, c) < 0)
+    if (parse_server_options(options, c) < 0)
         return -1;
 
     return 0;

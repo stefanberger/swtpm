@@ -6,7 +6,6 @@
 
 noinst_HEADERS = \
 	common.h \
-	connect.h \
 	ctrlchannel.h \
 	key.h \
 	logging.h \
@@ -14,6 +13,7 @@ noinst_HEADERS = \
 	mainloop.h \
 	options.h \
 	pidfile.h \
+	server.h \
 	swtpm_aes.h \
 	swtpm_debug.h \
 	swtpm_io.h \
@@ -27,13 +27,13 @@ lib_LTLIBRARIES = libswtpm_libtpms.la
 
 libswtpm_libtpms_la_SOURCES = \
 	common.c \
-	connect.c \
 	ctrlchannel.c \
 	key.c \
 	logging.c \
 	mainloop.c \
 	options.c \
 	pidfile.c \
+	server.c \
 	swtpm_aes.c \
 	swtpm_debug.c \
 	swtpm_io.c \
