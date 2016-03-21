@@ -558,7 +558,7 @@ error:
 static int tcp_open_socket(unsigned short port, const char *bindaddr,
                            const char *ifname)
 {
-    int fd = -1, n, af;
+    int fd = -1, n, af, opt;
     struct sockaddr_in si;
     struct sockaddr_in6 si6;
     struct sockaddr *sa;
@@ -616,6 +616,14 @@ static int tcp_open_socket(unsigned short port, const char *bindaddr,
     if (fd < 0) {
         fprintf(stderr, "Could not open TCP socket\n");
         return -1;
+    }
+
+    opt = 1;
+    n = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    if (n < 0) {
+        fprintf(stderr, "Could not set socket option SO_REUSEADDR: %s\n",
+                strerror(errno));
+        goto error;
     }
 
     n = bind(fd, sa, sa_len);
