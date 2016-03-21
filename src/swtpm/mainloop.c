@@ -132,7 +132,8 @@ int mainLoop(struct mainLoopParams *mlp,
                 }
             };
 
-            if (connection_fd.fd < 0 && sockfd != mlp->fd)
+            /* only listend for clients if we don't have one */
+            if (connection_fd.fd < 0)
                 pollfds[4].fd = sockfd;
 
             if (poll(pollfds, 5, -1) < 0 ||
