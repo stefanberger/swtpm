@@ -777,7 +777,7 @@ static int parse_server_options(char *options, struct server **c)
     struct stat stat;
     unsigned int flags = 0;
 
-    ovs = options_parse(options, ctrl_opt_desc, &error);
+    ovs = options_parse(options, server_opt_desc, &error);
     if (!ovs) {
         fprintf(stderr, "Error parsing server options: %s\n", error);
         goto error;
