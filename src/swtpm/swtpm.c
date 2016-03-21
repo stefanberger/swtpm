@@ -295,7 +295,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
         mlp.flags |= MAIN_LOOP_FLAG_KEEP_CONNECTION;
         if ((server_get_flags(server) & SERVER_FLAG_DISCONNECT))
-            mlp.flags |= ~MAIN_LOOP_FLAG_KEEP_CONNECTION;
+            mlp.flags &= ~MAIN_LOOP_FLAG_KEEP_CONNECTION;
 
         if ((server_get_flags(server) & SERVER_FLAG_FD_GIVEN))
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
