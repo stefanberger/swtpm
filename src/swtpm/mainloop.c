@@ -62,7 +62,45 @@
 #include "mainloop.h"
 
 /* local variables */
+static TPM_MODIFIER_INDICATOR locality;
+static bool tpm_running = true;
+
+const static unsigned char TPM_Resp_FatalError[] = {
+    0x00, 0xC4,                     /* TPM Response */
+    0x00, 0x00, 0x00, 0x0A,         /* length (10) */
+    0x00, 0x00, 0x00, 0x09          /* TPM_FAIL */
+};
+
+
 bool mainloop_terminate;
+
+
+TPM_RESULT
+mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
+                         uint32_t tpmnum)
+{
+    *loc = locality;
+
+    return TPM_SUCCESS;
+}
+
+static void
+mainloop_write_fatal_error_response(unsigned char **rbuffer,
+                                    uint32_t *rlength,
+                                    uint32_t *rTotal)
+{
+    if (*rbuffer == NULL ||
+        *rTotal < sizeof(TPM_Resp_FatalError)) {
+        *rTotal = sizeof(TPM_Resp_FatalError);
+        TPM_Realloc(rbuffer, *rTotal);
+    }
+    if (*rbuffer) {
+        *rlength = sizeof(TPM_Resp_FatalError);
+        memcpy(*rbuffer,
+               TPM_Resp_FatalError,
+               sizeof(TPM_Resp_FatalError));
+    }
+}
 
 int mainLoop(struct mainLoopParams *mlp,
              int notify_fd,
@@ -142,7 +180,7 @@ int mainLoop(struct mainLoopParams *mlp,
                 break;
             }
 
-            if ((pollfds[0].revents & POLLHUP)) {
+            if (pollfds[0].revents & POLLHUP) {
                 mainloop_terminate = true;
                 break;
             }
@@ -155,7 +193,8 @@ int mainLoop(struct mainLoopParams *mlp,
 
             if (pollfds[3].revents & POLLIN) {
                 ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, callbacks,
-                                                    &mainloop_terminate);
+                                                    &mainloop_terminate,
+                                                    &locality, &tpm_running);
                 if (mainloop_terminate)
                     break;
             }
@@ -180,6 +219,14 @@ int mainLoop(struct mainLoopParams *mlp,
             }
 
             if (rc == 0) {
+                if (!tpm_running) {
+                    mainloop_write_fatal_error_response(&rbuffer, &rlength,
+                                                        &rTotal);
+                    goto skip_process;
+                }
+            }
+
+            if (rc == 0) {
                 rlength = 0;                                /* clear the response buffer */
                 rc = TPMLIB_Process(&rbuffer,
                                     &rlength,
@@ -187,6 +234,8 @@ int mainLoop(struct mainLoopParams *mlp,
                                     command,                /* complete command array */
                                     command_length);        /* actual bytes in command */
             }
+
+skip_process:
             /* write the results */
             if (rc == 0) {
                 SWTPM_IO_Write(&connection_fd, rbuffer, rlength);

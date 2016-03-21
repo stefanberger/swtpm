@@ -61,5 +61,7 @@ struct mainLoopParams {
 int mainLoop(struct mainLoopParams *mlp,
              int notify_fd,
              struct libtpms_callbacks *callbacks);
+TPM_RESULT mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
+                                    uint32_t tpmnum);
 
 #endif /* _SWTPM_MAINLOOP_H_ */

@@ -46,11 +46,15 @@
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
+#include <libtpms/tpm_tis.h>
 
 #include "ctrlchannel.h"
 #include "logging.h"
 #include "tpm_ioctl.h"
 #include "tpmlib.h"
+#include "swtpm_nvfile.h"
+
+/* local variables */
 
 struct ctrlchannel {
     int fd;
@@ -79,7 +83,9 @@ int ctrlchannel_get_fd(struct ctrlchannel *cc)
 
 int ctrlchannel_process_fd(int fd,
                            struct libtpms_callbacks *cbs,
-                           bool *terminate)
+                           bool *terminate,
+                           TPM_MODIFIER_INDICATOR *locality,
+                           bool *tpm_running)
 {
     struct input {
         uint32_t cmd;
@@ -89,9 +95,15 @@ int ctrlchannel_process_fd(int fd,
         uint8_t body[4096];
     } output;
     ssize_t n;
-    ptm_init *init_p;
+    /* Read-only */
     ptm_cap *ptm_caps = (ptm_cap *)&output.body;
     ptm_res *res_p = (ptm_res *)&output.body;
+    ptm_est *te = (ptm_est *)&output.body;
+    /* Read-write */
+    ptm_init *init_p;
+    ptm_reset_est *re;
+    ptm_getconfig *pgc;
+
     size_t out_len = 0;
     TPM_RESULT res;
 
@@ -116,7 +128,12 @@ int ctrlchannel_process_fd(int fd,
     case CMD_GET_CAPABILITY:
         *ptm_caps = htobe64(
             PTM_CAP_INIT |
-            PTM_CAP_SHUTDOWN);
+            PTM_CAP_SHUTDOWN |
+            PTM_CAP_STOP |
+            PTM_CAP_GET_TPMESTABLISHED |
+            PTM_CAP_RESET_TPMESTABLISHED |
+            PTM_CAP_HASHING |
+            PTM_CAP_CANCEL_TPM_CMD);
 
         out_len = sizeof(*ptm_caps);
         break;
@@ -126,16 +143,33 @@ int ctrlchannel_process_fd(int fd,
             goto err_bad_input;
         } else {
             init_p = (ptm_init *)input.body;
-            out_len = sizeof(ptm_res);
 
             TPMLIB_Terminate();
 
+            *tpm_running = false;
             res = tpmlib_start(cbs, be32toh(init_p->u.req.init_flags));
             if (res) {
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM\n");
+            } else {
+                *tpm_running = true;
             }
+
             *res_p = htobe32(res);
+            out_len = sizeof(ptm_res);
+        }
+        break;
+
+    case CMD_STOP:
+        if (n != 0) {
+            goto err_bad_input;
+        } else {
+            TPMLIB_Terminate();
+
+            *tpm_running = false;
+
+            *res_p = htobe32(TPM_SUCCESS);
+            out_len = sizeof(ptm_res);
         }
         break;
 
@@ -143,21 +177,95 @@ int ctrlchannel_process_fd(int fd,
         if (n != 0) {
             goto err_bad_input;
         } else {
-            out_len = sizeof(ptm_res);
-
             TPMLIB_Terminate();
 
             *res_p = htobe32(TPM_SUCCESS);
+            out_len = sizeof(ptm_res);
 
             *terminate = true;
         }
         break;
 
+    case CMD_GET_TPMESTABLISHED:
+        if (!*tpm_running)
+            goto err_not_running;
+
+        out_len = sizeof(te->u.resp);
+        memset(output.body, 0, out_len);
+
+        res = htobe32(TPM_IO_TpmEstablished_Get(&te->u.resp.bit));
+        te->u.resp.tpm_result = res;
+
+        break;
+
+    case CMD_RESET_TPMESTABLISHED:
+        if (!*tpm_running)
+            goto err_not_running;
+
+        re = (ptm_reset_est *)input.body;
+
+        if (re->u.req.loc > 4) {
+            res = htobe32(TPM_BAD_LOCALITY);
+        } else {
+            *locality = re->u.req.loc;
+
+            res = htobe32(TPM_IO_TpmEstablished_Reset());
+        }
+
+        *res_p = res;
+        out_len = sizeof(re->u.resp);
+
+        break;
+
+    case CMD_HASH_START:
+        if (!*tpm_running)
+            goto err_not_running;
+
+        *res_p = htobe32(TPM_IO_Hash_Start());
+        out_len = sizeof(ptm_res);
+
+        break;
+
+    case CMD_HASH_END:
+        if (!*tpm_running)
+            goto err_not_running;
+
+        *res_p = htobe32(TPM_IO_Hash_End());
+        out_len = sizeof(ptm_res);
+
+        break;
+
+    case CMD_CANCEL_TPM_CMD:
+        if (!*tpm_running)
+            goto err_not_running;
+
+        /* for cancellation to work, the TPM would have to
+         * execute in another thread that polls on a cancel
+         * flag
+         */
+        *res_p = htobe32(TPM_FAIL);
+        out_len = sizeof(ptm_res);
+        break;
+
+    case CMD_GET_CONFIG:
+        pgc = (ptm_getconfig *)output.body;
+
+        pgc->u.resp.tpm_result = htobe32(0);
+        pgc->u.resp.flags = 0;
+        if (SWTPM_NVRAM_Has_FileKey())
+            pgc->u.resp.flags |= PTM_CONFIG_FLAG_FILE_KEY;
+        if (SWTPM_NVRAM_Has_MigrationKey())
+            pgc->u.resp.flags |= PTM_CONFIG_FLAG_MIGRATION_KEY;
+
+        out_len = sizeof(pgc->u.resp);
+        break;
+
     default:
         logprintf(STDERR_FILENO,
                   "Error: Unknown command\n");
-        out_len = sizeof(ptm_res);
+
         *res_p = htobe32(TPM_BAD_ORDINAL);
+        out_len = sizeof(ptm_res);
     }
 
 send_resp:
@@ -173,8 +281,14 @@ send_resp:
     return fd;
 
 err_bad_input:
-    out_len = sizeof(ptm_res);
     *res_p = htobe32(TPM_BAD_PARAMETER);
+    out_len = sizeof(ptm_res);
+
+    goto send_resp;
+
+err_not_running:
+    *res_p = htobe32(TPM_BAD_ORDINAL);
+    out_len = sizeof(ptm_res);
 
     goto send_resp;
 

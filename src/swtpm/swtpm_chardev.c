@@ -75,6 +75,7 @@ static struct libtpms_callbacks callbacks = {
     .tpm_nvram_storedata     = SWTPM_NVRAM_StoreData,
     .tpm_nvram_deletename    = SWTPM_NVRAM_DeleteName,
     .tpm_io_init             = NULL,
+    .tpm_io_getlocality      = mainloop_cb_get_locality,
 };
 
 static void sigterm_handler(int sig __attribute__((unused)))

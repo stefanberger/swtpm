@@ -43,7 +43,7 @@ socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CLIENT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
-exp=" 00 00 00 00 00 00 00 03"
+exp=" 00 00 00 00 00 00 04 b7"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
@@ -79,6 +79,36 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
+# Send stop command to the TPM: CMD_STOP = 00 00 00 0d
+echo -en '\x00\x00\x00\x0d' > $CMD_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from CMD_STOP:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+
+# Send get config command to the TPM: CMD_GET_CONFIG = 00 00 00 0e
+echo -en '\x00\x00\x00\x0e' > $CMD_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from CMD_GET_CONFIG:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
 echo -en '\x00\x00\x00\x03' > $CMD_PATH
 socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
@@ -110,8 +140,10 @@ echo "OK"
 
 # Test 2: test the control channel on the socket tpm
 
+# There are a few more tests here that require sending commands to the TPM
+
 # use a pseudo terminal
-$SWTPM_EXE socket --server port=65530 --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &
+$SWTPM_EXE socket --server port=65530,disconnect=true --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &
 sleep 0.5
 
 if [ ! -r $PID_FILE ]; then
@@ -121,6 +153,7 @@ fi
 
 PID="$(cat $PID_FILE)"
 
+exec 100<>/dev/tcp/localhost/65530
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 echo -en '\x00\x00\x00\x01' > $CMD_PATH
@@ -128,7 +161,7 @@ socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CLIENT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
-exp=" 00 00 00 00 00 00 00 03"
+exp=" 00 00 00 00 00 00 04 b7"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
@@ -163,6 +196,164 @@ if [ "$res" != "$exp" ]; then
 	echo "       expected: $exp"
 	exit 1
 fi
+
+
+# Startup the TPM
+/bin/echo -en '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01' >&100
+RES=$(cat <&100 | od -t x1 -A n)
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# 1. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
+echo -en '\x00\x00\x00\x04' > $CMD_PATH
+cat $RESP_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from sending CMD_GET_TPMESTABLISHED command:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# 2. Send command to start HASH : CMD_HASH_START = 00 00 00 06
+echo -en '\x00\x00\x00\x06' > $CMD_PATH
+cat $RESP_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from sending CMD_HASH_START command:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# 3. Send command to end HASH : CMD_HASH_END = 00 00 00 08
+echo -en '\x00\x00\x00\x08' > $CMD_PATH
+cat $RESP_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from sending CMD_HASH_END command:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# 4. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
+echo -en '\x00\x00\x00\x04' > $CMD_PATH
+cat $RESP_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00 01 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from sending CMD_GET_TPMESTABLISHED command:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# 5. Send command to reset TPM established flag: CMD_RESET_TPMESTABLISHED = 00 00 00 0b 03
+echo -en '\x00\x00\x00\x0b\x03' > $CMD_PATH
+cat $RESP_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from sending CMD_GET_TPMESTABLISHED command:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# 6. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
+echo -en '\x00\x00\x00\x04' > $CMD_PATH
+cat $RESP_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from sending CMD_GET_TPMESTABLISHED command:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# Read PCR 17
+exec 100<>/dev/tcp/localhost/65530
+echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
+RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
+exp=' 00 c4 00 00 00 1e 00 00 00 00 31 a2 dc 4c 22 f9 c5 44 4a 41 62 5d 05 f9 58 98 e0 55 f7 50'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+
+
+# Send stop command to the TPM: CMD_STOP = 00 00 00 0d
+echo -en '\x00\x00\x00\x0d' > $CMD_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from CMD_STOP:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# Read PCR 17 -- should fail now
+exec 100<>/dev/tcp/localhost/65530
+echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
+RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
+exp=' 00 c4 00 00 00 0a 00 00 00 09'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+
+# Send get config command to the TPM: CMD_GET_CONFIG = 00 00 00 0e
+echo -en '\x00\x00\x00\x0e' > $CMD_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from CMD_GET_CONFIG:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
 echo -en '\x00\x00\x00\x03' > $CMD_PATH
