@@ -1,4 +1,3 @@
-#include <stdio.h>
 /*
  * ctrlchannel.c -- control channel implementation
  *
@@ -102,7 +101,7 @@ int ctrlchannel_process_fd(int fd,
     ptm_est *te = (ptm_est *)&output.body;
     /* Read-write */
     ptm_init *init_p;
-    ptm_reset_est *re;
+/*    ptm_reset_est *re; */
     ptm_getconfig *pgc;
     ptm_hdata *data;
 
@@ -134,7 +133,7 @@ int ctrlchannel_process_fd(int fd,
             PTM_CAP_SHUTDOWN |
             PTM_CAP_STOP |
             PTM_CAP_GET_TPMESTABLISHED |
-            PTM_CAP_RESET_TPMESTABLISHED |
+            /* PTM_CAP_RESET_TPMESTABLISHED | requires libtpms 0.6 */
             PTM_CAP_HASHING |
             PTM_CAP_CANCEL_TPM_CMD |
             PTM_CAP_STORE_VOLATILE);
@@ -202,6 +201,7 @@ int ctrlchannel_process_fd(int fd,
 
         break;
 
+/*
     case CMD_RESET_TPMESTABLISHED:
         if (!*tpm_running)
             goto err_not_running;
@@ -220,6 +220,7 @@ int ctrlchannel_process_fd(int fd,
         out_len = sizeof(re->u.resp);
 
         break;
+*/
 
     case CMD_HASH_START:
         if (!*tpm_running)
