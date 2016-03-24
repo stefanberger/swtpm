@@ -213,7 +213,14 @@ enum {
 };
 
 /*
- * Comments used by the non-CUSE TPMs
+ * Commands used by the non-CUSE TPMs
+ *
+ * All messages container big-endian data.
+ *
+ * The return messages only contain the 'resp' part of the unions
+ * in the data structures above. Besides that the limits in the
+ * buffers above (ptm_hdata:u.req.data and ptm_get_state:u.resp.data
+ * and ptm_set_state:u.req.data) are 0xffffffff.
  */
 enum {
     CMD_GET_CAPABILITY = 1,
@@ -222,9 +229,11 @@ enum {
     CMD_GET_TPMESTABLISHED,
     CMD_SET_LOCALITY,
     CMD_HASH_START,
-    CMD_HASH_END = 8 ,
+    CMD_HASH_DATA,
+    CMD_HASH_END,
     CMD_CANCEL_TPM_CMD,
-    CMD_RESET_TPMESTABLISHED = 11,
+    CMD_STORE_VOLATILE,
+    CMD_RESET_TPMESTABLISHED,
     CMD_STOP = 13,
     CMD_GET_CONFIG,
 };

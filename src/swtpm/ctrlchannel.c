@@ -1,3 +1,4 @@
+#include <stdio.h>
 /*
  * ctrlchannel.c -- control channel implementation
  *
@@ -103,9 +104,11 @@ int ctrlchannel_process_fd(int fd,
     ptm_init *init_p;
     ptm_reset_est *re;
     ptm_getconfig *pgc;
+    ptm_hdata *data;
 
     size_t out_len = 0;
     TPM_RESULT res;
+    uint32_t remain;
 
     if (fd < 0)
         return -1;
@@ -133,7 +136,8 @@ int ctrlchannel_process_fd(int fd,
             PTM_CAP_GET_TPMESTABLISHED |
             PTM_CAP_RESET_TPMESTABLISHED |
             PTM_CAP_HASHING |
-            PTM_CAP_CANCEL_TPM_CMD);
+            PTM_CAP_CANCEL_TPM_CMD |
+            PTM_CAP_STORE_VOLATILE);
 
         out_len = sizeof(*ptm_caps);
         break;
@@ -226,6 +230,37 @@ int ctrlchannel_process_fd(int fd,
 
         break;
 
+    case CMD_HASH_DATA:
+        if (!*tpm_running)
+             goto err_not_running;
+
+        data = (ptm_hdata *)&input.body;
+        remain = htobe32(data->u.req.length);
+        n -= sizeof(data->u.req.length);
+        /* n has the available number of bytes to hash */
+
+        while (true) {
+            res = TPM_IO_Hash_Data(data->u.req.data, n);
+            if (res)
+                break;
+            remain -= n;
+            if (!remain)
+                break;
+
+            n = read(fd, &data->u.req.data, sizeof(data->u.req.data));
+            if (n <= 0) {
+                res = TPM_IOERROR;
+                break;
+            }
+        }
+
+        data = (ptm_hdata *)&output.body;
+
+        data->u.resp.tpm_result = htobe32(res);
+        out_len = sizeof(data->u.resp.tpm_result);
+
+        break;
+
     case CMD_HASH_END:
         if (!*tpm_running)
             goto err_not_running;
@@ -247,6 +282,14 @@ int ctrlchannel_process_fd(int fd,
         out_len = sizeof(ptm_res);
         break;
 
+    case CMD_STORE_VOLATILE:
+        if (!*tpm_running)
+            goto err_not_running;
+
+        *res_p = htobe32(SWTPM_NVRAM_Store_Volatile());
+        out_len = sizeof(ptm_res);
+        break;
+
     case CMD_GET_CONFIG:
         pgc = (ptm_getconfig *)output.body;
 
@@ -262,7 +305,7 @@ int ctrlchannel_process_fd(int fd,
 
     default:
         logprintf(STDERR_FILENO,
-                  "Error: Unknown command\n");
+                  "Error: Unknown command: 0x%08x\n", be32toh(input.cmd));
 
         *res_p = htobe32(TPM_BAD_ORDINAL);
         out_len = sizeof(ptm_res);
