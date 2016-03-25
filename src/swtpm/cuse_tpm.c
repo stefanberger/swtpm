@@ -62,7 +62,6 @@
 #include <libtpms/tpm_tis.h>
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_memory.h>
-#include <libtpms/tpm_nvfilename.h>
 
 #include "swtpm.h"
 #include "common.h"
@@ -234,24 +233,6 @@ static struct libtpms_callbacks cbs = {
 /* the current state the transfer interface is in */
 static transfer_state tx_state;
 
-/*
- * convert the blobtype integer into a string that libtpms
- * understands
- */
-static const char *ptm_get_blobname(uint32_t blobtype)
-{
-    switch (blobtype) {
-    case PTM_BLOB_TYPE_PERMANENT:
-        return TPM_PERMANENT_ALL_NAME;
-    case PTM_BLOB_TYPE_VOLATILE:
-        return TPM_VOLATILESTATE_NAME;
-    case PTM_BLOB_TYPE_SAVESTATE:
-        return TPM_SAVESTATE_NAME;
-    default:
-        return NULL;
-    }
-}
-
 /************************* cached stateblob *********************************/
 
 static stateblob_desc cached_stateblob;
@@ -315,7 +296,7 @@ static int cached_stateblob_get(uint32_t offset,
 static TPM_RESULT cached_stateblob_load(uint32_t blobtype, TPM_BOOL decrypt)
 {
     TPM_RESULT res = 0;
-    const char *blobname = ptm_get_blobname(blobtype);
+    const char *blobname = tpmlib_get_blobname(blobtype);
     uint32_t tpm_number = 0;
 
     if (!blobname)
@@ -662,7 +643,7 @@ ptm_set_stateblob_append(uint32_t blobtype,
         /* full packet -- expecting more data */
         return res;
     }
-    blobname = ptm_get_blobname(blobtype);
+    blobname = tpmlib_get_blobname(blobtype);
 
     if (blobname) {
         res = SWTPM_NVRAM_SetStateBlob(stateblob.data,

@@ -51,6 +51,24 @@
 #include "tpm_ioctl.h"
 #include "swtpm_nvfile.h"
 
+/*
+ * convert the blobtype integer into a string that libtpms
+ * understands
+ */
+const char *tpmlib_get_blobname(uint32_t blobtype)
+{
+    switch (blobtype) {
+    case PTM_BLOB_TYPE_PERMANENT:
+        return TPM_PERMANENT_ALL_NAME;
+    case PTM_BLOB_TYPE_VOLATILE:
+        return TPM_VOLATILESTATE_NAME;
+    case PTM_BLOB_TYPE_SAVESTATE:
+        return TPM_SAVESTATE_NAME;
+    default:
+        return NULL;
+    }
+}
+
 TPM_RESULT tpmlib_start(struct libtpms_callbacks *cbs, uint32_t flags)
 {
     TPM_RESULT res;
