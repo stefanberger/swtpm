@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 #include <stdint.h>
 #include <endian.h>
+#include <stddef.h>
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
@@ -95,14 +96,14 @@ int ctrlchannel_process_fd(int fd,
         uint8_t body[4096];
     } output;
     ssize_t n;
-    /* Read-only */
+    /* Write-only */
     ptm_cap *ptm_caps = (ptm_cap *)&output.body;
     ptm_res *res_p = (ptm_res *)&output.body;
     ptm_est *te = (ptm_est *)&output.body;
+    ptm_getconfig *pgc = (ptm_getconfig *)&output.body;
     /* Read-write */
     ptm_init *init_p;
     ptm_reset_est *re;
-    ptm_getconfig *pgc;
     ptm_hdata *data;
 
     size_t out_len = 0;
@@ -142,56 +143,56 @@ int ctrlchannel_process_fd(int fd,
         break;
 
     case CMD_INIT:
-        if (n != sizeof(ptm_init)) {
+        if (n != (ssize_t)sizeof(ptm_init)) /* r/w */
             goto err_bad_input;
+
+        init_p = (ptm_init *)input.body;
+
+        TPMLIB_Terminate();
+
+        *tpm_running = false;
+        res = tpmlib_start(cbs, be32toh(init_p->u.req.init_flags));
+        if (res) {
+            logprintf(STDERR_FILENO,
+                      "Error: Could not initialize the TPM\n");
         } else {
-            init_p = (ptm_init *)input.body;
-
-            TPMLIB_Terminate();
-
-            *tpm_running = false;
-            res = tpmlib_start(cbs, be32toh(init_p->u.req.init_flags));
-            if (res) {
-                logprintf(STDERR_FILENO,
-                          "Error: Could not initialize the TPM\n");
-            } else {
-                *tpm_running = true;
-            }
-
-            *res_p = htobe32(res);
-            out_len = sizeof(ptm_res);
+            *tpm_running = true;
         }
+
+        *res_p = htobe32(res);
+        out_len = sizeof(ptm_res);
         break;
 
     case CMD_STOP:
-        if (n != 0) {
+        if (n != 0) /* wo */
             goto err_bad_input;
-        } else {
-            TPMLIB_Terminate();
 
-            *tpm_running = false;
+        TPMLIB_Terminate();
 
-            *res_p = htobe32(TPM_SUCCESS);
-            out_len = sizeof(ptm_res);
-        }
+        *tpm_running = false;
+
+        *res_p = htobe32(TPM_SUCCESS);
+        out_len = sizeof(ptm_res);
         break;
 
     case CMD_SHUTDOWN:
-        if (n != 0) {
+        if (n != 0) /* wo */
             goto err_bad_input;
-        } else {
-            TPMLIB_Terminate();
 
-            *res_p = htobe32(TPM_SUCCESS);
-            out_len = sizeof(ptm_res);
+        TPMLIB_Terminate();
 
-            *terminate = true;
-        }
+        *res_p = htobe32(TPM_SUCCESS);
+        out_len = sizeof(ptm_res);
+
+        *terminate = true;
         break;
 
     case CMD_GET_TPMESTABLISHED:
         if (!*tpm_running)
             goto err_not_running;
+
+        if (n != 0) /* wo */
+            goto err_bad_input;
 
         out_len = sizeof(te->u.resp);
         memset(output.body, 0, out_len);
@@ -205,6 +206,9 @@ int ctrlchannel_process_fd(int fd,
         if (!*tpm_running)
             goto err_not_running;
 
+        if (n < (ssize_t)sizeof(re->u.req.loc)) /* rw */
+            goto err_bad_input;
+
         re = (ptm_reset_est *)input.body;
 
         if (re->u.req.loc > 4) {
@@ -216,12 +220,14 @@ int ctrlchannel_process_fd(int fd,
 
         *res_p = res;
         out_len = sizeof(re->u.resp);
-
         break;
 
     case CMD_HASH_START:
         if (!*tpm_running)
             goto err_not_running;
+
+        if (n != 0) /* wo */
+            goto err_bad_input;
 
         *res_p = htobe32(TPM_IO_Hash_Start());
         out_len = sizeof(ptm_res);
@@ -231,6 +237,9 @@ int ctrlchannel_process_fd(int fd,
     case CMD_HASH_DATA:
         if (!*tpm_running)
              goto err_not_running;
+
+        if (n < (ssize_t)offsetof(ptm_hdata, u.req.data)) /* rw */
+             goto err_bad_input;
 
         data = (ptm_hdata *)&input.body;
         remain = htobe32(data->u.req.length);
@@ -263,6 +272,9 @@ int ctrlchannel_process_fd(int fd,
         if (!*tpm_running)
             goto err_not_running;
 
+        if (n != 0) /* wo */
+            goto err_bad_input;
+
         *res_p = htobe32(TPM_IO_Hash_End());
         out_len = sizeof(ptm_res);
 
@@ -271,6 +283,9 @@ int ctrlchannel_process_fd(int fd,
     case CMD_CANCEL_TPM_CMD:
         if (!*tpm_running)
             goto err_not_running;
+
+        if (n != 0) /* wo */
+            goto err_bad_input;
 
         /* for cancellation to work, the TPM would have to
          * execute in another thread that polls on a cancel
@@ -284,12 +299,16 @@ int ctrlchannel_process_fd(int fd,
         if (!*tpm_running)
             goto err_not_running;
 
+        if (n != 0) /* wo */
+            goto err_bad_input;
+
         *res_p = htobe32(SWTPM_NVRAM_Store_Volatile());
         out_len = sizeof(ptm_res);
         break;
 
     case CMD_GET_CONFIG:
-        pgc = (ptm_getconfig *)output.body;
+        if (n != 0) /* wo */
+            goto err_bad_input;
 
         pgc->u.resp.tpm_result = htobe32(0);
         pgc->u.resp.flags = 0;
