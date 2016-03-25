@@ -48,6 +48,7 @@
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_tis.h>
+#include <libtpms/tpm_memory.h>
 
 #include "ctrlchannel.h"
 #include "logging.h"
@@ -144,6 +145,65 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
     return fd;
 }
 
+static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
+{
+    uint32_t blobtype = be32toh(pss->u.req.type);
+    const char *blobname = tpmlib_get_blobname(blobtype);
+    uint32_t tpm_number = 0;
+    unsigned char *blob = NULL;
+    uint32_t blob_length = be32toh(pss->u.req.length);
+    uint32_t remain = blob_length, offset = 0;
+    TPM_RESULT res;
+    uint32_t flags = be32toh(pss->u.req.state_flags);
+    TPM_BOOL is_encrypted = (flags & PTM_STATE_FLAG_ENCRYPTED) != 0;
+
+    res = TPM_Malloc(&blob, blob_length);
+    if (res)
+        goto err_send_resp;
+
+    n -= offsetof(ptm_setstate, u.req.data);
+    /* n holds the number of available data bytes */
+
+    while (true) {
+        if (n > remain) {
+            res = TPM_BAD_PARAMETER;
+            goto err_send_resp;
+        }
+        memcpy(&blob[offset], pss->u.req.data, n);
+        remain -= n;
+        if (remain) {
+            n = read(fd, pss->u.req.data, sizeof(pss->u.req.data));
+            if (n < 0) {
+                res = TPM_IOERROR;
+                close(fd);
+                fd = -1;
+                goto err_fd_broken;
+            } else if (n == 0) {
+                res = TPM_BAD_PARAMETER;
+                goto err_send_resp;
+            }
+        } else {
+            break;
+        }
+    }
+
+    res = SWTPM_NVRAM_SetStateBlob(blob, blob_length, is_encrypted,
+                                   tpm_number, blobname);
+
+err_send_resp:
+    pss->u.resp.tpm_result = htobe32(res);
+    n = write(fd, pss, sizeof(pss->u.resp.tpm_result));
+    if (n < 0) {
+        logprintf(STDERR_FILENO,
+                  "Error: Could not send response: %s\n", strerror(errno));
+        close(fd);
+        fd = -1;
+    }
+
+err_fd_broken:
+    return fd;
+}
+
 int ctrlchannel_process_fd(int fd,
                            struct libtpms_callbacks *cbs,
                            bool *terminate,
@@ -168,6 +228,7 @@ int ctrlchannel_process_fd(int fd,
     ptm_reset_est *re;
     ptm_hdata *data;
     ptm_getstate *pgs;
+    ptm_setstate *pss;
 
     size_t out_len = 0;
     TPM_RESULT res;
@@ -200,6 +261,7 @@ int ctrlchannel_process_fd(int fd,
             PTM_CAP_RESET_TPMESTABLISHED |
             PTM_CAP_HASHING |
             PTM_CAP_GET_STATEBLOB |
+            PTM_CAP_SET_STATEBLOB |
             PTM_CAP_CANCEL_TPM_CMD |
             PTM_CAP_STORE_VOLATILE);
 
@@ -380,6 +442,16 @@ int ctrlchannel_process_fd(int fd,
 
         return ctrlchannel_return_state(pgs, fd);
 
+    case CMD_SET_STATE_BLOB:
+        if (*tpm_running)
+            goto err_running;
+
+        pss = (ptm_setstate *)input.body;
+        if (n < (ssize_t)offsetof(ptm_setstate, u.req.data)) /* rw */
+            goto err_bad_input;
+
+        return ctrlchannel_receive_state(pss, n, fd);
+
     case CMD_GET_CONFIG:
         if (n != 0) /* wo */
             goto err_bad_input;
@@ -424,6 +496,7 @@ err_bad_input:
 
     goto send_resp;
 
+err_running:
 err_not_running:
     *res_p = htobe32(TPM_BAD_ORDINAL);
     out_len = sizeof(ptm_res);
