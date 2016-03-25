@@ -39,10 +39,12 @@
 
 #include <assert.h>
 #include <endian.h>
+#include <string.h>
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_nvfilename.h>
+#include <libtpms/tpm_memory.h>
 
 #include "tpmlib.h"
 #include "logging.h"
@@ -111,4 +113,32 @@ bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len)
 
     return (ordinal == TPMLIB_TPM_ORD_TakeOwnership ||
             ordinal == TPMLIB_TPM_ORD_CreateWrapKey);
+}
+
+const static unsigned char TPM_ResetEstablishmentBit[] = {
+    0x00, 0xC1,                     /* TPM Request */
+    0x00, 0x00, 0x00, 0x0A,         /* length (10) */
+    0x40, 0x00, 0x00, 0x0B          /* TPM_ORD_ResetEstablishmentBit */
+};
+
+TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locality,
+                                       TPM_MODIFIER_INDICATOR locality)
+{
+    TPM_RESULT res;
+    unsigned char *rbuffer = NULL;
+    uint32_t rlength = 0;
+    uint32_t rTotal = 0;
+    TPM_MODIFIER_INDICATOR orig_locality = *g_locality;
+    unsigned char command[sizeof(TPM_ResetEstablishmentBit)];
+
+    memcpy(command, TPM_ResetEstablishmentBit, sizeof(command));
+    *g_locality = locality;
+
+    res = TPMLIB_Process(&rbuffer, &rlength, &rTotal,
+                         command, sizeof(command));
+
+    *g_locality = orig_locality;
+    TPM_Free(rbuffer);
+
+    return res;
 }
