@@ -82,6 +82,68 @@ int ctrlchannel_get_fd(struct ctrlchannel *cc)
     return cc->fd;
 }
 
+static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
+{
+    uint32_t blobtype = be32toh(pgs->u.req.type);
+    const char *blobname = tpmlib_get_blobname(blobtype);
+    uint32_t tpm_number = 0;
+    unsigned char *blob;
+    uint32_t blob_length, return_length;
+    TPM_BOOL is_encrypted;
+    TPM_BOOL decrypt =
+        (be32toh(pgs->u.req.state_flags) & PTM_STATE_FLAG_DECRYPTED) != 0;
+    TPM_RESULT res = 0;
+    uint32_t offset = be32toh(pgs->u.req.offset);
+    ptm_getstate pgs_res;
+    uint32_t state_flags;
+    struct iovec iov[2];
+    int iovcnt, n;
+
+    if (blobtype == PTM_BLOB_TYPE_VOLATILE)
+        res = SWTPM_NVRAM_Store_Volatile();
+
+    if (res == 0)
+        res = SWTPM_NVRAM_GetStateBlob(&blob, &blob_length,
+                                       tpm_number, blobname, decrypt,
+                                       &is_encrypted);
+
+    /* make sure the volatile state file is gone */
+    if (blobtype == PTM_BLOB_TYPE_VOLATILE)
+        SWTPM_NVRAM_DeleteName(tpm_number, blobname, FALSE);
+
+    if (offset < blob_length) {
+        return_length = blob_length - offset;
+    } else {
+        return_length = 0;
+    }
+
+    state_flags = (is_encrypted) ? PTM_STATE_FLAG_ENCRYPTED : 0;
+    pgs_res.u.resp.tpm_result = htobe32(res);
+    pgs_res.u.resp.state_flags = htobe32(state_flags);
+    pgs_res.u.resp.totlength = htobe32(return_length);
+    pgs_res.u.resp.length = htobe32(return_length);
+
+    iov[0].iov_base = &pgs_res;
+    iov[0].iov_len = offsetof(ptm_getstate, u.resp.data);
+    iovcnt = -1;
+
+    if (res == 0 && return_length) {
+        iov[1].iov_base = &blob[offset];
+        iov[1].iov_len = return_length;
+        iovcnt = 2;
+    }
+
+    n = writev(fd, iov, iovcnt);
+    if (n < 0) {
+        logprintf(STDERR_FILENO,
+                  "Error: Could not send response: %s\n", strerror(errno));
+        close(fd);
+        fd = -1;
+    }
+
+    return fd;
+}
+
 int ctrlchannel_process_fd(int fd,
                            struct libtpms_callbacks *cbs,
                            bool *terminate,
@@ -105,6 +167,7 @@ int ctrlchannel_process_fd(int fd,
     ptm_init *init_p;
     ptm_reset_est *re;
     ptm_hdata *data;
+    ptm_getstate *pgs;
 
     size_t out_len = 0;
     TPM_RESULT res;
@@ -136,6 +199,7 @@ int ctrlchannel_process_fd(int fd,
             PTM_CAP_GET_TPMESTABLISHED |
             PTM_CAP_RESET_TPMESTABLISHED |
             PTM_CAP_HASHING |
+            PTM_CAP_GET_STATEBLOB |
             PTM_CAP_CANCEL_TPM_CMD |
             PTM_CAP_STORE_VOLATILE);
 
@@ -306,6 +370,16 @@ int ctrlchannel_process_fd(int fd,
         out_len = sizeof(ptm_res);
         break;
 
+    case CMD_GET_STATE_BLOB:
+        if (!*tpm_running)
+            goto err_not_running;
+
+        pgs = (ptm_getstate *)input.body;
+        if (n < (ssize_t)sizeof(pgs->u.req)) /* rw */
+            goto err_bad_input;
+
+        return ctrlchannel_return_state(pgs, fd);
+
     case CMD_GET_CONFIG:
         if (n != 0) /* wo */
             goto err_bad_input;
@@ -333,9 +407,13 @@ send_resp:
     if (n < 0) {
         logprintf(STDERR_FILENO,
                   "Error: Could not send response: %s\n", strerror(errno));
+        close(fd);
+        fd = -1;
     } else if ((size_t)n != out_len) {
         logprintf(STDERR_FILENO,
                   "Error: Could not send complete response\n");
+        close(fd);
+        fd = -1;
     }
 
     return fd;
