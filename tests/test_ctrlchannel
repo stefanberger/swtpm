@@ -43,7 +43,7 @@ socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CLIENT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
-exp=" 00 00 00 00 00 00 07 f7"
+exp=" 00 00 00 00 00 00 07 ff"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
@@ -180,7 +180,7 @@ socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CLIENT:$SOCK_PATH 2>&1 | \
 	sed -n '/^ /p' | \
 	tail -n1 > $RESP_PATH
 res="$(cat $RESP_PATH)"
-exp=" 00 00 00 00 00 00 07 f7"
+exp=" 00 00 00 00 00 00 07 ff"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
@@ -619,6 +619,46 @@ RES=$(cat <&100 | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+
+# Reset PCR 20 while in locality 0 -- should not work
+exec 100<>/dev/tcp/localhost/65530
+echo -en '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10' >&100
+RES=$(cat <&100 | od -t x1 -A n)
+exp=' 00 c4 00 00 00 0a 00 00 00 33'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Trying to reset PCR 20 in locality 0 returned unexpected result"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# In locality 2 we can reset PCR 20
+# Set the localoty on the TPM: CMD_SET_LOCALITY = 00 00 00 05 <locality>
+echo -en '\x00\x00\x00\x05\x02' > $CMD_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from CMD_SET_LOCALITY:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# Reset PCR 20 while in locality 2 -- has to work
+exec 100<>/dev/tcp/localhost/65530
+echo -en '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10' >&100
+RES=$(cat <&100 | od -t x1 -A n)
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Could not reset PCR 20 in locality 2"
 	echo "expected: $exp"
 	echo "received: $RES"
 	exit 1

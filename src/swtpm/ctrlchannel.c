@@ -229,6 +229,7 @@ int ctrlchannel_process_fd(int fd,
     ptm_hdata *data;
     ptm_getstate *pgs;
     ptm_setstate *pss;
+    ptm_loc *pl;
 
     size_t out_len = 0;
     TPM_RESULT res;
@@ -258,6 +259,7 @@ int ctrlchannel_process_fd(int fd,
             PTM_CAP_SHUTDOWN |
             PTM_CAP_STOP |
             PTM_CAP_GET_TPMESTABLISHED |
+            PTM_CAP_SET_LOCALITY |
             PTM_CAP_RESET_TPMESTABLISHED |
             PTM_CAP_HASHING |
             PTM_CAP_GET_STATEBLOB |
@@ -345,6 +347,22 @@ int ctrlchannel_process_fd(int fd,
         }
 
         *res_p = res;
+        out_len = sizeof(re->u.resp);
+        break;
+
+    case CMD_SET_LOCALITY:
+        if (n < (ssize_t)sizeof(pl->u.req.loc)) /* rw */
+            goto err_bad_input;
+
+        pl = (ptm_loc *)input.body;
+        if (pl->u.req.loc > 4) {
+            res = TPM_BAD_LOCALITY;
+        } else {
+            res = TPM_SUCCESS;
+            *locality = pl->u.req.loc;
+        }
+
+        *res_p = htobe32(res);
         out_len = sizeof(re->u.resp);
         break;
 
