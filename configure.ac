@@ -243,12 +243,23 @@ AC_ARG_WITH([gnutls],
 if test "x$with_gnutls" != "xno"; then
     GNUTLS_LDFLAGS=$(pkg-config --libs gnutls)
     if test $? -ne 0; then
-        if "x$with_gnutls" == "xyes"; then
+        if test "x$with_gnutls" == "xyes"; then
             AC_MSG_ERROR("Is gnutls installed? -- could not get libs for gnutls")
         else
             with_gnutls=no
         fi
     fi
+fi
+
+if test "x$with_gnutls" != "xno"; then
+     AC_PATH_PROG([GNUTLS_CERTTOOL], certtool)
+     if test "x$GNUTLS_CERTTOOL" == "x"; then
+         if test "x$with_gnutls" == "xyes"; then
+             AC_MSG_ERROR("Could not find certtool. Is gnutls-utils/gnutls-bin installed?")
+         else
+             with_gnutls=no
+         fi
+     fi
 fi
 
 if test "x$with_gnutls" != "xno"; then
