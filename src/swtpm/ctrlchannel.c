@@ -212,7 +212,8 @@ int ctrlchannel_process_fd(int fd,
 {
     struct input {
         uint32_t cmd;
-        uint8_t body[4092];
+        /* ptm_hdata is the largest buffer to receive */
+        uint8_t body[sizeof(ptm_hdata)];
     } input;
     struct output {
         uint8_t body[4096];
