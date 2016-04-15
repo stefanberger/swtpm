@@ -46,6 +46,7 @@
 #include <netdb.h>
 #include <sys/un.h>
 #include <endian.h>
+#include <getopt.h>
 
 #include "swtpm.h"
 #include "tpm_bios.h"
@@ -313,7 +314,6 @@ static void print_usage(const char *prgname)
 int main(int argc, char *argv[])
 {
 	int   ret = 0;
-	int   i;			/* argc iterator */
 	int   do_more = 1;
 	int   ensure_activated = 0;
 	int   contselftest = 0;
@@ -323,40 +323,57 @@ int main(int argc, char *argv[])
 	int   tpm_error = 0;
 	unsigned short physical_presence;
 	struct tpm_get_capability_permflags_res perm_flags;
+	static struct option long_options[] = {
+		{"c", no_argument, NULL, 'c'},
+		{"d", no_argument, NULL, 'd'},
+		{"h", no_argument, NULL, 'h'},
+		{"v", no_argument, NULL, 'v'},
+		{"n", no_argument, NULL, 'n'},
+		{"s", no_argument, NULL, 's'},
+		{"o", no_argument, NULL, 'o'},
+		{"cs", no_argument, NULL, 'C'},
+		{"ea", no_argument, NULL, 'E'},
+		{"u", no_argument, NULL, 'u'},
+	};
+	int opt, option_index = 0;
 
-	/* command line argument defaults */
-
-	for (i = 1 ; i < argc; i++) {
-		if (strcmp(argv[i],"-c") == 0) {
+	while ((opt = getopt_long_only(argc, argv, "", long_options,
+				&option_index)) != -1) {
+		switch (opt) {
+		case 'c':
 			startupparm = TPM_ST_CLEAR;
 			do_more = 1;
-		} else if (strcmp(argv[i],"-d") == 0) {
-			do_more = 0;
+			break;
+		case 'd':
 			startupparm = TPM_ST_DEACTIVATED;
-		} else if (strcmp(argv[i],"-h") == 0) {
+			do_more = 0;
+			break;
+		case 'h':
 			print_usage(argv[0]);
-			exit(EXIT_SUCCESS);
-		} else if (strcmp(argv[i],"-v") == 0) {
-			versioninfo();
-			exit(EXIT_SUCCESS);
-		} else if (strcmp(argv[i],"-n") == 0) {
+			return EXIT_SUCCESS;
+		case 'n':
 			startupparm = 0xff;
 			do_more = 1;
-		} else if (strcmp(argv[i],"-s") == 0) {
+			break;
+		case 's':
 			startupparm = TPM_ST_STATE;
 			do_more = 1;
-		} else if (strcmp(argv[i],"-o") == 0) {
+			break;
+		case 'o':
 			do_more = 0;
-		} else if (strcmp(argv[i],"-cs") == 0) {
+			break;
+		case 'C':
 			contselftest = 1;
-		} else if (strcmp(argv[i],"-ea") == 0) {
+			break;
+		case 'E':
 			ensure_activated = 1;
-		} else if (strcmp(argv[i],"-u") == 0) {
+			break;
+		case 'u':
 			unassert_pp = 1;
-		} else {
-			printf("\n%s is not a valid option\n", argv[i]);
+			break;
+		default:
 			print_usage(argv[0]);
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 	}
 
