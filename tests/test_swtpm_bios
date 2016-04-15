@@ -74,28 +74,28 @@ if [ $? -ne 0 ]; then
 fi
 
 # must work
-res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -o)
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -o 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not startup the CUSE TPM."
 	exit 1
 fi
 
 #  must work
-res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -cs)
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -cs 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not self-test the CUSE TPM."
 	exit 1
 fi
 
 #  must work
-res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u)
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not give up physical presence on the CUSE TPM."
 	exit 1
 fi
 
 #  will NOT work -- we get error output in $res
-res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u)
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u 2>&1)
 ret=$?
 if [ $ret -eq 0 ] || [ -z "$res" ]; then
 	echo "Error: Could give up physical presence on the CUSE TPM."
@@ -108,7 +108,7 @@ if [ $ret -ne 128 ]; then
 fi
 
 #  will NOT work (wrong device) -- we get error output in $res
-res=$(TPM_DEVICE=/dev/${VTPM_NAME}123 $SWTPM_BIOS -n -u)
+res=$(TPM_DEVICE=/dev/${VTPM_NAME}123 $SWTPM_BIOS -n -u 2>&1)
 ret=$?
 if [ $ret -eq 0 ] || [ -z "$res" ]; then
 	echo "Error: Could give up physical presence on wrong device."
@@ -130,14 +130,14 @@ if [ $? -ne 0 ]; then
 fi
 
 # must work
-res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -cs -u)
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -cs -u 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not startup the CUSE TPM."
 	exit 1
 fi
 
 #  will NOT work -- we get error output in $res
-res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u)
+res=$(TPM_DEVICE=/dev/$VTPM_NAME $SWTPM_BIOS -n -u 2>&1)
 ret=$?
 if [ $ret -eq 0 ] || [ -z "$res" ]; then
 	echo "Error: Could give up physical presence on the CUSE TPM."

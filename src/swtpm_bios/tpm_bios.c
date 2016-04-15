@@ -107,7 +107,7 @@ static int open_connection(void)
 		}
 
 		if (fd < 0) {
-			printf("Could not connect using TCP socket.\n");
+			fprintf(stderr, "Could not connect using TCP socket.\n");
 		}
 	} else {
 use_device:
@@ -118,7 +118,7 @@ use_device:
 
 		fd = open(devname, O_RDWR);
 		if (fd < 0) {
-			printf( "Unable to open device '%s'.\n", devname );
+			fprintf(stderr, "Unable to open device '%s'.\n", devname );
 		}
 	}
 
@@ -148,7 +148,7 @@ static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
 
 	len = write(fd, hdr, count);
 	if (len < 0 || (size_t)len != count) {
-		printf("Write to file descriptor failed.\n");
+		fprintf(stderr, "Write to file descriptor failed.\n");
 		goto err_close_fd;
 	}
 
@@ -157,27 +157,28 @@ static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
 
 	n = select(fd + 1, &rfds, NULL, NULL, &timeout);
 	if (n == 0) {
-		printf("TPM did not respond after %u seconds.\n", to_seconds);
+		fprintf(stderr, "TPM did not respond after %u seconds.\n",
+			to_seconds);
 		goto err_close_fd;
 	} else if (n < 0) {
-		printf("Error on select call: %s\n", strerror(errno));
+		fprintf(stderr, "Error on select call: %s\n", strerror(errno));
 		goto err_close_fd;
 	}
 
 	len = read(fd, buffer, sizeof(buffer));
 	if (len < 0) {
-		printf("Read from file descriptor failed.\n");
+		fprintf(stderr, "Read from file descriptor failed.\n");
 		goto err_close_fd;
 	}
 
 	if (len < 10) {
-		printf("Returned packet is too short.\n");
+		fprintf(stderr, "Returned packet is too short.\n");
 		goto err_close_fd;
 	}
 
 	pkt_len = be32toh( *((uint32_t *)(buffer + 2)));
 	if ((unsigned int)len != pkt_len) {
-		printf("Malformed response.\n");
+		fprintf(stderr, "Malformed response.\n");
 		goto err_close_fd;
 	}
 
@@ -401,8 +402,9 @@ int main(int argc, char *argv[])
 			ret = TPM_Startup(startupparm, &tpm_errcode);
 			if (tpm_errcode != 0) {
 				tpm_error = 1;
-				printf("TPM_Startup(0x%02x) returned error code "
-				       "0x%08x\n", startupparm, tpm_errcode);
+				fprintf(stderr, "TPM_Startup(0x%02x) returned "
+					"error code 0x%08x\n",
+					startupparm, tpm_errcode);
 			}
 		}
 	}
@@ -413,8 +415,8 @@ int main(int argc, char *argv[])
 		ret = TSC_PhysicalPresence(physical_presence, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TSC_PhysicalPresence(CMD_ENABLE) returned error code "
-			       "0x%08x\n", tpm_errcode);
+			fprintf(stderr, "TSC_PhysicalPresence(CMD_ENABLE) "
+				"returned error code 0x%08x\n", tpm_errcode);
 		}
 	}
 
@@ -424,8 +426,8 @@ int main(int argc, char *argv[])
 		ret = TSC_PhysicalPresence(physical_presence, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TSC_PhysicalPresence(PRESENT) returned error code "
-			       "0x%08x\n", tpm_errcode);
+			fprintf(stderr, "TSC_PhysicalPresence(PRESENT) "
+				"returned error code 0x%08x\n", tpm_errcode);
 		}
 	}
 	/* Determine the permanent flags */
@@ -435,8 +437,8 @@ int main(int argc, char *argv[])
 					       &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TPM_GetCapability() returned error "
-			       "code 0x%08x\n", tpm_errcode);
+			fprintf(stderr, "TPM_GetCapability() returned error "
+				"code 0x%08x\n", tpm_errcode);
 		}
 	}
 	/* Sends the TPM_Process_PhysicalEnable command to clear disabled */
@@ -444,8 +446,8 @@ int main(int argc, char *argv[])
 		ret = TPM_PhysicalEnable(&tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TPM_PhysicalEnable returned error "
-			       "code 0x%08x\n", tpm_errcode);
+			fprintf(stderr, "TPM_PhysicalEnable returned error "
+				"code 0x%08x\n", tpm_errcode);
 		}
 	}
 	/* Sends the TPM_Process_PhysicalSetDeactivated command to clear deactivated */
@@ -453,8 +455,8 @@ int main(int argc, char *argv[])
 		ret = TPM_PhysicalSetDeactivated(0, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TPM_PhysicalSetDeactivated returned error "
-			       "code 0x%08x\n", tpm_errcode);
+			fprintf(stderr, "TPM_PhysicalSetDeactivated returned "
+				"error code 0x%08x\n", tpm_errcode);
 		}
 		if (ensure_activated) {
 			/* activation will require resetting the TPM */
@@ -469,8 +471,8 @@ int main(int argc, char *argv[])
 		ret = TPM_ContinueSelfTest(&tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TPM_ContinueSelfTest returned error "
-			       "code 0x%08x\n", tpm_errcode);
+			fprintf(stderr, "TPM_ContinueSelfTest returned error "
+				"code 0x%08x\n", tpm_errcode);
 		}
 	}
 
@@ -480,8 +482,9 @@ int main(int argc, char *argv[])
 		ret = TSC_PhysicalPresence(physical_presence, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TSC_PhysicalPresence(CMD_ENABLE) returned error code "
-			       "0x%08x\n", tpm_errcode);
+			fprintf(stderr,
+				"TSC_PhysicalPresence(CMD_ENABLE) returned "
+				"error code 0x%08x\n", tpm_errcode);
 		}
 	}
 
@@ -492,8 +495,8 @@ int main(int argc, char *argv[])
 		ret = TSC_PhysicalPresence(physical_presence, &tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TSC_PhysicalPresence(NOT_PRESENT|LOCK) returned error code "
-			       "0x%08x\n", tpm_errcode);
+			fprintf(stderr, "TSC_PhysicalPresence(NOT_PRESENT|LOCK) "
+				"returned error code 0x%08x\n", tpm_errcode);
 		}
 	}
 
