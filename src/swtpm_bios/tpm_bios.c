@@ -62,11 +62,19 @@
 
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 
+static char *tpm_device;
+
 static int open_connection(void)
 {
 	int fd = -1, tcp_device_port;
 	char *tcp_device_hostname = NULL;
 	char *tcp_device_port_string = NULL;
+	char *devname = NULL;
+
+	if (tpm_device) {
+		devname = tpm_device;
+		goto use_device;
+	}
 
 	if (getenv("TCSD_USE_TCP_DEVICE")) {
 		if ((tcp_device_hostname = getenv("TCSD_TCP_DEVICE_HOSTNAME")) == NULL)
@@ -102,12 +110,14 @@ static int open_connection(void)
 			printf("Could not connect using TCP socket.\n");
 		}
 	} else {
-		char *devname = getenv("TPM_DEVICE");
+use_device:
+		if (!devname)
+			devname = getenv("TPM_DEVICE");
 		if (!devname)
 			devname = "/dev/tpm0";
 
-		fd = open(devname, O_RDWR );
-		if ( fd < 0 ) {
+		fd = open(devname, O_RDWR);
+		if (fd < 0) {
 			printf( "Unable to open device '%s'.\n", devname );
 		}
 	}
@@ -297,17 +307,18 @@ static void print_usage(const char *prgname)
 "and finally (using -u) gives up physical presence (PP)\n"
 "\n"
 "The following options are supported:\n"
-"\t-c  startup clear (default)\n"
-"\t-s  startup state\n"
-"\t-d  startup deactivate\n"
-"\t-n  no startup\n"
-"\t-o  startup only\n"
-"\t-cs run TPM_ContinueSelfTest\n"
-"\t-ea make sure that the TPM is activated; terminate with exit code 129 if\n"
-"\t    the TPM needs to be reset\n"
-"\t-u  give up physical presence\n"
-"\t-v  display version and exit\n"
-"\t-h  display this help screen and exit\n"
+"\t--tpm-device <device>  use the given device; default is /dev/tpm0\n"
+"\t-c                     startup clear (default)\n"
+"\t-s                     startup state\n"
+"\t-d                     startup deactivate\n"
+"\t-n                     no startup\n"
+"\t-o                     startup only\n"
+"\t-cs                    run TPM_ContinueSelfTest\n"
+"\t-ea                    make sure that the TPM is activated; terminate\n"
+"\t                       with exit code 129 if the TPM needs to be reset\n"
+"\t-u                     give up physical presence\n"
+"\t-v                     display version and exit\n"
+"\t-h                     display this help screen and exit\n"
 , prgname);
 }
 
@@ -324,6 +335,7 @@ int main(int argc, char *argv[])
 	unsigned short physical_presence;
 	struct tpm_get_capability_permflags_res perm_flags;
 	static struct option long_options[] = {
+		{"tpm-device", required_argument, NULL, 'D'},
 		{"c", no_argument, NULL, 'c'},
 		{"d", no_argument, NULL, 'd'},
 		{"h", no_argument, NULL, 'h'},
@@ -340,6 +352,13 @@ int main(int argc, char *argv[])
 	while ((opt = getopt_long_only(argc, argv, "", long_options,
 				&option_index)) != -1) {
 		switch (opt) {
+		case 'D':
+			tpm_device = strdup(optarg);
+			if (!tpm_device) {
+				fprintf(stderr, "Out of memory.");
+				return EXIT_FAILURE;
+			}
+			break;
 		case 'c':
 			startupparm = TPM_ST_CLEAR;
 			do_more = 1;

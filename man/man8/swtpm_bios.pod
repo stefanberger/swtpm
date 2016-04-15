@@ -54,6 +54,11 @@ The following options are supported:
 
 =over 4
 
+=item B<--tpm-device E<lt>deviceE<gt>>
+
+Use the given device rather than the default /dev/tpm0. This option overrides
+the TPM_DEVICE environment variable.
+
 =item B<-c>
 
 Send TPM_Startup(ST_CLEAR) (default). This instructs the TPM to start
