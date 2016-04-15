@@ -36,7 +36,7 @@ function cleanup()
 
 trap "cleanup" EXIT
 
-source test_cuse
+source ${DIR}/test_cuse
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
