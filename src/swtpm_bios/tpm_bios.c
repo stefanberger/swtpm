@@ -62,19 +62,81 @@
 
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 
-static char *tpm_device;
+#define DEFAULT_TCP_PORT 6545
 
-static int open_connection(void)
+static char *tpm_device; /* e.g., /dev/tpm0 */
+
+static char *tcp_hostname;
+static int tcp_port = DEFAULT_TCP_PORT;
+
+static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
 {
-	int fd = -1, tcp_device_port;
-	char *tcp_device_hostname = NULL;
-	char *tcp_device_port_string = NULL;
-	char *devname = NULL;
+	char *pos = strchr(optarg, ':');
+	int n;
 
-	if (tpm_device) {
-		devname = tpm_device;
-		goto use_device;
+	*tcp_port = DEFAULT_TCP_PORT;
+
+	if (!pos) {
+		/* <server> */
+		*tcp_hostname = strdup(optarg);
+		if (*tcp_hostname == NULL) {
+			fprintf(stderr, "Out of memory.\n");
+			return -1;
+		}
+		return 0;
+	} else if (pos == optarg) {
+		if (strlen(&pos[1]) != 0) {
+			/* :<port>  (not just ':') */
+			n = sscanf(&pos[1], "%u", tcp_port);
+			if (n != 1) {
+				fprintf(stderr, "Invalid port '%s'\n", &pos[1]);
+				return -1;
+			}
+			if (*tcp_port >= 65536) {
+				fprintf(stderr, "Port '%s' outside valid range.\n",
+					&optarg[1]);
+				return -1;
+			}
+		}
+
+		*tcp_hostname = strdup("127.0.0.1");
+		if (*tcp_hostname == NULL) {
+			fprintf(stderr, "Out of memory.\n");
+			return -1;
+		}
+	} else {
+		/* <server>:<port> */
+		n = sscanf(&pos[1], "%u", tcp_port);
+		if (n != 1) {
+			fprintf(stderr, "Invalid port '%s'\n", &pos[1]);
+			return -1;
+		}
+		if (*tcp_port >= 65536) {
+			fprintf(stderr, "Port '%s' outside valid range.\n",
+				&optarg[1]);
+			return -1;
+		}
+
+		*tcp_hostname = strndup(optarg, pos - optarg);
+		if (*tcp_hostname == NULL) {
+			fprintf(stderr, "Out of memory.\n");
+			return -1;
+		}
 	}
+	return 0;
+}
+
+static int open_connection(char *devname, char *tcp_device_hostname,
+                           int tcp_device_port)
+{
+	int fd = -1;
+	char *tcp_device_port_string = NULL;
+
+	if (devname)
+		goto use_device;
+
+	if (tcp_device_hostname)
+		goto use_tcp;
 
 	if (getenv("TCSD_USE_TCP_DEVICE")) {
 		if ((tcp_device_hostname = getenv("TCSD_TCP_DEVICE_HOSTNAME")) == NULL)
@@ -82,8 +144,9 @@ static int open_connection(void)
 		if ((tcp_device_port_string = getenv("TCSD_TCP_DEVICE_PORT")) != NULL)
 			tcp_device_port = atoi(tcp_device_port_string);
 		else
-			tcp_device_port = 6545;
+			tcp_device_port = DEFAULT_TCP_PORT;
 
+use_tcp:
 		fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (fd >= 0) {
 			struct hostent *host = gethostbyname(tcp_device_hostname);
@@ -141,7 +204,7 @@ static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
 	};
 	fd_set rfds;
 
-	fd = open_connection();
+	fd = open_connection(tpm_device, tcp_hostname, tcp_port);
 	if (fd < 0) {
 		goto err_exit;
 	}
@@ -309,6 +372,8 @@ static void print_usage(const char *prgname)
 "\n"
 "The following options are supported:\n"
 "\t--tpm-device <device>  use the given device; default is /dev/tpm0\n"
+"\t--tcp [<host>]:[<prt>] connect to TPM on give host and port;\n"
+"\t                       default host is 127.0.0.1, default port is %u\n"
 "\t-c                     startup clear (default)\n"
 "\t-s                     startup state\n"
 "\t-d                     startup deactivate\n"
@@ -320,7 +385,7 @@ static void print_usage(const char *prgname)
 "\t-u                     give up physical presence\n"
 "\t-v                     display version and exit\n"
 "\t-h                     display this help screen and exit\n"
-, prgname);
+, prgname, DEFAULT_TCP_PORT);
 }
 
 int main(int argc, char *argv[])
@@ -337,6 +402,7 @@ int main(int argc, char *argv[])
 	struct tpm_get_capability_permflags_res perm_flags;
 	static struct option long_options[] = {
 		{"tpm-device", required_argument, NULL, 'D'},
+		{"tcp", required_argument, NULL, 'T'},
 		{"c", no_argument, NULL, 'c'},
 		{"d", no_argument, NULL, 'd'},
 		{"h", no_argument, NULL, 'h'},
@@ -358,6 +424,11 @@ int main(int argc, char *argv[])
 			tpm_device = strdup(optarg);
 			if (!tpm_device) {
 				fprintf(stderr, "Out of memory.");
+				return EXIT_FAILURE;
+			}
+			break;
+		case 'T':
+			if (parse_tcp_optarg(optarg, &tcp_hostname, &tcp_port) < 0) {
 				return EXIT_FAILURE;
 			}
 			break;
