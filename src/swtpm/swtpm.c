@@ -129,6 +129,9 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   sending a response back to the client; the TCP socket is\n"
     "                   bound to 127.0.0.1 by default and other bind addresses\n"
     "                   can be given with the bindaddr parameter\n"
+    "--server type=unixio[,path=path][,fd=fd]\n"
+    "                 : Expect UnixIO connections on the given path; if fd is\n"
+    "                   provided, packets wil be read from it directly;\n"
     "-r|--runas <user>: change to the given user\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",

@@ -322,7 +322,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
         goto error_no_sighandlers;
 
-    mlp.flags |= MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION;
+    mlp.flags |= MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION | \
+      MAIN_LOOP_FLAG_END_ON_HUP;
 
     rc = mainLoop(&mlp, notify_fd[0], &callbacks);
 

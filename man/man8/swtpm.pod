@@ -58,6 +58,11 @@ provided with I<ifname>.
 This parameter enables a persistent connection by default unless the disconnect option
 is given. This parameter should be used rather than the -p and --fd options.
 
+=item B<--server type=unixio[,path=E<lt>pathE<gt>][,fd=E<lt>fdE<gt>]>
+
+Expect UnixIO connections on the given path. If no path is provide, a file descriptor
+must be passed instead.
+
 =back
 
 

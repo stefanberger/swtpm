@@ -53,6 +53,7 @@ struct mainLoopParams {
 #define MAIN_LOOP_FLAG_USE_FD     (1 << 1)
 #define MAIN_LOOP_FLAG_KEEP_CONNECTION (1 << 2)
 #define MAIN_LOOP_FLAG_READALL    (1 << 3)
+#define MAIN_LOOP_FLAG_END_ON_HUP (1 << 4)
 
     int fd;
     struct ctrlchannel *cc;

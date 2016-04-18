@@ -181,8 +181,12 @@ int mainLoop(struct mainLoopParams *mlp,
             }
 
             if (pollfds[0].revents & POLLHUP) {
-                mainloop_terminate = true;
-                break;
+                /* chardev and unixio get this signal, not tcp */
+                if (mlp->flags & MAIN_LOOP_FLAG_END_ON_HUP) {
+                    /* only the chardev terminates here */
+                    mainloop_terminate = true;
+                    break;
+                }
             }
 
             if (pollfds[4].revents & POLLIN)

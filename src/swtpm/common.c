@@ -142,6 +142,9 @@ static const OptionDesc server_opt_desc[] = {
         .name = "type",
         .type = OPT_TYPE_STRING,
     }, {
+        .name = "path",
+        .type = OPT_TYPE_STRING,
+    }, {
         .name = "port",
         .type = OPT_TYPE_INT,
     }, {
@@ -780,7 +783,7 @@ static int parse_server_options(char *options, struct server **c)
     OptionValues *ovs = NULL;
     char *error = NULL;
     const char *bindaddr, *ifname;
-    const char *type;
+    const char *type, *path;
     int fd, port;
     struct stat stat;
     unsigned int flags = 0;
@@ -796,7 +799,30 @@ static int parse_server_options(char *options, struct server **c)
     if (option_get_bool(ovs, "disconnect", false))
         flags |= SERVER_FLAG_DISCONNECT;
 
-    if (!strcmp(type, "tcp")) {
+    if (!strcmp(type, "unixio")) {
+        path = option_get_string(ovs, "path", NULL);
+        fd = option_get_int(ovs, "fd", -1);
+        if (fd >= 0) {
+            if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
+               fprintf(stderr,
+                       "Bad filedescriptor %d for UnixIO control channel\n",
+                       fd);
+               goto error;
+            }
+
+            *c = server_new(fd, flags);
+        } else if (path) {
+            fd = unixio_open_socket(path, 0770);
+            if (fd < 0)
+                goto error;
+
+            *c = server_new(fd, flags);
+        } else {
+            fprintf(stderr,
+                   "Missing path and file descriptor option for UnixIO socket\n");
+            goto error;
+        }
+    } else if (!strcmp(type, "tcp")) {
         port = option_get_int(ovs, "port", -1);
         fd = option_get_int(ovs, "fd", -1);
         if (fd >= 0) {
