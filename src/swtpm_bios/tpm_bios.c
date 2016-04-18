@@ -347,6 +347,7 @@ int main(int argc, char *argv[])
 		{"cs", no_argument, NULL, 'C'},
 		{"ea", no_argument, NULL, 'E'},
 		{"u", no_argument, NULL, 'u'},
+		{NULL, 0, NULL, 0},
 	};
 	int opt, option_index = 0;
 
