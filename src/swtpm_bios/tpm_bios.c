@@ -69,6 +69,8 @@ static char *tpm_device; /* e.g., /dev/tpm0 */
 static char *tcp_hostname;
 static int tcp_port = DEFAULT_TCP_PORT;
 
+static char *unix_path;
+
 static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
 {
 	char *pos = strchr(optarg, ':');
@@ -127,7 +129,7 @@ static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
 }
 
 static int open_connection(char *devname, char *tcp_device_hostname,
-                           int tcp_device_port)
+                           int tcp_device_port, const char *unix_path)
 {
 	int fd = -1;
 	char *tcp_device_port_string = NULL;
@@ -137,6 +139,32 @@ static int open_connection(char *devname, char *tcp_device_hostname,
 
 	if (tcp_device_hostname)
 		goto use_tcp;
+
+	if (unix_path) {
+		fd = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (fd > 0) {
+			struct sockaddr_un addr;
+
+			if (strlen(unix_path) + 1 > sizeof(addr.sun_path)) {
+				fprintf(stderr, "Socket path is too long.\n");
+				return -1;
+			}
+
+			addr.sun_family = AF_UNIX;
+			strcpy(addr.sun_path, unix_path);
+
+			if (connect(fd,
+				    (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+				close(fd);
+				fd = -1;
+			}
+		}
+
+		if (fd < 0) {
+			fprintf(stderr, "Could not connect using UnixIO socket.\n");
+		}
+		return fd;
+	}
 
 	if (getenv("TCSD_USE_TCP_DEVICE")) {
 		if ((tcp_device_hostname = getenv("TCSD_TCP_DEVICE_HOSTNAME")) == NULL)
@@ -204,7 +232,7 @@ static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
 	};
 	fd_set rfds;
 
-	fd = open_connection(tpm_device, tcp_hostname, tcp_port);
+	fd = open_connection(tpm_device, tcp_hostname, tcp_port, unix_path);
 	if (fd < 0) {
 		goto err_exit;
 	}
@@ -374,6 +402,7 @@ static void print_usage(const char *prgname)
 "\t--tpm-device <device>  use the given device; default is /dev/tpm0\n"
 "\t--tcp [<host>]:[<prt>] connect to TPM on give host and port;\n"
 "\t                       default host is 127.0.0.1, default port is %u\n"
+"\t--unix <path>          connect to TPM using UnixIO socket\n"
 "\t-c                     startup clear (default)\n"
 "\t-s                     startup state\n"
 "\t-d                     startup deactivate\n"
@@ -403,6 +432,7 @@ int main(int argc, char *argv[])
 	static struct option long_options[] = {
 		{"tpm-device", required_argument, NULL, 'D'},
 		{"tcp", required_argument, NULL, 'T'},
+		{"unix", required_argument, NULL, 'U'},
 		{"c", no_argument, NULL, 'c'},
 		{"d", no_argument, NULL, 'd'},
 		{"h", no_argument, NULL, 'h'},
@@ -429,6 +459,13 @@ int main(int argc, char *argv[])
 			break;
 		case 'T':
 			if (parse_tcp_optarg(optarg, &tcp_hostname, &tcp_port) < 0) {
+				return EXIT_FAILURE;
+			}
+			break;
+		case 'U':
+			unix_path = strdup(optarg);
+			if (!unix_path) {
+				fprintf(stderr, "Out of memory.\n");
 				return EXIT_FAILURE;
 			}
 			break;

@@ -59,6 +59,15 @@ The following options are supported:
 Use the given device rather than the default /dev/tpm0. This option overrides
 the TPM_DEVICE environment variable.
 
+=item B<--tcp E<lt>serverE<gt>:E<lt>portE<gt>>
+
+Connect to the given server and port; if no server is given, 127.0.0.1 is used;
+if port is not given, the default port 6545 is used.
+
+=item B<--unixio E<lt>pathE<gt>>
+
+Connect to the given UnixIO path.
+
 =item B<-c>
 
 Send TPM_Startup(ST_CLEAR) (default). This instructs the TPM to start
