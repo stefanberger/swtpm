@@ -57,6 +57,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <getopt.h>
 
 #include <swtpm/tpm_ioctl.h>
 
@@ -471,7 +472,7 @@ static void usage(const char *prgname)
 "-r <loc> : reset the tpmEstablished bit; use the given locality\n"
 "-v       : store the TPM's volatile data\n"
 "-C       : cancel an ongoing TPM command\n"
-"-l <num> : set the locality to the given number; valid numbers are 0-4\n"
+"-l <loc> : set the locality to the given number; valid numbers are 0-4\n"
 "-h <data>: hash the given data; if data is '-' then data are read from\n"
 "           stdin\n"
 "--save <type> <file> : store the TPM state blob of given type in a file;\n"
@@ -487,8 +488,7 @@ static void usage(const char *prgname)
 
 int main(int argc, char *argv[])
 {
-    int fd;
-    int devindex, n;
+    int fd, n;
     ptm_est est;
     ptm_reset_est reset_est;
     ptm_loc loc;
@@ -498,36 +498,104 @@ int main(int argc, char *argv[])
     ptm_getconfig cfg;
     char *tmp;
     size_t buffersize = 0;
+    static struct option long_options[] = {
+        {"c", no_argument, NULL, 'c'},
+        {"i", no_argument, NULL, 'i'},
+        {"stop", no_argument, NULL, 't'},
+        {"s", no_argument, NULL, 's'},
+        {"e", no_argument, NULL, 'e'},
+        {"r", required_argument, NULL, 'r'},
+        {"v", no_argument, NULL, 'v'},
+        {"C", no_argument, NULL, 'C'},
+        {"l", required_argument, NULL, 'l'},
+        {"h", required_argument, NULL, 'h'},
+        {"g", no_argument, NULL, 'g'},
+        {"save", required_argument, NULL, 'S'},
+        {"load", required_argument, NULL, 'L'},
+        {"version", no_argument, NULL, 'V'},
+        {"help", no_argument, NULL, 'H'},
+        {NULL, 0, NULL, 0},
+    };
+    int opt, option_index = 0;
+    const char *command = NULL, *pcommand = NULL;
+    const char *blobtype = NULL, *blobfile = NULL, *hashdata = NULL;
+    unsigned int locality;
 
-    if (argc < 2) {
-        fprintf(stderr, "Error: Missing command.\n\n");
-        usage(argv[0]);
-        return 1;
+    while ((opt = getopt_long_only(argc, argv, "", long_options,
+                                   &option_index)) != -1) {
+        switch (opt) {
+        case 'c':
+        case 'i':
+        case 't':
+        case 's':
+        case 'e':
+        case 'v':
+        case 'C':
+        case 'g':
+            command = argv[optind - 1];
+            break;
+        case 'h':
+            command = argv[optind - 2];
+            hashdata = argv[optind - 1];
+            break;
+        case 'r':
+        case 'l':
+            command = argv[optind - 2];
+            if (sscanf(argv[optind - 1], "%u", &locality) != 1) {
+                fprintf(stderr, "Could not get locality number from %s.\n",
+                        argv[optind - 1]);
+                return EXIT_FAILURE;
+            }
+            if (locality > 4) {
+                fprintf(stderr, "Locality outside valid range of [0..4].\n");
+                return EXIT_FAILURE;
+            }
+            printf("locty=%u\n", locality);
+            break;
+        case 'S':
+            if (optind == argc ||
+                !strncmp(argv[optind], "-", 1) ||
+                !strncmp(argv[optind], "--", 2)) {
+                fprintf(stderr, "Missing filename argument for --save option\n");
+                return EXIT_FAILURE;
+            }
+            command = argv[optind - 2];
+            blobtype = argv[optind - 1];
+            blobfile = argv[optind];
+            optind++;
+            break;
+        case 'L':
+            if (optind == argc ||
+                !strncmp(argv[optind], "-", 1) ||
+                !strncmp(argv[optind], "--", 2)) {
+                fprintf(stderr, "Missing filename argument for --load option\n");
+                return EXIT_FAILURE;
+            }
+            command = argv[optind - 2];
+            blobtype = argv[optind - 1];
+            blobfile = argv[optind];
+            optind++;
+            break;
+        case 'V':
+            versioninfo(argv[0]);
+            return EXIT_SUCCESS;
+        case 'H':
+            usage(argv[0]);
+            return EXIT_SUCCESS;
+        }
+        if (!pcommand) {
+            pcommand = command;
+        } else {
+            if (command != pcommand) {
+                fprintf(stderr, "Only one command may be given.\n");
+                return EXIT_FAILURE;
+            }
+        }
     }
 
-    if (!strcmp(argv[1], "--version")) {
-        versioninfo(argv[0]);
-        exit(0);
-    } else if (!strcmp(argv[1], "--help")) {
-        usage(argv[0]);
-        exit(0);
-    }
-
-    if (!strcmp(argv[1], "--save") ||
-        !strcmp(argv[1], "--load")) {
-        devindex = 4;
-    } else if (!strcmp(argv[1], "-l") ||
-        !strcmp(argv[1], "-h") ||
-        !strcmp(argv[1], "-r")) {
-        devindex = 3;
-    } else {
-        devindex = 2;
-    }
-
-    if (devindex >= argc) {
-        fprintf(stderr, "Error: Not enough parameters.\n\n");
-        usage(argv[0]);
-        return 1;
+    if (optind == argc) {
+        fprintf(stderr, "Error: Missing device name.\n");
+        return EXIT_FAILURE;
     }
 
     tmp = getenv("SWTPM_IOCTL_BUFFERSIZE");
@@ -536,15 +604,15 @@ int main(int argc, char *argv[])
             buffersize = 1;
     }
 
-    fd = open(argv[devindex], O_RDWR);
+    fd = open(argv[optind], O_RDWR);
     if (fd < 0) {
         fprintf(stderr,
                 "Could not open CUSE TPM device %s: %s\n",
-                argv[devindex], strerror(errno));
+                argv[optind], strerror(errno));
         return -1;
     }
 
-    if (!strcmp(argv[1], "-c")) {
+    if (!strcmp(command, "-c")) {
         n = ioctl(fd, PTM_GET_CAPABILITY, &cap);
         if (n < 0) {
             fprintf(stderr,
@@ -555,7 +623,7 @@ int main(int argc, char *argv[])
         /* no tpm_result here */
         printf("ptm capability is 0x%lx\n",cap);
 
-    } else if (!strcmp(argv[1], "-i")) {
+    } else if (!strcmp(command, "-i")) {
         init.u.req.init_flags = PTM_INIT_FLAG_DELETE_VOLATILE;
         n = ioctl(fd, PTM_INIT, &init);
         if (n < 0) {
@@ -571,7 +639,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-    } else if (!strcmp(argv[1], "-e")) {
+    } else if (!strcmp(command, "-e")) {
         n = ioctl(fd, PTM_GET_TPMESTABLISHED, &est);
         if (n < 0) {
             fprintf(stderr,
@@ -587,13 +655,8 @@ int main(int argc, char *argv[])
         }
         printf("tpmEstablished is %d\n",est.u.resp.bit);
 
-    } else if (!strcmp(argv[1], "-r")) {
-        reset_est.u.req.loc = atoi(argv[2]);
-        if (reset_est.u.req.loc > 4) {
-            fprintf(stderr,
-                    "Locality must be a number from 0 to 4.\n");
-            return 1;
-        }
+    } else if (!strcmp(command, "-r")) {
+        reset_est.u.req.loc = locality;
         n = ioctl(fd, PTM_RESET_TPMESTABLISHED, &reset_est);
         if (n < 0) {
             fprintf(stderr,
@@ -608,7 +671,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-    } else if (!strcmp(argv[1], "-s")) {
+    } else if (!strcmp(command, "-s")) {
         n = ioctl(fd, PTM_SHUTDOWN, &res);
         if (n < 0) {
             fprintf(stderr,
@@ -622,7 +685,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-    } else if (!strcmp(argv[1], "--stop")) {
+    } else if (!strcmp(command, "--stop")) {
         n = ioctl(fd, PTM_STOP, &res);
         if (n < 0) {
             fprintf(stderr,
@@ -636,13 +699,8 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-    } else if (!strcmp(argv[1], "-l")) {
-        loc.u.req.loc = atoi(argv[2]);
-        if (loc.u.req.loc > 4) {
-            fprintf(stderr,
-                    "Locality must be a number from 0 to 4.\n");
-            return 1;
-        }
+    } else if (!strcmp(command, "-l")) {
+        loc.u.req.loc = locality;
         n = ioctl(fd, PTM_SET_LOCALITY, &loc);
         if (n < 0) {
             fprintf(stderr,
@@ -657,12 +715,12 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-    } else if (!strcmp(argv[1], "-h")) {
-        if (do_hash_start_data_end(fd, argv[2])) {
+    } else if (!strcmp(command, "-h")) {
+        if (do_hash_start_data_end(fd, hashdata)) {
             return 1;
         }
 
-    } else if (!strcmp(argv[1], "-C")) {
+    } else if (!strcmp(command, "-C")) {
         n = ioctl(fd, PTM_CANCEL_TPM_CMD, &res);
         if (n < 0) {
             fprintf(stderr,
@@ -677,7 +735,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-    } else if (!strcmp(argv[1], "-v")) {
+    } else if (!strcmp(command, "-v")) {
         n = ioctl(fd, PTM_STORE_VOLATILE, &res);
         if (n < 0) {
             fprintf(stderr,
@@ -692,15 +750,15 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-    } else if (!strcmp(argv[1], "--save")) {
-        if (do_save_state_blob(fd, argv[2], argv[3], buffersize))
+    } else if (!strcmp(command, "--save")) {
+        if (do_save_state_blob(fd, blobtype, blobfile, buffersize))
             return 1;
 
-    } else if (!strcmp(argv[1], "--load")) {
-        if (do_load_state_blob(fd, argv[2], argv[3], buffersize))
+    } else if (!strcmp(command, "--load")) {
+        if (do_load_state_blob(fd, blobtype, blobfile, buffersize))
             return 1;
 
-    } else if (!strcmp(argv[1], "-g")) {
+    } else if (!strcmp(command, "-g")) {
         n = ioctl(fd, PTM_GET_CONFIG, &cfg);
         if (n < 0) {
             fprintf(stderr,
