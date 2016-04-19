@@ -25,6 +25,12 @@ The following commands are supported:
 
 =over 4
 
+=item B<--tpm-device E<lt>deviceE<gt>>
+
+Use the given device.
+
+This option can be used instead of providing the device as the last parameter.
+
 =item B<-c>
 
 Get the swtpm_cuse's capability flags indicating which commands

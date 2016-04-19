@@ -463,25 +463,29 @@ static void usage(const char *prgname)
 "Usage: %s command <device path>\n"
 "\n"
 "The following commands are supported:\n"
-"-c       : get ptm capabilities\n"
-"-i       : do a hardware TPM_Init; if volatile state is found, it will\n"
-"           resume the TPM with it and delete it afterwards\n"
-"--stop   : stop the CUSE tpm without exiting\n"
-"-s       : shutdown the CUSE tpm; stops and exists\n"
-"-e       : get the tpmEstablished bit\n"
-"-r <loc> : reset the tpmEstablished bit; use the given locality\n"
-"-v       : store the TPM's volatile data\n"
-"-C       : cancel an ongoing TPM command\n"
-"-l <loc> : set the locality to the given number; valid numbers are 0-4\n"
-"-h <data>: hash the given data; if data is '-' then data are read from\n"
-"           stdin\n"
-"--save <type> <file> : store the TPM state blob of given type in a file;\n"
-"                       type may be one of volatile, permanent, or savestate\n"
-"--load <type> <file> : load the TPM state blob of given type from a file;\n"
-"                       type may be one of volatile, permanent, or savestate\n"
-"-g       : get configuration flags indicating which keys are in use\n"
-"--version: display version and exit\n"
-"--help   : display help screen and exit\n"
+"--tpm-device <device> : use the given device; default is /dev/tpm0\n"
+"-c                    : get ptm capabilities\n"
+"-i                    : do a hardware TPM_Init; if volatile state is found,\n"
+"                        it will resume the TPM with it and delete it\n"
+"                        afterwards\n"
+"--stop                : stop the CUSE tpm without exiting\n"
+"-s                    : shutdown the CUSE tpm; stops and exists\n"
+"-e                    : get the tpmEstablished bit\n"
+"-r <loc>              : reset the tpmEstablished bit; use the given locality\n"
+"-v                    : store the TPM's volatile data\n"
+"-C                    : cancel an ongoing TPM command\n"
+"-l <loc>              : set the locality to the given number; valid\n"
+"                        localities are 0-4\n"
+"-h <data>             : hash the given data; if data is '-' then data are\n"
+"                        read from stdin\n"
+"--save <type> <file>  : store the TPM state blob of given type in a file;\n"
+"                        type may be one of volatile, permanent, or savestate\n"
+"--load <type> <file>  : load the TPM state blob of given type from a file;\n"
+"                        type may be one of volatile, permanent, or savestate\n"
+"-g                    : get configuration flags indicating which keys are in\n"
+"                        use\n"
+"--version             : display version and exit\n"
+"--help                : display help screen and exit\n"
 "\n"
 , prgname);
 }
@@ -499,6 +503,7 @@ int main(int argc, char *argv[])
     char *tmp;
     size_t buffersize = 0;
     static struct option long_options[] = {
+        {"tpm-device", required_argument, NULL, 'D'},
         {"c", no_argument, NULL, 'c'},
         {"i", no_argument, NULL, 'i'},
         {"stop", no_argument, NULL, 't'},
@@ -519,11 +524,15 @@ int main(int argc, char *argv[])
     int opt, option_index = 0;
     const char *command = NULL, *pcommand = NULL;
     const char *blobtype = NULL, *blobfile = NULL, *hashdata = NULL;
+    const char *tpm_device = NULL;
     unsigned int locality;
 
     while ((opt = getopt_long_only(argc, argv, "", long_options,
                                    &option_index)) != -1) {
         switch (opt) {
+        case 'D':
+            tpm_device = optarg;
+            break;
         case 'c':
         case 'i':
         case 't':
@@ -550,7 +559,6 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Locality outside valid range of [0..4].\n");
                 return EXIT_FAILURE;
             }
-            printf("locty=%u\n", locality);
             break;
         case 'S':
             if (optind == argc ||
@@ -598,13 +606,17 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    if (!tpm_device) {
+        tpm_device = argv[optind];
+    }
+
     tmp = getenv("SWTPM_IOCTL_BUFFERSIZE");
     if (tmp) {
         if (sscanf(tmp, "%zu", &buffersize) != 1 || buffersize < 1)
             buffersize = 1;
     }
 
-    fd = open(argv[optind], O_RDWR);
+    fd = open(tpm_device, O_RDWR);
     if (fd < 0) {
         fprintf(stderr,
                 "Could not open CUSE TPM device %s: %s\n",
