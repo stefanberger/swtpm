@@ -621,7 +621,7 @@ int main(int argc, char *argv[])
         fprintf(stderr,
                 "Could not open CUSE TPM device %s: %s\n",
                 argv[optind], strerror(errno));
-        return -1;
+        return EXIT_FAILURE;
     }
 
     if (!strcmp(command, "-c")) {
@@ -630,7 +630,7 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_GET_CAPABILITY: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         /* no tpm_result here */
         printf("ptm capability is 0x%lx\n",cap);
@@ -642,13 +642,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_INIT: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         res = init.u.resp.tpm_result;
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_INIT: 0x%x\n", res);
-            return 1;
+            return EXIT_FAILURE;
         }
 
     } else if (!strcmp(command, "-e")) {
@@ -657,13 +657,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_GET_ESTABLISHED: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         res = est.u.resp.tpm_result;
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_GET_TPMESTABLISHED: 0x%x\n", res);
-            return 1;
+            return EXIT_FAILURE;
         }
         printf("tpmEstablished is %d\n",est.u.resp.bit);
 
@@ -674,13 +674,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_RESET_ESTABLISHED: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         res = reset_est.u.resp.tpm_result;
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_RESET_TPMESTABLISHED: 0x%x\n", res);
-            return 1;
+            return EXIT_FAILURE;
         }
 
     } else if (!strcmp(command, "-s")) {
@@ -689,12 +689,12 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_SHUTDOWN: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_SHUTDOWN: 0x%x\n", res);
-            return 1;
+            return EXIT_FAILURE;
         }
 
     } else if (!strcmp(command, "--stop")) {
@@ -703,12 +703,12 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_STOP: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_STOP: 0x%x\n", res);
-            return 1;
+            return EXIT_FAILURE;
         }
 
     } else if (!strcmp(command, "-l")) {
@@ -718,18 +718,18 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_SET_LOCALITY: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         res = loc.u.resp.tpm_result;
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_SET_LOCALITY: 0x%x\n", res);
-            return 1;
+            return EXIT_FAILURE;
         }
 
     } else if (!strcmp(command, "-h")) {
         if (do_hash_start_data_end(fd, hashdata)) {
-            return 1;
+            return EXIT_FAILURE;
         }
 
     } else if (!strcmp(command, "-C")) {
@@ -738,13 +738,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_CANCEL_TPM_CMD: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_CANCEL_TPM_CMD: 0x%x\n",
                     res);
-            return 1;
+            return EXIT_FAILURE;
         }
 
     } else if (!strcmp(command, "-v")) {
@@ -753,22 +753,22 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_STORE_VOLATILE: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_STORE_VOLATILE: 0x%x\n",
                     res);
-            return 1;
+            return EXIT_FAILURE;
         }
 
     } else if (!strcmp(command, "--save")) {
         if (do_save_state_blob(fd, blobtype, blobfile, buffersize))
-            return 1;
+            return EXIT_FAILURE;
 
     } else if (!strcmp(command, "--load")) {
         if (do_load_state_blob(fd, blobtype, blobfile, buffersize))
-            return 1;
+            return EXIT_FAILURE;
 
     } else if (!strcmp(command, "-g")) {
         n = ioctl(fd, PTM_GET_CONFIG, &cfg);
@@ -776,18 +776,18 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute ioctl PTM_GET_CONFIG: "
                     "%s\n", strerror(errno));
-            return 1;
+            return EXIT_FAILURE;
         }
         if (cfg.u.resp.tpm_result != 0) {
             fprintf(stderr,
                     "TPM result from PTM_GET_CONFIG: 0x%x\n",
                     cfg.u.resp.tpm_result);
-            return 1;
+            return EXIT_FAILURE;
         }
         printf("ptm configuration flags: 0x%x\n",cfg.u.resp.flags);
     } else {
         usage(argv[0]);
-        return 1;
+        return EXIT_FAILURE;
     }
-    return 0;
+    return EXIT_SUCCESS;
 }
