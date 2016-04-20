@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_ioctl 8"
-.TH swtpm_ioctl 8 "2016-04-19" "swtpm" ""
+.TH swtpm_ioctl 8 "2016-04-20" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -164,6 +164,13 @@ The following commands are supported:
 Use the given device.
 .Sp
 This option can be used instead of providing the device as the last parameter.
+.IP "\fB\-\-tcp <server>:<port>\fR" 4
+.IX Item "--tcp <server>:<port>"
+Connect to the given server and port; if no server is given, 127.0.0.1 is used;
+if port is not given, the default port 6545 is used.
+.IP "\fB\-\-unixio <path>\fR" 4
+.IX Item "--unixio <path>"
+Connect to the given UnixIO path.
 .IP "\fB\-c\fR" 4
 .IX Item "-c"
 Get the swtpm_cuse's capability flags indicating which commands
@@ -212,7 +219,7 @@ names are permanent, volatile, and savestate.
 Note that this command can be executed at any time. However, to retrieve
 the latest volatile state, the \fI\-v\fR command should have been run
 immediately before running this command. The savestate blob will only be
-returned if a TPM_SaveState command was executed in the \s-1CUSE TPM.\s0
+returned if a TPM_SaveState command was executed in the \s-1TPM.\s0
 .IP "\fB\-\-load <\s-1TPM\s0 state blob name> <filename>\fR" 4
 .IX Item "--load <TPM state blob name> <filename>"
 Load the given \s-1TPM\s0 state blob from the given file. Valid \s-1TPM\s0 state blob
@@ -224,7 +231,7 @@ be issued.
 .IP "\fB\-g\fR" 4
 .IX Item "-g"
 Get configuration flags that for example indicate which keys (file encryption
-or migration key) are in use by the \s-1CUSE TPM.\s0
+or migration key) are in use by the \s-1TPM.\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBswtpm_cuse\fR

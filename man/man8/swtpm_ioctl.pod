@@ -31,6 +31,15 @@ Use the given device.
 
 This option can be used instead of providing the device as the last parameter.
 
+=item B<--tcp E<lt>serverE<gt>:E<lt>portE<gt>>
+
+Connect to the given server and port; if no server is given, 127.0.0.1 is used;
+if port is not given, the default port 6545 is used.
+
+=item B<--unixio E<lt>pathE<gt>>
+
+Connect to the given UnixIO path.
+
 =item B<-c>
 
 Get the swtpm_cuse's capability flags indicating which commands
@@ -89,7 +98,7 @@ names are permanent, volatile, and savestate.
 Note that this command can be executed at any time. However, to retrieve
 the latest volatile state, the I<-v> command should have been run
 immediately before running this command. The savestate blob will only be
-returned if a TPM_SaveState command was executed in the CUSE TPM.
+returned if a TPM_SaveState command was executed in the TPM.
 
 =item B<--load E<lt>TPM state blob nameE<gt> E<lt>filenameE<gt>>
 
@@ -103,7 +112,7 @@ be issued.
 =item B<-g>
 
 Get configuration flags that for example indicate which keys (file encryption
-or migration key) are in use by the CUSE TPM.
+or migration key) are in use by the TPM.
 
 =back
 

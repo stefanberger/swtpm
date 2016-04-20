@@ -24,6 +24,7 @@ TESTS = \
 	\
 	test_commandline \
 	test_ctrlchannel \
+	test_ctrlchannel2 \
 	test_parameters \
 	test_resume_volatile \
 	test_swtpm_bios
