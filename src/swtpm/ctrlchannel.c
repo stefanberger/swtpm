@@ -451,7 +451,7 @@ int ctrlchannel_process_fd(int fd,
         out_len = sizeof(ptm_res);
         break;
 
-    case CMD_GET_STATE_BLOB:
+    case CMD_GET_STATEBLOB:
         if (!*tpm_running)
             goto err_not_running;
 
@@ -461,7 +461,7 @@ int ctrlchannel_process_fd(int fd,
 
         return ctrlchannel_return_state(pgs, fd);
 
-    case CMD_SET_STATE_BLOB:
+    case CMD_SET_STATEBLOB:
         if (*tpm_running)
             goto err_running;
 
