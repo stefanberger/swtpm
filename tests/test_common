@@ -1,0 +1,17 @@
+
+# For the license, see the LICENSE file in the root directory.
+
+function wait_for_file()
+{
+  local filename="$1"
+  local timeout="$2"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    [ -f "${filename}" ] && return 1 
+    sleep 0.1
+  done
+  return 0 
+}
+
