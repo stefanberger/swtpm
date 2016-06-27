@@ -18,3 +18,6 @@ swtpm_cert:
    - Unified cert specs 3.5.9, 3.5.11, 3.5.22, 3.5.23. 3.5.24, 3.5.25,
      3.5.26, 3.5.27
 
+Status on RHEL 7.2:
+  - the following bug is problematic for FreeBL usage: https://bugzilla.redhat.com/show_bug.cgi?id=1249720
+  - the following bug is problematic for swtpm_setup : https://bugzilla.redhat.com/show_bug.cgi?id=1126097
