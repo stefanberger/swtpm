@@ -30,12 +30,19 @@ BuildRequires:  libtpms-devel fuse-devel glib2-devel gmp-devel
 BuildRequires:  expect bash net-tools nss-devel socat
 %if %{with_gnutls}
 BuildRequires:  gnutls >= 3.1.0 gnutls-devel gnutls-utils
-BuildRequires:  libtasn1-devel libtasn1 kernel-modules-extra
+BuildRequires:  libtasn1-devel libtasn1
 %if 0%{?fedora}
 BuildRequires:  libtasn1-tools
 %endif
 %endif
-Requires:       fuse expect kernel-modules-extra
+%if 0%{?fedora} > 16
+BuildRequires:  kernel-modules-extra
+%endif
+
+Requires:       fuse expect
+%if 0%{?fedora} > 16
+Requires:       kernel-modules-extra
+%endif
 
 %description
 TPM emulator built on libtpms providing TPM functionality for QEMU VMs
