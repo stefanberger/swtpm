@@ -400,7 +400,7 @@ static void print_usage(const char *prgname)
 "\n"
 "The following options are supported:\n"
 "\t--tpm-device <device>  use the given device; default is /dev/tpm0\n"
-"\t--tcp [<host>]:[<prt>] connect to TPM on give host and port;\n"
+"\t--tcp [<host>]:[<prt>] connect to TPM on given host and port;\n"
 "\t                       default host is 127.0.0.1, default port is %u\n"
 "\t--unix <path>          connect to TPM using UnixIO socket\n"
 "\t-c                     startup clear (default)\n"
