@@ -672,6 +672,9 @@ static void usage(const char *prgname)
 "\n"
 "The following commands are supported:\n"
 "--tpm-device <device> : use the given device; default is /dev/tpm0\n"
+"--tcp [<host>]:[<prt>]: connect to TPM on given host and port;\n"
+"                        default host is 127.0.0.1, default port is %u\n"
+"--unix <path>         : connect to TPM using UnixIO socket\n"
 "-c                    : get ptm capabilities\n"
 "-i                    : do a hardware TPM_Init; if volatile state is found,\n"
 "                        it will resume the TPM with it and delete it\n"
@@ -695,7 +698,7 @@ static void usage(const char *prgname)
 "--version             : display version and exit\n"
 "--help                : display help screen and exit\n"
 "\n"
-, prgname);
+, prgname, DEFAULT_TCP_PORT);
 }
 
 int main(int argc, char *argv[])
