@@ -24,7 +24,7 @@ Use this userid to run swtpm_setup.sh; by default 'tss' is used.
 Path to configuration file containing the tool to use for creating
 certificates; see also B<swtpm_setup.conf>
 
-=item B<--tpm-state <dir>>
+=item B<--tpm-state <dir>> or B<--tpmstate <dir>>
 
 Path to a directory where the TPM's state will be written into;
 this is a mandatory argument

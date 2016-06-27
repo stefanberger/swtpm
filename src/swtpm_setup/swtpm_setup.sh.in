@@ -664,6 +664,8 @@ The following options are supported:
 --tpm-state <dir>: Path to a directory where the TPM's state will be written
                    into; this is a mandatory argument
 
+--tpmstate <dir> : This is an alias for --tpm-state <dir>.
+
 --tpm <executable>
                  : Path to the TPM executable; this is an optional argument and
                    by default $SWTPM is used.
@@ -726,7 +728,7 @@ main()
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
-		--tpm-state) shift; tpm_state_path="$1";;
+		--tpm-state|--tpmstate) shift; tpm_state_path="$1";;
 		--tpm) shift; SWTPM="$1";;
 		--createek) flags=$((flags | SETUP_CREATE_EK_F));;
 		--take-ownership) flags=$((flags |

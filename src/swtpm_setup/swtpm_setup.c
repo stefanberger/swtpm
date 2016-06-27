@@ -55,6 +55,7 @@
  */
 const char *one_arg_params[] = {
     "--tpm-state",
+    "--tpmstate",
     "--tpm",
     "--ownerpass",
     "--srkpass",
