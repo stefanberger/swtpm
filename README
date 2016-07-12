@@ -61,7 +61,7 @@ Low level details on the executables:
 		./swtpm_cuse -M <major> -m <minor> -n <device name>
 	The process runs as a background daemon.
 
-Initialize a two vTPMs' initial state with an EK each:
+Initialize two vTPMs' initial state with an EK each:
 
 	# mkdir /tmp/myvtpm0
 	# chown -R tss:root  /tmp/myvtpm0
@@ -69,7 +69,7 @@ Initialize a two vTPMs' initial state with an EK each:
 
 	# mkdir /tmp/myvtpm1
 	# chown -R tss:root  /tmp/myvtpm1
-	# swtpm_setup --tpm-state /tmp/myvtpm0  --createek
+	# swtpm_setup --tpm-state /tmp/myvtpm1  --createek
 
 Start the vTPM to use it with QEMU:
 
