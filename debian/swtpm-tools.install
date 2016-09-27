@@ -1,6 +1,6 @@
-#! /usr/bin/dh-exec
+#!/bin/sh
+cat <<_EOF_
 /usr/bin/swtpm_bios
-/usr/bin/swtpm_cert
 /usr/bin/swtpm_setup
 /usr/bin/swtpm_setup.sh
 /usr/bin/swtpm_ioctl
@@ -13,3 +13,7 @@
 /usr/share/man/man8/swtpm_setup.8*
 /usr/share/man/man8/swtpm_setup.conf.8*
 /usr/share/man/man8/swtpm_setup.sh.8*
+_EOF_
+if test -n "$(find $(dirname "$0")/tmp -name swtpm_cert)"; then
+echo "/usr/bin/swtpm_cert"
+fi
