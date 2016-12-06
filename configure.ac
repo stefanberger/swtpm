@@ -352,7 +352,7 @@ AC_MSG_CHECKING([the crypto library libtpms is using])
 dirs=$($CC $CFLAGS -Xlinker --verbose 2>/dev/null | \
        sed -n '/SEARCH_DIR/p' | \
        sed 's/SEARCH_DIR("=\?\(@<:@^"@:>@\+\)"); */\1\n/g')
-for dir in $dirs; do
+for dir in $dirs $LIBRARY_PATH; do
   if test -r $dir/libtpms.so; then
     if test -n "`ldd $dir/libtpms.so | grep libcrypto.so`"; then
       libtpms_cryptolib="openssl"
