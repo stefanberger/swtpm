@@ -48,7 +48,8 @@ enum TPMLIB_StateType tpmlib_blobtype_to_statetype(uint32_t blobtype);
 TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs);
 TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion);
 int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
-bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len);
+bool tpmlib_is_request_cancelable(TPMLIB_TPMVersion tpmversion,
+                                  const unsigned char *request, size_t req_len);
 TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locty,
                                        TPM_MODIFIER_INDICATOR locty);
 void tpmlib_write_fatal_error_response(unsigned char **rbuffer,
@@ -92,5 +93,9 @@ struct tpm_resp_header {
 #define TPM_RC_INSUFFICIENT 0x09a
 #define TPM_RC_FAILURE      0x101
 #define TPM_RC_LOCALITY     0x107
+
+/* TPM 2 commands */
+#define TPMLIB_TPM2_CC_CreatePrimary   0x00000131
+#define TPMLIB_TPM2_CC_Create          0x00000153
 
 #endif /* _SWTPM_TPMLIB_H_ */
