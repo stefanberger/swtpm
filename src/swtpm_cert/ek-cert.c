@@ -64,6 +64,10 @@ enum cert_type_t {
     CERT_TYPE_AIK,
 };
 
+/* some flags */
+#define CERT_TYPE_TPM2_F 1
+#define ALLOW_SIGNING_F  2 /* EK can be used for signing */
+
 extern const ASN1_ARRAY_TYPE tpm_asn1_tab[];
 
 ASN1_TYPE _tpm_asn;
@@ -124,6 +128,9 @@ usage(const char *prg)
         "                            C=US,ST=NY,L=NewYork; not used with TPM1.2\n"
         "--add-header              : Add the TCG certificate header describing\n"
         "                            a TCG_PCCLIENT_STORED_CERT for TPM1.2 NVRAM\n"
+        "--tpm2                    : Issue a TPM 2 compliant certificate\n"
+        "--allow-signing           : The EK of a TPM 2 allows signing;\n"
+        "                            requires --tpm2\n"
         "--version                 : Display version and exit\n"
         "--help                    : Display this help screen and exit\n"
         "\n",
@@ -469,6 +476,43 @@ cleanup:
 }
 
 static int
+create_platf_manufacturer_info(const char *manufacturer,
+                               const char *platf_model,
+                               const char *platf_version,
+                               gnutls_datum_t *asn1)
+{
+    ASN1_TYPE at = ASN1_TYPE_EMPTY;
+    int err;
+
+    err = asn_init();
+    if (err != ASN1_SUCCESS) {
+        goto cleanup;
+    }
+
+    err = build_platf_manufacturer_info(&at, manufacturer,
+                                        platf_model, platf_version);
+    if (err != ASN1_SUCCESS) {
+        goto cleanup;
+    }
+
+    err = encode_asn1(asn1, at);
+
+#if 0
+    fprintf(stderr, "size=%d\n", asn1->size);
+    unsigned int i = 0;
+    for (i = 0; i < asn1->size; i++) {
+        fprintf(stderr, "%02x ", asn1->data[i]);
+    }
+    fprintf(stderr, "\n");
+#endif
+
+ cleanup:
+    asn1_delete_structure(&at);
+
+    return err;
+}
+
+static int
 create_tpm_and_platform_manuf_info(
                                const char *tpm_manufacturer,
                                const char *tpm_model,
@@ -711,6 +755,7 @@ main(int argc, char *argv[])
     unsigned char *modulus_bin = NULL;
     int modulus_len = 0;
     gnutls_datum_t datum = { NULL, 0},  out = { NULL, 0};
+    gnutls_digest_algorithm_t hashAlgo = GNUTLS_DIG_SHA1;
     int serial = 1;
     time_t now;
     int err;
@@ -737,6 +782,7 @@ main(int argc, char *argv[])
     char *spec_family = NULL;
     long int spec_level = ~0;
     long int spec_revision = ~0;
+    int flags = 0;
 
     i = 1;
     while (i < argc) {
@@ -914,6 +960,10 @@ main(int argc, char *argv[])
             write_pem = true;
         } else if (!strcmp(argv[i], "--add-header")) {
             add_header = true;
+        } else if (!strcmp(argv[i], "--tpm2")) {
+            flags |= CERT_TYPE_TPM2_F;
+        } else if (!strcmp(argv[i], "--allow-signing")) {
+            flags |= ALLOW_SIGNING_F;
         } else if (!strcmp(argv[i], "--version")) {
             versioninfo(argv[0]);
             exit(0);
@@ -927,7 +977,10 @@ main(int argc, char *argv[])
         }
         i++;
     }
-    
+
+    if (flags & CERT_TYPE_TPM2_F)
+        hashAlgo = GNUTLS_DIG_SHA256;
+
     ser_number = htonl(serial);
 
     if (pubkey_filename == NULL && modulus_bin == NULL) {
@@ -1084,7 +1137,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                        gnutls_strerror(err))
 
     /* 3.5.6 Subject -- must be empty for TPM 1.2 */
-    if (subject && false) {
+    if (subject && (flags & CERT_TYPE_TPM2_F)) {
         err = gnutls_x509_crt_set_dn(crt, subject, &error);
         CHECK_GNUTLS_ERROR(err,
                            "Could not set DN on CRT: %s\n"
@@ -1116,7 +1169,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     }
 
     /* 3.5.8 Certificate Policies -- skip since not mandated */
-    /* 3.5.9 Subject Alternative Names -- missing code */
+    /* 3.5.9 Subject Alternative Names */
     switch (certtype) {
     case CERT_TYPE_EK:
         err = create_tpm_manufacturer_info(tpm_manufacturer, tpm_model,
@@ -1127,15 +1180,29 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         }
         break;
     case CERT_TYPE_PLATFORM:
-        err = create_tpm_and_platform_manuf_info(tpm_manufacturer, tpm_model,
-                                                 tpm_version,
-                                                 platf_manufacturer,
-                                                 platf_model, platf_version,
+        if (flags & CERT_TYPE_TPM2_F) {
+            err = create_platf_manufacturer_info(platf_manufacturer,
+                                                 platf_model,
+                                                 platf_version,
                                                  &datum);
-        if (err) {
-            fprintf(stderr, "Could not create TPM and platform manufacturer "
-                    "info");
-            goto cleanup;
+            if (err) {
+                fprintf(stderr, "Could not create platform manufacturer "
+                        "info");
+                goto cleanup;
+            }
+        } else {
+            err = create_tpm_and_platform_manuf_info(tpm_manufacturer,
+                                                     tpm_model,
+                                                     tpm_version,
+                                                     platf_manufacturer,
+                                                     platf_model,
+                                                     platf_version,
+                                                     &datum);
+            if (err) {
+                fprintf(stderr, "Could not create TPM and platform "
+                        "manufacturer info");
+                goto cleanup;
+            }
         }
         break;
     case CERT_TYPE_AIK:
@@ -1208,7 +1275,15 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     switch (certtype) {
     case CERT_TYPE_EK:
     case CERT_TYPE_PLATFORM:
-        key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+        if (flags & CERT_TYPE_TPM2_F) {
+            if (flags & ALLOW_SIGNING_F) {
+                key_usage = GNUTLS_KEY_DIGITAL_SIGNATURE;
+            } else {
+                key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+            }
+        } else {
+            key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+        }
         break;
     case CERT_TYPE_AIK:
         key_usage = GNUTLS_KEY_DIGITAL_SIGNATURE;
@@ -1273,7 +1348,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                        gnutls_strerror(err))
 
     /* sign cert */
-    err = gnutls_x509_crt_sign2(crt, sigcert, sigkey, GNUTLS_DIG_SHA1, 0);
+    err = gnutls_x509_crt_sign2(crt, sigcert, sigkey, hashAlgo, 0);
     CHECK_GNUTLS_ERROR(err, "Could not sign the CRT: %s\n",
                        gnutls_strerror(err))
 
