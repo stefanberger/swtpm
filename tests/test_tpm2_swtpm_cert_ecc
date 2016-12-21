@@ -1,0 +1,138 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM_CERT=${ROOT}/src/swtpm_cert/swtpm_cert
+
+cert=$(mktemp)
+
+trap "cleanup" SIGTERM EXIT
+
+
+function cleanup()
+{
+	rm -f ${cert}
+}
+
+function check_cert_size()
+{
+	local cert="$1"
+	local exp="$2"
+
+	# Unfortunately different GnuTLS versions may create certs of different
+	# sizes; deactivate this test for now
+	return
+
+	local size=$(stat -c%s ${cert} 2>/dev/null)
+	if [ $size -ne $exp ]; then
+		echo "Warning: Certificate file has unexpected size."
+		echo "         Expected: $exp;  found: $size"
+	fi
+}
+
+${SWTPM_CERT} \
+	--tpm2 \
+	--signkey ${DIR}/data/signkey.pem \
+	--issuercert ${DIR}/data/issuercert.pem \
+	--out-cert ${cert} \
+	--ecc-x 61eaf811ea582656ca2a835dd1b9cd63eb196d7ff62711d6e9b8f85e580a47ca \
+	--ecc-y a51efdc71fd6c791a24a75beb50526aa81b44cc598e65b2d5e116084aea4cb5b \
+	--days 3650 \
+	--pem \
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2
+
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+#expecting size to be constant
+check_cert_size "{$cert}" 948
+
+#certtool --certificate-info --infile ${cert}
+#openssl x509 -in ${cert} -text
+
+# truncate result file
+echo -n > ${cert}
+echo "Test 1: OK"
+
+${SWTPM_CERT} \
+	--tpm2 \
+	--signkey ${DIR}/data/signkey.pem \
+	--issuercert ${DIR}/data/issuercert.pem \
+	--out-cert ${cert} \
+	--ecc-x 61eaf811ea582656ca2a835dd1b9cd63eb196d7ff62711d6e9b8f85e580a47ca \
+	--ecc-y a51efdc71fd6c791a24a75beb50526aa81b44cc598e65b2d5e116084aea4cb5b \
+	--days 3650 \
+	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
+	--pem \
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2
+
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+#expecting size to be constant
+check_cert_size "{$cert}" 1025
+
+# truncate result file
+echo -n > ${cert}
+echo "Test 2: OK"
+
+${SWTPM_CERT} \
+	--tpm2 \
+	--signkey ${DIR}/data/signkey.pem \
+	--issuercert ${DIR}/data/issuercert.pem \
+	--out-cert ${cert} \
+	--pubkey ${DIR}/data/ecpubek.pem \
+	--days 3650 \
+	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
+	--pem \
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2
+
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+#expecting size to be constant
+check_cert_size "{$cert}" 1025
+
+# truncate result file
+#certtool --certificate-info --infile ${cert}
+echo -n > ${cert}
+echo "Test 3: OK"
+
+
+###################### Platform Certificate #####################
+
+${SWTPM_CERT} \
+	--tpm2 \
+        --type platform \
+	--signkey ${DIR}/data/signkey.pem \
+	--issuercert ${DIR}/data/issuercert.pem \
+	--pubkey ${DIR}/data/ecpubek.pem \
+	--out-cert ${cert} \
+	--days 3650 \
+	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
+	--pem \
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
+	--platform-manufacturer Fedora \
+	--platform-model QEMU \
+	--platform-version 2.1
+
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+#expecting size to be constant
+check_cert_size "{$cert}" 1070
+
+# truncate result file
+#certtool --certificate-info --infile ${cert}
+echo -n > ${cert}
+echo "Test 4: OK"

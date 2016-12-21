@@ -96,6 +96,8 @@ usage(const char *prg)
         "--out-cert <filename>     : Filename for certificate\n"
         "--modulus <hex string>    : The modulus of the public key\n"
         "--exponent <exponent>     : The exponent of the public key\n"
+        "--ecc-x                   : ECC key x component\n"
+        "--ecc-y                   : ECC key y component\n"
         "--serial <serial number>  : The certificate serial number\n"
         "--days <number>           : Number of days the cert is valid\n"
         "--pem                     : Write certificate in PEM format; default is DER\n"
@@ -144,6 +146,7 @@ hex_str_to_bin(const char *hexstr, int *modulus_len)
 
     if ((len & 1) != 0) {
         fprintf(stderr, "Got an odd number of hex digits (%d).\n", len);
+        fprintf(stderr, "    hex digits: %s\n", hexstr);
         return NULL;
     }
 
@@ -202,6 +205,40 @@ create_rsa_from_modulus(unsigned char *modulus, unsigned int modulus_len,
     err = gnutls_pubkey_import_rsa_raw(rsa, &mod, &exp);
     if (err < 0) {
         fprintf(stderr, "Could not set modulus and exponent on RSA key : %s\n",
+                gnutls_strerror(err));
+        gnutls_pubkey_deinit(rsa);
+        rsa = NULL;
+    }
+
+    return rsa;
+}
+
+static gnutls_pubkey_t
+create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
+                        unsigned char *ecc_y, unsigned int ecc_y_len)
+{
+    gnutls_pubkey_t rsa = NULL;
+    int err;
+    gnutls_datum_t x = {
+        .data = ecc_x,
+        .size = ecc_x_len,
+    };
+    gnutls_datum_t y = {
+        .data = ecc_y,
+        .size = ecc_y_len,
+    };
+
+    err = gnutls_pubkey_init(&rsa);
+    if (err < 0) {
+        fprintf(stderr, "Could not initialized public key structure : %s\n",
+                gnutls_strerror(err));
+        return NULL;
+    }
+
+    err = gnutls_pubkey_import_ecc_raw(rsa, GNUTLS_ECC_CURVE_SECP256R1,
+                                       &x, &y);
+    if (err < 0) {
+        fprintf(stderr, "Could not set x and y on ECC key : %s\n",
                 gnutls_strerror(err));
         gnutls_pubkey_deinit(rsa);
         rsa = NULL;
@@ -477,6 +514,12 @@ main(int argc, char *argv[])
     const char *issuercert_filename = NULL;
     unsigned char *modulus_bin = NULL;
     int modulus_len = 0;
+    const char *ecc_x_str = NULL;
+    unsigned char *ecc_x_bin = NULL;
+    int ecc_x_len = 0;
+    const char *ecc_y_str = NULL;
+    unsigned char *ecc_y_bin = NULL;
+    int ecc_y_len = 0;
     gnutls_datum_t datum = { NULL, 0},  out = { NULL, 0};
     int serial = 1;
     time_t now;
@@ -501,6 +544,7 @@ main(int argc, char *argv[])
     char *platf_version = NULL;
     char *platf_model = NULL;
     int flags = 0;
+    bool is_ecc = false;
 
     i = 1;
     while (i < argc) {
@@ -519,6 +563,26 @@ main(int argc, char *argv[])
             }
             modulus_str = argv[i];
             if (!(modulus_bin = hex_str_to_bin(modulus_str, &modulus_len))) {
+                goto cleanup;
+            }
+        } else if (!strcmp(argv[i], "--ecc-x")) {
+            i++;
+            if (i == argc) {
+                fprintf(stderr, "Missing argument for --ecc-x.\n");
+                goto cleanup;
+            }
+            ecc_x_str = argv[i];
+            if (!(ecc_x_bin = hex_str_to_bin(ecc_x_str, &ecc_x_len))) {
+                goto cleanup;
+            }
+        } else if (!strcmp(argv[i], "--ecc-y")) {
+            i++;
+            if (i == argc) {
+                fprintf(stderr, "Missing argument for --ecc-y.\n");
+                goto cleanup;
+            }
+            ecc_y_str = argv[i];
+            if (!(ecc_y_bin = hex_str_to_bin(ecc_y_str, &ecc_y_len))) {
                 goto cleanup;
             }
         } else if (!strcmp(argv[i], "--exponent")) {
@@ -667,8 +731,20 @@ main(int argc, char *argv[])
     
     ser_number = htonl(serial);
 
-    if (pubkey_filename == NULL && modulus_bin == NULL) {
-        fprintf(stderr, "Missing public EK file and modulus.\n");
+    if (modulus_bin && (ecc_x_bin || ecc_y_bin)) {
+        fprintf(stderr, "RSA modulus and ECC parameters cannot both be "
+                "given.\n");
+        goto cleanup;
+    }
+
+    if ((ecc_x_bin && !ecc_y_bin) || (ecc_y_bin && !ecc_x_bin)) {
+        fprintf(stderr, "ECC x and y parameters must both be given.\n");
+        goto cleanup;
+    }
+
+    if (pubkey_filename == NULL && !modulus_bin && !ecc_x_bin) {
+        fprintf(stderr, "Missing public EK file and modulus or ECC "
+                "parameters.\n");
         usage(argv[0]);
         goto cleanup;
     }
@@ -735,10 +811,21 @@ main(int argc, char *argv[])
             goto cleanup;
         }
     } else {
-        pubkey = create_rsa_from_modulus(modulus_bin, modulus_len,
-                                         exponent);
-        free(modulus_bin);
-        modulus_bin = NULL;
+        if (modulus_bin) {
+            pubkey = create_rsa_from_modulus(modulus_bin, modulus_len,
+                                             exponent);
+            free(modulus_bin);
+            modulus_bin = NULL;
+        } else if (ecc_x_bin) {
+            pubkey = create_ecc_from_x_and_y(ecc_x_bin, ecc_x_len,
+                                             ecc_y_bin, ecc_y_len);
+            free(ecc_x_bin);
+            ecc_x_bin = NULL;
+            free(ecc_y_bin);
+            ecc_y_bin = NULL;
+
+            is_ecc = true;
+        }
 
         if (pubkey == NULL)
             goto cleanup;
@@ -931,7 +1018,11 @@ if (_err != GNUTLS_E_SUCCESS) {             \
             if (flags & ALLOW_SIGNING_F) {
                 key_usage = GNUTLS_KEY_DIGITAL_SIGNATURE;
             } else {
-                key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+                if (is_ecc) {
+                    key_usage = GNUTLS_KEY_KEY_AGREEMENT;
+                } else {
+                    key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+                }
             }
         } else {
             key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
