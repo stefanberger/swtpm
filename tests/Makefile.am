@@ -7,7 +7,8 @@
 check_PROGRAMS =
 
 TESTS = \
-	test_vtpm_proxy
+	test_vtpm_proxy \
+	test_tpm2_vtpm_proxy
 
 if WITH_CHARDEV
 TESTS += \
@@ -31,7 +32,20 @@ TESTS += \
 	test_setbuffersize \
 	test_volatilestate \
 	test_swtpm_bios \
+	test_tpm_probe \
 	test_wrongorder
+
+TESTS += \
+	test_tpm2_init \
+	test_tpm2_getcap \
+	test_tpm2_locality \
+	test_tpm2_hashing \
+	test_tpm2_hashing2 \
+	test_tpm2_hashing3 \
+	test_tpm2_savestate \
+	test_tpm2_setbuffersize \
+	test_tpm2_wrongorder \
+	test_tpm2_probe
 
 if WITH_SWTPM_SETUP
 TESTS += \
@@ -83,6 +97,17 @@ EXTRA_DIST=$(TESTS) \
 	_test_save_load_state \
 	_test_setbuffersize \
 	_test_swtpm_bios \
+	_test_tpm_probe \
+	_test_tpm2_getcap \
+	_test_tpm2_hashing \
+	_test_tpm2_hashing2 \
+	_test_tpm2_hashing3 \
+	_test_tpm2_init \
+	_test_tpm2_locality \
+	_test_tpm2_probe \
+	_test_tpm2_savestate \
+	_test_tpm2_setbuffersize \
+	_test_tpm2_wrongorder \
 	_test_volatilestate \
 	_test_wrongorder
 

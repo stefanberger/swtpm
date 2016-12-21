@@ -1,0 +1,161 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+VTPM_NAME="vtpm-test-tpm2-locality"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm2-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
+source ${DIR}/common
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	exit 1
+fi
+
+# Set locality 4 on the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -l 4
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 4."
+	exit 1
+fi
+
+# Set illegal locality 5 on the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -l 5
+if [ $? -eq 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM accepted locality 5."
+	exit 1
+fi
+
+# Set locality 0 on the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -l 0
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 0."
+	exit 1
+fi
+
+# In locality 2 we can reset PCR 20
+run_swtpm_ioctl ${SWTPM_INTERFACE} -l 2
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 2."
+	exit 1
+fi
+
+# Need to set locality 0 or 3 for TPM2_Startup to work...
+# TPM_Startup for TPM 1.2 worked in all localities
+run_swtpm_ioctl ${SWTPM_INTERFACE} -l 3
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 3."
+	exit 1
+fi
+
+# Startup the TPM
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+exp=' 80 01 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_Startup(SU_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# In locality 2 we can reset PCR 20
+run_swtpm_ioctl ${SWTPM_INTERFACE} -l 2
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 2."
+	exit 1
+fi
+
+# Reset PCR 20
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x3d\x00\x00\x00\x14\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00')
+exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Could not reset PCR 20 in locality 2"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# In locality 1 we can NOT reset PCR 20
+run_swtpm_ioctl ${SWTPM_INTERFACE} -l 1
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 1."
+	exit 1
+fi
+
+# Reset PCR 20
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x3d\x00\x00\x00\x14\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00')
+exp=' 80 01 00 00 00 0a 00 00 09 07'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Could reset PCR 20 in locality 1"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Shut down TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+sleep 0.5
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+VTPM_NAME="vtpm-test-tpm2-probe"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm2-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
+source ${DIR}/common
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+if [ "${SWTPM_INTERFACE}" != "cuse" ]; then
+	run_swtpm_ioctl ${SWTPM_INTERFACE} --stop
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not stop the ${SWTPM_INTERFACE} TPM"
+		exit 1
+	fi
+fi
+
+# Open access to the TPM
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+
+# Before TPM_INIT: Read PCR 17 -- this gives a fatal error
+#                                                     length         CC            count       hashalg         sz
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
+exp=' 80 01 00 00 00 0a 00 00 01 01'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Before TPM_INIT: Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+# Read PCR 17 -- this should give TPM_INVALID_POSTINIT
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
+exp=' 80 01 00 00 00 0a 00 00 01 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+echo "OK"
+
+exit 0
