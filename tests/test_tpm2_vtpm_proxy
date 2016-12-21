@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm2-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
+PID_FILE=$TPM_PATH/${SWTPM}.pid
+SOCK_PATH=$TPM_PATH/sock
+CMD_PATH=$TPM_PATH/cmd
+RESP_PATH=$TPM_PATH/resp
+LOGFILE=$TPM_PATH/logfile
+
+function cleanup()
+{
+	pid=$(ps aux | grep $SWTPM | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+source ${DIR}/load_vtpm_proxy
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+$SWTPM_EXE chardev --tpm2 --vtpm-proxy --tpmstate dir=$TPM_PATH --ctrl type=unixio,path=$SOCK_PATH --pid file=$PID_FILE &>$LOGFILE &
+sleep 0.5
+PID=$(ps aux | grep $SWTPM | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: Chardev TPM did not start."
+	exit 1
+fi
+less $LOGFILE
+TPM_DEVICE=$(sed -n 's,.*\(/dev/tpm[0-9]\+\).*,\1,p' $LOGFILE)
+echo "Using ${TPM_DEVICE}."
+
+# Wait for chardev to appear
+for ((i = 0; i < 10; i ++)); do
+	[ -c "${TPM_DEVICE}" ] && break
+	sleep 0.1
+done
+if ! [ -c "${TPM_DEVICE}" ]; then
+	echo "Error: Chardev ${TPM_DEVICE} did not appear"
+	exit 1
+fi
+
+# Open access to the TPM
+exec 100<>$TPM_DEVICE
+if [ $? -ne 0 ]; then
+	echo "Error: Could not open $TPM_DEVICE"
+	exit 1
+fi
+
+# Read PCR 17
+#                         length         CC            count       hashalg         sz
+echo -en '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02' >&100
+RES=$(od -t x1 -A n -w128 <&100)
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 15 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+exec 100>&-
+
+kill -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Error: Chardev TPM must have crashed."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+# Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
+echo -en '\x00\x00\x00\x03' > $CMD_PATH
+socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SOCK_PATH 2>&1 | \
+	sed -n '/^ /p' | \
+	tail -n1 > $RESP_PATH
+res="$(cat $RESP_PATH)"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Unexpected response from CMD_SHUTDOWN:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+sleep 0.2
+kill -0 $PID 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: TPM should not be running anymore."
+	exit 1
+fi
+
+if [ -f $PID_FILE ]; then
+	echo "Error: TPM should have removed the PID file."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0
