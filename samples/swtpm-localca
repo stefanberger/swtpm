@@ -138,7 +138,7 @@ create_cert() {
 	local tpm_attr_params="$7"
 
 	local serial=$(get_next_cert_serial)
-	local options="" rc=0
+	local options="" rc=0 keyparms=""
 
 	if [ -z "$serial" ]; then
 		return 1
@@ -161,6 +161,16 @@ create_cert() {
 		options="$options --add-header"
 	fi
 
+	# if ek contains x=..,y=... it's an ECC key
+	if [[ "$ek" =~ x=.*,y=.* ]]; then
+		keyparms="--ecc-x \"$(echo $ek | \
+		                sed -n 's/x=\([[:xdigit:]]\+\),.*/\1/p')\" "
+		keyparms+="--ecc-y \"$(echo $ek | \
+		                sed -n 's/.*y=\([[:xdigit:]]\+\)/\1/p')\""
+	else
+		keyparms="--modulus \"${ek}\""
+	fi
+
 	case "$typ" in
 	ek)
 		if [ -z "$(type -p swtpm_cert)" ]; then
@@ -174,7 +184,7 @@ create_cert() {
 			--signkey ${SIGNKEY} \
 			--issuercert ${ISSUERCERT} \
 			--out-cert ${dir}/ek.cert \
-			--modulus "${ek}" \
+			$keyparms \
 			--days $((10*365)) \
 			--serial $serial
 			if [ $? -eq 0 ]; then
@@ -197,7 +207,7 @@ create_cert() {
 			--signkey ${SIGNKEY} \
 			--issuercert ${ISSUERCERT} \
 			--out-cert ${dir}/platform.cert \
-			--modulus "${ek}" \
+			$keyparms \
 			--days $((10*365)) \
 			--serial $serial
 			if [ $? -eq 0 ]; then
