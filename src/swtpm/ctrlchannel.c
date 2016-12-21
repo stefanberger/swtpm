@@ -506,7 +506,7 @@ int ctrlchannel_process_fd(int fd,
                 | PTM_CAP_HASHING
                 //| PTM_CAP_GET_STATEBLOB
                 //| PTM_CAP_SET_STATEBLOB
-                //| PTM_CAP_CANCEL_TPM_CMD
+                | PTM_CAP_CANCEL_TPM_CMD
                 //| PTM_CAP_STORE_VOLATILE
                 | PTM_GET_CONFIG
 #ifndef __CYGWIN__
@@ -707,7 +707,7 @@ int ctrlchannel_process_fd(int fd,
          * execute in another thread that polls on a cancel
          * flag
          */
-        *res_p = htobe32(TPM_FAIL);
+        *res_p = htobe32(TPMLIB_CancelCommand());
         out_len = sizeof(ptm_res);
         break;
 

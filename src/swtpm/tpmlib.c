@@ -129,7 +129,8 @@ int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop)
     return result;
 }
 
-bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len)
+bool tpmlib_is_request_cancelable(TPMLIB_TPMVersion tpmversion,
+                                  const unsigned char *request, size_t req_len)
 {
     struct tpm_req_header *hdr;
     uint32_t ordinal;
@@ -139,6 +140,10 @@ bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len)
 
     hdr = (struct tpm_req_header *)request;
     ordinal = be32toh(hdr->ordinal);
+
+    if (tpmversion == TPMLIB_TPM_VERSION_2)
+        return (ordinal == TPMLIB_TPM2_CC_CreatePrimary ||
+                ordinal == TPMLIB_TPM2_CC_Create);
 
     return (ordinal == TPMLIB_TPM_ORD_TakeOwnership ||
             ordinal == TPMLIB_TPM_ORD_CreateWrapKey);
