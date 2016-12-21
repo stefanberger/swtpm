@@ -853,7 +853,8 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
         if (ptm_res_len)
             goto skip_process;
 
-        if (tpmlib_is_request_cancelable((const unsigned char*)buf,
+        if (tpmlib_is_request_cancelable(l_tpmversion,
+                                         (const unsigned char*)buf,
                                          ptm_req_len)) {
             /* have command processed by thread pool */
             memcpy(ptm_request, buf, ptm_req_len);
@@ -975,7 +976,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                     | PTM_CAP_GET_TPMESTABLISHED
                     | PTM_CAP_SET_LOCALITY
                     | PTM_CAP_HASHING
-                    //| PTM_CAP_CANCEL_TPM_CMD
+                    | PTM_CAP_CANCEL_TPM_CMD
                     //| PTM_CAP_STORE_VOLATILE
                     //| PTM_CAP_RESET_TPMESTABLISHED
                     //| PTM_CAP_GET_STATEBLOB
@@ -1152,7 +1153,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
          * execute in another thread that polls on a cancel
          * flag
          */
-        res = TPM_FAIL;
+        res = TPMLIB_CancelCommand();
         fuse_reply_ioctl(req, 0, &res, sizeof(res));
         break;
 
