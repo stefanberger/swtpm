@@ -51,7 +51,11 @@
 
 #define TPM_FILENAME_MAX 20
 
+#include <libtpms/tpm_library.h>
+
 TPM_RESULT SWTPM_NVRAM_Init(void);
+
+void SWTPM_NVRAM_Set_TPMVersion(TPMLIB_TPMVersion version);
 
 /*
   Basic abstraction for read and write
