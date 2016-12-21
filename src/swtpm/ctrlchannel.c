@@ -483,6 +483,7 @@ int ctrlchannel_process_fd(int fd,
     uint32_t offset;
     char *info_data = NULL;
     size_t length;
+    TPM_MODIFIER_INDICATOR orig_locality;
 
     if (fd < 0)
         return -1;
@@ -622,8 +623,12 @@ int ctrlchannel_process_fd(int fd,
         if (re->u.req.loc > 4) {
             res = htobe32(TPM_BAD_LOCALITY);
         } else {
-            res = htobe32(tpmlib_TpmEstablished_Reset(locality,
-                                                      re->u.req.loc));
+            orig_locality = *locality;
+            *locality = re->u.req.loc;
+
+            res = htobe32(TPM_IO_TpmEstablished_Reset());
+
+            *locality = orig_locality;
         }
 
         *res_p = res;
