@@ -63,6 +63,10 @@ enum cert_type_t {
     CERT_TYPE_AIK,
 };
 
+/* some flags */
+#define CERT_TYPE_TPM2_F 1
+#define ALLOW_SIGNING_F  2 /* EK can be used for signing */
+
 extern const ASN1_ARRAY_TYPE tpm_asn1_tab[];
 
 ASN1_TYPE _tpm_asn;
@@ -104,6 +108,9 @@ usage(const char *prg)
         "--platform-version <version>   : The Platform version (firmware version)\n"
         "--subject <subject>       : Subject such as location in format\n"
         "                            C=US,ST=NY,L=NewYork\n"
+        "--tpm2                    : Issue a TPM 2 compliant certificate\n"
+        "--allow-signing           : The EK of a TPM 2 allows signing;\n"
+        "                            requires --tpm2\n"
         "--version                 : Display version and exit\n"
         "--help                    : Display this help screen and exit\n"
         "\n",
@@ -493,6 +500,7 @@ main(int argc, char *argv[])
     char *platf_manufacturer = NULL;
     char *platf_version = NULL;
     char *platf_model = NULL;
+    int flags = 0;
 
     i = 1;
     while (i < argc) {
@@ -639,6 +647,10 @@ main(int argc, char *argv[])
             platf_version = argv[i];
         } else if (!strcmp(argv[i], "--pem")) {
             write_pem = true;
+        } else if (!strcmp(argv[i], "--tpm2")) {
+            flags |= CERT_TYPE_TPM2_F;
+        } else if (!strcmp(argv[i], "--allow-signing")) {
+            flags |= ALLOW_SIGNING_F;
         } else if (!strcmp(argv[i], "--version")) {
             versioninfo(argv[0]);
             exit(0);
@@ -831,7 +843,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     }
 
     /* 3.5.8 Certificate Policies -- skip since not mandated */
-    /* 3.5.9 Subject Alternative Names -- missing code */
+    /* 3.5.9 Subject Alternative Names */
     err = create_tpm_manufacturer_info(tpm_manufacturer, tpm_model,
                                        tpm_version, &datum);
     if (!err && datum.size > 0) {
@@ -899,7 +911,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     err = gnutls_x509_crt_set_basic_constraints(crt, 0, -1);
     CHECK_GNUTLS_ERROR(err, "Could not set key usage id: %s\n",
                        gnutls_strerror(err))
-    /* 3.5.11 Subject Directory Attributes -- missing */
+    /* 3.5.11 Subject Directory Attributes -- missing GNUTLS API */
 
     /* 3.5.12 Authority Key Id */
     err = gnutls_x509_crt_get_key_id(sigcert, 0, id, &id_size);
@@ -915,7 +927,15 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     switch (certtype) {
     case CERT_TYPE_EK:
     case CERT_TYPE_PLATFORM:
-        key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+        if (flags & CERT_TYPE_TPM2_F) {
+            if (flags & ALLOW_SIGNING_F) {
+                key_usage = GNUTLS_KEY_DIGITAL_SIGNATURE;
+            } else {
+                key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+            }
+        } else {
+            key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+        }
         break;
     case CERT_TYPE_AIK:
         key_usage = GNUTLS_KEY_DIGITAL_SIGNATURE;

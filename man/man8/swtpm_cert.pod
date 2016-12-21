@@ -95,6 +95,14 @@ Subject to for example provide the location of the TPM in the format of
 C=<country>,ST=<state>,L=<location>.
 Note that the location must no contain any spaces.
 
+=item B<--tpm2>
+
+Issue TPM 2 compliant certificates.
+
+=item B<--allow-signing>
+
+Create an EK that can also be used for signing. This option requires --tpm2.
+
 =item B<--help, -h>
 
 Display the help screen
