@@ -32,6 +32,14 @@ The public key (EK) in PEM format.
 The modulus of the public key as a string of hex digits. This option
 can be used in place of the --pubkey option.
 
+=item <--ecc-x <hex digits>>
+
+The elliptic curve parameter x as string of hex digits.
+
+=item <--ecc-y <hex digits>>
+
+The elliptic curve parameter y as string of hex digits.
+
 =item B<--exponent <exponent>>
 
 The exponent of the public key. By default 0x10001 is assumed.
