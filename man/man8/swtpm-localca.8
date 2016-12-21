@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm-localca 8"
-.TH swtpm-localca 8 "2018-04-21" "swtpm" ""
+.TH swtpm-localca 8 "2018-04-23" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -197,6 +197,9 @@ The options file to use. If omitted, the default options file
 \&\s-1TPM\s0 specification parameters that describe the specification that was
 followed for the \s-1TPM\s0 implementation. The parameters will be passed
 to swtpm_cert for the creation of the \s-1EK\s0 certificate.
+.IP "\fB\-\-tpm2\fR" 4
+.IX Item "--tpm2"
+Create \s-1TPM 2\s0 compliant certificates.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBswtpm\-localca.conf\fR, \fBswtpm\-localca.options\fR, 

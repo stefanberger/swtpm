@@ -52,7 +52,9 @@ TESTS += \
 if WITH_SWTPM_SETUP
 TESTS += \
 	test_commandline \
-	test_parameters
+	test_parameters \
+	\
+	test_tpm2_parameters
 endif
 
 if WITH_GNUTLS
@@ -61,7 +63,8 @@ TESTS += \
 	test_tpm2_swtpm_cert
 if WITH_SWTPM_SETUP
 TESTS += \
-	test_swtpm_setup_create_cert
+	test_swtpm_setup_create_cert \
+	test_tpm2_swtpm_setup_create_cert
 endif
 endif
 
