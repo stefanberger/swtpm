@@ -45,7 +45,9 @@ TESTS += \
 	test_tpm2_savestate \
 	test_tpm2_setbuffersize \
 	test_tpm2_wrongorder \
-	test_tpm2_probe
+	test_tpm2_probe \
+	\
+	test_tpm2_swtpm_bios
 
 if WITH_SWTPM_SETUP
 TESTS += \
@@ -107,6 +109,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm2_probe \
 	_test_tpm2_savestate \
 	_test_tpm2_setbuffersize \
+	_test_tpm2_swtpm_bios \
 	_test_tpm2_wrongorder \
 	_test_volatilestate \
 	_test_wrongorder

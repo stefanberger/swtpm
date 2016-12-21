@@ -117,4 +117,59 @@ struct tpm_get_capability_permflags_res {
 	uint8_t flags[20];
 } __attribute__((packed));
 
+
+/* constants for TPM 2 */
+
+#define TPM2_ST_NO_SESSIONS  0x8001
+#define TPM2_ST_SESSIONS     0x8002
+
+#define TPM2_CC_HierarchyChangeAuth  0x00000129
+#define TPM2_CC_IncrementalSelfTest  0x00000142
+#define TPM2_CC_Startup              0x00000144
+
+#define TPM2_SU_CLEAR    0x0000
+#define TPM2_SU_STATE    0x0001
+
+#define TPM2_ALG_SHA1    0x0004
+
+#define TPM2_RS_PW       0x40000009
+#define TPM2_RH_PLATFORM 0x4000000c
+
+/* data structures for TPM 2 */
+
+struct tpm2_startup {
+	struct tpm_header hdr;
+	uint16_t startup_type;
+} __attribute__((packed));
+
+struct tpm2l_alg_1_entry {
+	uint32_t num_entries;
+	uint16_t algids[1];
+} __attribute__((packed));
+
+struct tpm2_incremental_selftest {
+	struct tpm_header hdr;
+	struct tpm2l_alg_1_entry to_test;
+} __attribute__((packed));
+
+struct tpm2_authblock {
+	uint32_t handle;
+	uint16_t nonce_size;
+	uint8_t cont;
+	uint16_t password_size;
+} __attribute__((packed));
+
+struct tpm2b_20 {
+	uint16_t size;
+	uint8_t buffer[20];
+} __attribute__((packed));
+
+struct tpm2_hierarchy_change_auth {
+	struct tpm_header hdr;
+	uint32_t authhandle;
+	uint32_t authblock_size;
+	struct tpm2_authblock authblock;
+	struct tpm2b_20 newauth;
+} __attribute__((packed));
+
 #endif /* _SWTPM_BIOS_H */

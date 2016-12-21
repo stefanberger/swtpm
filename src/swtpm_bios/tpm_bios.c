@@ -382,130 +382,91 @@ static int TPM_ContinueSelfTest(int *tpm_errcode)
 		    NULL, 0);
 }
 
-static void versioninfo(void)
+static int TPM2_Startup(unsigned short startup_type, int *tpm_errcode)
 {
-	printf(
-"TPM emulator BIOS emulator version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
-,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO);
+	struct tpm2_startup ts = {
+		.hdr = {
+			.tag = htobe16(TPM2_ST_NO_SESSIONS),
+			.length = htobe32(sizeof(ts)),
+			.ordinal = htobe32(TPM2_CC_Startup),
+		},
+		.startup_type = htobe16(startup_type),
+	};
+
+	return talk(&ts.hdr, sizeof(ts), tpm_errcode,
+		    TPM_DURATION_SHORT, NULL, 0);
 }
 
-static void print_usage(const char *prgname)
+static int TPM2_IncrementalSelfTest(int *tpm_errcode)
 {
-	versioninfo();
-	printf(
-"\n"
-"%s [options]\n"
-"\n"
-"Runs TPM_Startup (unless -n), then (unless -o) sets PP, enable, activate \n"
-"and finally (using -u) gives up physical presence (PP)\n"
-"\n"
-"The following options are supported:\n"
-"\t--tpm-device <device>  use the given device; default is /dev/tpm0\n"
-"\t--tcp [<host>]:[<prt>] connect to TPM on given host and port;\n"
-"\t                       default host is 127.0.0.1, default port is %u\n"
-"\t--unix <path>          connect to TPM using UnixIO socket\n"
-"\t-c                     startup clear (default)\n"
-"\t-s                     startup state\n"
-"\t-d                     startup deactivate\n"
-"\t-n                     no startup\n"
-"\t-o                     startup only\n"
-"\t-cs                    run TPM_ContinueSelfTest\n"
-"\t-ea                    make sure that the TPM is activated; terminate\n"
-"\t                       with exit code 129 if the TPM needs to be reset\n"
-"\t-u                     give up physical presence\n"
-"\t-v                     display version and exit\n"
-"\t-h                     display this help screen and exit\n"
-, prgname, DEFAULT_TCP_PORT);
+	struct tpm2_incremental_selftest ts = {
+		.hdr = {
+			.tag = htobe16(TPM2_ST_NO_SESSIONS),
+			.length = htobe32(sizeof(ts)),
+			.ordinal = htobe32(TPM2_CC_IncrementalSelfTest),
+		},
+		.to_test = {
+			.num_entries = htobe32(1),
+			.algids = {
+				htobe16(TPM2_ALG_SHA1),
+			},
+		},
+	};
+
+	return talk(&ts.hdr, sizeof(ts), tpm_errcode,
+		    TPM_DURATION_SHORT, NULL, 0);
 }
 
-int main(int argc, char *argv[])
+static int TPM2_HierarchyChangeAuth(int *tpm_errcode)
 {
-	int   ret = 0;
-	int   do_more = 1;
-	int   ensure_activated = 0;
-	int   contselftest = 0;
-	unsigned char  startupparm = TPM_ST_CLEAR;      /* parameter for TPM_Startup(); */
-	int   tpm_errcode = 0;
-	int   unassert_pp = 0;
-	int   tpm_error = 0;
+	struct tpm2_hierarchy_change_auth thca = {
+		.hdr = {
+			.tag = htobe16(TPM2_ST_SESSIONS),
+			.length = htobe32(sizeof(thca)),
+			.ordinal = htobe32(TPM2_CC_HierarchyChangeAuth),
+		},
+		.authhandle = htobe32(TPM2_RH_PLATFORM),
+		.authblock_size = htobe32(sizeof(thca.authblock)),
+		.authblock = {
+			.handle = htobe32(TPM2_RS_PW),
+			.nonce_size = htobe16(0),
+			.cont = 1,
+			.password_size = htobe16(0),
+		},
+		.newauth = {
+			.size = htobe16(sizeof(thca.newauth.buffer)),
+		},
+	};
+
+	int fd = open("/dev/urandom", O_RDONLY);
+	if (fd >= 0) {
+		ssize_t n = read(fd, &thca.newauth.buffer,
+				sizeof(thca.newauth.buffer));
+		close(fd);
+		if (n != sizeof(thca.newauth.buffer)) {
+				printf("Read of bytes from /dev/urandom failed");
+			if (n < 0)
+				printf(": %s", strerror(errno));
+			printf("\n");
+			return -1;
+		}
+	} else {
+		printf("Could not open /dev/urandom: %s\n", strerror(errno));
+		return -1;
+	}
+
+	return talk(&thca.hdr, sizeof(thca), tpm_errcode,
+		    TPM_DURATION_SHORT, NULL, 0);
+}
+
+static int tpm12_bios(int do_more, int contselftest, unsigned char startupparm,
+		      int unassert_pp, int ensure_activated)
+{
+	int ret = 0;
+	int tpm_errcode;
+	int tpm_error = 0;
 	unsigned short physical_presence;
 	struct tpm_get_capability_permflags_res perm_flags;
-	static struct option long_options[] = {
-		{"tpm-device", required_argument, NULL, 'D'},
-		{"tcp", required_argument, NULL, 'T'},
-		{"unix", required_argument, NULL, 'U'},
-		{"c", no_argument, NULL, 'c'},
-		{"d", no_argument, NULL, 'd'},
-		{"h", no_argument, NULL, 'h'},
-		{"v", no_argument, NULL, 'v'},
-		{"n", no_argument, NULL, 'n'},
-		{"s", no_argument, NULL, 's'},
-		{"o", no_argument, NULL, 'o'},
-		{"cs", no_argument, NULL, 'C'},
-		{"ea", no_argument, NULL, 'E'},
-		{"u", no_argument, NULL, 'u'},
-		{NULL, 0, NULL, 0},
-	};
-	int opt, option_index = 0;
-
-	while ((opt = getopt_long_only(argc, argv, "", long_options,
-				&option_index)) != -1) {
-		switch (opt) {
-		case 'D':
-			tpm_device = strdup(optarg);
-			if (!tpm_device) {
-				fprintf(stderr, "Out of memory.");
-				return EXIT_FAILURE;
-			}
-			break;
-		case 'T':
-			if (parse_tcp_optarg(optarg, &tcp_hostname, &tcp_port) < 0) {
-				return EXIT_FAILURE;
-			}
-			break;
-		case 'U':
-			unix_path = strdup(optarg);
-			if (!unix_path) {
-				fprintf(stderr, "Out of memory.\n");
-				return EXIT_FAILURE;
-			}
-			break;
-		case 'c':
-			startupparm = TPM_ST_CLEAR;
-			do_more = 1;
-			break;
-		case 'd':
-			startupparm = TPM_ST_DEACTIVATED;
-			do_more = 0;
-			break;
-		case 'h':
-			print_usage(argv[0]);
-			return EXIT_SUCCESS;
-		case 'n':
-			startupparm = 0xff;
-			do_more = 1;
-			break;
-		case 's':
-			startupparm = TPM_ST_STATE;
-			do_more = 1;
-			break;
-		case 'o':
-			do_more = 0;
-			break;
-		case 'C':
-			contselftest = 1;
-			break;
-		case 'E':
-			ensure_activated = 1;
-			break;
-		case 'u':
-			unassert_pp = 1;
-			break;
-		default:
-			print_usage(argv[0]);
-			return EXIT_FAILURE;
-		}
-	}
 
 	if (ret == 0) {
 		if (0xff != startupparm) {
@@ -616,3 +577,191 @@ int main(int argc, char *argv[])
 	return ret;
 }
 
+static int tpm2_bios(int do_more, int contselftest, unsigned char startupparm,
+		     int set_password)
+{
+	int ret = 0;
+	int tpm_errcode;
+	int tpm_error = 0;
+
+	if (ret == 0) {
+		if (0xff != startupparm) {
+			ret = TPM2_Startup(startupparm, &tpm_errcode);
+			if (tpm_errcode != 0) {
+				tpm_error = 1;
+				printf("TPM2_Startup returned error code "
+				       "0x%08x\n", tpm_errcode);
+			}
+		}
+	}
+
+	if ((ret == 0) && contselftest) {
+		ret = TPM2_IncrementalSelfTest(&tpm_errcode);
+		if (tpm_errcode != 0) {
+			tpm_error = 1;
+			printf("TPM2_ImcrementalSelfTest returned error "
+			       "code 0x%08x\n", tpm_errcode);
+		}
+	}
+
+	if ((ret == 0) && set_password) {
+		ret = TPM2_HierarchyChangeAuth(&tpm_errcode);
+		if (tpm_errcode != 0) {
+			tpm_error = 1;
+			printf("TPM2_HierarchyChangeAuth returned error "
+			       "code 0x%08x\n", tpm_errcode);
+		}
+	}
+
+	if (!ret && tpm_error)
+		ret = 0x80;
+
+	return ret;
+}
+
+static void versioninfo(void)
+{
+	printf(
+"TPM emulator BIOS emulator version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
+,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO);
+}
+
+static void print_usage(const char *prgname)
+{
+	versioninfo();
+	printf(
+"\n"
+"%s [options]\n"
+"\n"
+"Runs TPM_Startup (unless -n), then (unless -o) sets PP, enable, activate \n"
+"and finally (using -u) gives up physical presence (PP)\n"
+"\n"
+"The following options are supported:\n"
+"\t--tpm-device <device>  use the given device; default is /dev/tpm0\n"
+"\t--tcp [<host>]:[<prt>] connect to TPM on given host and port;\n"
+"\t                       default host is 127.0.0.1, default port is %u\n"
+"\t--unix <path>          connect to TPM using UnixIO socket\n"
+"\t--tpm2                 initialize a TPM2\n"
+"\t-c                     startup clear (default)\n"
+"\t-s                     startup state\n"
+"\t-d                     startup deactivate (no effect on TPM2)\n"
+"\t-n                     no startup\n"
+"\t-o                     startup only\n"
+"\t-cs                    run TPM_ContinueSelfTest on TPM1.2\n"
+"\t                       run TPM2_IncrementalSelfTest on TPM2\n"
+"\t-ea                    make sure that the TPM 1.2 is activated;\n"
+"\t                       terminate with exit code 129 if the TPM\n"
+"\t                       needs to be reset\n"
+"\t-u                     give up physical presence\n"
+"\t                       on TPM 2 set the platform hierachy to a\n"
+"\t                       random password\n"
+"\t-v                     display version and exit\n"
+"\t-h                     display this help screen and exit\n"
+, prgname, DEFAULT_TCP_PORT);
+}
+
+int main(int argc, char *argv[])
+{
+	int   ret = 0;
+	int   do_more = 1;
+	int   ensure_activated = 0;
+	int   contselftest = 0;
+	unsigned char  startupparm = 0x1;      /* parameter for TPM_Startup(); */
+	unsigned char  startupparm_tpm2 = 0x00;
+	int   unassert_pp = 0;
+	int   tpm2 = 0;
+	static struct option long_options[] = {
+		{"tpm-device", required_argument, NULL, 'D'},
+		{"tcp", required_argument, NULL, 'T'},
+		{"unix", required_argument, NULL, 'U'},
+		{"c", no_argument, NULL, 'c'},
+		{"d", no_argument, NULL, 'd'},
+		{"h", no_argument, NULL, 'h'},
+		{"v", no_argument, NULL, 'v'},
+		{"n", no_argument, NULL, 'n'},
+		{"s", no_argument, NULL, 's'},
+		{"o", no_argument, NULL, 'o'},
+		{"cs", no_argument, NULL, 'C'},
+		{"ea", no_argument, NULL, 'E'},
+		{"u", no_argument, NULL, 'u'},
+		{"tpm2", no_argument, NULL, '2'},
+		{NULL, 0, NULL, 0},
+	};
+	int opt, option_index = 0;
+
+	while ((opt = getopt_long_only(argc, argv, "", long_options,
+				&option_index)) != -1) {
+		switch (opt) {
+		case 'D':
+			tpm_device = strdup(optarg);
+			if (!tpm_device) {
+				fprintf(stderr, "Out of memory.");
+				return EXIT_FAILURE;
+			}
+			break;
+		case 'T':
+			if (parse_tcp_optarg(optarg, &tcp_hostname, &tcp_port) < 0) {
+				return EXIT_FAILURE;
+			}
+			break;
+		case 'U':
+			unix_path = strdup(optarg);
+			if (!unix_path) {
+				fprintf(stderr, "Out of memory.\n");
+				return EXIT_FAILURE;
+			}
+			break;
+		case 'c':
+			startupparm = TPM_ST_CLEAR;
+			startupparm_tpm2 = TPM2_SU_CLEAR;
+			do_more = 1;
+			break;
+		case 'd':
+			startupparm = TPM_ST_DEACTIVATED;
+			startupparm_tpm2 = 0xff;
+			do_more = 0;
+			break;
+		case 'h':
+			print_usage(argv[0]);
+			return EXIT_SUCCESS;
+		case 'n':
+			startupparm = 0xff;
+			startupparm_tpm2 = 0xff;
+			do_more = 1;
+			break;
+		case 's':
+			startupparm = TPM_ST_STATE;
+			startupparm_tpm2 = TPM2_SU_STATE;
+			do_more = 1;
+			break;
+		case 'o':
+			do_more = 0;
+			break;
+		case 'C':
+			contselftest = 1;
+			break;
+		case 'E':
+			ensure_activated = 1;
+			break;
+		case 'u':
+			unassert_pp = 1;
+			break;
+                case '2':
+                        tpm2 = 1;
+                        break;
+		default:
+			print_usage(argv[0]);
+			return EXIT_FAILURE;
+		}
+	}
+
+	if (tpm2) {
+		ret = tpm2_bios(do_more, contselftest, startupparm_tpm2,
+				unassert_pp);
+	} else {
+		ret = tpm12_bios(do_more, contselftest, startupparm,
+				 unassert_pp, ensure_activated);
+	}
+
+	return ret;
+}
