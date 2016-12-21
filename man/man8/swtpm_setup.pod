@@ -49,6 +49,10 @@ Create the EK
 
 Create an EK that can sign. This option requires --tpm2.
 
+=item B<--ecc>
+
+Create elliptic curve crypto (ECC) keys; by default RSA keys are generated.
+
 =item B<--take-ownership>
 
 Take ownership; this option implies --createek
