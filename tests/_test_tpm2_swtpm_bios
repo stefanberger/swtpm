@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+VTPM_NAME="vtpm-test-tpm2-swtpm-bios"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm2-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+PID_FILE=$TPM_PATH/${SWTPM}.pid
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
+source ${DIR}/common
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2 --tpmstate dir=$TPM_PATH --pid file=$PID_FILE
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+if [ ! -r $PID_FILE ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not write pidfile."
+	exit 1
+fi
+
+PIDF="$(cat $PID_FILE)"
+if [ "$PIDF" != "${SWTPM_PID}" ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM wrote pid $PIDF, but found ${SWTPM_PID}."
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+sleep 0.5
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	exit 1
+fi
+
+# must work
+res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -o 2>&1)
+if [ $? -ne 0 ] || [ -n "$res" ]; then
+	echo "Error: Could not startup the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+#  must work
+res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -n -cs 2>&1)
+if [ $? -ne 0 ] || [ -n "$res" ]; then
+	echo "Error: Could not self-test the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+#  must work
+res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -n -u 2>&1)
+if [ $? -ne 0 ] || [ -n "$res" ]; then
+	echo "Error: Could not give up physical presence on the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+#  will NOT work -- we get error output in $res
+res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -n -u 2>&1)
+ret=$?
+if [ $ret -eq 0 ] || [ -z "$res" ]; then
+	echo "Error: Could give up physical presence on the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if [ $ret -ne 128 ]; then
+	echo "Error: Wrong return code from swtpm_bios. Should be 128, had $ret."
+	exit 1
+fi
+
+#  will NOT work (wrong device) -- we get error output in $res
+if [ "${SWTPM_INTERFACE}" == "cuse" ]; then
+	res=$($SWTPM_BIOS --tpm-device /dev/${VTPM_NAME}123--tpm2 -n -u 2>&1)
+	ret=$?
+	if [ $ret -eq 0 ] || [ -z "$res" ]; then
+		echo "Error: Could give up physical presence on wrong device."
+		exit 1
+	fi
+
+	if [ $ret -ne 255 ]; then
+		echo "Error: Wrong return code from swtpm_bios. Should be 255, had $ret."
+		exit 1
+	fi
+fi
+
+# RESET TPM
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+# must work
+res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -cs -u 2>&1)
+if [ $? -ne 0 ] || [ -n "$res" ]; then
+	echo "Error: Could not startup the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+#  will NOT work -- we get error output in $res
+res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -n -u 2>&1)
+ret=$?
+if [ $ret -eq 0 ] || [ -z "$res" ]; then
+	echo "Error: Could give up physical presence on the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if [ $ret -ne 128 ]; then
+	echo "Error: Wrong return code from swtpm_bios. Should be 128, had $ret."
+	exit 1
+fi
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+sleep 0.5
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

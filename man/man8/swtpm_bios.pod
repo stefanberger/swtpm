@@ -68,6 +68,10 @@ if port is not given, the default port 6545 is used.
 
 Connect to the given UnixIO path.
 
+=item B<-tpm2>
+
+The device is a TPM 2.
+
 =item B<-c>
 
 Send TPM_Startup(ST_CLEAR) (default). This instructs the TPM to start
@@ -81,7 +85,7 @@ previously saved state.
 =item B<-d>
 
 Send TPM_Startup(ST_DEACTIVATED). This instructs the TPM to start in
-deactivated mode.
+deactivated mode. This option has no effect on a TPM 2.
 
 =item B<-n>
 
@@ -98,11 +102,13 @@ will exist and return a return code of 129.
 
 =item B<-cs>
 
-Send a TPM_ContinueSelfTest command.
+Send a TPM_ContinueSelfTest command to a TPM 1.2 and a TPM2_IncrementalSelfTest
+command to a TPM 2.
 
 =item B<-u>
 
-Give up physical presence.
+Give up physical presence on a TPM 1.2. In case of a TPM 2 set the platform
+hierarchy to a random password.
 
 =item B<-v>
 
