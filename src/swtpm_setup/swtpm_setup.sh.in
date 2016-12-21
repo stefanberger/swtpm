@@ -77,6 +77,7 @@ SETUP_STATE_OVERWRITE_F=128
 SETUP_STATE_NOT_OVERWRITE_F=256
 SETUP_TPM2_F=512
 SETUP_ALLOW_SIGNING_F=1024
+SETUP_TPM2_ECC_F=2048
 
 SETUP_DISPLAY_RESULTS_F=4096
 
@@ -809,6 +810,111 @@ tpm2_createprimary_rsa()
 	return 0
 }
 
+# Create the primary key as an ECC key (EK equivalent)
+#
+# @param1: flags
+tpm2_createprimary_ecc()
+{
+	local flags="$1"
+
+	local req rsq exp res min_exp
+	local flags="$1"
+
+	local req rsq exp res symkeydata keyflags totlen publen off1 off2
+
+	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# adminWithPolicy, sign, decrypt
+		keyflags=$((0x000600b2))
+		# symmetric: TPM_ALG_NULL
+		symkeydata='\\x00\\x10'
+		publen=$((0x36))
+		totlen=$((0x5f))
+		min_exp=930
+		# offset of length indicator for key
+		off1=210
+		off2=312
+	else
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# adminWithPolicy, restricted, decrypt
+		keyflags=$((0x000300b2))
+		# symmetric: TPM_ALG_AES, 128bit, TPM_ALG_CFB
+		symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
+		publen=$((0x3a))
+		totlen=$((0x63))
+		# some version of TPM2 returns 942, another 990
+		min_exp=942
+		# offset of length indicator for key
+		off1=222
+		off2=324
+	fi
+
+	# Check the TCG EK Credential Profile doc for TPM 2 for
+	# parameters used here
+
+	req='\x80\x02@TOTLEN-4@\x00\x00\x01\x31'
+	# TPM_RH_ENDORSEMENT
+	req+='\x40\x00\x00\x0b'
+	# size of buffer
+	req+='\x00\x00\x00\x09'
+	# TPM_RS_PW
+	req+='\x40\x00\x00\x09\x00\x00\x00\x00\x00'
+	# TPM2B_SENSITIVE_CREATE
+	req+='\x00\x04\x00\x00\x00\x00'
+	# Size of TPM2B_PUBLIC
+	req+='@PUBLEN-2@'
+	# TPM_ALG_ECC, TPM_ALG_SHA256
+	req+='\x00\x23\x00\x0b'
+	# flags: fixedTPM, fixedParent, sensitiveDatOrigin, adminWithPolicy
+	# restricted, decrypt
+	req+='@KEYFLAGS-4@'
+	# authPolicy: size = 32 bytes
+	req+='\x00\x20'
+	req+='\x83\x71\x97\x67\x44\x84\xb3\xf8\x1a\x90\xcc\x8d'
+	req+='\x46\xa5\xd7\x24\xfd\x52\xd7\x6e\x06\x52\x0b\x64'
+	req+='\xf2\xa1\xda\x1b\x33\x14\x69\xaa'
+	req+='@SYMKEYDATA@'
+	# scheme: TPM_ALG_NULL, curveID: TPM_ECC_NIST_P256
+	req+='\x00\x10\x00\x03'
+	# kdf->scheme: TPM_ALG_NULL
+	req+='\x00\x10'
+	# TPM2B_DATA
+	req+='\x00\x00'
+	# TPML_PCR_SELECTION
+	req+='\x00\x00\x00\x00\x00\x00\x00\x00'
+
+	req=$(echo $req | \
+	      sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
+	          -e "s/@SYMKEYDATA@/$symkeydata/" \
+	          -e "s/@PUBLEN-2@/$(_format "$publen" 2)/" \
+	          -e "s/@TOTLEN-4@/$(_format "$totlen" 4)/")
+
+	rsp="$(tpm_transfer "${req}")"
+	if [ ${#rsp} -lt $min_exp ]; then
+		logerr "TPM2_CreatePrimary(ECC) failed"
+		logerr "       expected at least $min_exp bytes, got ${#rsp}."
+		logerr "       response: $rsp"
+		return 1
+	fi
+
+	# Check the x and y length indicators
+	if [ "${rsp:$off1:6}" != " 00 20" ] || \
+	   [ "${rsp:$off2:6}" != " 00 20" ]; then
+		logerr "Getting ECC x and y parameter from wrong offset."
+		return 1
+	fi
+
+	let off1=off1+6
+	let off2=off2+6
+
+	# output: handle,ek
+	res="$(echo "0x${rsp:30:12}" | sed -n 's/ //pg'),"
+	res+="$(echo x=${rsp:$off1:96},y=${rsp:$off2:96} | sed -n 's/ //pg')"
+	echo $res
+
+	return 0
+}
+
 # Make a object permanent
 #
 # @param1: the current object handle
@@ -855,7 +961,11 @@ tpm2_createprimary()
 	tpm2_changeeps
 	[ $? -ne 0 ] && return 1
 
-	res=$(tpm2_createprimary_rsa "$flags")
+	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
+		res=$(tpm2_createprimary_ecc "$flags")
+	else
+		res=$(tpm2_createprimary_rsa "$flags")
+	fi
 	[ $? -ne 0 ] && return 1
 
 	handle=$(echo $res | cut -d "," -f1)
@@ -865,7 +975,7 @@ tpm2_createprimary()
 	[ $? -ne 0 ] && return 1
 
 	# ek
-	echo $res | cut -d "," -f2
+	echo $res | cut -d "," -f2-
 
 	return 0
 }
@@ -1233,6 +1343,8 @@ The following options are supported:
 --allow-signing  : Create an EK that can also be used for signing;
                    this option requires --tpm2.
 
+--ecc            : Create ECC keys rather than RSA keys; this requires --tpm2
+
 --take-ownership : Take ownership; this option implies --createek
   --ownerpass  <password>
                  : Provide custom owner password; default is $DEFAULT_OWNER_PASSWORD
@@ -1298,6 +1410,7 @@ main()
 		--tpm-state|--tpmstate) shift; tpm_state_path="$1";;
 		--tpm) shift; SWTPM="$1";;
 		--tpm2) flags=$((flags | SETUP_TPM2_F));;
+		--ecc) flags=$((flags | SETUP_TPM2_ECC_F));;
 		--createek) flags=$((flags | SETUP_CREATE_EK_F));;
 		--take-ownership) flags=$((flags |
 		                   SETUP_CREATE_EK_F|SETUP_TAKEOWN_F));;
@@ -1359,6 +1472,11 @@ main()
 	if [ $((flags & SETUP_TPM2_F)) -ne 0 ]; then
 		if [ $((flags & SETUP_TAKEOWN_F)) -ne 0 ]; then
 			logerr "Taking ownership is not supported for TPM 2."
+			exit 1
+		fi
+	else
+		if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
+			logerr "--ecc requires --tpm2."
 			exit 1
 		fi
 	fi

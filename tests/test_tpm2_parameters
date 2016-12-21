@@ -15,6 +15,14 @@ PARAMETERS=(
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+	"--ecc --createek"
+	"--ecc --createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
+	"--ecc --createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
+	"--ecc --createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+	"--ecc --createek --allow-signing"
+	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
+	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
+	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
 )
 
 # produced file size is always the same with TPM2

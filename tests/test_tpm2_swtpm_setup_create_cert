@@ -91,6 +91,44 @@ if [ ! -r "${CERTSERIAL}" ]; then
 	exit 1
 fi
 
-echo "OK"
+echo "Test 1: OK"
+
+rm -rf ${SIGNINGKEY} ${ISSUERCERT} ${CERTSERIAL}
+
+# we need to create at least one cert: --create-ek-cert
+$SWTPM_SETUP \
+	--tpm2 \
+	--ecc \
+	--runas root \
+	--tpm-state ${workdir} \
+	--create-ek-cert \
+	--config ${workdir}/swtpm_setup.conf \
+	--logfile ${workdir}/logfile \
+	--tpm "${SWTPM} socket" \
+	--overwrite
+
+if [ $? -ne 0 ]; then
+	echo "Error: Could not run $SWTPM_SETUP."
+	echo "Logfile output:"
+	cat ${workdir}/logfile
+	exit 1
+fi
+
+if [ ! -r "${SIGNINGKEY}" ]; then
+	echo "Error: Signingkey file ${SIGNINGKEY} was not created."
+	exit 1
+fi
+
+if [ ! -r "${ISSUERCERT}" ]; then
+	echo "Error: Issuer cert file ${ISSUERCERT} was not created."
+	exit 1
+fi
+
+if [ ! -r "${CERTSERIAL}" ]; then
+	echo "Error: Cert serial number file ${CERTSERIAL} was not created."
+	exit 1
+fi
+
+echo "Test 2: OK"
 
 exit 0

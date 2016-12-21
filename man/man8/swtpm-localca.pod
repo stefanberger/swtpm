@@ -38,6 +38,9 @@ ek.cert and the platform certificate under the name platform.cert.
 This parameter indicates the modulus of the public key of the endorsement key
 (EK). The public key is provided as a sequence of ASCII hex digits.
 
+In case ECC (elliptic curve crypography) keys are used, the parameter must
+have the format --ek x=<hex digits>,y=<hex digits>.
+
 =item B<--vmid ID>
 
 This parameter indicates the ID of the VM for which to create the certificate.
