@@ -211,7 +211,8 @@ int mainLoop(struct mainLoopParams *mlp,
             if (rc == 0) {
                 if (!tpm_running) {
                     tpmlib_write_fatal_error_response(&rbuffer, &rlength,
-                                                      &rTotal);
+                                                      &rTotal,
+                                                      mlp->tpmversion);
                     goto skip_process;
                 }
             }
@@ -224,7 +225,8 @@ int mainLoop(struct mainLoopParams *mlp,
                                     command,                /* complete command array */
                                     command_length,         /* actual bytes in command */
                                     mlp->locality_flags,
-                                    &locality);
+                                    &locality,
+                                    mlp->tpmversion);
                 if (rlength)
                     goto skip_process;
             }

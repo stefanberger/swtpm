@@ -12,8 +12,8 @@ before_install:
 - git clone https://github.com/stefanberger/libtpms
 - cd libtpms
 - git checkout origin/tpm2-preview.rev146 -b tpm2-preview.rev146
-- "./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 && sudo
-  make install"
+- "./bootstrap.sh && ./configure --with-openssl --prefix=/usr --with-tpm2 && make -j4 &&
+  sudo make install"
 - cd ..
 - sudo apt-get -y install libfuse-dev libglib2.0-dev libgmp-dev expect libtasn1-dev
   socat findutils tpm-tools

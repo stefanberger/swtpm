@@ -152,6 +152,10 @@ The following options are support by all interfaces:
 
 Use the given path rather than using the environment variable TPM_PATH.
 
+=item B<--tpm2>
+
+Choose TPM 2 functionality; by default a TPM 1.2 is chosen.
+
 =item B<--log [fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>][,level=E<lt>nE<gt>]>[,prefix=E<lt>prefixE<gt>][,truncate]
 
 Enable logging to a file given its file descriptor or its path. Use '-' for path to
