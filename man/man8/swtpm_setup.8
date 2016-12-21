@@ -167,9 +167,15 @@ this is a mandatory argument
 .IX Item "--tpm <path to executable>"
 Path to the \s-1TPM\s0 executable; this is an optional argument and
 by default the swtpm executable found in the \s-1PATH\s0 will be used.
+.IP "\fB\-\-tpm2\fR" 4
+.IX Item "--tpm2"
+Do setup on a \s-1TPM 2\s0; by default a \s-1TPM 1.2\s0 is setup.
 .IP "\fB\-\-createek\fR" 4
 .IX Item "--createek"
 Create the \s-1EK\s0
+.IP "\fB\-\-allow\-signing\fR" 4
+.IX Item "--allow-signing"
+Create an \s-1EK\s0 that can sign. This option requires \-\-tpm2.
 .IP "\fB\-\-take\-ownership\fR" 4
 .IX Item "--take-ownership"
 Take ownership; this option implies \-\-createek

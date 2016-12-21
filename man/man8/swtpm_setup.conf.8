@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_setup.conf 8"
-.TH swtpm_setup.conf 8 "2018-04-21" "swtpm" ""
+.TH swtpm_setup.conf 8 "2018-04-23" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -189,6 +189,10 @@ options file.
 .IX Item "--tpm-spec-family <family>, --tpm-spec-level <level>, --tpm-spec-revision <revision>"
 These 3 options describe the \s-1TPM\s0 specification that was followed for
 the implementation of the \s-1TPM\s0 and will be part of the \s-1EK\s0 certificate.
+.IP "\fB\-\-tpm2\fR" 4
+.IX Item "--tpm2"
+This option is passed in case a \s-1TPM 2\s0 compliant certificate needs to be
+created.
 .RE
 .RS 4
 .RE
