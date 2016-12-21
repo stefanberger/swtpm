@@ -57,6 +57,10 @@ file I</etc/swtpm-localca.conf> will be used.
 The options file to use. If omitted, the default options file
 I</etc/swtpm-localca.options> will be used.
 
+=item B<--tpm2>
+
+Create TPM 2 compliant certificates.
+
 =back
 
 =head1 SEE ALSO

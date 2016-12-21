@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
+SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
+SWTPM=${ROOT}/src/swtpm/swtpm
+
+workdir=$(mktemp -d)
+
+SIGNINGKEY=${workdir}/signingkey.pem
+ISSUERCERT=${workdir}/issuercert.pem
+CERTSERIAL=${workdir}/certserial
+
+PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf ${workdir}
+}
+
+# We want swtpm_cert to use the local CA and see that the
+# local CA script automatically creates a signingkey and
+# self-signed certificate
+
+cat <<_EOF_ > ${workdir}/swtpm-localca.conf
+statedir=${workdir}
+signingkey = ${SIGNINGKEY}
+issuercert = ${ISSUERCERT}
+certserial = ${CERTSERIAL}
+_EOF_
+
+cat <<_EOF_ > ${workdir}/swtpm-localca.options
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 1.2
+--platform-manufacturer Fedora
+--platform-version 2.1
+--platform-model QEMU
+_EOF_
+
+cat <<_EOF_ > ${workdir}/swtpm_setup.conf
+create_certs_tool=${SWTPM_LOCALCA}
+create_certs_tool_config=${workdir}/swtpm-localca.conf
+create_certs_tool_options=${workdir}/swtpm-localca.options
+_EOF_
+
+# We need to adapt the PATH so the correct swtpm_cert is picked
+export PATH=${ROOT}/src/swtpm_cert:${PATH}
+
+# we need to create at least one cert: --create-ek-cert
+$SWTPM_SETUP \
+	--tpm2 \
+	--allow-signing \
+	--runas root \
+	--tpm-state ${workdir} \
+	--create-ek-cert \
+	--create-platform-cert \
+	--config ${workdir}/swtpm_setup.conf \
+	--logfile ${workdir}/logfile \
+	--tpm "${SWTPM} socket"
+
+if [ $? -ne 0 ]; then
+	echo "Error: Could not run $SWTPM_SETUP."
+	echo "Logfile output:"
+	cat ${workdir}/logfile
+	exit 1
+fi
+
+if [ ! -r "${SIGNINGKEY}" ]; then
+	echo "Error: Signingkey file ${SIGNINGKEY} was not created."
+	exit 1
+fi
+
+if [ ! -r "${ISSUERCERT}" ]; then
+	echo "Error: Issuer cert file ${ISSUERCERT} was not created."
+	exit 1
+fi
+
+if [ ! -r "${CERTSERIAL}" ]; then
+	echo "Error: Cert serial number file ${CERTSERIAL} was not created."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

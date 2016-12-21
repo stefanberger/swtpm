@@ -59,6 +59,11 @@ The options file to use. This file typically contains options that the
 invoked program uses. If omitted, the program must use its default
 options file.
 
+=item B<--tpm2>
+
+This option is passed in case a TPM 2 compliant certificate needs to be
+created.
+
 =back
 
 =item B<create_certs_tool_config>

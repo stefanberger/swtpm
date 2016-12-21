@@ -60,6 +60,11 @@ if [ -z "$ECHO" ]; then
     echo "Error: external echo program not found."
     exit 1
 fi
+ECHO=`which echo`
+if [ -z "$ECHO" ]; then
+    echo "Error: external echo program not found."
+    exit 1
+fi
 
 SETUP_CREATE_EK_F=1
 SETUP_TAKEOWN_F=2
@@ -70,6 +75,8 @@ SETUP_SRKPASS_ZEROS_F=32
 SETUP_OWNERPASS_ZEROS_F=64
 SETUP_STATE_OVERWRITE_F=128
 SETUP_STATE_NOT_OVERWRITE_F=256
+SETUP_TPM2_F=512
+SETUP_ALLOW_SIGNING_F=1024
 
 SETUP_DISPLAY_RESULTS_F=4096
 
@@ -86,6 +93,17 @@ TPM_NV_INDEX_EKCert=$((0xF000))
 TPM_NV_INDEX_PlatformCert=$((0xF002))
 
 TPM_NV_INDEX_LOCK=$((0xFFFFFFFF))
+
+# TPM 2 constants
+TPMA_NV_PLATFORMCREATE=$((0x40000000))
+TPMA_NV_AUTHREAD=$((0x40000))
+TPMA_NV_NO_DA=$((0x2000000))
+TPMA_NV_PPWRITE=$((0x1))
+TPMA_NV_POLICY_DELETE=$((0x400))
+TPMA_NV_WRITEDEFINE=$((0x2000))
+
+TPM2_NV_INDEX_EKCert=$((0x01c00000))
+TPM2_NV_INDEX_PlatformCert=$((0x01c08000))
 
 # Default logging goes to stderr
 LOGFILE=""
@@ -170,6 +188,10 @@ call_create_certs()
 			       "name of certificate tool to invoke."
 			return 1
 		fi
+	fi
+
+	if [ $((flags & SETUP_TPM2_F)) -ne 0 ]; then
+		params="$params --tpm2"
 	fi
 
 	if [ -n "$create_certs_tool" ]; then
@@ -643,6 +665,502 @@ init_tpm()
 	return 0
 }
 
+################################# TPM 2 ##################################
+
+# Get a couple of random numbers from the host and stir the TPM
+# RNG with them
+#
+tpm2_stirrandom()
+{
+	local req r rsp exp
+
+	# just the header, expecting 0x18 bytes of random data
+	req='\x80\x01\x00\x00\x00\x24\x00\x00\x01\x46\x00\x18'
+	r=$(dd if=/dev/urandom count=24 bs=1 2>/dev/null | \
+	    od -An -tx1 -w64 | sed 's/ /\\x/g')
+
+	rsp="$(tpm_transfer "${req}${r}")"
+
+	exp=' 80 01 00 00 00 0a 00 00 00 00'
+	if [ "$rsp" != "$exp" ]; then
+		logerr "TPM2_Stirrandom() failed"
+		logerr "       expected: $exp"
+		logerr "       received: $rsp"
+		return 1
+	fi
+
+	return 0
+}
+
+tpm2_changeeps()
+{
+	local req rsp exp
+
+	req='\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x24\x40\x00\x00\x0c\x00\x00'
+	req+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00'
+
+	rsp="$(tpm_transfer "${req}")"
+
+	exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+	if [ "$rsp" != "$exp" ]; then
+		logerr "TPM2_ChangeEPS() failed"
+		logerr "       expected: $exp"
+		logerr "       received: $rsp"
+		return 1
+	fi
+
+	return 0
+}
+
+# Create the primary key (EK equivalent)
+#
+# @param1: flags
+tpm2_createprimary_rsa()
+{
+	local flags="$1"
+
+	local req rsq exp res symkeydata keyflags totlen publen off min_exp
+
+	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# adminWithPolicy, sign, decrypt
+		keyflags=$((0x000600b2))
+		# symmetric: TPM_ALG_NULL
+		symkeydata='\\x00\\x10'
+		publen=$((0x36))
+		totlen=$((0x5f))
+		min_exp=1506
+		# offset of length indicator for key
+		off=216
+	else
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# adminWithPolicy, restricted, decrypt
+		keyflags=$((0x000300b2))
+		# symmetric: TPM_ALG_AES, 128bit, TPM_ALG_CFB
+		symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
+		publen=$((0x3a))
+		totlen=$((0x63))
+		min_exp=1518
+		# offset of length indicator for key
+		off=228
+	fi
+
+	# Check the TCG EK Credential Profile doc for TPM 2 for
+	# parameters used here
+
+	req='\x80\x02@TOTLEN-4@\x00\x00\x01\x31'
+	# TPM_RH_ENDORSEMENT
+	req+='\x40\x00\x00\x0b'
+	# size of buffer
+	req+='\x00\x00\x00\x09'
+	# TPM_RS_PW
+	req+='\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00'
+	req+='\x04\x00\x00\x00\x00'
+	# Size of TPM2B_PUBLIC
+	req+='@PUBLEN-2@'
+	# TPM_ALG_RSA, TPM_ALG_SHA256
+	req+='\x00\x01\x00\x0b'
+	# fixedTPM, fixedParent, sensitiveDatOrigin, adminWithPolicy
+	# restricted, decrypt
+	req+='@KEYFLAGS-4@'
+	# authPolicy;32 bytes
+	req+='\x00\x20'
+	req+='\x83\x71\x97\x67\x44\x84\xb3\xf8\x1a\x90\xcc\x8d'
+	req+='\x46\xa5\xd7\x24\xfd\x52\xd7\x6e\x06\x52\x0b\x64'
+	req+='\xf2\xa1\xda\x1b\x33\x14\x69\xaa'
+	req+='@SYMKEYDATA@'
+	# scheme: TPM_ALG_NULL, keyBits: 2048bits
+	req+='\x00\x10\x08\x00'
+	# exponent
+	req+='\x00\x00\x00\x00'
+	# TPM2B_DATA
+	req+='\x00\x00'
+	# TPML_PCR_SELECTION
+	req+='\x00\x00\x00\x00\x00\x00'
+
+	req=$(echo $req | \
+	      sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
+	          -e "s/@SYMKEYDATA@/$symkeydata/" \
+	          -e "s/@PUBLEN-2@/$(_format "$publen" 2)/" \
+	          -e "s/@TOTLEN-4@/$(_format "$totlen" 4)/")
+
+	rsp="$(tpm_transfer "${req}")"
+
+	if [ ${#rsp} -lt $min_exp ]; then
+		logerr "TPM2_CreatePrimary(RSA) failed"
+		logerr "       expected at least $min_exp bytes, got ${#rsp}."
+		logerr "       response: $rsp"
+		return 1
+	fi
+
+	# Check the RSA modulus length indicator
+	if [ "${rsp:$off:6}" != " 01 00" ]; then
+		logerr "Getting modulus from wrong offset."
+		return 1
+	fi
+
+	let off=off+6
+
+	# output: handle,ek
+	res="$(echo "0x${rsp:30:12}" | sed -n 's/ //pg'),"
+	res+="$(echo "${rsp:$off:768}" | sed -n 's/ //pg')"
+	echo $res
+
+	return 0
+}
+
+# Make a object permanent
+#
+# @param1: the current object handle
+# @param2: the permanent object handle
+tpm2_evictcontrol()
+{
+	local trhandle="$1"
+	local pmhandle="$2"
+
+	local req rsp exp
+
+	req='\x80\x02\x00\x00\x00\x23\x00\x00\x01\x20'
+	req+='\x40\x00\x00\x01'
+	req+='@TRHANDLE-4@'
+	req+='\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00'
+	req+='@PMHANDLE-4@'
+
+	req=$(echo $req | \
+	      sed -e "s/@TRHANDLE-4@/$(_format "$trhandle" 4)/" \
+	          -e "s/@PMHANDLE-4@/$(_format "$pmhandle" 4)/")
+
+	rsp="$(tpm_transfer "$req")"
+
+	exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+	if [ "${rsp}" != "$exp" ]; then
+		logerr "TPM2_EvictControl() failed"
+		logerr "       expected: $exp"
+		logerr "       received: $rsp"
+		return 1
+	fi
+
+	return 0
+}
+
+# Create the primary key, either RSA or ECC
+#
+# @param1: flags
+tpm2_createprimary()
+{
+	local flags="$1"
+	local res handle
+
+	tpm2_stirrandom
+	tpm2_changeeps
+	[ $? -ne 0 ] && return 1
+
+	res=$(tpm2_createprimary_rsa "$flags")
+	[ $? -ne 0 ] && return 1
+
+	handle=$(echo $res | cut -d "," -f1)
+
+	# make key permanent
+	tpm2_evictcontrol "$handle" "$((0x81010000))"
+	[ $? -ne 0 ] && return 1
+
+	# ek
+	echo $res | cut -d "," -f2
+
+	return 0
+}
+
+# Format an integer to a represenation of '\xaa\xbb...'
+#
+# @param1: the number to format
+# @param2: the size of the integer in bytes
+_format()
+{
+	local num="$1"
+	local bytes="$2"
+
+	local f r res i
+
+	case $bytes in
+	1) f="%02x"; num=$((num & 0xff));;
+	2) f="%04x"; num=$((num & 0xffff));;
+	4) f="%08x"; num=$((num & 0xffffffff));;
+	esac
+
+	r="$(printf $f $num)"
+	for ((i = 0; i < ${#r}; i+=2 )); do
+		# prepare for usage with sed -> extra backslashes
+		res+="\\\x${r:$i:2}"
+	done
+
+	echo $res
+}
+
+# Define an NVRAM space
+#
+# @param1: index
+# @param2: access attributes/flags for the NVRAM space
+# @param3: the size of the NVRAM area
+tpm2_nv_define()
+{
+	local index="$1"
+	local flags="$2"
+	local size="$3"
+
+	local req rsp exp
+
+	req='\x80\x02\x00\x00\x00\x2d\x00\x00\x01\x2a\x40\x00\x00\x0c\x00\x00'
+	req+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00\x0e'
+	req+='@INDEX-4@\x00\x0b@FLAGS-4@\x00\x00@SIZE-2@'
+
+	req=$(echo $req | \
+	      sed -e "s/@INDEX-4@/$(_format "$index" 4)/" \
+	          -e "s/@FLAGS-4@/$(_format "$flags" 4)/" \
+	          -e "s/@SIZE-2@/$(_format "$size" 2)/")
+
+	rsp="$(tpm_transfer "$req")"
+
+	exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+	if [ "$rsp" != "$exp" ]; then
+		logerr "TPM2_NV_DefineSpace() failed"
+		logerr "       expected: $exp"
+		logerr "       received: $rsp"
+		return 1
+	fi
+
+	return 0
+}
+
+# Write the contents of a file into a NVRAM area
+#
+# @param1: the NVRAM index
+# @param2: The name of the file
+tpm2_nv_write()
+{
+	local index="$1"
+	local fil="$2"
+
+	local reqhdr reqbdy req rsp datalen data index_f totlen exp
+	local rc=0 offset=0 step=1024
+
+	index_f=$(_format "$index" 4)
+
+	reqhdr='\x80\x02@TOTLEN-4@\x00\x00\x01\x37'
+
+	reqbdy='\x40\x00\x00\x0c@INDEX-4@'
+	reqbdy+='\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00'
+	reqbdy+='@DATALEN-2@@DATA@@OFFSET-2@'
+
+	exp='  80 02 00 00 00 13 00 00 00 00 '
+	exp+='00 00 00 00 00 00 01 00 00'
+
+	while :; do
+		# read data from file
+		data=$(dd bs=1 skip=${offset} count=${step} if=$fil \
+		          2>/dev/null| \
+	               od -t x1 -A n -w2048 | \
+	               sed -n 's/ /\\\\x/pg')
+	        if [ ${#data} -eq 0 ]; then
+			# no data -> done
+			break
+	        fi
+	        # data are prepared for usage with sed
+	        datalen=$((${#data} / 5))
+
+		req=$(echo ${reqbdy} | \
+		      sed -e "s/@INDEX-4@/${index_f}/g" \
+		          -e "s/@DATALEN-2@/$(_format $datalen 2)/" \
+		          -e "s/@DATA@/${data}/" \
+		          -e "s/@OFFSET-2@/$(_format $offset 2)/")
+		totlen=$(( (${#req} / 4) + 10))
+		req=$(echo ${reqhdr}${req} | \
+		      sed -e "s/@TOTLEN-4@/$(_format $totlen 4)/")
+
+		rsp="$(tpm_transfer "$req")"
+
+		if [ "$res" == "$exp" ]; then
+			logerr "TPM2_NV_Write() failed"
+			logerr "       expected: $exp"
+			logerr "       received: $rsp"
+			rc=1
+			break
+		fi
+
+	        let offset=$offset+step
+	done
+
+	return $rc
+}
+
+# Lockan NVRAM location
+#
+# @param1: the NVRAM index
+tpm2_nv_writelock()
+{
+	local index="$1"
+
+	local req rsp exp
+
+	req='\x80\x02\x00\x00\x00\x1f\x00\x00\x01\x38'
+
+	req+='\x40\x00\x00\x0c@INDEX-4@'
+	req+='\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00'
+
+	req=$(echo $req | \
+	      sed -e "s/@INDEX-4@/$(_format "$index" 4)/")
+
+	rsp="$(tpm_transfer "$req")"
+
+	exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+	if [ "$rsp" != "$exp" ]; then
+		logerr "TPM2_NV_WriteLock() failed"
+		logerr "       expected: $exp"
+		logerr "       received: $rsp"
+		return 1
+	fi
+
+	return 0
+}
+
+# Initialize the TPM 2
+#
+# @param1: the flags
+# @param2: the configuration file to get the external program from
+# @parma3: the directory where the TPM is supposed to write it state to
+# @param4: the TPM owner password to use
+# @param5: The SRK password to use
+# @param6: The ID of the VM
+init_tpm2()
+{
+	local flags="$1"
+	local config_file="$2"
+	local tpm2_state_path="$3"
+	local ownerpass="$4"
+	local srkpass="$5"
+	local vmid="$6"
+
+	# where external app writes certs into
+	local certsdir="$tpm2_state_path"
+	local ek tmp output
+
+	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
+	local EK_CERT_FILE="$certsdir/ek.cert"
+
+	start_tpm "$SWTPM" "$tpm2_state_path"
+	if [ $? -ne 0 ]; then
+		logerr "Could not start the TPM 2."
+		return 1
+	fi
+
+	export TCSD_USE_TCP_DEVICE=1
+	export TCSD_TCP_DEVICE_PORT=$TPM_PORT
+
+	output="$(swtpm_bios --tpm2 -c -o 2>&1)"
+	if [ $? -ne 0 ]; then
+		logerr "swtpm_bios failed: $output"
+		return 1
+	fi
+
+	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
+		ek=$(tpm2_createprimary "$flags")
+		if [ $? -ne 0 ]; then
+			logerr "tpm2_createprimary failed"
+			return 1
+		fi
+		logit "Successfully created EK."
+	fi
+
+	# have external program create the certificates now
+	call_create_certs "$flags" "$config_file" "$certsdir" "$ek" "$vmid"
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] && \
+	   [ -r "${EK_CERT_FILE}" ]; then
+		tpm2_nv_define \
+			$((TPM2_NV_INDEX_EKCert)) \
+			$((TPMA_NV_PLATFORMCREATE | \
+			   TPMA_NV_AUTHREAD | \
+			   TPMA_NV_NO_DA | \
+			   TPMA_NV_PPWRITE | \
+			   TPMA_NV_POLICY_DELETE | \
+			   TPMA_NV_WRITEDEFINE)) \
+			$(stat -c%s "${EK_CERT_FILE}")
+		if [ $? -ne 0 ]; then
+			logerr "Could not create NVRAM area for EK certificate."
+			return 1
+		fi
+		tpm2_nv_write \
+			$((TPM2_NV_INDEX_EKCert)) \
+			"${EK_CERT_FILE}"
+		if [ $? -ne 0 ]; then
+			logerr "Could not write EK certificate into" \
+			       "NVRAM location."
+			return 1
+		fi
+		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
+			tpm2_nv_writelock \
+				$((TPM2_NV_INDEX_EKCert))
+			if [ $? -ne 0 ]; then
+				logerr "Could not lock EK certificate NVRAM" \
+				       "location."
+				return 1
+			fi
+		fi
+		logit "Successfully created NVRAM area for EK certificate."
+		rm -f ${EK_CERT_FILE}
+	fi
+
+	if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ] && \
+	   [ -r "${PLATFORM_CERT_FILE}" ] ; then
+		tpm2_nv_define \
+			$((TPM2_NV_INDEX_PlatformCert)) \
+			$((TPMA_NV_PLATFORMCREATE | \
+			   TPMA_NV_AUTHREAD | \
+			   TPMA_NV_NO_DA | \
+			   TPMA_NV_PPWRITE | \
+			   TPMA_NV_POLICY_DELETE | \
+			   TPMA_NV_WRITEDEFINE)) \
+			-s $(stat -c%s "${PLATFORM_CERT_FILE}")
+		if [ $? -ne 0 ]; then
+			logerr "Could not create NVRAM area for platform" \
+			       "certificate."
+			return 1
+		fi
+		tpm2_nv_write \
+			$((TPM2_NV_INDEX_PlatformCert)) \
+			"$PLATFORM_CERT_FILE" 2>&1 >/dev/null
+		if [ $? -ne 0 ]; then
+			logerr "Could not write platform certificate into" \
+			       "NVRAM location."
+			return 1
+		fi
+		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
+			tpm2_nv_writelock \
+				$((TPM2_NV_INDEX_PlatformCert))
+			if [ $? -ne 0 ]; then
+				logerr "Could not lock platform certificate" \
+				       "NVRAM location."
+				return 1
+			fi
+		fi
+		logit "Successfully created NVRAM area for platform" \
+		       "certificate."
+		rm -f ${PLATFORM_CERT_FILE}
+	fi
+
+	# FIXME: From here on missing functions...
+
+	if [ $((flags & SETUP_DISPLAY_RESULTS_F)) -ne 0 ]; then
+		echo "Display of results not supported yet."
+	fi
+
+	return 0
+}
+
+#################################################################################
+
 # Check whether a TPM state file already exists and whether we are
 # allowed to overwrite it or should leave it as is.
 #
@@ -657,7 +1175,13 @@ check_state_overwrite()
 	local flags="$1"
 	local tpm_state_path="$2"
 
-	local statefile="tpm-00.permall"
+	local statefile
+
+	if [ $((flags & SETUP_TPM2_F)) -ne 0 ]; then
+		statefile="tpm2-00.permall"
+	else
+		statefile="tpm-00.permall"
+	fi
 
 	if [ -f "${tpm_state_path}/${statefile}" ]; then
 		if [ $((flags & SETUP_STATE_NOT_OVERWRITE_F)) -ne 0 ]; then
@@ -702,7 +1226,12 @@ The following options are supported:
                  : Path to the TPM executable; this is an optional argument and
                    by default $SWTPM is used.
 
+--tpm2           : Setup a TPM 2; by default a TPM 1.2 is setup.
+
 --createek       : Create the EK
+
+--allow-signing  : Create an EK that can also be used for signing;
+                   this option requires --tpm2.
 
 --take-ownership : Take ownership; this option implies --createek
   --ownerpass  <password>
@@ -768,6 +1297,7 @@ main()
 		case "$1" in
 		--tpm-state|--tpmstate) shift; tpm_state_path="$1";;
 		--tpm) shift; SWTPM="$1";;
+		--tpm2) flags=$((flags | SETUP_TPM2_F));;
 		--createek) flags=$((flags | SETUP_CREATE_EK_F));;
 		--take-ownership) flags=$((flags |
 		                   SETUP_CREATE_EK_F|SETUP_TAKEOWN_F));;
@@ -789,6 +1319,7 @@ main()
 		--logfile) shift; LOGFILE="$1";;
 		--overwrite) flags=$((flags | SETUP_STATE_OVERWRITE_F));;
 		--not-overwrite) flags=$((flags | SETUP_STATE_NOT_OVERWRITE_F));;
+		--allow-signing) flags=$((flags | SETUP_ALLOW_SIGNING_F));;
 		--version) versioninfo $0; exit 0;;
 		--help|-h|-?) usage $0; exit 0;;
 		*) logerr "Unknown option $1"; usage $0; exit 1;;
@@ -823,6 +1354,13 @@ main()
 	if [ ! -w "$tpm_state_path" ]; then
 		logerr "Need write rights on directory $tpm_state_path for user $(whoami)."
 		exit 1
+	fi
+
+	if [ $((flags & SETUP_TPM2_F)) -ne 0 ]; then
+		if [ $((flags & SETUP_TAKEOWN_F)) -ne 0 ]; then
+			logerr "Taking ownership is not supported for TPM 2."
+			exit 1
+		fi
 	fi
 
         check_state_overwrite "$flags" "$tpm_state_path"
@@ -887,7 +1425,14 @@ main()
 
 	logit "Starting vTPM manufacturing as $(id -n -u):$(id -n -g) @ $(date +%c)"
 
-	init_tpm $flags "$config_file" "$tpm_state_path" "$ownerpass" "$srkpass" "$vmid"
+	if [ $((flags & SETUP_TPM2_F)) -eq 0 ]; then
+		init_tpm $flags "$config_file" "$tpm_state_path" \
+		        "$ownerpass" "$srkpass" "$vmid"
+	else
+		SWTPM="$SWTPM --tpm2"
+		init_tpm2 $flags "$config_file" "$tpm_state_path" \
+		        "$ownerpass" "$srkpass" "$vmid"
+	fi
 	ret=$?
 	if [ $ret -eq 0 ]; then
 		logit "Successfully authored TPM state."

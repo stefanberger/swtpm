@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+
+PARAMETERS=(
+	""
+	"--createek"
+	"--createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
+	"--createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
+	"--createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+	"--createek --allow-signing"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+)
+
+# produced file size is always the same with TPM2
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+SWTPM=swtpm
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+TPMDIR=$(mktemp -d)
+SWTPM_SETUP_CONF=$ROOT/etc/swtpm_setup.conf
+# filesystem privileges require to run swtpm_setup as root during test
+TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --tpm2 --config ${SWTPM_SETUP_CONF} --runas root"
+PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
+
+source ${DIR}/test_config
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	if [ -n "$TPMDIR" ]; then
+		rm -rf $TPMDIR
+	fi
+}
+
+chown $TSS_USER:$TSS_GROUP $TPMDIR 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Could not change ownership of $TPMDIR to $TSS_USER:$TSS_GROUP." \
+	     "You need to be root."
+	exit 1
+fi
+
+# swtpm_setup.conf points to the local create_certs.sh
+# For create_certs.sh to be found (with out full path)
+# add this directory to the PATH
+PATH=$PATH:$PWD
+
+for (( i=0; i<${#PARAMETERS[*]}; i++)); do
+	rm -rf $TPMDIR/*
+	echo -n "Test $i: "
+set -x
+	$TPMAUTHORING \
+		--tpm-state $TPMDIR \
+		--tpm "$SWTPM_EXE socket" \
+		${PARAMETERS[$i]} #2>&1 >/dev/null
+set +x
+
+	if [ $? -ne 0 ]; then
+		echo "ERROR: Test with parameters '${PARAMETERS[$i]}' failed."
+		exit 1
+	elif [ ! -f $TPMDIR/tpm2-00.permall ]; then
+		echo "ERROR: Test with parameters '${PARAMETERS[$i]}' did not
+		      produce file $TPMDIR/tpm2-00.permall."
+		exit 1
+	fi
+
+	echo "SUCCESS with parameters '${PARAMETERS[$i]}'."
+done

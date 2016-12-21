@@ -37,9 +37,17 @@ this is a mandatory argument
 Path to the TPM executable; this is an optional argument and
 by default the swtpm executable found in the PATH will be used.
 
+=item B<--tpm2>
+
+Do setup on a TPM 2; by default a TPM 1.2 is setup.
+
 =item B<--createek>
 
 Create the EK
+
+=item B<--allow-signing>
+
+Create an EK that can sign. This option requires --tpm2.
 
 =item B<--take-ownership>
 
