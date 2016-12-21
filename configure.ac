@@ -215,6 +215,10 @@ LIBTPMS_LIBS=$(pkg-config --libs libtpms)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is libtpms-devel installed? -- could not get libs for libtpms")
 fi
+AC_CHECK_LIB(tpms,
+             TPMLIB_ChooseTPMVersion,,
+             AC_MSG_ERROR("libtpms 0.6 or later is required")
+)
 AC_SUBST([LIBTPMS_LIBS])
 
 AC_PATH_PROG([TPM_NVDEFINE], tpm_nvdefine)

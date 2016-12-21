@@ -173,6 +173,9 @@ The device major number to use; can be omitted.
 .IP "\fB\-m <minor> | \-\-min=<minor>\fR" 4
 .IX Item "-m <minor> | --min=<minor>"
 The device minor number to use; can be omitted.
+.IP "\fB\-\-tpm2\fR" 4
+.IX Item "--tpm2"
+Choose \s-1TPM 2\s0 functionality; by default a \s-1TPM 1.2\s0 is chosen.
 .IP "\fB\-r <user> | \-\-runas=<user>\fR" 4
 .IX Item "-r <user> | --runas=<user>"
 The user to switch to and drop privileges.
@@ -259,6 +262,29 @@ A maximum of 32 bytes are read from the file and a key is derived from it using 
 This options allows to set the name of file where the process \s-1ID \s0(pid) of the \s-1CUSE TPM\s0
 will be written into. The file will be written by the root user. It is also possible to
 pass a file descriptor to a file that has been opened for writing.
+.SH "EXAMPLES"
+.IX Header "EXAMPLES"
+To start the \s-1CUSE TPM\s0 and have it create the character device /dev/foo,
+use the following commands:
+.Sp
+.Vb 1
+\& # ensure that previous swtpm_cuse using /dev/foo is gone
+\&
+\& swtpm_ioctl \-s /dev/foo
+\&
+\& # Start the swtpm with TPM 2 functionality and make it accessible
+\& # through /dev/foo. Have the swtpm_cuse write the TPM\*(Aqs persistent
+\& # state into the given directory.
+\&
+\& export TPM_PATH=/tmp/foo
+\& mkdir \-p $TPM_PATH
+\&
+\& swtpm_cuse \-n foo \-\-tpm2
+\&
+\& # Send TPM_Init to the TPM; this is absolutely necessary
+\&
+\& swtpm_ioctl \-i /dev/foo
+.Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBswtpm_bios\fR, \fBswtpm_ioctl\fR

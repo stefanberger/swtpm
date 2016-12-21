@@ -259,7 +259,10 @@ Use the given path rather than using the environment variable \s-1TPM_PATH.\s0
 The \s-1TPM\s0 state files will be written with the given file mode bits.
 This value must be given as an octal number starting with a '0'.
 The default value is 0640.
-.IP "\fB\-\-log [fd=<fd>|file=<path>][,level=<n>][,prefix=<prefix>][,truncate]\fR" 4
+.IP "\fB\-\-tpm2\fR" 4
+.IX Item "--tpm2"
+Choose \s-1TPM 2\s0 functionality; by default a \s-1TPM 1.2\s0 is chosen.
+.IP "\fB\-\-log [fd=<fd>|file=<path>][,level=<n>]\fR[,prefix=<prefix>][,truncate]" 4
 .IX Item "--log [fd=<fd>|file=<path>][,level=<n>][,prefix=<prefix>][,truncate]"
 Enable logging to a file given its file descriptor or its path. Use '\-' for path to
 suppress the logging.

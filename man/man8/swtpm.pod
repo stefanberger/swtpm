@@ -164,7 +164,11 @@ The TPM state files will be written with the given file mode bits.
 This value must be given as an octal number starting with a '0'.
 The default value is 0640.
 
-=item B<--log [fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>][,level=E<lt>nE<gt>][,prefix=E<lt>prefixE<gt>][,truncate]>
+=item B<--tpm2>
+
+Choose TPM 2 functionality; by default a TPM 1.2 is chosen.
+
+=item B<--log [fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>][,level=E<lt>nE<gt>]>[,prefix=E<lt>prefixE<gt>][,truncate]
 
 Enable logging to a file given its file descriptor or its path. Use '-' for path to
 suppress the logging.

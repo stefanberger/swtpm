@@ -26,7 +26,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 %endif
 
 BuildRequires:  automake autoconf bash coreutils libtool sed
-BuildRequires:  libtpms-devel fuse-devel glib2-devel gmp-devel
+BuildRequires:  libtpms-devel >= 0.6.0 fuse-devel glib2-devel gmp-devel
 BuildRequires:  expect bash net-tools nss-devel socat python-twisted
 %if %{with_gnutls}
 BuildRequires:  gnutls >= 3.1.0 gnutls-devel gnutls-utils
@@ -39,7 +39,7 @@ BuildRequires:  libtasn1-tools
 BuildRequires:  kernel-modules-extra
 %endif
 
-Requires:       fuse
+Requires:       fuse libtpms >= 0.6.0
 %if 0%{?fedora} > 16
 Requires:       kernel-modules-extra
 %endif

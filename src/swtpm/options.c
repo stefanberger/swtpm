@@ -1,7 +1,7 @@
 /*
  * options.c -- Option parsing
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2014, 2015.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *

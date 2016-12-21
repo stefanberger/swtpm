@@ -84,9 +84,15 @@ TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs)
     return res;
 }
 
-TPM_RESULT tpmlib_start(uint32_t flags)
+TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion)
 {
     TPM_RESULT res;
+
+    if ((res = TPMLIB_ChooseTPMVersion(tpmversion)) != TPM_SUCCESS) {
+        logprintf(STDERR_FILENO,
+                  "Error: Could not choose TPM 2 implementation.\n");
+        return res;
+    }
 
     if ((res = TPMLIB_MainInit()) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,
@@ -178,10 +184,13 @@ TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locality,
 static void tpmlib_write_error_response(unsigned char **rbuffer,
                                         uint32_t *rlength,
                                         uint32_t *rTotal,
-                                        TPM_RESULT errcode)
+                                        TPM_RESULT errcode,
+                                        TPMLIB_TPMVersion tpmversion)
 {
     struct tpm_resp_header errresp = {
-        .tag = htobe16(0xc4),
+        .tag = (tpmversion == TPMLIB_TPM_VERSION_2)
+               ? htobe16(0x8001)
+               : htobe16(0xc4),
         .size = htobe32(sizeof(errresp)),
         .errcode = htobe32(errcode),
     };
@@ -202,31 +211,51 @@ static void tpmlib_write_error_response(unsigned char **rbuffer,
 
 void tpmlib_write_fatal_error_response(unsigned char **rbuffer,
                                        uint32_t *rlength,
-                                       uint32_t *rTotal)
+                                       uint32_t *rTotal,
+                                       TPMLIB_TPMVersion tpmversion)
 {
-    tpmlib_write_error_response(rbuffer, rlength, rTotal, TPM_FAIL);
+    TPM_RESULT errcode = (tpmversion == TPMLIB_TPM_VERSION_2)
+                         ? TPM_RC_FAILURE
+                         : TPM_FAIL;
+
+    tpmlib_write_error_response(rbuffer, rlength, rTotal, errcode,
+                                tpmversion);
 }
 
 void tpmlib_write_locality_error_response(unsigned char **rbuffer,
                                           uint32_t *rlength,
-                                          uint32_t *rTotal)
+                                          uint32_t *rTotal,
+                                          TPMLIB_TPMVersion tpmversion)
 {
-    tpmlib_write_error_response(rbuffer, rlength, rTotal, TPM_BAD_LOCALITY);
+    TPM_RESULT errcode = (tpmversion == TPMLIB_TPM_VERSION_2)
+                         ? TPM_RC_LOCALITY
+                         : TPM_BAD_LOCALITY;
+
+    tpmlib_write_error_response(rbuffer, rlength, rTotal, errcode,
+                                tpmversion);
 }
 
 void tpmlib_write_success_response(unsigned char **rbuffer,
                                    uint32_t *rlength,
-                                   uint32_t *rTotal)
+                                   uint32_t *rTotal,
+                                   TPMLIB_TPMVersion tpmversion)
 {
-    tpmlib_write_error_response(rbuffer, rlength, rTotal, 0);
+    tpmlib_write_error_response(rbuffer, rlength, rTotal, 0,
+                                tpmversion);
 }
 
 #ifdef WITH_VTPM_PROXY
 static void tpmlib_write_shortmsg_error_response(unsigned char **rbuffer,
                                                  uint32_t *rlength,
-                                                 uint32_t *rTotal)
+                                                 uint32_t *rTotal,
+                                                 TPMLIB_TPMVersion tpmversion)
 {
-    tpmlib_write_error_response(rbuffer, rlength, rTotal, TPM_BAD_PARAM_SIZE);
+    TPM_RESULT errcode = (tpmversion == TPMLIB_TPM_VERSION_2)
+                         ? TPM_RC_INSUFFICIENT
+                         : TPM_BAD_PARAM_SIZE;
+
+    tpmlib_write_error_response(rbuffer, rlength, rTotal, errcode,
+                                tpmversion);
 }
 
 static TPM_RESULT tpmlib_process_setlocality(unsigned char **rbuffer,
@@ -234,6 +263,7 @@ static TPM_RESULT tpmlib_process_setlocality(unsigned char **rbuffer,
                                              uint32_t *rTotal,
                                              unsigned char *command,
                                              uint32_t command_length,
+                                             TPMLIB_TPMVersion tpmversion,
                                              uint32_t locality_flags,
                                              TPM_MODIFIER_INDICATOR *locality)
 {
@@ -243,23 +273,27 @@ static TPM_RESULT tpmlib_process_setlocality(unsigned char **rbuffer,
         if (!(locality_flags & LOCALITY_FLAG_ALLOW_SETLOCALITY)) {
             /* SETLOCALITY command is not allowed */
             tpmlib_write_fatal_error_response(rbuffer,
-                                              rlength, rTotal);
+                                              rlength, rTotal,
+                                              tpmversion);
         } else {
             new_locality = command[sizeof(struct tpm_req_header)];
             if (new_locality >=5 ||
                 (new_locality == 4 &&
                  locality_flags & LOCALITY_FLAG_REJECT_LOCALITY_4)) {
                 tpmlib_write_locality_error_response(rbuffer,
-                                                     rlength, rTotal);
+                                                     rlength, rTotal,
+                                                    tpmversion);
             } else {
                 tpmlib_write_success_response(rbuffer,
-                                              rlength, rTotal);
+                                              rlength, rTotal,
+                                              tpmversion);
                 *locality = new_locality;
             }
         }
     } else {
         tpmlib_write_shortmsg_error_response(rbuffer,
-                                             rlength, rTotal);
+                                             rlength, rTotal,
+                                             tpmversion);
     }
     return TPM_SUCCESS;
 }
@@ -270,7 +304,8 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer,
                           unsigned char *command,
                           uint32_t command_length,
                           uint32_t locality_flags,
-                          TPM_MODIFIER_INDICATOR *locality)
+                          TPM_MODIFIER_INDICATOR *locality,
+                          TPMLIB_TPMVersion tpmversion)
 {
     /* process those commands we need to handle, e.g. SetLocality */
     struct tpm_req_header *req = (struct tpm_req_header *)command;
@@ -278,18 +313,33 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer,
 
     if (command_length < sizeof(*req)) {
         tpmlib_write_shortmsg_error_response(rbuffer,
-                                             rlength, rTotal);
+                                             rlength, rTotal,
+                                             tpmversion);
         return TPM_SUCCESS;
     }
 
     ordinal = be32toh(req->ordinal);
 
-    switch (ordinal) {
-    case TPM_CC_SET_LOCALITY:
-        return tpmlib_process_setlocality(rbuffer, rlength, rTotal,
-                                          command, command_length,
-                                          locality_flags,
-                                          locality);
+    switch (tpmversion) {
+    case TPMLIB_TPM_VERSION_1_2:
+        switch (ordinal) {
+        case TPM_CC_SET_LOCALITY:
+            return tpmlib_process_setlocality(rbuffer, rlength, rTotal,
+                                              command, command_length,
+                                              tpmversion, locality_flags,
+                                              locality);
+        }
+        break;
+
+    case TPMLIB_TPM_VERSION_2:
+        switch (ordinal) {
+        case TPM2_CC_SET_LOCALITY:
+            return tpmlib_process_setlocality(rbuffer, rlength, rTotal,
+                                              command, command_length,
+                                              tpmversion, locality_flags,
+                                              locality);
+        }
+        break;
     }
     return TPM_SUCCESS;
 }
@@ -302,7 +352,8 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer,
                           unsigned char *command,
                           uint32_t command_length,
                           uint32_t locality_flags,
-                          TPM_MODIFIER_INDICATOR *locality)
+                          TPM_MODIFIER_INDICATOR *locality,
+                          TPMLIB_TPMVersion tpmversion)
 {
     return TPM_SUCCESS;
 }

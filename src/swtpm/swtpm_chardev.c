@@ -188,6 +188,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : not-need-init: commands can be sent without needing to\n"
     "                   send an INIT via control channel; not needed when using\n"
     "                   --vtpm-proxy\n"
+    "--tpm2           : choose TPM2 functionality\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -204,6 +205,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         .fd = -1,
         .flags = 0,
         .locality_flags = 0,
+        .tpmversion = TPMLIB_TPM_VERSION_1_2,
     };
     unsigned long val;
     char *end_ptr;
@@ -240,6 +242,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 #ifdef WITH_VTPM_PROXY
         {"vtpm-proxy",       no_argument, 0, 'v'},
 #endif
+        {"tpm2"      ,       no_argument, 0, '2'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -336,6 +339,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             flagsdata = optarg;
             break;
 
+        case '2':
+            mlp.tpmversion = TPMLIB_TPM_VERSION_2;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -372,6 +379,9 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         };
         int _errno;
 
+        if (mlp.tpmversion == TPMLIB_TPM_VERSION_2)
+            vtpm_new_dev.flags = VTPM_PROXY_FLAG_TPM2;
+
         if (mlp.fd >= 0) {
             logprintf(STDERR_FILENO,
                       "Cannot use vTPM proxy with a provided device.\n");
@@ -404,6 +414,18 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             "Error: Cannot accept file descriptors with values 0, 1, or 2\n");
         return EXIT_FAILURE;
     }
+
+    /*
+     * choose the TPM version early so that getting/setting
+     * buffer size works.
+     */
+    if (TPMLIB_ChooseTPMVersion(mlp.tpmversion) != TPM_SUCCESS) {
+        logprintf(STDERR_FILENO,
+                  "Error: Could not choose TPM version.\n");
+        return EXIT_FAILURE;
+    }
+
+    SWTPM_NVRAM_Set_TPMVersion(mlp.tpmversion);
 
     if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0) {
         goto exit_failure;
@@ -444,7 +466,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
     TPM_DEBUG("main: Initializing TPM at %s", ctime(&start_time));
 
-    tpmlib_debug_libtpms_parameters();
+    tpmlib_debug_libtpms_parameters(mlp.tpmversion);
 
 #ifdef WITH_VTPM_PROXY
     if (use_vtpm_proxy)
@@ -455,7 +477,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         goto error_no_tpm;
 
     if (!need_init_cmd) {
-        if ((rc = tpmlib_start(0)))
+        if ((rc = tpmlib_start(0, mlp.tpmversion)))
             goto error_no_tpm;
         tpm_running = true;
     }
