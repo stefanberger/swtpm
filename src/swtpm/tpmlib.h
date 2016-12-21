@@ -46,26 +46,30 @@
 const char *tpmlib_get_blobname(uint32_t blobtype);
 enum TPMLIB_StateType tpmlib_blobtype_to_statetype(uint32_t blobtype);
 TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs);
-TPM_RESULT tpmlib_start(uint32_t flags);
+TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion);
 int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
 bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len);
 TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locty,
                                        TPM_MODIFIER_INDICATOR locty);
 void tpmlib_write_fatal_error_response(unsigned char **rbuffer,
                                        uint32_t *rlength,
-                                       uint32_t *rTotal);
+                                       uint32_t *rTotal,
+                                       TPMLIB_TPMVersion tpmversion);
 void tpmlib_write_locality_error_response(unsigned char **rbuffer,
                                           uint32_t *rlength,
-                                          uint32_t *rTotal);
+                                          uint32_t *rTotal,
+                                          TPMLIB_TPMVersion tpmversion);
 void tpmlib_write_success_response(unsigned char **rbuffer,
                                    uint32_t *rlength,
-                                   uint32_t *rTotal);
+                                   uint32_t *rTotal,
+                                   TPMLIB_TPMVersion tpmversion);
 TPM_RESULT tpmlib_process(unsigned char **rbuffer, uint32_t *rlength,
                           uint32_t *rTotal,
                           unsigned char *command,
                           uint32_t command_length,
                           uint32_t locality_flags,
-                          TPM_MODIFIER_INDICATOR *locality);
+                          TPM_MODIFIER_INDICATOR *locality,
+                          TPMLIB_TPMVersion tpmversion);
 
 
 struct tpm_req_header {
@@ -85,6 +89,8 @@ struct tpm_resp_header {
 #define TPMLIB_TPM_ORD_CreateWrapKey   0x0000001f
 
 /* TPM 2 error codes */
+#define TPM_RC_INSUFFICIENT 0x09a
+#define TPM_RC_FAILURE      0x101
 #define TPM_RC_LOCALITY     0x107
 
 #endif /* _SWTPM_TPMLIB_H_ */

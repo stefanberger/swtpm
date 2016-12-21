@@ -44,6 +44,10 @@ The device major number to use; can be omitted.
 
 The device minor number to use; can be omitted.
 
+=item B<--tpm2>
+
+Choose TPM 2 functionality; by default a TPM 1.2 is chosen.
+
 =item B<-r E<lt>userE<gt> | --runas=E<lt>userE<gt>>
 
 The user to switch to and drop privileges.
@@ -140,6 +144,31 @@ pass a file descriptor to a file that has been opened for writing.
 
 =back
 
+=head1 EXAMPLES
+
+To start the CUSE TPM and have it create the character device /dev/foo,
+use the following commands:
+
+=over 4
+
+ # ensure that previous swtpm_cuse using /dev/foo is gone
+
+ swtpm_ioctl -s /dev/foo
+
+ # Start the swtpm with TPM 2 functionality and make it accessible
+ # through /dev/foo. Have the swtpm_cuse write the TPM's persistent
+ # state into the given directory.
+
+ export TPM_PATH=/tmp/foo
+ mkdir -p $TPM_PATH
+
+ swtpm_cuse -n foo --tpm2
+
+ # Send TPM_Init to the TPM; this is absolutely necessary
+
+ swtpm_ioctl -i /dev/foo
+
+=back
 
 =head1 SEE ALSO
 

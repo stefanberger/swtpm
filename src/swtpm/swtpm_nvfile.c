@@ -79,6 +79,7 @@
  #endif
 #endif
 
+#include "swtpm.h"
 #include "swtpm_aes.h"
 #include "swtpm_debug.h"
 #include "swtpm_nvfile.h"
@@ -176,6 +177,15 @@ static TPM_RESULT SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
 static int lockfile_fd = -1;
 
 char state_directory[FILENAME_MAX];
+static TPMLIB_TPMVersion tpmversion = TPMLIB_TPM_VERSION_1_2;
+
+/*
+ * SWTPM_NVRAM_Set_TPMVersion()  - set the version of the TPM being used
+ */
+void SWTPM_NVRAM_Set_TPMVersion(TPMLIB_TPMVersion version)
+{
+    tpmversion = version;
+}
 
 static TPM_RESULT SWTPM_NVRAM_Lock_Lockfile(const char *directory,
                                             int *fd)
@@ -574,11 +584,20 @@ static TPM_RESULT SWTPM_NVRAM_GetFilenameForName(char *filename,        /* outpu
 {
     TPM_RESULT res = TPM_SUCCESS;
     int n;
+    const char *suffix = "";
 
     TPM_DEBUG(" SWTPM_NVRAM_GetFilenameForName: For name %s\n", name);
 
-    n = snprintf(filename, bufsize, "%s/tpm-%02lx.%s",
-                 state_directory, (unsigned long)tpm_number, name);
+    switch (tpmversion) {
+    case TPMLIB_TPM_VERSION_1_2:
+        break;
+    case TPMLIB_TPM_VERSION_2:
+        suffix = "2";
+        break;
+    }
+
+    n = snprintf(filename, bufsize, "%s/tpm%s-%02lx.%s",
+                 state_directory, suffix, (unsigned long)tpm_number, name);
     if ((size_t)n > bufsize) {
         res = TPM_FAIL;
     }
