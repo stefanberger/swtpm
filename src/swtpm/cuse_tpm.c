@@ -217,18 +217,6 @@ static const char *usage =
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
 
-const static unsigned char TPM_ResetEstablishmentBit[] = {
-    0x00, 0xC1,                     /* TPM Request */
-    0x00, 0x00, 0x00, 0x0A,         /* length (10) */
-    0x40, 0x00, 0x00, 0x0B          /* TPM_ORD_ResetEstablishmentBit */
-};
-
-const static unsigned char TPM2_Resp_FatalError[] = {
-    0x80, 0x01,                     /* TPM Response */
-    0x00, 0x00, 0x00, 0x0A,         /* length (10) */
-    0x00, 0x00, 0x01, 0x01          /* TPM_FAIL */
-};
-
 static TPM_RESULT
 ptm_io_getlocality(TPM_MODIFIER_INDICATOR *loc, uint32_t tpmnum)
 {
@@ -396,43 +384,6 @@ static void worker_thread(gpointer data, gpointer user_data)
 }
 
 /***************************** utility functions ****************************/
-
-/* _TPM_IO_TpmEstablished_Reset
- *
- * Reset the TPM Established bit by creating a TPM_ResetEstablishmentBit
- * command and sending it to the TPM; we temporarily switch the locality
- * to the one provded to this call. We wait until the TPM has processed
- * the request.
- */
-static TPM_RESULT _TPM_IO_TpmEstablished_Reset(fuse_req_t req,
-                                                TPM_MODIFIER_INDICATOR locty)
-{
-    TPM_RESULT res = TPM_FAIL;
-    TPM_Response_Header *tpmrh;
-    TPM_MODIFIER_INDICATOR orig_locality = locality;
-
-    locality = locty;
-
-    ptm_req_len = sizeof(TPM_ResetEstablishmentBit);
-    memcpy(ptm_request, TPM_ResetEstablishmentBit, ptm_req_len);
-
-    msg.type = MESSAGE_TPM_CMD;
-
-    worker_thread_mark_busy();
-
-    g_thread_pool_push(pool, &msg, NULL);
-
-    worker_thread_wait_done();
-
-    if (ptm_res_len >= sizeof(TPM_Response_Header)) {
-        tpmrh = (TPM_Response_Header *)ptm_response;
-        res = ntohl(tpmrh->returnCode);
-    }
-
-    locality = orig_locality;
-
-    return res;
-}
 
 /*
  * tpm_start: Start the TPM
@@ -935,6 +886,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     TPM_RESULT res = TPM_FAIL;
     bool exit_prg = FALSE;
     ptm_init *init_p;
+    TPM_MODIFIER_INDICATOR orig_locality;
 
     /* some commands have to wait until the worker thread is done */
     switch(cmd) {
@@ -978,7 +930,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                     | PTM_CAP_HASHING
                     | PTM_CAP_CANCEL_TPM_CMD
                     //| PTM_CAP_STORE_VOLATILE
-                    //| PTM_CAP_RESET_TPMESTABLISHED
+                    | PTM_CAP_RESET_TPMESTABLISHED
                     //| PTM_CAP_GET_STATEBLOB
                     //| PTM_CAP_SET_STATEBLOB
                     | PTM_CAP_STOP
@@ -1084,7 +1036,13 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             if (re->u.req.loc > 4) {
                 res = TPM_BAD_LOCALITY;
             } else {
-                res = _TPM_IO_TpmEstablished_Reset(req, re->u.req.loc);
+                /* set locality and reset flag in one command */
+                orig_locality = locality;
+                locality = re->u.req.loc;
+
+                res = TPM_IO_TpmEstablished_Reset();
+
+                locality = orig_locality;
                 fuse_reply_ioctl(req, 0, &res, sizeof(res));
             }
         }
