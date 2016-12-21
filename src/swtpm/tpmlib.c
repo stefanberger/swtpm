@@ -149,39 +149,6 @@ bool tpmlib_is_request_cancelable(TPMLIB_TPMVersion tpmversion,
             ordinal == TPMLIB_TPM_ORD_CreateWrapKey);
 }
 
-const static unsigned char TPM_ResetEstablishmentBit[] = {
-    0x00, 0xC1,                     /* TPM Request */
-    0x00, 0x00, 0x00, 0x0A,         /* length (10) */
-    0x40, 0x00, 0x00, 0x0B          /* TPM_ORD_ResetEstablishmentBit */
-};
-
-TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locality,
-                                       TPM_MODIFIER_INDICATOR locality)
-{
-    TPM_RESULT res;
-    unsigned char *rbuffer = NULL;
-    uint32_t rlength = 0;
-    uint32_t rTotal = 0;
-    TPM_MODIFIER_INDICATOR orig_locality = *g_locality;
-    unsigned char command[sizeof(TPM_ResetEstablishmentBit)];
-    struct tpm_resp_header *tpmrh;
-
-    memcpy(command, TPM_ResetEstablishmentBit, sizeof(command));
-    *g_locality = locality;
-
-    res = TPMLIB_Process(&rbuffer, &rlength, &rTotal,
-                         command, sizeof(command));
-
-    if (res == TPM_SUCCESS && rlength >= sizeof(*tpmrh)) {
-        tpmrh = (struct tpm_resp_header *)rbuffer;
-        res = be32toh(tpmrh->errcode);
-    }
-    *g_locality = orig_locality;
-    TPM_Free(rbuffer);
-
-    return res;
-}
-
 static void tpmlib_write_error_response(unsigned char **rbuffer,
                                         uint32_t *rlength,
                                         uint32_t *rTotal,
