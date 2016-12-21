@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+VTPM_NAME="vtpm-test-tpm2-hashing3"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm2-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
+source ${DIR}/common
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	exit 1
+fi
+
+# We do NOT need to startup the TPM; Hashing will affect PCR 0
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+
+# Check the TPM Established bit before the hashing
+RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+exp='tpmEstablished is 0'
+if [ "$RES" != "$exp" ]; then
+	echo "Error (1): TPM Established flag has wrong value."
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Hash
+run_swtpm_ioctl ${SWTPM_INTERFACE} -h 1234
+if [ $? -ne 0 ]; then
+	echo "Error: The hash command failed."
+	exit 1
+fi
+
+# Startup the TPM2
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0C\x00\x00\x01\x44\x00\x00')
+exp=' 80 01 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+# Read PCR 0
+#                                                     length         CC            count       hashalg         sz
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x01\x00\x00')
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 15 00 00 00 01 00 0b 03 01 00 00 00 00 00 01 00 20 34 0a 23 3f ac 4c a0 14 98 6e 45 dd 95 ec 77 6a 7a 3f 86 a2 10 74 f4 3a 43 90 c5 b8 c3 ab ea f4'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(0)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Check the TPM Established bit after the hashing
+RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+exp='tpmEstablished is 1'
+if [ "$RES" != "$exp" ]; then
+	echo "Error (2): TPM Established flag has wrong value."
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

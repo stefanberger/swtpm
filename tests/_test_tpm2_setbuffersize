@@ -1,0 +1,131 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+VTPM_NAME="vtpm-test-tpm2-setbuffersize"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm2-00.permall
+OUTFILE=$TPM_PATH/output
+VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == cuse ] && source ${DIR}/test_cuse
+source ${DIR}/common
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Check the buffer size
+run_swtpm_ioctl ${SWTPM_INTERFACE} -b 0 > ${OUTFILE}
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the buffersize of the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+cat ${OUTFILE}
+
+if [ -z "$(grep "TPM buffersize" ${OUTFILE} | grep 4096)" ]; then
+	echo "Error: The TPM buffersize of the ${SWPTM_INTERFACE} TPM is not 4096."
+	exit 1
+fi
+
+# set the buffer size -- it's not going to change but command must not fail
+run_swtpm_ioctl ${SWTPM_INTERFACE} -b 4000 > ${OUTFILE}
+if [ $? -ne 0 ]; then
+	echo "Error: Could not set the buffersize of the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+cat ${OUTFILE}
+
+if [ -z "$(grep "TPM buffersize" ${OUTFILE} | grep 4000)" ]; then
+	echo "Error: Could not set the buffersize of the ${SWPTM_INTERFACE} TPM to 4000."
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	exit 1
+fi
+
+# Set the buffer size -- should fail
+run_swtpm_ioctl ${SWTPM_INTERFACE} -b 4096
+if [ $? -eq 0 ]; then
+	echo "Error: Could set the buffersize while the ${SWTPM_INTERFACE} TPM is running."
+	exit 1
+fi
+
+# Startup the TPM2
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+exp=' 80 01 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_Startup(SU_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Read the Buffer sizes; we want to see '4000' (0xfa0) in the buffer sizes now
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x16\x00\x00\x01\x7a\x00\x00\x00\x06\x00\x00\x01\x1e\x00\x00\x00\x02')
+exp=' 80 01 00 00 00 23 00 00 00 00 01 00 00 00 06 00 00 00 02 00 00 01 1e 00 00 0f a0 00 00 01 1f 00 00 0f a0'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_GetCapability()"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+sleep 0.5
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0
