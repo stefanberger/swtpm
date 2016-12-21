@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_bios 8"
-.TH swtpm_bios 8 "2016-04-18" "swtpm" ""
+.TH swtpm_bios 8 "2016-07-05" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -197,6 +197,9 @@ if port is not given, the default port 6545 is used.
 .IP "\fB\-\-unixio <path>\fR" 4
 .IX Item "--unixio <path>"
 Connect to the given UnixIO path.
+.IP "\fB\-tpm2\fR" 4
+.IX Item "-tpm2"
+The device is a \s-1TPM 2.\s0
 .IP "\fB\-c\fR" 4
 .IX Item "-c"
 Send TPM_Startup(\s-1ST_CLEAR\s0) (default). This instructs the \s-1TPM\s0 to start
@@ -208,7 +211,7 @@ previously saved state.
 .IP "\fB\-d\fR" 4
 .IX Item "-d"
 Send TPM_Startup(\s-1ST_DEACTIVATED\s0). This instructs the \s-1TPM\s0 to start in
-deactivated mode.
+deactivated mode. This option has no effect on a \s-1TPM 2.\s0
 .IP "\fB\-n\fR" 4
 .IX Item "-n"
 Don't send a TPM_Startup command.
@@ -221,10 +224,12 @@ Make sure that the \s-1TPM\s0 is activated; if the \s-1TPM\s0 requires a reset, 
 will exist and return a return code of 129.
 .IP "\fB\-cs\fR" 4
 .IX Item "-cs"
-Send a TPM_ContinueSelfTest command.
+Send a TPM_ContinueSelfTest command to a \s-1TPM 1.2\s0 and a TPM2_IncrementalSelfTest
+command to a \s-1TPM 2.\s0
 .IP "\fB\-u\fR" 4
 .IX Item "-u"
-Give up physical presence.
+Give up physical presence on a \s-1TPM 1.2.\s0 In case of a \s-1TPM 2\s0 set the platform
+hierarchy to a random password.
 .IP "\fB\-v\fR" 4
 .IX Item "-v"
 Display version and exit.
