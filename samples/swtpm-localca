@@ -5,7 +5,7 @@
 #
 # Authors: Stefan Berger <stefanb@us.ibm.com>
 #
-# (c) Copyright IBM Corporation 2014.
+# (c) Copyright IBM Corporation 2014, 2015.
 #
 # All rights reserved.
 #
@@ -36,6 +36,9 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
+# some flags
+SETUP_TPM2_F=1
 
 LOCALCA_OPTIONS=/etc/swtpm-localca.options
 LOCALCA_CONFIG=/etc/swtpm-localca.conf
@@ -126,15 +129,16 @@ get_next_cert_serial() {
 }
 
 create_cert() {
-	local typ="$1"
-	local dir="$2"
-	local ek="$3"
-	local vmid="$4"
-	local tpm_spec_params="$5"
-	local tpm_attr_params="$6"
+	local flags="$1"
+	local typ="$2"
+	local dir="$3"
+	local ek="$4"
+	local vmid="$5"
+	local tpm_spec_params="$6"
+	local tpm_attr_params="$7"
 
 	local serial=$(get_next_cert_serial)
-	local options rc=0
+	local options="" rc=0
 
 	if [ -z "$serial" ]; then
 		return 1
@@ -150,8 +154,12 @@ create_cert() {
 		options="$options --subject \"CN=unknown\""
 	fi
 
-	# TPM 1.2 cert needs a header
-	options="$options --add-header"
+	if [ $((flags & SETUP_TPM2_F)) -ne 0 ]; then
+		options="$options --tpm2"
+	else
+		# TPM 1.2 cert needs a header
+		options="$options --add-header"
+	fi
 
 	case "$typ" in
 	ek)
@@ -302,6 +310,7 @@ create_localca_cert() {
 main() {
 	local typ ek dir vmid tmp
 	local tpm_spec_params="" tpm_attr_params=""
+	local flags=0
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
@@ -357,6 +366,9 @@ main() {
 			# this is the firmware version!
 			shift
 			tpm_attr_params+="--tpm-version $1 "
+			;;
+		--tpm2)
+			flags=$((flags | SETUP_TPM2_F))
 			;;
 		*)
 			logerr "Unsupported option $1"
@@ -446,7 +458,8 @@ main() {
 	CERTSERIAL=$(get_config_value "$LOCALCA_CONFIG" "certserial" \
 	    "${STATEDIR}/certserial")
 
-	create_cert "$typ" "$dir" "$ek" "$vmid" "$tpm_spec_params" "$tpm_attr_params"
+	create_cert "$flags" "$typ" "$dir" "$ek" "$vmid" "$tpm_spec_params" \
+		"$tpm_attr_params"
 
 	exit $?
 }

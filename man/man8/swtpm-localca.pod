@@ -71,6 +71,10 @@ TPM specification parameters that describe the specification that was
 followed for the TPM implementation. The parameters will be passed
 to swtpm_cert for the creation of the EK certificate.
 
+=item B<--tpm2>
+
+Create TPM 2 compliant certificates.
+
 =back
 
 =head1 SEE ALSO

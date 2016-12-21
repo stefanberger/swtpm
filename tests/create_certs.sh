@@ -24,6 +24,8 @@ main() {
 			shift
 			vmid="$1"
 			;;
+		--tpm2)
+			;;
 		esac
 		shift
 	done

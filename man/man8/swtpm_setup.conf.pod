@@ -64,6 +64,11 @@ options file.
 These 3 options describe the TPM specification that was followed for
 the implementation of the TPM and will be part of the EK certificate.
 
+=item B<--tpm2>
+
+This option is passed in case a TPM 2 compliant certificate needs to be
+created.
+
 =back
 
 =item B<create_certs_tool_config>
