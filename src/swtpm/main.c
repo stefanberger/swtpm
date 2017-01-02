@@ -35,6 +35,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +49,11 @@ static void usage(FILE *stream, const char *prgname)
     fprintf(stream,
         "TPM emulator with choice of interface.\n"
         "\n"
-        "Usage: %s socket|chardev|cuse [options]\n"
+        "Usage: %s socket|chardev"
+#ifdef WITH_CUSE
+                                "|cuse"
+#endif
+                                     " [options]\n"
         "       %s -v|--version\n"
         "\n"
         "Use the --help option to see the help screen for each interface type.\n"
@@ -65,8 +71,10 @@ int main(int argc, char **argv)
         return swtpm_main(argc-1, &argv[1], argv[0], "socket");
     } else if (!strcmp(argv[1], "chardev")) {
         return swtpm_chardev_main(argc-1, &argv[1], argv[0], "chardev");
+#ifdef WITH_CUSE
     } else if (!strcmp(argv[1], "cuse")) {
         return swtpm_cuse_main(argc-1, &argv[1], argv[0], "cuse");
+#endif
     } else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         usage(stdout, argv[0]);
     } else if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {

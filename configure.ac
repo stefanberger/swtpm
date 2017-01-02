@@ -221,17 +221,40 @@ if test "x$TPM_NVDEFINE" == "x"; then
 	AC_MSG_ERROR([NVRAM area tools are need: tpm-tools package])
 fi
 
-LIBFUSE_CFLAGS=$(pkg-config fuse --cflags)
-if test $? -ne 0; then
-	AC_MSG_ERROR("Is fuse-devel installed? -- could not get cflags for libfuse")
-fi
-AC_SUBST([LIBFUSE_CFLAGS])
+AC_MSG_CHECKING([for whether to build with CUSE interface])
+AC_ARG_WITH([cuse],
+            AC_HELP_STRING([--with-cuse],
+                           [build with CUSE interface]),
+            [],
+            [with_cuse=check]
+)
 
-LIBFUSE_LIBS=$(pkg-config fuse --libs)
-if test $? -ne 0; then
-	AC_MSG_ERROR("Is fuse-devel installed? -- could not get libs for libfuse")
+if test "$with_cuse" != "no"; then
+    LIBFUSE_CFLAGS=$(pkg-config fuse --cflags 2>/dev/null)
+    if test $? -ne 0; then
+        if test "$with_cuse" = "yes"; then
+            AC_MSG_ERROR("Is fuse-devel installed? -- could not get cflags for libfuse")
+        else
+            with_cuse=no
+        fi
+    else
+        with_cuse=yes
+    fi
+ fi
+
+dnl with_cuse is now yes or no
+if test "$with_cuse" != "no"; then
+    LIBFUSE_LIBS=$(pkg-config fuse --libs)
+    if test $? -ne 0; then
+        AC_MSG_ERROR("Is fuse-devel installed? -- could not get libs for libfuse")
+    fi
+    AC_SUBST([LIBFUSE_CFLAGS])
+    AC_SUBST([LIBFUSE_LIBS])
+    AC_DEFINE_UNQUOTED([WITH_CUSE], 1,
+                       [whether to build with CUSE interface])
 fi
-AC_SUBST([LIBFUSE_LIBS])
+AM_CONDITIONAL([WITH_CUSE],[test "$with_cuse" = "yes"])
+AC_MSG_RESULT($with_cuse)
 
 AC_ARG_WITH([gnutls],
             AC_HELP_STRING([--with-gnutls],
@@ -408,6 +431,7 @@ AC_OUTPUT
 echo
 printf "with_gnutls : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
 printf "with_selinux: %5s  (no = SELinux policy extenions will NOT be build)\n" $with_selinux
+printf "with_cuse:    %5s  (no = no CUSE interface)\n" $with_cuse
 echo
 echo "cryptolib: $cryptolib"
 echo

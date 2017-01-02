@@ -63,15 +63,20 @@ libswtpm_libtpms_la_LIBADD += \
 	$(NSS_LIBS)
 endif
 
-bin_PROGRAMS = swtpm swtpm_cuse
+bin_PROGRAMS = swtpm
+if WITH_CUSE
+bin_PROGRAMS += swtpm_cuse
+endif
 
 swtpm_DEPENDENCIES = $(lib_LTLIBRARIES)
 
 swtpm_SOURCES = \
 		main.c \
 		swtpm.c \
-		swtpm_chardev.c \
-		cuse_tpm.c
+		swtpm_chardev.c
+if WITH_CUSE
+swtpm_SOURCES += cuse_tpm.c
+endif
 
 swtpm_CFLAGS = \
 	-I$(top_srcdir)/include \
