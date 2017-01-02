@@ -396,6 +396,14 @@ for dir in $dirs $LIBRARY_PATH; do
       break
     fi
   fi
+  case $host_os in
+  cygwin)
+    if test -r $dir/libtpms.a; then
+      if test -n "$(nm $dir/libtpms.a | grep "U AES_encrypt")"; then
+        libtpms_cryptolib="openssl"
+      fi
+    fi
+  esac
 done
 
 if test -z "$libtpms_cryptolib"; then
@@ -412,6 +420,11 @@ if test "$libtpms_cryptolib" != "$cryptolib"; then
     AC_MSG_ERROR([use --with-openssl])
   fi
 fi
+
+case $host_os in
+cygwin)
+  CFLAGS="$CFLAGS -D__USE_LINUX_IOCTL_DEFS"
+esac
 
 AC_CONFIG_FILES([Makefile                    \
 		dist/swtpm.spec             \

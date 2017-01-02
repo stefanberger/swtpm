@@ -858,7 +858,7 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
         /* no tpm_result here */
-        printf("ptm capability is 0x%lx\n", devtoh64(is_chardev, cap));
+        printf("ptm capability is 0x%lx\n", (uint64_t)devtoh64(is_chardev, cap));
 
     } else if (!strcmp(command, "-i")) {
         init.u.req.init_flags = htodev32(is_chardev, PTM_INIT_FLAG_DELETE_VOLATILE);
