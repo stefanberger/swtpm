@@ -44,6 +44,7 @@ AC_PROG_LIBTOOL
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET
+AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([foreign 1.6])
 
 DEBUG=""
@@ -217,9 +218,18 @@ fi
 AC_SUBST([LIBTPMS_LIBS])
 
 AC_PATH_PROG([TPM_NVDEFINE], tpm_nvdefine)
-if test "x$TPM_NVDEFINE" == "x"; then
-	AC_MSG_ERROR([NVRAM area tools are need: tpm-tools package])
-fi
+case $host_os in
+linux-*)
+    if test "x$TPM_NVDEFINE" == "x"; then
+	AC_MSG_ERROR([NVRAM area tools are needed: tpm-tools package])
+    fi
+    with_tcsd=yes
+    ;;
+*)
+    with_tcsd=no
+esac
+with_swtpm_setup=$with_tcsd
+AM_CONDITIONAL([WITH_SWTPM_SETUP], test "$with_swtpm_setup" != "no")
 
 AC_MSG_CHECKING([for whether to build with CUSE interface])
 AC_ARG_WITH([cuse],
@@ -429,9 +439,10 @@ AC_CONFIG_FILES([src/swtpm_setup/swtpm_setup.sh],
 AC_OUTPUT
 
 echo
-printf "with_gnutls : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
-printf "with_selinux: %5s  (no = SELinux policy extenions will NOT be build)\n" $with_selinux
-printf "with_cuse:    %5s  (no = no CUSE interface)\n" $with_cuse
+printf "with_gnutls     : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
+printf "with_selinux    : %5s  (no = SELinux policy extenions will NOT be built)\n" $with_selinux
+printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
+printf "with_swtpm_setup: %5s  (no = swtpm_setup will NOT be built)\n" $with_swtpm_setup
 echo
 echo "cryptolib: $cryptolib"
 echo

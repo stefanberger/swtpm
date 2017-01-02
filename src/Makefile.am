@@ -8,8 +8,11 @@ SUBDIRS = \
 	swtpm \
 	swtpm_bios \
 	swtpm_cert \
-	swtpm_ioctl \
+	swtpm_ioctl
+if WITH_SWTPM_SETUP
+SUBDIRS += \
 	swtpm_setup
+endif
 
 if WITH_SELINUX
 SUBDIRS += \
