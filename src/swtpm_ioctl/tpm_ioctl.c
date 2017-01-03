@@ -824,6 +824,11 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (!command) {
+        fprintf(stderr, "No valid command.\n");
+        return EXIT_FAILURE;
+    }
+
     if (!tpm_device && !tcp_hostname && !unix_path) {
         if (optind == argc) {
             fprintf(stderr, "Error: Missing device name.\n");
