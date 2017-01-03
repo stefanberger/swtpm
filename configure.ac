@@ -250,7 +250,7 @@ if test "$with_cuse" != "no"; then
     else
         with_cuse=yes
     fi
- fi
+fi
 
 dnl with_cuse is now yes or no
 if test "$with_cuse" != "no"; then
@@ -264,6 +264,19 @@ if test "$with_cuse" != "no"; then
                        [whether to build with CUSE interface])
 fi
 AM_CONDITIONAL([WITH_CUSE],[test "$with_cuse" = "yes"])
+AC_MSG_RESULT($with_cuse)
+
+AC_MSG_CHECKING([for whether to build with chardev interface])
+case $host_os in
+linux-*)
+    with_chardev=yes
+    AC_DEFINE_UNQUOTED([WITH_CHARDEV], 1,
+                       [whether to build with chardev interface])
+    ;;
+*)
+    with_chardev=no
+esac
+AM_CONDITIONAL([WITH_CHARDEV],[test "$with_chardev" = "yes"])
 AC_MSG_RESULT($with_cuse)
 
 AC_ARG_WITH([gnutls],
@@ -455,6 +468,7 @@ echo
 printf "with_gnutls     : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
 printf "with_selinux    : %5s  (no = SELinux policy extenions will NOT be built)\n" $with_selinux
 printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
+printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
 printf "with_swtpm_setup: %5s  (no = swtpm_setup will NOT be built)\n" $with_swtpm_setup
 echo
 echo "cryptolib: $cryptolib"

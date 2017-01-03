@@ -69,8 +69,10 @@ int main(int argc, char **argv)
     }
     if (!strcmp(argv[1], "socket")) {
         return swtpm_main(argc-1, &argv[1], argv[0], "socket");
+#ifdef WITH_CHARDEV
     } else if (!strcmp(argv[1], "chardev")) {
         return swtpm_chardev_main(argc-1, &argv[1], argv[0], "chardev");
+#endif
 #ifdef WITH_CUSE
     } else if (!strcmp(argv[1], "cuse")) {
         return swtpm_cuse_main(argc-1, &argv[1], argv[0], "cuse");

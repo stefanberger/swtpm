@@ -6,9 +6,13 @@
 
 check_PROGRAMS =
 
-TESTS = \
+TESTS =
+
+if WITH_CHARDEV
+TESTS += \
 	test_ctrlchannel \
 	test_ctrlchannel2
+endif
 
 if WITH_CUSE
 TESTS += \
