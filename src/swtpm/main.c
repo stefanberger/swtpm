@@ -49,7 +49,10 @@ static void usage(FILE *stream, const char *prgname)
     fprintf(stream,
         "TPM emulator with choice of interface.\n"
         "\n"
-        "Usage: %s socket|chardev"
+        "Usage: %s socket"
+#ifdef WITH_CHARDEV
+                        "|chardev"
+#endif
 #ifdef WITH_CUSE
                                 "|cuse"
 #endif
