@@ -85,9 +85,6 @@ There are two needed options for the passthrough -tpmdev and -device
 as shown in these examples. Note that the "path" parameter points to the
 native (/dev/vtpm0...) path, while the id and tpmdev are the guest's view.
 
-[Note: for the following to work, QEMU needs to be patched with
-       yet to be published patches]
-
     $ qemu-system-x86_64 -display sdl -enable-kvm -cdrom cdrom.iso \
     -m 1024 -boot d -bios bios.bin -boot menu=on -tpmdev \
     cuse-tpm,id=tpm0,path=/dev/vtpm0 \
@@ -97,4 +94,11 @@ native (/dev/vtpm0...) path, while the id and tpmdev are the guest's view.
     -m 1024 -boot d -bios bios.bin -boot menu=on -tpmdev \
     cuse-tpm,id=tpm1,path=/dev/vtpm1 \
     -device tpm-tis,tpmdev=tpm1 test2.img
+
+For this to work, qemu patches that are not included in upstream qemu
+are needed.  Currently those are maintained in
+https://github.com/stefanberger/qemu-tpm
+
+Including them upstream has been discussed, most recently at
+https://lists.nongnu.org/archive/html/qemu-devel/2016-06/msg00252.html
 
