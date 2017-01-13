@@ -21,7 +21,8 @@ noinst_HEADERS = \
 	threadpool.h \
 	tpmlib.h \
 	tpmstate.h \
-	utils.h
+	utils.h \
+	vtpm_proxy.h
 
 lib_LTLIBRARIES = libswtpm_libtpms.la
 

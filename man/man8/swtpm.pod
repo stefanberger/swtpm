@@ -76,6 +76,11 @@ The following options are supported if the I<chardev> interface is chosen:
 
 Use the given device to listen for TPM commands and send response on.
 
+=item B<--vtpm-proxy>
+
+Create a Linux vTPM proxy device instance and read TPM commands from its
+backend device.
+
 =back
 
 

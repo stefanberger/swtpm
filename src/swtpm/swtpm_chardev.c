@@ -48,6 +48,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_library.h>
@@ -64,6 +65,7 @@
 #include "utils.h"
 #include "ctrlchannel.h"
 #include "mainloop.h"
+#include "vtpm_proxy.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -86,6 +88,27 @@ static void sigterm_handler(int sig __attribute__((unused)))
                   strerror(errno));
     }
     mainloop_terminate = true;
+}
+
+static int create_vtpm_proxy(struct vtpm_proxy_new_dev *vtpm_new_dev)
+{
+    int fd, n, ret = 0;
+
+    fd = open("/dev/vtpmx", O_RDWR);
+    if (fd < 0) {
+        fprintf(stderr, "Could not open /dev/vtpmx: %s\n", strerror(errno));
+        return -1;
+    }
+
+    n = ioctl(fd, VTPM_PROXY_IOC_NEW_DEV, vtpm_new_dev);
+    if (n) {
+        fprintf(stderr, "Ioctl to create vtpm proxy failed: %s\n",
+                strerror(errno));
+        ret = -1;
+    }
+    close(fd);
+
+    return ret;
 }
 
 static void usage(FILE *file, const char *prgname, const char *iface)
@@ -124,6 +147,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead\n"
     "-r|--runas <user>: change to the given user\n"
+    "--vtpm-proxy     : spawn a Linux vTPM proxy driver device and read TPM\n"
+    "                   command from its anonymous file descriptor\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -147,6 +172,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
     char *runas = NULL;
+    bool use_vtpm_proxy = false;
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -161,6 +187,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
         {"ctrl"      , required_argument, 0, 'C'},
+        {"vtpm-proxy",       no_argument, 0, 'v'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -250,10 +277,32 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             runas = optarg;
             break;
 
+        case 'v':
+            use_vtpm_proxy = true;
+            break;
+
         default:
             usage(stderr, prgname, iface);
             exit(EXIT_FAILURE);
         }
+    }
+
+    if (use_vtpm_proxy) {
+        struct vtpm_proxy_new_dev vtpm_new_dev = {
+            .flags = 0,
+        };
+
+        if (mlp.fd >= 0) {
+            fprintf(stderr, "Cannot use vTPM proxy with a provided device.\n");
+            exit(1);
+        }
+        if (create_vtpm_proxy(&vtpm_new_dev))
+            exit(1);
+        mlp.fd = vtpm_new_dev.fd;
+
+        mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
+                     MAIN_LOOP_FLAG_READALL;
+        SWTPM_IO_SetSocketFD(mlp.fd);
     }
 
     if (mlp.fd < 0) {
