@@ -303,6 +303,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
                      MAIN_LOOP_FLAG_READALL;
         SWTPM_IO_SetSocketFD(mlp.fd);
+
+        fprintf(stdout, "New TPM device: /dev/tpm%u (major/minor = %u/%u)\n",
+                vtpm_new_dev.tpm_num,
+                vtpm_new_dev.major, vtpm_new_dev.minor);
     }
 
     if (mlp.fd < 0) {
