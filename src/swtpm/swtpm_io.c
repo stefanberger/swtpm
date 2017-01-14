@@ -134,7 +134,7 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
             *bufferLength = n;
         else
             rc = TPM_IOERROR;
-        return rc;
+        goto out;
     }
     /* read the command through the paramSize from the socket stream */
     if (rc == 0) {
@@ -158,6 +158,8 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
                                 buffer + headerSize,
                                 paramSize - (sizeof(TPM_TAG) + sizeof(uint32_t)));
     }
+
+out:
     if (rc == 0) {
         TPM_PrintAll(" SWTPM_IO_Read:", buffer, *bufferLength);
     }
@@ -400,6 +402,11 @@ static TPM_RESULT SWTPM_IO_ReadBytes(TPM_CONNECTION_FD *connection_fd,    /* rea
             rc = TPM_IOERROR;
         }
     }
+
+    if (rc == 0) {
+        TPM_PrintAll(" SWTPM_IO_ReadBytes:", buffer, nread);
+    }
+
     return rc;
 }
 
