@@ -122,7 +122,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : set the directory where the TPM's state will be written\n"
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead\n"
-    "--server [type=tcp][,port=port][,fd=fd][,disconnect]\n"
+    "--server [type=tcp][,port=port[,bindaddr=address[,ifname=ifname]]][,fd=fd][,disconnect]\n"
     "                 : Expect TCP connections on the given port;\n"
     "                   if fd is provided, packets will be read from it directly;\n"
     "                   the disconnect parameter closes the connection after\n"
