@@ -65,7 +65,9 @@
 #include "utils.h"
 #include "ctrlchannel.h"
 #include "mainloop.h"
+#ifdef WITH_VTPM_PROXY
 #include "vtpm_proxy.h"
+#endif
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -90,6 +92,7 @@ static void sigterm_handler(int sig __attribute__((unused)))
     mainloop_terminate = true;
 }
 
+#ifdef WITH_VTPM_PROXY
 static int create_vtpm_proxy(struct vtpm_proxy_new_dev *vtpm_new_dev)
 {
     int fd, n, ret = 0;
@@ -110,6 +113,7 @@ static int create_vtpm_proxy(struct vtpm_proxy_new_dev *vtpm_new_dev)
 
     return ret;
 }
+#endif
 
 static void usage(FILE *file, const char *prgname, const char *iface)
 {
@@ -147,7 +151,9 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead\n"
     "-r|--runas <user>: change to the given user\n"
+#ifdef WITH_VTPM_PROXY
     "--vtpm-proxy     : spawn a Linux vTPM proxy driver device and read TPM\n"
+#endif
     "                   command from its anonymous file descriptor\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
@@ -172,7 +178,9 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
     char *runas = NULL;
+#ifdef WITH_VTPM_PROXY
     bool use_vtpm_proxy = false;
+#endif
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -187,7 +195,9 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
         {"ctrl"      , required_argument, 0, 'C'},
+#ifdef WITH_VTPM_PROXY
         {"vtpm-proxy",       no_argument, 0, 'v'},
+#endif
         {NULL        , 0                , 0, 0  },
     };
 
@@ -277,9 +287,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             runas = optarg;
             break;
 
+#ifdef WITH_VTPM_PROXY
         case 'v':
             use_vtpm_proxy = true;
             break;
+#endif
 
         default:
             usage(stderr, prgname, iface);
@@ -287,6 +299,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         }
     }
 
+#ifdef WITH_VTPM_PROXY
     if (use_vtpm_proxy) {
         struct vtpm_proxy_new_dev vtpm_new_dev = {
             .flags = 0,
@@ -308,6 +321,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                 vtpm_new_dev.tpm_num,
                 vtpm_new_dev.major, vtpm_new_dev.minor);
     }
+#endif
 
     if (mlp.fd < 0) {
         logprintf(STDERR_FILENO, "Error: Missing character device or file descriptor\n");

@@ -434,6 +434,14 @@ if test "$libtpms_cryptolib" != "$cryptolib"; then
   fi
 fi
 
+with_vtpm_proxy=no
+case $host_os in
+linux-gnu)
+  with_vtpm_proxy=yes
+  AC_DEFINE_UNQUOTED([WITH_VTPM_PROXY], 1,
+                     [whether to build in vTPM proxy support (Linux only)])
+esac
+
 case $host_os in
 cygwin)
   CFLAGS="$CFLAGS -D__USE_LINUX_IOCTL_DEFS"
@@ -470,6 +478,7 @@ printf "with_selinux    : %5s  (no = SELinux policy extenions will NOT be built)
 printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
 printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
 printf "with_swtpm_setup: %5s  (no = swtpm_setup will NOT be built)\n" $with_swtpm_setup
+printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
 echo
 echo "cryptolib: $cryptolib"
 echo
