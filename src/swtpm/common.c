@@ -592,8 +592,8 @@ static int tcp_open_socket(unsigned short port, const char *bindaddr,
 
     n = inet_pton(af, bindaddr, dst);
     if (n <= 0) {
-        fprintf(stderr, "Could not parse the bind address '%s': %s\n",
-                bindaddr, strerror(errno));
+        fprintf(stderr, "Could not parse the bind address '%s'\n",
+                bindaddr);
         return -1;
     }
 
