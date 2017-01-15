@@ -1,0 +1,11 @@
+
+# For the license, see the LICENSE file in the root directory.
+
+# Some distros may not have the device
+if [ ! -c /dev/vtpmx ]; then
+	modprobe tpm_vtpm_proxy
+	if [ $? -ne 0 ]; then
+		echo "Skipping test using vtpm proxy module"
+		exit 44
+	fi
+fi

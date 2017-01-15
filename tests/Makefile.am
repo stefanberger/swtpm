@@ -6,7 +6,8 @@
 
 check_PROGRAMS =
 
-TESTS =
+TESTS = \
+	test_vtpm_proxy
 
 if WITH_CHARDEV
 TESTS += \
