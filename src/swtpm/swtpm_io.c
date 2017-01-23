@@ -376,6 +376,7 @@ static TPM_RESULT SWTPM_IO_ReadBytes(TPM_CONNECTION_FD *connection_fd,    /* rea
     TPM_RESULT rc = 0;
     ssize_t nread = 0;
     size_t nleft = nbytes;
+    unsigned char *start = buffer;
 
     TPM_DEBUG("  SWTPM_IO_ReadBytes: Reading %lu bytes\n",
               (unsigned long)nbytes);
@@ -404,7 +405,7 @@ static TPM_RESULT SWTPM_IO_ReadBytes(TPM_CONNECTION_FD *connection_fd,    /* rea
     }
 
     if (rc == 0) {
-        TPM_PrintAll(" SWTPM_IO_ReadBytes:", buffer, nread);
+        TPM_PrintAll(" SWTPM_IO_ReadBytes:", start, nbytes - nleft);
     }
 
     return rc;
