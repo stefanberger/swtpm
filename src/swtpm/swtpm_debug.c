@@ -44,24 +44,34 @@
 #include <stdint.h>
 
 #include "swtpm_debug.h"
+#include "logging.h"
 
 /* TPM_PrintAll() prints 'string', the length, and then the entire byte array
  */
 void TPM_PrintAll(const char *string, const unsigned char* buff, uint32_t length)
 {
     uint32_t i;
+    int indent;
+
+    indent = log_check_string(string);
+    if (indent < 0)
+        return;
+
     if (buff != NULL) {
-        printf("%s length %u\n ", string, length);
+        logprintf(STDERR_FILENO, "%s length %u\n ", string, length);
+
         for (i = 0 ; i < length ; i++) {
-            if (i && !( i % 16 )) {
-                printf("\n ");
-            }
-            printf("%.2X ",buff[i]);
+            if (i && !( i % 16 ))
+                logprintfA(STDERR_FILENO, 0, "\n ");
+
+            logprintfA(STDERR_FILENO,
+                       !(i % 16) ? indent : 0,
+                       "%.2X ",buff[i]);
         }
-        printf("\n");
+        logprintfA(STDERR_FILENO, 0, "\n");
     }
     else {
-        printf("%s null\n", string);
+        logprintf(STDERR_FILENO, "%s null\n", string);
     }
     return;
 }

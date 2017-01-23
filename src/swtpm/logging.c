@@ -48,13 +48,17 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "logging.h"
+
+#include <libtpms/tpm_library.h>
 
 #define CONSOLE_LOGGING   2 /* stderr */
 #define SUPPRESS_LOGGING -1
 
 static int logfd = CONSOLE_LOGGING;
+static unsigned int log_level = 0;
 
 /*
  * log_init:
@@ -106,15 +110,61 @@ int log_init_fd(int fd)
 }
 
 /*
+ * log_set_level
+ * Set the log level; the higher the level, the more is printed
+ * @level: the log level
+ */
+void log_set_level(unsigned int level)
+{
+    log_level = level;
+
+    if (level >= 5) {
+        TPMLIB_SetDebugLevel(level - 4);
+        TPMLIB_SetDebugPrefix("    ");
+        if (logfd != SUPPRESS_LOGGING)
+            TPMLIB_SetDebugFD(logfd);
+    }
+}
+
+/*
+ * Check whether to write the string to the log following
+ * the log level
+ * @string: the string to print
+ *
+ * Returns -1 in case the string must not be printed following
+ * the log level, the number of bytes used for indentation otherwise.
+ */
+int log_check_string(const char *string)
+{
+    unsigned int level, i;
+
+    if (log_level == 0)
+        return -1;
+
+    level = log_level - 1;
+    i = 0;
+    while (1) {
+        if (string[i] == 0)
+            return -1;
+        if (string[i] != ' ')
+            return i;
+        if (i == level)
+            return -1;
+        i++;
+    }
+}
+
+/*
  * _logprintf:
  * Format a log line and output it to the given file descriptor.
  * @fd: file descriptor to log to
  * @format: printf type of format for the string
  * @ap: list of var args to format
+ * @check_indent: whether to check the level or force printing
  *
  * Returns the number of bytes written on success, a value < 0 on error.
  */
-static int _logprintf(int fd, const char *format, va_list ap)
+static int _logprintf(int fd, const char *format, va_list ap, bool check_indent)
 {
     char *buf = NULL;
     int ret = 0;
@@ -128,7 +178,11 @@ static int _logprintf(int fd, const char *format, va_list ap)
     ret = vasprintf(&buf, format, ap);
     if (ret < 0)
         goto cleanup;
-    ret = write(fd, buf, strlen(buf));
+
+    if (!check_indent || log_check_string(buf) >= 0)
+        ret = write(fd, buf, strlen(buf));
+    else
+        ret = 0;
     free(buf);
 
 cleanup:
@@ -150,9 +204,41 @@ int logprintf(int fd, const char *format, ...)
     va_list ap;
 
     va_start(ap, format);
-    ret = _logprintf(fd, format, ap);
+    ret = _logprintf(fd, format, ap, true);
     va_end(ap);
 
     return ret;
 }
 
+/*
+ * logprintfA:
+ * log to stderr or logfile without checking the log level; indent each
+ * line by a number of spaces
+ *
+ * @fd : the foile descriptor to log to
+ * @indent: number of bytes to indent the string
+ * @format: the printf style format to format the var args into
+ * @...  : var args list of parameters to format
+ *
+ * Returns the number of bytes written on success, a value < 0 on error.
+ */
+int logprintfA(int fd, unsigned int indent, const char *format, ...)
+{
+    int ret;
+    va_list ap;
+    char spaces[20];
+
+    if (indent) {
+        if (indent > sizeof(spaces) - 1)
+            indent = sizeof(spaces) - 1;
+        memset(spaces, ' ', indent);
+        spaces[indent] = 0;
+        logprintfA(fd, 0, spaces, "");
+    }
+
+    va_start(ap, format);
+    ret = _logprintf(fd, format, ap, false);
+    va_end(ap);
+
+    return ret;
+}
