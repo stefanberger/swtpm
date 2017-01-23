@@ -43,6 +43,7 @@
 enum OptionType {
     OPT_TYPE_STRING,
     OPT_TYPE_INT,
+    OPT_TYPE_UINT,
     OPT_TYPE_BOOLEAN,
 };
 
@@ -52,6 +53,7 @@ typedef struct {
     union {
         char *string;
         int integer;
+        unsigned int uinteger;
         bool boolean;
     }u;
 } OptionValue;
@@ -77,6 +79,7 @@ void option_values_free(OptionValues *ov);
 const char *option_get_string(OptionValues *ovs, const char *name,
                               const char *def);
 int option_get_int(OptionValues *ovs, const char *name, int def);
+unsigned int option_get_uint(OptionValues *ovs, const char *name, unsigned int def);
 bool option_get_bool(OptionValues *ovs, const char *name, bool def);
 
 #endif /* _SWTPM_OPTIONS_H */

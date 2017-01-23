@@ -80,6 +80,7 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
     int ret = 0;
     char *endptr = NULL;
     long int li;
+    long unsigned int lui;
     
     size_t idx = ovs->n_options;
     
@@ -111,6 +112,18 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
             option_error_set(error, "number %li outside valid range", li);
         }
         ovs->options[idx].u.integer = li;
+
+        break;
+    case OPT_TYPE_UINT:
+        lui = strtol(val, &endptr, 10);
+        if (*endptr != '\0') {
+            option_error_set(error, "invalid number '%s'", val);
+            return -1;
+        }
+        if (lui > UINT_MAX) {
+            option_error_set(error, "number %li outside valid range", lui);
+        }
+        ovs->options[idx].u.uinteger = lui;
 
         break;
     case OPT_TYPE_BOOLEAN:
@@ -206,6 +219,7 @@ option_values_free(OptionValues *ovs)
             free(ovs->options[i].u.string);
             break;
         case OPT_TYPE_INT:
+        case OPT_TYPE_UINT:
         case OPT_TYPE_BOOLEAN:
             break;
         }
@@ -260,6 +274,32 @@ option_get_int(OptionValues *ovs, const char *name, int def)
             if (ovs->options[i].type == OPT_TYPE_INT)
                 return ovs->options[i].u.integer;
             return -1;
+        }
+    }
+
+    return def;
+}
+
+/*
+ * Given the name of an uint option, return the value it received when it
+ * was parsed.
+ * @ovs: The OptionValues
+ * @name: the name of the option
+ * @def: the default value
+ *
+ * Returns the parsed value or the default value if none was parsed
+ * If the value is of different type than an integer, ~0 is returned.
+ */
+unsigned int
+option_get_uint(OptionValues *ovs, const char *name, unsigned int def)
+{
+    size_t i;
+
+    for (i = 0; i < ovs->n_options; i++) {
+        if (!strcmp(name, ovs->options[i].name)) {
+            if (ovs->options[i].type == OPT_TYPE_UINT)
+                return ovs->options[i].u.uinteger;
+            return ~0;
         }
     }
 
