@@ -71,6 +71,9 @@ static const OptionDesc logging_opt_desc[] = {
     }, {
         .name = "fd",
         .type = OPT_TYPE_INT,
+    }, {
+        .name = "level",
+        .type = OPT_TYPE_UINT,
     },
     END_OPTION_DESC
 };
@@ -176,6 +179,7 @@ handle_log_options(char *options)
     char *error = NULL;
     const char *logfile = NULL;
     int logfd;
+    unsigned int loglevel;
     OptionValues *ovs = NULL;
 
     if (!options)
@@ -189,6 +193,7 @@ handle_log_options(char *options)
     }
     logfile = option_get_string(ovs, "file", NULL);
     logfd = option_get_int(ovs, "fd", -1);
+    loglevel = option_get_uint(ovs, "level", 0);
     if (logfile && (log_init(logfile) < 0)) {
         fprintf(stderr,
             "Could not open logfile for writing: %s\n",
@@ -200,6 +205,7 @@ handle_log_options(char *options)
                 logfd, strerror(errno));
         goto error;
     }
+    log_set_level(loglevel);
 
     option_values_free(ovs);
 
