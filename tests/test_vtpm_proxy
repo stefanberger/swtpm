@@ -51,6 +51,16 @@ fi
 TPM_DEVICE=$(sed -n 's,.*\(/dev/tpm[0-9]\+\).*,\1,p' $LOGFILE)
 echo "Using ${TPM_DEVICE}."
 
+# Wait for chardev to appear
+for ((i = 0; i < 10; i ++)); do
+	[ -c "${TPM_DEVICE}" ] && break
+	sleep 0.1
+done
+if ! [ -c "${TPM_DEVICE}" ]; then
+	echo "Error: Chardev ${TPM_DEVICE} did not appear"
+	exit 1
+fi
+
 # Open access to the TPM
 exec 100<>$TPM_DEVICE
 if [ $? -ne 0 ]; then
