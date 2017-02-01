@@ -25,8 +25,23 @@ Building and running the swtpm has dependencies on the following packages:
 - libtasn1-devel
 - rpm-build (to build RPMs)
 
-On RHEL or Fedora use 'yum install <package name(s)> to install the above rpm
-packages.
+Debian/Ubuntu also needs the following packages to build:
+
+- build-essential
+- devscripts
+- equivs
+
+On RHEL or Fedora use either one of the following methods to install
+the above dependencies:
+
+ - sudo dnf builddep ./dist/swtpm.spec  (Fedora >= 22)
+ - sudo yum install yum-utils ; sudo yum-builddep ./dist/swtpm.spec  (RHEL and Fedora <= 21)
+ - sudo yum install <package name(s)>
+
+On Ubuntu use the following command:
+
+ - sudo mk-build-deps --install ./dist/control
+
 
 Use the following sequence to build and install the Software TPM.
 
@@ -37,7 +52,7 @@ make check
 make install
 
 
-To build an rpm do:
+To build an rpm on a Fedora or RHEL host do:
 
 ./bootstrap.sh
 ./configure
@@ -45,3 +60,9 @@ make dist
 mkdir -p ~/rpmbuild/SOURCES
 cp swtpm-0.x.y-tar.gz ~/rpmbuild/SOURCES
 rpmbuild -ba dist/swtpm.spec
+
+
+To build a Debian package on a Debian compatible host do:
+
+echo "libtpms 0 libtpms" > ./debian/shlibs.local
+debuild -us -uc
