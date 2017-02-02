@@ -18,9 +18,13 @@ tcg-at-platformModel OBJECT IDENTIFIER ::= {tcg-attribute 5}
 tcg-at-platformVersion OBJECT IDENTIFIER ::= {tcg-attribute 6}
 
 TPMManufacturerInfo ::= SEQUENCE {
-  tpmManufacturer TPMManufacturer,
-  tpmModel        TPMModel,
-  tpmVersion      TPMVersion
+  tpmManufacturerSet TPMManufacturerSet,
+  tpmModelSet        TPMModelSet,
+  tpmVersionSet      TPMVersionSet
+}
+
+TPMManufacturerSet ::= SET {
+  tpmManufacturer TPMManufacturer
 }
 
 TPMManufacturer ::= SEQUENCE {
@@ -28,9 +32,17 @@ TPMManufacturer ::= SEQUENCE {
   manufacturer UTF8String
 }
 
+TPMModelSet ::= SET {
+  tpmModel TPMModel
+}
+
 TPMModel ::= SEQUENCE {
   id OBJECT IDENTIFIER,
   model UTF8String
+}
+
+TPMVersionSet ::= SET {
+  tpmVersion TPMVersion
 }
 
 TPMVersion ::= SEQUENCE {
@@ -39,9 +51,13 @@ TPMVersion ::= SEQUENCE {
 }
 
 PlatformManufacturerInfo ::= SEQUENCE {
-  platformManufacturer PlatformManufacturer,
-  platformModel        PlatformModel,
-  platformVersion      PlatformVersion
+  platformManufacturerSet PlatformManufacturerSet,
+  platformModelSet        PlatformModelSet,
+  platformVersionSet      PlatformVersionSet
+}
+
+PlatformManufacturerSet ::= SET {
+  platformManufacturer PlatformManufacturer
 }
 
 PlatformManufacturer ::= SEQUENCE {
@@ -49,9 +65,17 @@ PlatformManufacturer ::= SEQUENCE {
   manufacturer UTF8String
 }
 
+PlatformModelSet ::= SET {
+  platformModel PlatformModel
+}
+
 PlatformModel ::= SEQUENCE {
   id OBJECT IDENTIFIER,
   model UTF8String
+}
+
+PlatformVersionSet ::= SET {
+  platformVersion PlatformVersion
 }
 
 PlatformVersion ::= SEQUENCE {

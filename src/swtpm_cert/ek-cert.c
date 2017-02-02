@@ -245,38 +245,60 @@ create_tpm_manufacturer_info(const char *manufacturer,
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "tpmManufacturer.id", "2.23.133.2.1", 0);
+    err = asn1_write_value(at, "tpmManufacturerSet.tpmManufacturer.?LAST",
+                           "NEW", 0);
     if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "1. asn1_write_value error: %d\n", err);
+        fprintf(stderr, "1a. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "tpmManufacturer.manufacturer",
+    err = asn1_write_value(at, "tpmManufacturerSet.tpmManufacturer.id",
+                           "2.23.133.2.1", 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "1b. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at,
+                           "tpmManufacturerSet.tpmManufacturer.manufacturer",
                            manufacturer, 0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "2. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
     
-    err = asn1_write_value(at, "tpmModel.id", "2.23.133.2.2", 0);
+    err = asn1_write_value(at, "tpmModelSet.tpmModel.?LAST", "NEW", 0);
     if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "3. asn1_write_value error: %d\n", err);
+        fprintf(stderr, "3a. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "tpmModel.model", manufacturer, 0);
+    err = asn1_write_value(at, "tpmModelSet.tpmModel.id", "2.23.133.2.2", 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "3b. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "tpmModelSet.tpmModel.model", manufacturer, 0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "4. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
     
-    err = asn1_write_value(at, "tpmVersion.id", "2.23.133.2.3", 0);
+    err = asn1_write_value(at, "tpmVersionSet.tpmVersion.?LAST", "NEW", 0);
     if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "5. asn1_write_value error: %d\n", err);
+        fprintf(stderr, "5a. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "tpmVersion.version", manufacturer, 0);
+    err = asn1_write_value(at, "tpmVersionSet.tpmVersion.id", "2.23.133.2.3",
+                           0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "5b. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "tpmVersionSet.tpmVersion.version", manufacturer, 0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "6. asn1_write_value error: %d\n", err);
         goto cleanup;
@@ -335,38 +357,64 @@ create_platf_manufacturer_info(const char *manufacturer,
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "platformManufacturer.id", "2.23.133.2.4", 0);
+    err = asn1_write_value(at, "platformManufacturerSet.platformManufacturer.?LAST",
+                           "NEW", 0);
     if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b1. asn1_write_value error: %d\n", err);
+        fprintf(stderr, "b1a. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "platformManufacturer.manufacturer",
+    err = asn1_write_value(at, "platformManufacturerSet.platformManufacturer.id",
+                           "2.23.133.2.4", 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "b1b. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "platformManufacturerSet.platformManufacturer.manufacturer",
                            manufacturer, 0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "b2. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
     
-    err = asn1_write_value(at, "platformModel.id", "2.23.133.2.5", 0);
+    err = asn1_write_value(at, "platformModelSet.platformModel.?LAST",
+                           "NEW", 0);
     if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b3. asn1_write_value error: %d\n", err);
+        fprintf(stderr, "b3a. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "platformModel.model", manufacturer, 0);
+    err = asn1_write_value(at, "platformModelSet.platformModel.id",
+                           "2.23.133.2.5", 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "b3b. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "platformModelSet.platformModel.model",
+                           manufacturer, 0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "b4. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
     
-    err = asn1_write_value(at, "platformVersion.id", "2.23.133.2.6", 0);
+    err = asn1_write_value(at, "platformVersionSet.platformVersion.?LAST",
+                           "NEW", 0);
     if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b5. asn1_write_value error: %d\n", err);
+        fprintf(stderr, "b5a. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "platformVersion.version", manufacturer, 0);
+    err = asn1_write_value(at, "platformVersionSet.platformVersion.id",
+                           "2.23.133.2.6", 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "b5b. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "platformVersionSet.platformVersion.version",
+                           manufacturer, 0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "b6. asn1_write_value error: %d\n", err);
         goto cleanup;
