@@ -4,6 +4,7 @@
 if [ ! -c /dev/cuse ]; then
 	modprobe cuse
 	if [ $? -ne 0 ]; then
-		exit 1
+		echo "Skipping test using CUSE module: module not availabe"
+		exit 77
 	fi
 fi
