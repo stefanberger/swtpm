@@ -791,10 +791,18 @@ if (_err != GNUTLS_E_SUCCESS) {             \
          * GNUTLS's write_new_general_name can only handle a few GNUTLS_SAN_*
          * -> we have to use GNUTLS_SAN_URI
          */
+#if GNUTLS_VERSION_NUMBER < 0x030500
         err = gnutls_x509_crt_set_subject_alt_name(crt,
                                                    GNUTLS_SAN_URI,
                                                    datum.data, datum.size,
                                                    GNUTLS_FSAN_SET);
+#else
+        /* supported since GNUTLS 3.5.0 */
+        err = gnutls_x509_crt_set_subject_alt_othername(crt,
+                                                   "2.5.29.17",
+                                                   datum.data, datum.size,
+                                                   GNUTLS_FSAN_SET);
+#endif
         CHECK_GNUTLS_ERROR(err, "Could not set subject alt name: %s\n",
                            gnutls_strerror(err))
     }
@@ -821,10 +829,18 @@ if (_err != GNUTLS_E_SUCCESS) {             \
          * GNUTLS's write_new_general_name can only handle a few GNUTLS_SAN_*
          * -> we have to use GNUTLS_SAN_URI
          */
+#if GNUTLS_VERSION_NUMBER < 0x030500
         err = gnutls_x509_crt_set_subject_alt_name(crt,
                                                    GNUTLS_SAN_URI,
                                                    datum.data, datum.size,
                                                    GNUTLS_FSAN_APPEND);
+#else
+        /* supported since GNUTLS 3.5.0 */
+        err = gnutls_x509_crt_set_subject_alt_othername(crt,
+                                                   "2.5.29.17",
+                                                   datum.data, datum.size,
+                                                   GNUTLS_FSAN_APPEND);
+#endif
         CHECK_GNUTLS_ERROR(err, "Could not append to subject alt name: %s\n",
                            gnutls_strerror(err))
     }
