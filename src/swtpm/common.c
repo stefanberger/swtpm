@@ -205,6 +205,8 @@ handle_log_options(char *options)
                 logfd, strerror(errno));
         goto error;
     }
+    if ((logfile || logfd) && !loglevel)
+        loglevel = 1;
     log_set_level(loglevel);
 
     option_values_free(ovs);
