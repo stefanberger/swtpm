@@ -58,7 +58,7 @@
 #define SUPPRESS_LOGGING -1
 
 static int logfd = CONSOLE_LOGGING;
-static unsigned int log_level = 0;
+static unsigned int log_level = 1;
 
 /*
  * log_init:
