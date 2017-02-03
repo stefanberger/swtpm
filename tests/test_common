@@ -15,3 +15,43 @@ function wait_for_file()
   return 0 
 }
 
+function check_logfile_patterns_level_20()
+{
+	local logfile="$1"
+
+	for pattern in \
+	"^ [[:print:]]+$" \
+	"^  [[:print:]]+$" \
+	"^   [[:print:]]+$" \
+	"^    [[:print:]]+$" \
+	"^     [[:print:]]+$" \
+	"^      [[:print:]]+$" \
+	"^       [[:print:]]+$" \
+	; do
+		shift
+		ctr=$(grep -E "${pattern}" $logfile | wc -l)
+		if [ $ctr -eq 0 ]; then
+			echo "Counted $ctr occurrences of pattern '${pattern}' in logfile; expected at least 1"
+			exit 1
+		fi
+		echo "'${pattern}' occurrences: $ctr (OK)"
+	done
+}
+
+function check_logfile_patterns_level_1()
+{
+	local logfile="$1"
+	local minocc="$2"
+
+	for pattern in \
+	"^[[:print:]]+$" \
+	; do
+		shift
+		ctr=$(grep -E "${pattern}" $logfile | wc -l)
+		if [ $ctr -lt $minocc ]; then
+			echo "Counted $ctr occurrences of pattern '${pattern}' in logfile; expected at least $minocc"
+			exit 1
+		fi
+		echo "'${pattern}' occurrences: $ctr (OK)"
+	done
+}

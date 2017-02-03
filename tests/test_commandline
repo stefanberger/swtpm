@@ -9,9 +9,12 @@ SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
 TPMDIR=`mktemp -d`
 TPMAUTHORING=$ROOT/src/swtpm_setup/swtpm_setup
 PID_FILE=$TPMDIR/${SWTPM}.pid
+LOG_FILE=$TPMDIR/${SWTPM}.log
 PATH=${PWD}/${ROOT}/src/swtpm:$PATH
 PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
 PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
+
+source ${DIR}/test_common
 
 trap "cleanup" SIGTERM EXIT
 
@@ -64,9 +67,13 @@ function wait_port_closed()
 	return 1
 }
 
-# Test 1: test port and directory command line parameters
+# Test 1: test port and directory command line parameters; use log level 20
 
-$SWTPM_EXE socket -p $PORT --tpmstate dir=$TPMDIR --pid file=$PID_FILE &>/dev/null &
+$SWTPM_EXE socket \
+	-p $PORT \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--log file=$LOG_FILE,level=20 &
 PID=$!
 
 wait_port_open $PORT $PID
@@ -95,6 +102,9 @@ if [ $? -ne 0 ]; then
 	echo "Test 1 failed: tpm_bios did not work"
 	exit 1
 fi
+
+check_logfile_patterns_level_20 $LOG_FILE
+rm -f $LOG_FILE
 
 kill -SIGTERM $PID &>/dev/null
 sleep 1

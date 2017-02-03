@@ -8,6 +8,7 @@ SWTPM=swtpm
 SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
 TPMDIR=`mktemp -d`
 PID_FILE=$TPMDIR/${SWTPM}.pid
+LOG_FILE=$TPMDIR/${SWTPM}.log
 SOCK_PATH=$TPMDIR/sock
 CMD_PATH=$TPMDIR/cmd
 RESP_PATH=$TPMDIR/resp
@@ -28,7 +29,12 @@ function cleanup()
 
 # use a pseudo terminal
 exec 100<>/dev/ptmx
-$SWTPM_EXE chardev --fd 100 --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &
+$SWTPM_EXE chardev \
+	--fd 100 \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOG_FILE,level=20 &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Chardev TPM did not write pidfile."
@@ -155,6 +161,9 @@ if [ -f $PID_FILE ]; then
 	exit 1
 fi
 
+check_logfile_patterns_level_20 $LOG_FILE
+rm -f $LOG_FILE
+
 echo "OK"
 
 
@@ -163,7 +172,12 @@ echo "OK"
 # There are a few more tests here that require sending commands to the TPM
 
 # use a pseudo terminal
-$SWTPM_EXE socket --server port=65530,disconnect=true --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &
+$SWTPM_EXE socket \
+	--server port=65530,disconnect=true \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOG_FILE &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -450,6 +464,10 @@ if [ -f $PID_FILE ]; then
 	exit 1
 fi
 
+# Expecting to see an error message for the unknown command
+check_logfile_patterns_level_1 $LOG_FILE 1
+rm -f $LOG_FILE
+
 echo "OK"
 
 
@@ -463,7 +481,8 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt &
+	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt \
+	--log file=$LOG_FILE,level=20 &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -527,6 +546,10 @@ if [ -f $PID_FILE ]; then
 	exit 1
 fi
 
+check_logfile_patterns_level_20 $LOG_FILE
+rm -f $LOG_FILE
+
+echo "OK"
 
 # remove volatile state
 rm -f $TPMDIR/*.volatilestate
@@ -536,7 +559,8 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt &
+	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt \
+	--log file=$LOG_FILE &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -688,6 +712,10 @@ if [ -f $PID_FILE ]; then
 	echo "Error: Socket TPM should have removed the PID file."
 	exit 1
 fi
+
+# (Currently) expecting to see nothing in the log file
+check_logfile_patterns_level_1 $LOG_FILE 0
+rm -f $LOG_FILE
 
 echo "OK"
 

@@ -16,6 +16,7 @@ CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
 VTPM_NAME="vtpm-test-wrongorder"
 export TPM_PATH=$(mktemp -d)
 STATE_FILE=$TPM_PATH/tpm-00.permall
+LOG_FILE=$TPM_PATH/tpm-00.log
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 
 function cleanup()
@@ -30,10 +31,11 @@ function cleanup()
 trap "cleanup" EXIT
 
 source ${DIR}/test_cuse
+source ${DIR}/test_common
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
-$SWTPM_EXE -n $VTPM_NAME
+$SWTPM_EXE --log file=$LOG_FILE,level=20 -n $VTPM_NAME
 sleep 0.5
 PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
 
@@ -113,6 +115,9 @@ if [ ! -e $STATE_FILE ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
 	exit 1
 fi
+
+check_logfile_patterns_level_20 $LOG_FILE
+rm -f $LOG_FILE
 
 echo "OK"
 
