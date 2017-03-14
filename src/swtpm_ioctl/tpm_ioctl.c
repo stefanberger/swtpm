@@ -571,17 +571,17 @@ static int open_connection(const char *devname, char *tcp_hostname,
             fprintf(stderr, "Could not connect using TCP socket.\n");
         }
     } else if (unix_path) {
+        struct sockaddr_un addr;
+
+        if (strlen(unix_path) + 1 > sizeof(addr.sun_path)) {
+            fprintf(stderr, "Socket path is too long.\n");
+            return -1;
+        }
+
         fd = socket(AF_UNIX, SOCK_STREAM, 0);
         if (fd > 0) {
-            struct sockaddr_un addr;
-
-            if (strlen(unix_path) + 1 > sizeof(addr.sun_path)) {
-                fprintf(stderr, "Socket path is too long.\n");
-                return -1;
-            }
-
             addr.sun_family = AF_UNIX;
-            strcpy(addr.sun_path, unix_path);
+            strncpy(addr.sun_path, unix_path, sizeof(addr.sun_path));
 
             if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
                 close(fd);
