@@ -739,7 +739,7 @@ int main(int argc, char *argv[])
     const char *blobtype = NULL, *blobfile = NULL, *hashdata = NULL;
     const char *tpm_device = NULL, *unix_path = NULL;
     char *tcp_hostname = NULL;
-    unsigned int locality;
+    unsigned int locality = 0;
     int tcp_port = -1;
     bool is_chardev;
 
