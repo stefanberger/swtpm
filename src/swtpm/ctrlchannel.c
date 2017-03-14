@@ -89,8 +89,8 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
     const char *blobname = tpmlib_get_blobname(blobtype);
     uint32_t tpm_number = 0;
     unsigned char *blob;
-    uint32_t blob_length, return_length;
-    TPM_BOOL is_encrypted;
+    uint32_t blob_length = 0, return_length;
+    TPM_BOOL is_encrypted = 0;
     TPM_BOOL decrypt =
         (be32toh(pgs->u.req.state_flags) & PTM_STATE_FLAG_DECRYPTED) != 0;
     TPM_RESULT res = 0;
@@ -126,7 +126,7 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
 
     iov[0].iov_base = &pgs_res;
     iov[0].iov_len = offsetof(ptm_getstate, u.resp.data);
-    iovcnt = -1;
+    iovcnt = 1;
 
     if (res == 0 && return_length) {
         iov[1].iov_base = &blob[offset];
