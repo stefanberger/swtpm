@@ -204,6 +204,24 @@ err_fd_broken:
     return fd;
 }
 
+/*
+ * ctrlchannel_process_fd: Read command from control channel and execute it
+ *
+ * @fd: file descriptor for control channel
+ * @cbs: callback functions; needed in case of CMD_INIT
+ * @terminate: pointer to a boolean that will be set to true by this
+ *             function in case the process should shut down; CMD_SHUTDOWN
+ *             will set this
+ * @locality: pointer to locality identifier that must point to the global
+ *            locality variable and that will receive the new locality
+ *            number when set via CMD_SET_LOCALITY
+ * @tpm_running: indicates whether the TPM is running; may be changed by
+ *               this function in case TPM is stopped or started
+ * @tpmversion: the emulated TPM's version
+ *
+ * This function returns the passed file descriptor or -1 in case the
+ * file descriptor was closed.
+ */
 int ctrlchannel_process_fd(int fd,
                            struct libtpms_callbacks *cbs,
                            bool *terminate,
