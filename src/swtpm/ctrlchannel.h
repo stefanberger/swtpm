@@ -43,8 +43,9 @@
 struct ctrlchannel;
 struct libtpms_callbacks;
 
-struct ctrlchannel *ctrlchannel_new(int fd);
+struct ctrlchannel *ctrlchannel_new(int fd, bool isclient);
 int ctrlchannel_get_fd(struct ctrlchannel *cc);
+int ctrlchannel_get_client_fd(struct ctrlchannel *cc);
 int ctrlchannel_process_fd(int fd,
                            struct libtpms_callbacks *cbs,
                            bool *terminate,

@@ -167,4 +167,18 @@ fi
 
 echo "Test 2 passed"
 
+# Test 3: test --fd= and --ctrl type=unxio,clientfd=
+#         The python script execs swtpm with client sockets
+exec 20<&1-; exec 21<&2-
+LOG=$(PID_FILE=$TPMDIR/swtpm.pid SWTPM_EXE=$SWTPM_EXE TPMDIR=$TPMDIR exec $DIR/test_clientfds.py)
+RES=$?
+exec 1<&20-; exec 2<&21-
+
+if [ $RES -ne 0 ]; then
+    echo "Test 3 failed: $LOG"
+    exit 1
+fi
+
+echo "Test 3 passed"
+
 exit 0

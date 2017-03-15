@@ -98,12 +98,17 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "-f|--fd <fd>     : use the given socket file descriptor\n"
     "-t|--terminate   : terminate the TPM once a connection has been lost\n"
     "-d|--daemon      : daemonize the TPM\n"
-    "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=address[,ifname=ifname]]][,fd=<filedescriptor]\n"
+    "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=address[,ifname=ifname]]][,fd=<filedescriptor>|clientfd=<filedescriptor>]\n"
     "                 : TPM control channel using either UnixIO or TCP sockets;\n"
     "                   the path is only valid for Unixio channels; the port must\n"
     "                   be given in case the type is TCP; the TCP socket is bound\n"
     "                   to 127.0.0.1 by default and other bind addresses can be\n"
-    "                   given with the bindaddr parameter\n"
+    "                   given with the bindaddr parameter; if fd is provided,\n"
+    "                   it will be treated as a server socket and used for \n"
+    "                   accepting client connections; if clientfd is provided,\n"
+    "                   it will be treaded as client connection;\n"
+    "                   NOTE: fd and clientfd are mutually exclusive and clientfd\n"
+    "                   is only valid for UnixIO channels\n"
     "--log file=<path>|fd=<filedescriptor>[,level=n]\n"
     "                 : write the TPM's log into the given file rather than\n"
     "                   to the console; provide '-' for path to avoid logging\n"
@@ -168,7 +173,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"help"      ,       no_argument, 0, 'h'},
         {"port"      , required_argument, 0, 'p'},
         {"fd"        , required_argument, 0, 'f'},
-        {"server"   , required_argument, 0, 'c'},
+        {"server"    , required_argument, 0, 'c'},
         {"runas"     , required_argument, 0, 'r'},
         {"terminate" ,       no_argument, 0, 't'},
         {"log"       , required_argument, 0, 'l'},
