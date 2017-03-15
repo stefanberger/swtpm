@@ -136,6 +136,9 @@ static const OptionDesc ctrl_opt_desc[] = {
     }, {
         .name = "fd",
         .type = OPT_TYPE_INT,
+    }, {
+        .name = "clientfd",
+        .type = OPT_TYPE_INT,
     },
     END_OPTION_DESC
 };
@@ -672,7 +675,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
     OptionValues *ovs = NULL;
     char *error = NULL;
     const char *type, *path, *bindaddr, *ifname;
-    int fd, port;
+    int fd, clientfd, port;
     struct stat stat;
 
     ovs = options_parse(options, ctrl_opt_desc, &error);
@@ -690,6 +693,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
     if (!strcmp(type, "unixio")) {
         path = option_get_string(ovs, "path", NULL);
         fd = option_get_int(ovs, "fd", -1);
+        clientfd = option_get_int(ovs, "clientfd", -1);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
                fprintf(stderr,
@@ -698,13 +702,22 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
                goto error;
             }
 
-            *cc = ctrlchannel_new(fd);
+            *cc = ctrlchannel_new(fd, false);
+        } else if (clientfd >= 0) {
+            if (fstat(clientfd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
+               fprintf(stderr,
+                       "Bad filedescriptor %d for UnixIO client control"
+                       " channel\n", clientfd);
+               goto error;
+            }
+
+            *cc = ctrlchannel_new(clientfd, true);
         } else if (path) {
             fd = unixio_open_socket(path, 0770);
             if (fd < 0)
                 goto error;
 
-            *cc = ctrlchannel_new(fd);
+            *cc = ctrlchannel_new(fd, false);
         } else {
             fprintf(stderr,
                    "Missing path and fd options for UnixIO control channel\n");
@@ -720,7 +733,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
                goto error;
             }
 
-            *cc = ctrlchannel_new(fd);
+            *cc = ctrlchannel_new(fd, false);
         } else if (port >= 0) {
             if (port >= 0x10000) {
                 fprintf(stderr,
@@ -735,7 +748,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
             if (fd < 0)
                 goto error;
 
-            *cc = ctrlchannel_new(fd);
+            *cc = ctrlchannel_new(fd, false);
         } else {
             fprintf(stderr,
                     "Missing port and fd options for TCP control channel\n");

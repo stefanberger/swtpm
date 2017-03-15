@@ -142,7 +142,7 @@ int mainLoop(struct mainLoopParams *mlp,
 
     connection_fd.fd = -1;
     ctrlfd = ctrlchannel_get_fd(mlp->cc);
-    ctrlclntfd = -1;
+    ctrlclntfd = ctrlchannel_get_client_fd(mlp->cc);
 
     sockfd = SWTPM_IO_GetSocketFD();
 

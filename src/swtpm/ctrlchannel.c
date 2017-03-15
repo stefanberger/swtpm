@@ -60,9 +60,10 @@
 
 struct ctrlchannel {
     int fd;
+    int clientfd;
 };
 
-struct ctrlchannel *ctrlchannel_new(int fd)
+struct ctrlchannel *ctrlchannel_new(int fd, bool is_client)
 {
     struct ctrlchannel *cc = malloc(sizeof(struct ctrlchannel));
 
@@ -71,7 +72,12 @@ struct ctrlchannel *ctrlchannel_new(int fd)
         return NULL;
     }
 
-    cc->fd = fd;
+    cc->fd = cc->clientfd = -1;
+    if (is_client)
+        cc->clientfd = fd;
+    else
+        cc->fd = fd;
+
     return cc;
 }
 
@@ -81,6 +87,14 @@ int ctrlchannel_get_fd(struct ctrlchannel *cc)
         return -1;
 
     return cc->fd;
+}
+
+int ctrlchannel_get_client_fd(struct ctrlchannel *cc)
+{
+    if (!cc)
+        return -1;
+
+    return cc->clientfd;
 }
 
 static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
