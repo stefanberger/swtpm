@@ -608,6 +608,11 @@ ptm_set_stateblob_append(uint32_t blobtype,
                                    0 /* tpm_number */,
                                    blobtype);
 
+    logprintf(STDERR_FILENO,
+              "Deserialized state type %d (%s), length=%d, res=%d\n",
+              blobtype, tpmlib_get_blobname(blobtype),
+              stateblob.length, res);
+
     TPM_Free(stateblob.data);
     stateblob.data = NULL;
     stateblob.length = 0;
@@ -718,6 +723,9 @@ ptm_get_stateblob(fuse_req_t req, ptm_getstate *pgs)
     pgs->u.resp.length = copied;
     pgs->u.resp.totlength = totlength;
     pgs->u.resp.tpm_result = res;
+    logprintf(STDERR_FILENO,
+              "Serialized state type %d, length=%d, totlength=%d, res=%d\n",
+              blobtype, copied, totlength, res);
 
     if (res == 0) {
         if (offset + copied < totlength) {
@@ -925,10 +933,10 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                     | PTM_CAP_SET_LOCALITY
                     | PTM_CAP_HASHING
                     | PTM_CAP_CANCEL_TPM_CMD
-                    //| PTM_CAP_STORE_VOLATILE
+                    | PTM_CAP_STORE_VOLATILE
                     | PTM_CAP_RESET_TPMESTABLISHED
-                    //| PTM_CAP_GET_STATEBLOB
-                    //| PTM_CAP_SET_STATEBLOB
+                    | PTM_CAP_GET_STATEBLOB
+                    | PTM_CAP_SET_STATEBLOB
                     | PTM_CAP_STOP
                     | PTM_CAP_GET_CONFIG
                     | PTM_CAP_SET_BUFFERSIZE;
