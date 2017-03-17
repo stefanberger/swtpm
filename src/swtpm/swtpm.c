@@ -183,6 +183,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         .flags = 0,
         .fd = -1,
         .locality_flags = 0,
+        .tpmversion = TPMLIB_TPM_VERSION_1_2,
     };
     struct server *server = NULL;
     unsigned long val;
@@ -223,7 +224,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"tpm2"      ,       no_argument, 0, '2'},
         {NULL        , 0                , 0, 0  },
     };
-    TPMLIB_TPMVersion tpmversion = TPMLIB_TPM_VERSION_1_2;
 
     log_set_prefix("swtpm: ");
 
@@ -336,7 +336,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             break;
 
         case '2':
-            tpmversion = TPMLIB_TPM_VERSION_2;
+            mlp.tpmversion = TPMLIB_TPM_VERSION_2;
             break;
 
         case 'h':
@@ -387,7 +387,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             goto exit_failure;
     }
 
-    SWTPM_NVRAM_Set_TPMVersion(tpmversion);
+    SWTPM_NVRAM_Set_TPMVersion(mlp.tpmversion);
 
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
@@ -444,7 +444,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         goto error_no_tpm;
 
     if (!need_init_cmd) {
-        if ((rc = tpmlib_start(0, tpmversion)))
+        if ((rc = tpmlib_start(0, mlp.tpmversion)))
             goto error_no_tpm;
         tpm_running = true;
     }
