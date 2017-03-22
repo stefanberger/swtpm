@@ -43,6 +43,7 @@ TESTS += \
 	test_tpm2_hashing2 \
 	test_tpm2_hashing3 \
 	test_tpm2_savestate \
+	test_tpm2_save_load_state_3 \
 	test_tpm2_setbuffersize \
 	test_tpm2_wrongorder \
 	test_tpm2_probe \
@@ -88,6 +89,13 @@ EXTRA_DIST=$(TESTS) \
 	data/tpmstate2/tpm-00.volatilestate \
 	data/tpmstate2/pwdfile.txt \
 	data/tpmstate2/README \
+	data/tpm2state3/h02000000.bin \
+	data/tpm2state3/hkey.priv \
+	data/tpm2state3/hkey.pub \
+	data/tpm2state3/signature.bin \
+	data/tpm2state3/tpm2-00.permall \
+	data/tpm2state3/tpm2-00.volatilestate \
+	data/tpm2state3/tpm2-00.volatilestate.2nd \
 	test_clientfds.py \
 	test_common \
 	test_cuse \
