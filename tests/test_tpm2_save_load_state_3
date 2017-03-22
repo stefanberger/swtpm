@@ -1,0 +1,1055 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+type -p nvdefinespace startup &>/dev/null
+if [ $? -ne 0 ]; then
+    PREFIX=tss
+    type -p ${PREFIX}nvdefinespace ${PREFIX}startup
+fi
+if [ $? -ne 0 ]; then
+	echo "Could not find TPM2 tools (e.g., (tss)startup, (tss)nvdefinespace) in PATH."
+	exit 77
+fi
+TOOLSPATH=$(dirname $(type -P ${PREFIX}startup))
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+SWTPM=swtpm
+SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+SWTPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+TPMDIR=`mktemp -d`
+PID_FILE=$TPMDIR/${SWTPM}.pid
+SOCK_PATH=$TPMDIR/sock
+CMD_PATH=$TPMDIR/cmd
+RESP_PATH=$TPMDIR/resp
+LOGFILE=$TPMDIR/logfile
+VOLATILESTATE=$TPMDIR/volatile
+TMPFILE=$TPMDIR/tmpfile
+BINFILE=$TPMDIR/binfile
+SIGFILE=$TPMDIR/sigfile
+TMP2FILE=$TPMDIR/tmpfile2
+
+
+HKEYPRIV=${DIR}/data/tpm2state3/hkey.priv
+HKEYPUB=${DIR}/data/tpm2state3/hkey.pub
+
+source ${DIR}/test_common
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf $TPMDIR
+	# remove files from tss tools
+	rm -f h01*.bin nvp*.bin
+	if [ -n "$PID" ]; then
+		kill -SIGTERM $PID 2>/dev/null
+	fi
+}
+
+function test_nvram_state()
+{
+	local create="$1"
+	local check="$2"
+
+	local i res rc act exp
+
+	if [ $create -eq 1 ]; then
+		for ((i=0; i < 10; i++)); do
+			printf "Creating NVRAM location 01%06x\n" $i
+			# the '+at wd' allows us to only write once
+			${TOOLSPATH}/${PREFIX}nvdefinespace \
+				-ha $(printf "01%06x" $i) \
+				-sz $((100 + i * 10)) \
+				-pwdn nnn \
+				+at wst \
+				+at wd \
+				-hi o >/dev/null
+			if [ $? -ne 0 ]; then
+				echo "Error: nvdefinespace failed for i = $i."
+				exit 1
+			fi
+
+			${TOOLSPATH}/${PREFIX}nvwrite \
+				-ha $(printf "01%06x" $i) \
+				-ic "Hello TPM2" \
+				-pwdn nnn
+			if [ $? -ne 0 ]; then
+				echo "Error: nwrite failed for i = $i."
+				exit 1
+			fi
+
+			${TOOLSPATH}/${PREFIX}nvwritelock \
+				-ha $(printf "01%06x" $i) \
+				-pwdn nnn
+			if [ $? -ne 0 ]; then
+				echo "Error: nwritelock failed for i = $i."
+				exit 1
+			fi
+		done
+
+		# Create a counter space
+		echo "Creating NVRAM location 01000010 for counter"
+		${TOOLSPATH}/${PREFIX}nvdefinespace \
+			-hi o \
+			-ha 01000010 \
+			-pwdn nnn \
+			-ty c >/dev/null
+		if [ $? -ne 0 ]; then
+			echo "Error: nvdefinespace for counter failed."
+			exit 1
+		fi
+
+		echo "Incrementing the counter at location 01000010"
+		${TOOLSPATH}/${PREFIX}nvincrement \
+			-ha 01000010 \
+			-pwdn nnn >/dev/null
+		if [ $? -ne 0 ]; then
+			echo "Error: nvincrement failed."
+			exit 1
+		fi
+	fi
+
+	if [ $check -eq 1 ]; then
+		for ((i=0; i < 10; i++)); do
+			printf "Checking NVRAM location 01%06x\n" $i
+			${TOOLSPATH}/${PREFIX}nvread \
+				-ha $(printf "01%06x" $i) \
+				-pwdn nnn \
+				-sz 10 > $TMPFILE
+			if [ $? -ne  0 ]; then
+				echo "Error: nvread failed for i = $i"
+				cat $TMPFILE
+				exit 1
+			fi
+
+			# we want one line with xdigits and spaces
+			res=$(cat $TMPFILE | \
+				grep -E "^[ [:xdigit:]]+$" |
+				wc -l)
+			if [ $res -ne 1 ]; then
+				echo "Error: nvread did not show expected results"
+				cat $TMPFILE
+			fi
+
+			${TOOLSPATH}/${PREFIX}nvwrite \
+				-ha $(printf "01%06x" $i) \
+				-ic "Hello TPM2" \
+				-pwdn nnn > $TMPFILE
+			rc=$?
+			if [ $rc -eq 0 ]; then
+				echo "Error: nwrite succeeded for i = $i."
+				exit 1
+			fi
+		done
+
+		# Read the counter
+		echo "Checking counter value at location 01000010"
+		${TOOLSPATH}/${PREFIX}nvread \
+			-ha 01000010 \
+			-pwdn nnn \
+			-sz 8 \
+			-of $BINFILE > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: nvread of counter failed."
+			cat $TMPFILE
+			exit 1
+		fi
+		exp=' 00 00 00 00 00 00 00 01'
+		act="$(od -t x1 -A n < $BINFILE)"
+		if [ "$act" != "$exp" ]; then
+			echo "Error: Counter has unexpected value."
+			echo "       expected: $exp"
+			echo "       actual  : $act"
+		fi
+	fi
+}
+
+function test_primary()
+{
+	local create="$1"
+	local check="$2"
+	# whether we are using previous stored stated that had a different
+	# key and we have to use the old signature
+	local previousstate="$3"
+
+	local i res rc
+
+	if [ $create -eq 1 ]; then
+		# Create a permanent primary key that we expecte
+		# to again see after the TPM has been restarted
+		${TOOLSPATH}/${PREFIX}createprimary -hi o -si > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: createprimary failed."
+			exit 1
+		fi
+		if [ -z "$(grep 80000000 $TMPFILE)" ]; then
+			echo "Error: createprimary did not result in expected handle 80000000"
+			exit 1
+		fi
+		${TOOLSPATH}/${PREFIX}evictcontrol -ho 80000000 -hp 81000000 -hi o
+		if [ $? -ne 0 ]; then
+			echo "Error: evictcontrol did not work"
+			exit 1
+		fi
+		${TOOLSPATH}/${PREFIX}flushcontext -ha 80000000
+
+		echo -n "123" > $BINFILE
+		${TOOLSPATH}/${PREFIX}sign -hk 81000000 -if ${BINFILE} -os ${SIGFILE} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not create signature."
+			cat $TMPFILE
+			exit 1
+		fi
+	fi
+
+	if [ $check -eq 1 ]; then
+		printf "Checking availability of key with perm. handle 0x81000000\n"
+		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 0x81000000 >$TMPFILE
+		if [ -z "$(grep 81000000 $TMPFILE)" ]; then
+			echo "Could not find key with permanent handle 0x81000000"
+			exit 1
+		fi
+		printf "Verifying signature with this key\n"
+		echo -n "123" > $BINFILE
+		if [ $previousstate -eq 0 ]; then
+			${TOOLSPATH}/${PREFIX}verifysignature -hk 81000000 \
+				-is ${SIGFILE} \
+				-if ${BINFILE} > $TMPFILE
+		else
+			${TOOLSPATH}/${PREFIX}verifysignature -hk 81000000 \
+				-is ${DIR}/data/tpm2state3/signature.bin \
+				-if ${BINFILE} > $TMPFILE
+		fi
+		if [ $? -ne 0 ]; then
+			echo "Verifying signature failed."
+			exit 1
+		fi
+	fi
+}
+
+# Allocate a SHA256 PCR bank
+# This will prevent shutdown -s (with state)
+function test_pcr_allocation()
+{
+	local create="$1"
+	local check="$2"
+
+	local i res rc ha
+
+	if [ $create -eq 1 ]; then
+		echo "Allocating SHA256 PCR bank"
+		${TOOLSPATH}/${PREFIX}pcrallocate -sha256
+
+		for ((ha = 0; ha < 24; ha++)); do
+			${TOOLSPATH}/${PREFIX}pcrread -ha ${ha} -halg sha1 > $TMPFILE
+			if [ -z "$(grep "^count 1.*$" $TMPFILE)" ]; then
+				echo "Error: PCR ${ha} in SHA1 bank should be available for read before reboot"
+				cat $TMPFILE
+				exit 1
+			fi
+			${TOOLSPATH}/${PREFIX}pcrread -ha ${ha} -halg sha256 > $TMPFILE
+			if [ -z "$(grep "^count 1.*$" $TMPFILE)" ]; then
+				echo "Error: PCR ${ha} in SHA256 bank should be available for read before reboot"
+				cat $TMPFILE
+				exit 1
+			fi
+		done
+	fi
+
+	if [ $check -eq 1 ]; then
+		echo "Checking the PCR Allocation"
+
+		for ((ha = 0; ha < 24; ha++)); do
+			${TOOLSPATH}/${PREFIX}pcrread -ha ${ha} -halg sha1 > $TMPFILE
+			if [ -z "$(grep "^count 0.*$" $TMPFILE)" ]; then
+				echo "Error: PCR ${ha} in SHA1 bank should be unavailable for read after reboot"
+				cat $TMPFILE
+				exit 1
+			fi
+
+			${TOOLSPATH}/${PREFIX}pcrread -ha ${ha} -halg sha256 > $TMPFILE
+			if [ -z "$(grep "^count 1.*$" $TMPFILE)" ]; then
+				echo "Error: PCR ${ha} in SHA256 bank should be available for read after reboot"
+				exit 1
+			fi
+		done
+	fi
+}
+
+function test_hierarchy()
+{
+	local create="$1"
+	local check="$2"
+
+	local hi pwdn pwda
+
+	if [ $create -eq 1 ]; then
+		echo "Setting hierarchy passwords"
+		# Change the hierarchy password; the 'p' hierarchy has
+		# no effect on permanent RAM, so we won't test that
+		for hi in "l" "e" "o"; do
+			pwdn="${hi}${hi}${hi}"
+			${TOOLSPATH}/${PREFIX}hierarchychangeauth \
+				-hi ${hi} \
+				-pwdn ${pwdn}  > $TMPFILE
+			if [ $? -ne 0 ]; then
+				echo "Error: hierarchychangeauth failed to set password."
+				cat $TMPFILE
+				exit 1
+			fi
+		done
+	fi
+
+	if [ $check -eq 1 ]; then
+		echo "Checking previously set hierarchy passwords"
+		for hi in "l" "e" "o"; do
+			pwda="${hi}${hi}${hi}"
+			pwdn="new-${pwda}"
+
+			${TOOLSPATH}/${PREFIX}hierarchychangeauth \
+				-hi ${hi} \
+				-pwda ${pwda} \
+				-pwdn ${pwdn}  > $TMPFILE
+			if [ $? -ne 0 ]; then
+				echo "Error: hierarchychangeauth failed to change password."
+				cat $TMPFILE
+				exit 1
+			fi
+
+			# change back
+			${TOOLSPATH}/${PREFIX}hierarchychangeauth \
+				-hi ${hi} \
+				-pwda ${pwdn} \
+				-pwdn ${pwda}  > $TMPFILE
+			if [ $? -ne 0 ]; then
+				echo "Error: hierarchychangeauth failed to change back password."
+				cat $TMPFILE
+				exit 1
+			fi
+		done
+	fi
+}
+
+function test_hash_context()
+{
+	local create="$1"
+	local check="$2"
+
+	local res tmpfile
+
+	if [ $create -eq 1 ]; then
+		echo -n "123" > ${TMP2FILE}
+
+		echo "Starting a sha1 sequence"
+		res="$(${TOOLSPATH}/${PREFIX}hashsequencestart -halg sha1)"
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not start hash sequence."
+			exit 1
+		fi
+		SHA1_SEQUENCE_HANDLE="$(echo $res | cut -d " " -f3)"
+		echo "sha1 sequence handle: $SHA1_SEQUENCE_HANDLE"
+
+		${TOOLSPATH}/${PREFIX}sequenceupdate \
+			-hs ${SHA1_SEQUENCE_HANDLE} \
+			-if ${TMP2FILE}
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not updated the sha1 sequence."
+			exit 1
+		fi
+		echo "Updated sha1 sequence."
+
+		echo "Starting a sha256 sequence"
+		res="$(${TOOLSPATH}/${PREFIX}hashsequencestart -halg sha256)"
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not start sha256 sequence."
+			exit 1
+		fi
+		SHA256_SEQUENCE_HANDLE="$(echo $res | cut -d " " -f3)"
+		echo "sha256 sequence handle: $SHA256_SEQUENCE_HANDLE"
+
+		${TOOLSPATH}/${PREFIX}sequenceupdate \
+			-hs ${SHA256_SEQUENCE_HANDLE} \
+			-if ${TMP2FILE}
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not updated the hash sequence."
+			exit 1
+		fi
+		echo "Updated sha256 sequence."
+
+		echo "Starting a sha384 sequence"
+		res="$(${TOOLSPATH}/${PREFIX}hashsequencestart -halg sha384)"
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not start sha384 sequence."
+			exit 1
+		fi
+		SHA384_SEQUENCE_HANDLE="$(echo $res | cut -d " " -f3)"
+		echo "sha384 sequence handle: $SHA384_SEQUENCE_HANDLE"
+
+		${TOOLSPATH}/${PREFIX}sequenceupdate \
+			-hs ${SHA384_SEQUENCE_HANDLE} \
+			-if ${TMP2FILE}
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not updated the hash sequence."
+			exit 1
+		fi
+		echo "Updated sha384 sequence."
+	fi
+
+	if [ $check -eq 1 ]; then
+		echo -n "456" > ${TMP2FILE}
+
+		echo "Completing previously started sha1 sequence"
+		touch $TPMDIR/h${SHA1_SEQUENCE_HANDLE}.bin
+		res=$(${TOOLSPATH}/${PREFIX}sequencecomplete \
+			-hs ${SHA1_SEQUENCE_HANDLE} \
+			-if ${TMP2FILE} -v |
+		      tail -n 4 |
+		      grep " 7c 4a 8d ")
+		if [ -z "$res" ]; then
+			echo "Error: Did not get expected result from completing sha1 sequence."
+			exit 1
+		fi
+
+		echo "Completing previously started sha256 sequence"
+		touch $TPMDIR/h${SHA256_SEQUENCE_HANDLE}.bin
+		res=$(${TOOLSPATH}/${PREFIX}sequencecomplete \
+			-hs ${SHA256_SEQUENCE_HANDLE} \
+			-if ${TMP2FILE} -v |
+		      tail -n 4 |
+		      grep " 8d 96 9e ")
+		if [ -z "$res" ]; then
+			echo "Error: Did not get expected result from completing sha256 sequence."
+			exit 1
+		fi
+
+		echo "Completing previously started sha384 sequence"
+		touch $TPMDIR/h${SHA384_SEQUENCE_HANDLE}.bin
+		res=$(${TOOLSPATH}/${PREFIX}sequencecomplete \
+			-hs ${SHA384_SEQUENCE_HANDLE} \
+			-if ${TMP2FILE} -v |
+		      tail -n 4 |
+		      grep " 0a 98 9e ")
+		if [ -z "$res" ]; then
+			echo "Error: Did not get expected result from completing sha384 sequence."
+			exit 1
+		fi
+	fi
+}
+
+function test_session()
+{
+	local create="$1"
+	local check="$2"
+	# whether we are using previous stored stated that had a different
+	# key and we have to use the old signature
+	local previousstate="$3"
+
+	local i res rc
+
+	if [ $create -eq 1 ]; then
+		# Create a permanent primary key that we expecte
+		# to again see after the TPM has been restarted
+		${TOOLSPATH}/${PREFIX}createprimary -hi o -st > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: createprimary for creating storage key failed."
+			exit 1
+		fi
+		if [ -z "$(grep 80000000 $TMPFILE)" ]; then
+			echo "Error: createprimary did not result in expected handle 80000000"
+			cat $TMPFILE
+			exit 1
+		fi
+		${TOOLSPATH}/${PREFIX}evictcontrol -ho 80000000 -hp 81000000 -hi o
+		if [ $? -ne 0 ]; then
+			echo "Error: evictcontrol did not work"
+			exit 1
+		fi
+		${TOOLSPATH}/${PREFIX}flushcontext -ha 80000000
+
+		${TOOLSPATH}/${PREFIX}startauthsession -se h -bi 81000000 > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not start an auth session."
+			cat $TMPFILE
+			exit 1
+		fi
+		AUTHSESSION_HANDLE=$(cat $TMPFILE | sed 's/Handle//')
+		if [ -z "$AUTHSESSION_HANDLE" ]; then
+			echo "Error: Could not get auth session handle."
+			exit 1
+		fi
+	fi
+
+	if [ $check -eq 1 ]; then
+		echo "Using auth session ${AUTHSESSION_HANDLE} to create a key."
+		${TOOLSPATH}/${PREFIX}create \
+				-hp 81000000 \
+				-st \
+				-se0 ${AUTHSESSION_HANDLE} 1
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not create key using authsession"
+			exit 1
+		fi
+		echo "Successfully created key"
+	fi
+}
+
+function test_hmac_context()
+{
+	local create="$1"
+	local check="$2"
+	# whether we are using previous stored stated that had a different
+	# key and we have to use the old signature
+	local previousstate="$3"
+
+	local i res rc
+
+	if [ $create -eq 1 ]; then
+		${TOOLSPATH}/${PREFIX}createprimary -hi o -st > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: createprimary failed."
+			exit 1
+		fi
+		if [ -z "$(grep 80000000 $TMPFILE)" ]; then
+			echo "Error: createprimary did not result in expected handle 80000000"
+			exit 1
+		fi
+
+		${TOOLSPATH}/${PREFIX}create -hp 80000000 -kh \
+			-opr ${HKEYPRIV} -opu ${HKEYPUB} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: could not create key for HMAC"
+			exit 1
+		fi
+
+		${TOOLSPATH}/${PREFIX}load -hp 80000000 \
+			-ipr ${HKEYPRIV} -ipu ${HKEYPUB} -v > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: could not load key for HMAC"
+			cat $TMPFILE
+			exit 1
+		fi
+		if [ -z "$(grep 80000001 $TMPFILE)" ]; then
+			echo "Error: load did not result in expected handle 80000001"
+			exit 1
+		fi
+
+		${TOOLSPATH}/${PREFIX}hmacstart -hk 80000001 > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: could not start HMAC sequence"
+			exit 1
+		fi
+		if [ -z "$(grep 80000002 $TMPFILE)" ]; then
+			echo "Error: load did not result in expected handle 80000002"
+			exit 1
+		fi
+
+		echo -n "123" > ${TMP2FILE}
+		${TOOLSPATH}/${PREFIX}sequenceupdate \
+			-hs 80000002 \
+			-if ${TMP2FILE}
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not updated the HMAC sequence."
+			exit 1
+		fi
+		echo "Updated HMAC sequence."
+	fi
+
+	if [ $check -eq 1 ]; then
+		echo -n "456" > ${TMP2FILE}
+
+		echo "Completing previously started HMAC sequence"
+		touch $TPMDIR/h80000002.bin
+		${TOOLSPATH}/${PREFIX}sequencecomplete \
+			-hs 80000002 \
+			-if ${TMP2FILE} -v |
+		      tail -n 4 > ${TMPFILE}
+		if [ -z "$(grep " 85 56 6a 12 " ${TMPFILE})" ]; then
+			echo "Error: Did not get expected result from completing HMAC sequence."
+			cat $TMPFILE
+			exit 1
+		fi
+	fi
+}
+
+export TPM_SERVER_TYPE=raw
+export TPM_COMMAND_PORT=65533
+export TPM_DATA_DIR=$TPMDIR
+export TPM_SESSION_ENCKEY="807e2bfe898ddaed8fa6310e716a24dc" # for sessions
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (1) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	exit 1
+fi
+
+test_nvram_state 1 1
+test_primary 1 1 0
+test_pcr_allocation 1 0  # can only check after reboot
+test_hierarchy 1 1
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "============================" >> $LOGFILE
+
+echo "TPM was shut down"
+
+# Store this state for later usage
+# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3; cp $SIGFILE ${DIR}/data/tpm2state3/signature.bin
+
+
+#################################################################
+# Run TPM2 with the created state and verify it's the same
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (2) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+echo "TPM re-started"
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+test_nvram_state 0 1
+test_primary 0 1 0
+test_pcr_allocation 0 1
+test_hierarchy 0 1
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "============================" >> $LOGFILE
+
+echo "TPM was shut down"
+
+#################################################################
+# Run TPM2 with previously saved state and verify it's the same
+
+rm -f $TPMDIR/*
+cp -f ${DIR}/data/tpm2state3/tpm2-00.permall $TPMDIR/tpm2-00.permall
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+echo "TPM started with previously generated state"
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+test_nvram_state 0 1
+test_primary 0 1 1
+test_pcr_allocation 0 1
+test_hierarchy 0 1
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "Test 1 OK"
+
+#
+#
+# Tests with volatile state
+#
+#
+
+rm -f ${TPMDIR}/*
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+test_session 1 1
+test_hash_context 1 0
+
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -v 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_STORE_VOLATILE failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+#################################################################
+# Run TPM2 with the saved volatile state
+
+# create a backup for running the next test...
+# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3/tpm2-00.volatilestate
+# cp $TPMDIR/h02000000.bin ${DIR}/data/tpm2state3/h02000000.bin
+
+#echo $TPMDIR
+#ls -l $TPMDIR
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	cat $LOGFILE
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+test_hash_context 0 1
+test_session 0 1
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+#####################################################################
+# Run TPM2 with previously saved (volatile) state and verify it's
+# working as well
+
+cp -f ${DIR}/data/tpm2state3/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
+cp -f ${DIR}/data/tpm2state3/h02000000.bin $TPMDIR/h02000000.bin
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+echo "TPM started with previously generated state"
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+test_hash_context 0 1
+test_session 0 1
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "Test 2 OK"
+
+#
+#
+# Tests with volatile state -- 2nd test
+#
+#
+
+rm -f ${TPMDIR}/*
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# we only run this to generate the AES key which is different every time...
+# test_hmac_context 1 0
+
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -v 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_STORE_VOLATILE failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+#################################################################
+# Run TPM2 with the saved volatile state
+
+# create a backup for running the next test...
+# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3/tpm2-00.volatilestate.2nd
+
+#echo $TPMDIR
+#ls -l $TPMDIR
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	cat $LOGFILE
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+# since the AES key is different every time, we cannot run
+# the HMAC function that's using it since the result would
+# be different every time
+# test_hmac_context 0 1
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+#####################################################################
+# Run TPM2 with previously saved (volatile) state and verify it's
+# working as well
+
+cp -f ${DIR}/data/tpm2state3/tpm2-00.volatilestate.2nd $TPMDIR/tpm2-00.volatilestate
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+echo "TPM started with previously generated state"
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+test_hmac_context 0 1
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "Test 3 OK"
+
+exit 0
