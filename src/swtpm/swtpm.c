@@ -47,6 +47,8 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_library.h>
@@ -165,6 +167,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *ctrlchdata = NULL;
     char *serverdata = NULL;
     char *runas = NULL;
+    int sock_type = 0;
+    socklen_t len = 0;
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -238,6 +242,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
                          MAIN_LOOP_FLAG_KEEP_CONNECTION;
+
+            if (!getsockopt(mlp.fd, SOL_SOCKET, SO_TYPE, &sock_type, &len) &&
+                           sock_type != SOCK_STREAM)
+                mlp.flags |= MAIN_LOOP_FLAG_READALL;
+
             SWTPM_IO_SetSocketFD(mlp.fd);
 
             break;
@@ -310,6 +319,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
         if ((server_get_flags(server) & SERVER_FLAG_FD_GIVEN))
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
+
+        if (!getsockopt(mlp.fd, SOL_SOCKET, SO_TYPE, &sock_type, &len) &&
+                        sock_type != SOCK_STREAM)
+            mlp.flags |= MAIN_LOOP_FLAG_READALL;
     }
 
     if (daemonize) {
