@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_cuse 8"
-.TH swtpm_cuse 8 "2017-02-02" "swtpm" ""
+.TH swtpm_cuse 8 "2017-03-31" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -176,13 +176,15 @@ The device minor number to use; can be omitted.
 .IP "\fB\-r <user> | \-\-runas=<user>\fR" 4
 .IX Item "-r <user> | --runas=<user>"
 The user to switch to and drop privileges.
-.IP "\fB\-\-log fd=<fd>|file=<path>[,level=<n>]\fR" 4
-.IX Item "--log fd=<fd>|file=<path>[,level=<n>]"
+.IP "\fB\-\-log fd=<fd>|file=<path>[,level=<n>]\fR[,prefix=<prefix>]" 4
+.IX Item "--log fd=<fd>|file=<path>[,level=<n>][,prefix=<prefix>]"
 Enable logging to a file given its file descriptor or its path. Use '\-' for path to
 suppress the logging.
 .Sp
 The level parameter allows to choose the level of logging. Starting at log
 level 5, libtpms debug logging is activated.
+.Sp
+All logged lines will be prefixed with prefix. By default no prefix is prepended.
 .IP "\fB\-\-key file=<keyfile>[,format=<hex|binary>][,mode=aes\-cbc],[remove[=true|false]]\fR" 4
 .IX Item "--key file=<keyfile>[,format=<hex|binary>][,mode=aes-cbc],[remove[=true|false]]"
 Enable encryption of the state files of the \s-1TPM.\s0 The keyfile must contain

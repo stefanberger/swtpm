@@ -59,6 +59,7 @@
 
 static int logfd = CONSOLE_LOGGING;
 static unsigned int log_level = 1;
+static char *log_prefix = NULL;
 
 /*
  * log_init:
@@ -114,16 +115,51 @@ int log_init_fd(int fd)
  * Set the log level; the higher the level, the more is printed
  * @level: the log level
  */
-void log_set_level(unsigned int level)
+int log_set_level(unsigned int level)
 {
     log_level = level;
+    char *prefixbuf = NULL;
+    int ret = 0;
 
     if (level >= 5) {
         TPMLIB_SetDebugLevel(level - 4);
-        TPMLIB_SetDebugPrefix("    ");
+
+        if (asprintf(&prefixbuf, "%s%s",
+                     log_prefix ? log_prefix : "",
+                     "    ") < 0) {
+            ret = -1;
+            goto err_exit;
+        }
+        TPMLIB_SetDebugPrefix(prefixbuf);
+        free(prefixbuf);
+
         if (logfd != SUPPRESS_LOGGING)
             TPMLIB_SetDebugFD(logfd);
     }
+
+err_exit:
+    return ret;
+}
+
+/*
+ * log_set_prefix
+ * Set the logging prefix; this function should be
+ * call before log_set_level.
+ *
+ * @prefix: string to print before every line
+ */
+int log_set_prefix(const char *prefix)
+{
+    free(log_prefix);
+
+    if (prefix) {
+        log_prefix = strdup(prefix);
+        if (!log_prefix)
+            return -1;
+    } else {
+        log_prefix = NULL;
+    }
+    return 0;
 }
 
 /*
@@ -167,7 +203,7 @@ int log_check_string(const char *string)
 static int _logprintf(int fd, const char *format, va_list ap, bool check_indent)
 {
     char *buf = NULL;
-    int ret = 0;
+    int ret = 0, len = 0;
 
     if (logfd == SUPPRESS_LOGGING)
         return 0;
@@ -179,10 +215,20 @@ static int _logprintf(int fd, const char *format, va_list ap, bool check_indent)
     if (ret < 0)
         goto cleanup;
 
-    if (!check_indent || log_check_string(buf) >= 0)
+    if (!check_indent || log_check_string(buf) >= 0) {
+        if (log_prefix) {
+            ret = write(fd, log_prefix, strlen(log_prefix));
+            if (ret < 0)
+                goto err_exit;
+            len = ret;
+        }
         ret = write(fd, buf, strlen(buf));
-    else
+        if (ret < 0)
+            goto err_exit;
+        ret += len;
+    } else
         ret = 0;
+err_exit:
     free(buf);
 
 cleanup:

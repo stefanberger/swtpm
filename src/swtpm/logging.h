@@ -43,10 +43,11 @@
 
 int log_init(const char *filename);
 int log_init_fd(int fd);
-void log_set_level(unsigned int level);
+int log_set_level(unsigned int level);
 int logprintf(int fd, const char *format, ...);
 int logprintfA(int fd, unsigned int indent, const char *format, ...);
 int log_check_string(const char *);
+int log_set_prefix(const char *);
 
 #endif /* _SWTPM_LOGGING_H */
 

@@ -184,13 +184,15 @@ The following options are support by all interfaces:
 
 Use the given path rather than using the environment variable TPM_PATH.
 
-=item B<--log [fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>][,level=E<lt>nE<gt>]>
+=item B<--log [fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>][,level=E<lt>nE<gt>]>[,prefix=E<lt>prefixE<gt>]
 
 Enable logging to a file given its file descriptor or its path. Use '-' for path to
 suppress the logging.
 
 The level parameter allows to choose the level of logging. Starting at log
 level 5, libtpms debug logging is activated.
+
+All logged lines will be prefixed with prefix. By default no prefix is prepended.
 
 =item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
 

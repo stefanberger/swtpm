@@ -74,6 +74,9 @@ static const OptionDesc logging_opt_desc[] = {
     }, {
         .name = "level",
         .type = OPT_TYPE_UINT,
+    }, {
+        .name = "prefix",
+        .type = OPT_TYPE_STRING,
     },
     END_OPTION_DESC
 };
@@ -180,7 +183,7 @@ int
 handle_log_options(char *options)
 {
     char *error = NULL;
-    const char *logfile = NULL;
+    const char *logfile = NULL, *logprefix = NULL;
     int logfd;
     unsigned int loglevel;
     OptionValues *ovs = NULL;
@@ -197,6 +200,7 @@ handle_log_options(char *options)
     logfile = option_get_string(ovs, "file", NULL);
     logfd = option_get_int(ovs, "fd", -1);
     loglevel = option_get_uint(ovs, "level", 0);
+    logprefix = option_get_string(ovs, "prefix", NULL);
     if (logfile && (log_init(logfile) < 0)) {
         fprintf(stderr,
             "Could not open logfile for writing: %s\n",
@@ -210,7 +214,17 @@ handle_log_options(char *options)
     }
     if ((logfile || logfd) && !loglevel)
         loglevel = 1;
-    log_set_level(loglevel);
+
+    if (log_set_prefix(logprefix) < 0) {
+        fprintf(stderr,
+                "Could not set logging prefix. Out of memory?\n");
+        goto error;
+    }
+    if (log_set_level(loglevel) < 0) {
+        fprintf(stderr,
+                "Could not set log level. Out of memory?");
+        goto error;
+    }
 
     option_values_free(ovs);
 
