@@ -142,7 +142,8 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
         rc = SWTPM_IO_ReadBytes(connection_fd, buffer, headerSize);
     }
     if (rc == 0) {
-        TPM_PrintAll("  SWTPM_IO_Read: through paramSize", buffer, headerSize);
+        TPM_PrintAll("  SWTPM_IO_Read: through paramSize", "  ",
+                     buffer, headerSize);
         /* extract the paramSize value, last field in header */
         paramSize = LOAD32(buffer, headerSize - sizeof(uint32_t));
         *bufferLength = headerSize + paramSize - (sizeof(TPM_TAG) + sizeof(uint32_t));
@@ -161,7 +162,7 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
 
 out:
     if (rc == 0) {
-        TPM_PrintAll(" SWTPM_IO_Read:", buffer, *bufferLength);
+        TPM_PrintAll(" SWTPM_IO_Read:", " ", buffer, *bufferLength);
     }
     return rc;
 }
@@ -405,7 +406,7 @@ static TPM_RESULT SWTPM_IO_ReadBytes(TPM_CONNECTION_FD *connection_fd,    /* rea
     }
 
     if (rc == 0) {
-        TPM_PrintAll(" SWTPM_IO_ReadBytes:", start, nbytes - nleft);
+        TPM_PrintAll(" SWTPM_IO_ReadBytes:", " ", start, nbytes - nleft);
     }
 
     return rc;
@@ -424,7 +425,7 @@ TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write 
     ssize_t     nwritten = 0;
 
     if (rc == 0) {
-        TPM_PrintAll(" SWTPM_IO_Write:", buffer, buffer_length);
+        TPM_PrintAll(" SWTPM_IO_Write:", " ", buffer, buffer_length);
     }
     /* write() is unspecified with buffer_length too large */
     if (rc == 0) {

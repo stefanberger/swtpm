@@ -53,7 +53,7 @@
 
 # endif /* DEBUG */
 
-void TPM_PrintAll(const char *string,
+void TPM_PrintAll(const char *string, const char *indent,
                   const unsigned char* buff, uint32_t length);
 
 #endif /* _SWTPM_DEBUG_H_ */

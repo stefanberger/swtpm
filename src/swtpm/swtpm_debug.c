@@ -39,36 +39,89 @@
 
 #include <config.h>
 
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include "swtpm_debug.h"
 #include "logging.h"
 
+/*
+ * TPM_AppendPrintf() print and append to buffer
+ *
+ * @buffer: pointer to existing buffer or pointer to NULL to start a new buffer
+ * @fmt: typical printf fmt
+ * @...: varagr printf parameters
+ *
+ */
+static int TPM_AppendPrintf(char **buffer, const char *fmt, ...)
+{
+    va_list ap;
+    int n, len = 0;
+    char *dest = NULL, *nbuffer;
+
+    va_start(ap, fmt);
+    n = vasprintf(&dest, fmt, ap);
+    va_end(ap);
+    if (n < 0)
+        return n;
+
+    if (*buffer)
+        len = strlen(*buffer);
+
+    nbuffer = malloc(len + n + 1);
+    if (!nbuffer) {
+        free(dest);
+        return -1;
+    }
+    if (*buffer)
+        memcpy(nbuffer, *buffer, len);
+    memcpy(&nbuffer[len], dest, n);
+    nbuffer[len + n] = 0;
+
+    free(dest);
+    free(*buffer);
+    *buffer = nbuffer;
+
+    return len + n;
+}
+
 /* TPM_PrintAll() prints 'string', the length, and then the entire byte array
  */
-void TPM_PrintAll(const char *string, const unsigned char* buff, uint32_t length)
+void TPM_PrintAll(const char *string, const char *indentation,
+                  const unsigned char* buff, uint32_t length)
 {
     uint32_t i;
     int indent;
+    char *linebuffer = NULL;
 
     indent = log_check_string(string);
     if (indent < 0)
         return;
 
     if (buff != NULL) {
-        logprintf(STDERR_FILENO, "%s length %u\n ", string, length);
+        logprintf(STDERR_FILENO, "%s length %u\n", string, length);
 
+        TPM_AppendPrintf(&linebuffer, "%s", indentation);
         for (i = 0 ; i < length ; i++) {
-            if (i && !( i % 16 ))
-                logprintfA(STDERR_FILENO, 0, "\n ");
+            if (i && !( i % 16 )) {
+                TPM_AppendPrintf(&linebuffer, "\n");
 
-            logprintfA(STDERR_FILENO,
-                       !(i % 16) ? indent : 0,
-                       "%.2X ",buff[i]);
+                logprintfA(STDERR_FILENO, 0, linebuffer);
+
+                free(linebuffer);
+                linebuffer = NULL;
+                TPM_AppendPrintf(&linebuffer, "%s", indentation);
+            }
+
+            TPM_AppendPrintf(&linebuffer, "%.2X", buff[i]);
         }
-        logprintfA(STDERR_FILENO, 0, "\n");
+        TPM_AppendPrintf(&linebuffer, "\n");
+        logprintf(STDERR_FILENO, "%s", linebuffer);
+        free(linebuffer);
     }
     else {
         logprintf(STDERR_FILENO, "%s null\n", string);
