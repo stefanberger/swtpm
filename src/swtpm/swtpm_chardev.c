@@ -175,6 +175,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     int opt, longindex;
     struct stat statbuf;
     struct mainLoopParams mlp = {
+        .cc = NULL,
         .fd = -1,
         .flags = 0,
     };
@@ -351,18 +352,19 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         handle_key_options(keydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
-        handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0)
-        return EXIT_FAILURE;
+        handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0) {
+        goto exit_failure;
+    }
 
     if (daemonize) {
        if (0 != daemon(0, 0)) {
            logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
-           return EXIT_FAILURE;
+           goto exit_failure;
        }
     }
 
     if (pidfile_write(getpid()) < 0) {
-        return EXIT_FAILURE;
+        goto exit_failure;
     }
 
     setvbuf(stdout, 0, _IONBF, 0);      /* output may be going through pipe */
@@ -426,4 +428,9 @@ error_no_tpm:
         TPM_DEBUG("main: TPM initialization failure %08x, exiting\n", rc);
         return EXIT_FAILURE;
     }
+
+exit_failure:
+    free(mlp.cc);
+
+    return EXIT_FAILURE;
 }

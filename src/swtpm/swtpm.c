@@ -154,6 +154,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     int opt, longindex;
     struct stat statbuf;
     struct mainLoopParams mlp = {
+        .cc = NULL,
         .flags = 0,
         .fd = -1,
     };
@@ -311,8 +312,9 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
-        handle_server_options(serverdata, &server))
-        return EXIT_FAILURE;
+        handle_server_options(serverdata, &server)) {
+        goto exit_failure;
+    }
 
     if (server) {
         if (server_get_fd(server) >= 0) {
@@ -330,17 +332,20 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         if (!getsockopt(mlp.fd, SOL_SOCKET, SO_TYPE, &sock_type, &len) &&
                         sock_type != SOCK_STREAM)
             mlp.flags |= MAIN_LOOP_FLAG_READALL;
+
+        free(server);
+        server = NULL;
     }
 
     if (daemonize) {
         if (0 != daemon(0, 0)) {
             logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
-            return EXIT_FAILURE;
+            goto exit_failure;
         }
     }
 
     if (pidfile_write(getpid()) < 0) {
-        return EXIT_FAILURE;
+        goto exit_failure;
     }
 
     setvbuf(stdout, 0, _IONBF, 0);      /* output may be going through pipe */
@@ -393,6 +398,9 @@ error_no_tpm:
     close(notify_fd[1]);
     notify_fd[1] = -1;
 
+    free(mlp.cc);
+    free(server);
+
     /* Fatal initialization errors cause the program to abort */
     if (rc == 0) {
         return EXIT_SUCCESS;
@@ -401,4 +409,10 @@ error_no_tpm:
         TPM_DEBUG("main: TPM initialization failure %08x, exiting\n", rc);
         return EXIT_FAILURE;
     }
+
+exit_failure:
+    free(mlp.cc);
+    free(server);
+
+    return EXIT_FAILURE;
 }
