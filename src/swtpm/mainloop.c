@@ -120,6 +120,15 @@ int mainLoop(struct mainLoopParams *mlp,
     bool                readall;
     int                 sockfd;
 
+    /* poolfd[] indexes */
+    enum {
+        DATA_CLIENT_FD = 0,
+        NOTIFY_FD,
+        CTRL_SERVER_FD,
+        CTRL_CLIENT_FD,
+        DATA_SERVER_FD
+    };
+
     TPM_DEBUG("mainLoop:\n");
 
     max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX);
@@ -133,7 +142,7 @@ int mainLoop(struct mainLoopParams *mlp,
 
     connection_fd.fd = -1;
     ctrlfd = ctrlchannel_get_fd(mlp->cc);
-    ctrlclntfd = -1;
+    ctrlclntfd = ctrlchannel_get_client_fd(mlp->cc);
 
     sockfd = SWTPM_IO_GetSocketFD();
 
@@ -172,15 +181,15 @@ int mainLoop(struct mainLoopParams *mlp,
 
             /* only listend for clients if we don't have one */
             if (connection_fd.fd < 0)
-                pollfds[4].fd = sockfd;
+                pollfds[DATA_SERVER_FD].fd = sockfd;
 
             if (poll(pollfds, 5, -1) < 0 ||
-                (pollfds[1].revents & POLLIN) != 0) {
+                (pollfds[NOTIFY_FD].revents & POLLIN) != 0) {
                 SWTPM_IO_Disconnect(&connection_fd);
                 break;
             }
 
-            if (pollfds[0].revents & POLLHUP) {
+            if (pollfds[DATA_CLIENT_FD].revents & POLLHUP) {
                 /* chardev and unixio get this signal, not tcp */
                 if (mlp->flags & MAIN_LOOP_FLAG_END_ON_HUP) {
                     /* only the chardev terminates here */
@@ -189,13 +198,13 @@ int mainLoop(struct mainLoopParams *mlp,
                 }
             }
 
-            if (pollfds[4].revents & POLLIN)
-                connection_fd.fd = accept(pollfds[4].fd, NULL, 0);
+            if (pollfds[DATA_SERVER_FD].revents & POLLIN)
+                connection_fd.fd = accept(pollfds[DATA_SERVER_FD].fd, NULL, 0);
 
-            if (pollfds[2].revents & POLLIN)
+            if (pollfds[CTRL_SERVER_FD].revents & POLLIN)
                 ctrlclntfd = accept(ctrlfd, NULL, 0);
 
-            if (pollfds[3].revents & POLLIN) {
+            if (pollfds[CTRL_CLIENT_FD].revents & POLLIN) {
                 ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, callbacks,
                                                     &mainloop_terminate,
                                                     &locality, &tpm_running);
@@ -203,13 +212,13 @@ int mainLoop(struct mainLoopParams *mlp,
                     break;
             }
 
-            if (pollfds[3].revents & POLLHUP) {
+            if (pollfds[CTRL_CLIENT_FD].revents & POLLHUP) {
                 if (ctrlclntfd >= 0)
                     close(ctrlclntfd);
                 ctrlclntfd = -1;
             }
 
-            if (!(pollfds[0].revents & POLLIN))
+            if (!(pollfds[DATA_CLIENT_FD].revents & POLLIN))
                 continue;
 
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
