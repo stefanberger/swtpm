@@ -167,9 +167,9 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
     if (rc == 0) {
         tpm_state_path = tpmstate_get_dir();
         if (tpm_state_path == NULL) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_Init: Error (fatal), TPM_PATH environment "
-                    "variable not set\n");
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_Init: Error (fatal), TPM_PATH environment "
+                      "variable not set\n");
             rc = TPM_FAIL;
         }
     }
@@ -178,9 +178,9 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
     if (rc == 0) {
         length = strlen(tpm_state_path);
         if ((length + TPM_FILENAME_MAX) > FILENAME_MAX) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_Init: Error (fatal), TPM state path name "
-                    "%s too large\n", tpm_state_path);
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_Init: Error (fatal), TPM state path name "
+                      "%s too large\n", tpm_state_path);
             rc = TPM_FAIL;
         }
     }
@@ -237,8 +237,9 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
                 rc = TPM_RETRY;         /* first time start up */
             }
             else {
-                fprintf(stderr, "SWTPM_NVRAM_LoadData: Error (fatal) opening "
-                        "%s for read, %s\n", filename, strerror(errno));
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_LoadData: Error (fatal) opening "
+                          "%s for read, %s\n", filename, strerror(errno));
                 rc = TPM_FAIL;
             }
         }
@@ -247,18 +248,18 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
     if (rc == 0) {
         irc = fseek(file, 0L, SEEK_END);        /* seek to end of file */
         if (irc == -1L) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_LoadData: Error (fatal) fseek'ing %s, %s\n",
-                   filename, strerror(errno));
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Error (fatal) fseek'ing %s, %s\n",
+                      filename, strerror(errno));
             rc = TPM_FAIL;
         }
     }
     if (rc == 0) {
         lrc = ftell(file);                      /* get position in the stream */
         if (lrc == -1L) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_LoadData: Error (fatal) ftell'ing %s, %s\n",
-                    filename, strerror(errno));
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Error (fatal) ftell'ing %s, %s\n",
+                      filename, strerror(errno));
             rc = TPM_FAIL;
         }
         else {
@@ -268,9 +269,9 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
     if (rc == 0) {
         irc = fseek(file, 0L, SEEK_SET);        /* seek back to the beginning of the file */
         if (irc == -1L) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_LoadData: Error (fatal) fseek'ing %s, %s\n",
-                    filename, strerror(errno));
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Error (fatal) fseek'ing %s, %s\n",
+                      filename, strerror(errno));
             rc = TPM_FAIL;
         }
     }
@@ -279,9 +280,9 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
         TPM_DEBUG(" SWTPM_NVRAM_LoadData: Reading %u bytes of data\n", *length);
         rc = TPM_Malloc(data, *length);
         if (rc != 0) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_LoadData: Error (fatal) allocating %u "
-                    "bytes\n", *length);
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Error (fatal) allocating %u "
+                      "bytes\n", *length);
             rc = TPM_FAIL;
         }
     }
@@ -289,9 +290,9 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
     if ((rc == 0) && *length != 0) {
         src = fread(*data, 1, *length, file);
         if (src != *length) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_LoadData: Error (fatal), data read of %u "
-                    "only read %lu\n", *length, (unsigned long)src);
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Error (fatal), data read of %u "
+                      "only read %lu\n", *length, (unsigned long)src);
             rc = TPM_FAIL;
         }
     }
@@ -300,9 +301,9 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
         TPM_DEBUG(" SWTPM_NVRAM_LoadData: Closing file %s\n", filename);
         irc = fclose(file);             /* @1 */
         if (irc != 0) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_LoadData: Error (fatal) closing file %s\n",
-                    filename);
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Error (fatal) closing file %s\n",
+                      filename);
             rc = TPM_FAIL;
         }
         else {
@@ -371,9 +372,9 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
         TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening file %s\n", filename);
         file = fopen(filename, "wb");                           /* closed @1 */
         if (file == NULL) {
-            fprintf(stderr,
-                    "SWTPM_NVRAM_StoreData: Error (fatal) opening %s for "
-                    "write failed, %s\n", filename, strerror(errno));
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData: Error (fatal) opening %s for "
+                      "write failed, %s\n", filename, strerror(errno));
             rc = TPM_FAIL;
         }
     }
@@ -394,8 +395,9 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
         lrc = fwrite(encrypt_data ? encrypt_data : data, 1,
                      length, file);
         if (lrc != length) {
-            fprintf(stderr, "TPM_NVRAM_StoreData: Error (fatal), data write "
-                    "of %u only wrote %u\n", length, lrc);
+            logprintf(STDERR_FILENO,
+                      "TPM_NVRAM_StoreData: Error (fatal), data write "
+                      "of %u only wrote %u\n", length, lrc);
             rc = TPM_FAIL;
         }
     }
@@ -403,8 +405,8 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
         TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing file %s\n", filename);
         irc = fclose(file);             /* @1 */
         if (irc != 0) {
-            fprintf(stderr, "SWTPM_NVRAM_StoreData: Error (fatal) closing "
-                    "file\n");
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData: Error (fatal) closing file\n");
             rc = TPM_FAIL;
         }
         else {
@@ -482,8 +484,9 @@ TPM_RESULT SWTPM_NVRAM_DeleteName(uint32_t tpm_number,
         if ((irc != 0) &&               /* if the remove failed */
             (mustExist ||               /* if any error is a failure, or */
              (errno != ENOENT))) {      /* if error other than no such file */
-            fprintf(stderr, "SWTPM_NVRAM_DeleteName: Error, (fatal) file "
-                    "remove failed, errno %d\n", errno);
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_DeleteName: Error, (fatal) file "
+                      "remove failed, errno %d\n", errno);
             rc = TPM_FAIL;
         }
     }
@@ -776,7 +779,8 @@ SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
         return TPM_BAD_PARAMETER;
 
     if (bh->min_version > BLOB_HEADER_VERSION) {
-        logprintf(STDERR_FILENO, "Minimum required version for the blob is %d, we "
+        logprintf(STDERR_FILENO,
+                  "Minimum required version for the blob is %d, we "
                   "only support version %d\n", bh->min_version,
                   BLOB_HEADER_VERSION);
         return TPM_BAD_VERSION;

@@ -59,7 +59,13 @@
 
 static int logfd = CONSOLE_LOGGING;
 static unsigned int log_level = 1;
-static char *log_prefix = NULL;
+static char *log_prefix;
+
+static void log_prefix_clear(void)
+{
+    free(log_prefix);
+    log_prefix = NULL;
+}
 
 /*
  * log_init:
@@ -78,6 +84,8 @@ int log_init(const char *filename)
     logfd = open(filename, O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR);
     if (logfd < 0)
         return -1;
+
+    log_prefix_clear();
 
     return 0;
 }
@@ -106,6 +114,8 @@ int log_init_fd(int fd)
             return -1;
         }
     }
+
+    log_prefix_clear();
 
     return 0;
 }

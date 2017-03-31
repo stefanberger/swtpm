@@ -99,14 +99,15 @@ static int create_vtpm_proxy(struct vtpm_proxy_new_dev *vtpm_new_dev)
 
     fd = open("/dev/vtpmx", O_RDWR);
     if (fd < 0) {
-        fprintf(stderr, "Could not open /dev/vtpmx: %s\n", strerror(errno));
+        logprintf(STDERR_FILENO, "Could not open /dev/vtpmx: %s\n",
+                  strerror(errno));
         return -1;
     }
 
     n = ioctl(fd, VTPM_PROXY_IOC_NEW_DEV, vtpm_new_dev);
     if (n) {
-        fprintf(stderr, "Ioctl to create vtpm proxy failed: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO, "Ioctl to create vtpm proxy failed: %s\n",
+                  strerror(errno));
         ret = -1;
     }
     close(fd);
@@ -208,6 +209,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {NULL        , 0                , 0, 0  },
     };
 
+    log_set_prefix("swtpm: ");
+
     while (TRUE) {
         opt = getopt_long(argc, argv, "dhc:f:r:", longopts, &longindex);
 
@@ -225,8 +228,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
             mlp.fd = open(optarg, O_RDWR);
             if (mlp.fd < 0) {
-                fprintf(stderr, "Cannot open %s: %s\n",
-                        optarg, strerror(errno));
+                logprintf(STDERR_FILENO, "Cannot open %s: %s\n",
+                          optarg, strerror(errno));
                 exit(1);
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
@@ -241,13 +244,14 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             errno = 0;
             val = strtoul(optarg, &end_ptr, 10);
             if (val != (unsigned int)val || errno || end_ptr[0] != '\0') {
-                fprintf(stderr, "Cannot parse character device file descriptor.\n");
+                logprintf(STDERR_FILENO,
+                          "Cannot parse character device file descriptor.\n");
                 exit(1);
             }
             mlp.fd = val;
             if (fstat(mlp.fd, &statbuf) != 0) {
-                fprintf(stderr, "Cannot stat file descriptor: %s\n",
-                        strerror(errno));
+                logprintf(STDERR_FILENO, "Cannot stat file descriptor: %s\n",
+                          strerror(errno));
                 exit(1);
             }
             /*
@@ -256,8 +260,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
              */
             if (S_ISREG(statbuf.st_mode) || S_ISDIR(statbuf.st_mode) || S_ISBLK(statbuf.st_mode)
                 || S_ISLNK(statbuf.st_mode)) {
-                fprintf(stderr,
-                        "Given file descriptor type is not supported.\n");
+                logprintf(STDERR_FILENO,
+                          "Given file descriptor type is not supported.\n");
                 exit(1);
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
@@ -313,7 +317,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         };
 
         if (mlp.fd >= 0) {
-            fprintf(stderr, "Cannot use vTPM proxy with a provided device.\n");
+            logprintf(STDERR_FILENO,
+                      "Cannot use vTPM proxy with a provided device.\n");
             exit(1);
         }
         if (create_vtpm_proxy(&vtpm_new_dev))
@@ -331,7 +336,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 #endif
 
     if (mlp.fd < 0) {
-        logprintf(STDERR_FILENO, "Error: Missing character device or file descriptor\n");
+        logprintf(STDERR_FILENO,
+                  "Error: Missing character device or file descriptor\n");
         return EXIT_FAILURE;
     }
 

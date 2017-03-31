@@ -193,8 +193,8 @@ handle_log_options(char *options)
 
     ovs = options_parse(options, logging_opt_desc, &error);
     if (!ovs) {
-        fprintf(stderr, "Error parsing logging options: %s\n",
-                error);
+        logprintf(STDERR_FILENO, "Error parsing logging options: %s\n",
+                  error);
         return -1;
     }
     logfile = option_get_string(ovs, "file", NULL);
@@ -202,27 +202,27 @@ handle_log_options(char *options)
     loglevel = option_get_uint(ovs, "level", 0);
     logprefix = option_get_string(ovs, "prefix", NULL);
     if (logfile && (log_init(logfile) < 0)) {
-        fprintf(stderr,
-            "Could not open logfile for writing: %s\n",
-            strerror(errno));
+        logprintf(STDERR_FILENO,
+                  "Could not open logfile for writing: %s\n",
+                  strerror(errno));
         goto error;
     } else if (logfd >= 0 && (log_init_fd(logfd) < 0)) {
-        fprintf(stderr,
-                "Could not access logfile using fd %d: %s\n",
-                logfd, strerror(errno));
+        logprintf(STDERR_FILENO,
+                  "Could not access logfile using fd %d: %s\n",
+                  logfd, strerror(errno));
         goto error;
     }
     if ((logfile || logfd) && !loglevel)
         loglevel = 1;
 
     if (log_set_prefix(logprefix) < 0) {
-        fprintf(stderr,
-                "Could not set logging prefix. Out of memory?\n");
+        logprintf(STDERR_FILENO,
+                  "Could not set logging prefix. Out of memory?\n");
         goto error;
     }
     if (log_set_level(loglevel) < 0) {
-        fprintf(stderr,
-                "Could not set log level. Out of memory?");
+        logprintf(STDERR_FILENO,
+                  "Could not set log level. Out of memory?");
         goto error;
     }
 
@@ -262,15 +262,15 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     ovs = options_parse(options, key_opt_desc, &error);
 
     if (!ovs) {
-        fprintf(stderr, "Error parsing key options: %s\n",
-                error);
+        logprintf(STDERR_FILENO, "Error parsing key options: %s\n",
+                  error);
         goto error;
     }
 
     keyfile = option_get_string(ovs, "file", NULL);
     pwdfile = option_get_string(ovs, "pwdfile", NULL);
     if (!keyfile && !pwdfile) {
-        fprintf(stderr, "Either --key or --pwdfile is required\n");
+        logprintf(STDERR_FILENO, "Either --key or --pwdfile is required\n");
         goto error;
     }
 
@@ -387,20 +387,21 @@ parse_pid_options(char *options, char **pidfile)
     ovs = options_parse(options, pid_opt_desc, &error);
 
     if (!ovs) {
-        fprintf(stderr, "Error parsing pid options: %s\n",
+        logprintf(STDERR_FILENO, "Error parsing pid options: %s\n",
                 error);
         goto error;
     }
 
     filename = option_get_string(ovs, "file", NULL);
     if (!filename) {
-        fprintf(stderr, "The file parameter is required for the pid option.\n");
+        logprintf(STDERR_FILENO,
+                  "The file parameter is required for the pid option.\n");
         goto error;
     }
 
     *pidfile = strdup(filename);
     if (!*pidfile) {
-        fprintf(stderr, "Out of memory.");
+        logprintf(STDERR_FILENO, "Out of memory.");
         goto error;
     }
 
@@ -460,21 +461,21 @@ parse_tpmstate_options(char *options, char **tpmstatedir)
     ovs = options_parse(options, tpmstate_opt_desc, &error);
 
     if (!ovs) {
-        fprintf(stderr, "Error parsing tpmstate options: %s\n",
-                error);
+        logprintf(STDERR_FILENO, "Error parsing tpmstate options: %s\n",
+                  error);
         goto error;
     }
 
     directory = option_get_string(ovs, "dir", NULL);
     if (!directory) {
-        fprintf(stderr,
-                "The file parameter is required for the tpmstate option.\n");
+        logprintf(STDERR_FILENO,
+                  "The file parameter is required for the tpmstate option.\n");
         goto error;
     }
 
     *tpmstatedir = strdup(directory);
     if (!*tpmstatedir) {
-        fprintf(stderr, "Out of memory.");
+        logprintf(STDERR_FILENO, "Out of memory.");
         goto error;
     }
 
@@ -531,11 +532,11 @@ static int unixio_open_socket(const char *path, mode_t perm)
     len = sizeof(su.sun_path);
     n = snprintf(su.sun_path, len, "%s", path);
     if (n < 0) {
-        fprintf(stderr, "Could not nsprintf path to UnixIO socket\n");
+        logprintf(STDERR_FILENO, "Could not nsprintf path to UnixIO socket\n");
         return -1;
     }
     if (n >= (int)len) {
-        fprintf(stderr, "Path for UnioIO socket is too long\n");
+        logprintf(STDERR_FILENO, "Path for UnioIO socket is too long\n");
         return -1;
     }
 
@@ -543,29 +544,29 @@ static int unixio_open_socket(const char *path, mode_t perm)
 
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
-        fprintf(stderr, "Could not open UnixIO socket\n");
+        logprintf(STDERR_FILENO, "Could not open UnixIO socket\n");
         return -1;
     }
 
     len = strlen(su.sun_path) + sizeof(su.sun_family);
     n = bind(fd, (struct sockaddr *)&su, len);
     if (n < 0) {
-        fprintf(stderr, "Could not open UnixIO socket: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO, "Could not open UnixIO socket: %s\n",
+                  strerror(errno));
         goto error;
     }
 
     if (chmod(su.sun_path, perm) < 0) {
-        fprintf(stderr,
-                "Could not change permssions on UnixIO socket: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO,
+                  "Could not change permssions on UnixIO socket: %s\n",
+                  strerror(errno));
         goto error;
     }
 
     n = listen(fd, 1);
     if (n < 0) {
-        fprintf(stderr, "Cannot listen on UnixIO socket: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO, "Cannot listen on UnixIO socket: %s\n",
+                  strerror(errno));
         goto error;
     }
 
@@ -617,23 +618,24 @@ static int tcp_open_socket(unsigned short port, const char *bindaddr,
 
     n = inet_pton(af, bindaddr, dst);
     if (n <= 0) {
-        fprintf(stderr, "Could not parse the bind address '%s'\n",
-                bindaddr);
+        logprintf(STDERR_FILENO, "Could not parse the bind address '%s'\n",
+                  bindaddr);
         return -1;
     }
 
     if (af == AF_INET6) {
         if (IN6_IS_ADDR_LINKLOCAL(&si6.sin6_addr)) {
             if (!ifname) {
-                fprintf(stderr,
-                        "Missing interface name for link local address\n");
+                logprintf(STDERR_FILENO,
+                          "Missing interface name for link local address\n");
                 return -1;
             }
             n = if_nametoindex(ifname);
             if (!n) {
-                fprintf(stderr,
-                        "Could not convert interface name '%s' to index: %s\n",
-                        ifname, strerror(errno));
+                logprintf(STDERR_FILENO,
+                          "Could not convert interface name '%s' to "
+                          "index: %s\n",
+                          ifname, strerror(errno));
                 return -1;
             }
             si6.sin6_scope_id = n;
@@ -642,29 +644,30 @@ static int tcp_open_socket(unsigned short port, const char *bindaddr,
 
     fd = socket(af, SOCK_STREAM, 0);
     if (fd < 0) {
-        fprintf(stderr, "Could not open TCP socket\n");
+        logprintf(STDERR_FILENO, "Could not open TCP socket\n");
         return -1;
     }
 
     opt = 1;
     n = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     if (n < 0) {
-        fprintf(stderr, "Could not set socket option SO_REUSEADDR: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO,
+                  "Could not set socket option SO_REUSEADDR: %s\n",
+                  strerror(errno));
         goto error;
     }
 
     n = bind(fd, sa, sa_len);
     if (n < 0) {
-        fprintf(stderr, "Could not open TCP socket: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO, "Could not open TCP socket: %s\n",
+                  strerror(errno));
         goto error;
     }
 
     n = listen(fd, 1);
     if (n < 0) {
-        fprintf(stderr, "Cannot listen on TCP socket: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO, "Cannot listen on TCP socket: %s\n",
+                  strerror(errno));
         goto error;
     }
 
@@ -694,13 +697,14 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
 
     ovs = options_parse(options, ctrl_opt_desc, &error);
     if (!ovs) {
-        fprintf(stderr, "Error parsing ctrl options: %s\n", error);
+        logprintf(STDERR_FILENO, "Error parsing ctrl options: %s\n", error);
         goto error;
     }
 
     type = option_get_string(ovs, "type", NULL);
     if (!type) {
-        fprintf(stderr, "Missing type parameter for control channel\n");
+        logprintf(STDERR_FILENO,
+                  "Missing type parameter for control channel\n");
         goto error;
     }
 
@@ -710,18 +714,18 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
         clientfd = option_get_int(ovs, "clientfd", -1);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
-               fprintf(stderr,
-                       "Bad filedescriptor %d for UnixIO control channel\n",
-                       fd);
+               logprintf(STDERR_FILENO,
+                         "Bad filedescriptor %d for UnixIO control channel\n",
+                         fd);
                goto error;
             }
 
             *cc = ctrlchannel_new(fd, false);
         } else if (clientfd >= 0) {
             if (fstat(clientfd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
-               fprintf(stderr,
-                       "Bad filedescriptor %d for UnixIO client control"
-                       " channel\n", clientfd);
+               logprintf(STDERR_FILENO,
+                         "Bad filedescriptor %d for UnixIO client control"
+                         " channel\n", clientfd);
                goto error;
             }
 
@@ -733,8 +737,9 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
 
             *cc = ctrlchannel_new(fd, false);
         } else {
-            fprintf(stderr,
-                   "Missing path and fd options for UnixIO control channel\n");
+            logprintf(STDERR_FILENO,
+                      "Missing path and fd options for UnixIO "
+                      "control channel\n");
             goto error;
         }
     } else if (!strcmp(type, "tcp")) {
@@ -742,16 +747,16 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
         fd = option_get_int(ovs, "fd", -1);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
-               fprintf(stderr,
-                       "Bad filedescriptor %d for TCP control channel\n", fd);
+               logprintf(STDERR_FILENO,
+                         "Bad filedescriptor %d for TCP control channel\n", fd);
                goto error;
             }
 
             *cc = ctrlchannel_new(fd, false);
         } else if (port >= 0) {
             if (port >= 0x10000) {
-                fprintf(stderr,
-                        "TCP control channel port outside valid range\n");
+                logprintf(STDERR_FILENO,
+                          "TCP control channel port outside valid range\n");
                 goto error;
             }
 
@@ -764,12 +769,12 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
 
             *cc = ctrlchannel_new(fd, false);
         } else {
-            fprintf(stderr,
-                    "Missing port and fd options for TCP control channel\n");
+            logprintf(STDERR_FILENO,
+                      "Missing port and fd options for TCP control channel\n");
             goto error;
         }
     } else {
-        fprintf(stderr, "Unsupport control channel type: %s\n", type);
+        logprintf(STDERR_FILENO, "Unsupport control channel type: %s\n", type);
         goto error;
     }
 
@@ -825,7 +830,7 @@ static int parse_server_options(char *options, struct server **c)
 
     ovs = options_parse(options, server_opt_desc, &error);
     if (!ovs) {
-        fprintf(stderr, "Error parsing server options: %s\n", error);
+        logprintf(STDERR_FILENO, "Error parsing server options: %s\n", error);
         goto error;
     }
 
@@ -839,9 +844,9 @@ static int parse_server_options(char *options, struct server **c)
         fd = option_get_int(ovs, "fd", -1);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
-               fprintf(stderr,
-                       "Bad filedescriptor %d for UnixIO control channel\n",
-                       fd);
+               logprintf(STDERR_FILENO,
+                         "Bad filedescriptor %d for UnixIO control channel\n",
+                         fd);
                goto error;
             }
 
@@ -853,8 +858,9 @@ static int parse_server_options(char *options, struct server **c)
 
             *c = server_new(fd, flags);
         } else {
-            fprintf(stderr,
-                   "Missing path and file descriptor option for UnixIO socket\n");
+            logprintf(STDERR_FILENO,
+                      "Missing path and file descriptor option for UnixIO "
+                      "socket\n");
             goto error;
         }
     } else if (!strcmp(type, "tcp")) {
@@ -862,8 +868,8 @@ static int parse_server_options(char *options, struct server **c)
         fd = option_get_int(ovs, "fd", -1);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
-               fprintf(stderr,
-                       "Bad filedescriptor %d for TCP socket\n", fd);
+               logprintf(STDERR_FILENO,
+                         "Bad filedescriptor %d for TCP socket\n", fd);
                goto error;
             }
 
@@ -872,8 +878,8 @@ static int parse_server_options(char *options, struct server **c)
             *c = server_new(fd, flags);
         } else if (port >= 0) {
             if (port >= 0x10000) {
-                fprintf(stderr,
-                        "TCP socket port outside valid range\n");
+                logprintf(STDERR_FILENO,
+                          "TCP socket port outside valid range\n");
                 goto error;
             }
 
@@ -886,12 +892,12 @@ static int parse_server_options(char *options, struct server **c)
 
             *c = server_new(fd, flags);
         } else {
-            fprintf(stderr,
-                    "Missing port and fd options for TCP socket\n");
+            logprintf(STDERR_FILENO,
+                      "Missing port and fd options for TCP socket\n");
             goto error;
         }
     } else {
-        fprintf(stderr, "Unsupport socket type: %s\n", type);
+        logprintf(STDERR_FILENO, "Unsupport socket type: %s\n", type);
         goto error;
     }
 

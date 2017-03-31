@@ -57,7 +57,7 @@
 #include <sys/stat.h>
 
 #include "key.h"
-
+#include "logging.h"
 
 /*
  * key_format_from_string:
@@ -74,7 +74,7 @@ key_format_from_string(const char *format)
     } else if (!strcmp(format, "binary")) {
         return KEY_FORMAT_BINARY;
     }
-    fprintf(stderr, "Unknown key format '%s'.\n", format);
+    logprintf(STDERR_FILENO, "Unknown key format '%s'.\n", format);
 
     return KEY_FORMAT_UNKNOWN;
 }
@@ -151,14 +151,16 @@ key_parse_as_hexkey(const char *rawkey,
 
     digits = key_stream_to_bin(&rawkey[offset], key, maxkeylen);
     if (digits < 0) {
-        fprintf(stderr, "Could not parse key hex string into %zu byte buffer.\n",
-                maxkeylen);
+        logprintf(STDERR_FILENO,
+                  "Could not parse key hex string into %zu byte buffer.\n",
+                  maxkeylen);
         return -1;
     } else if (digits == 128/4) {
         *keylen = 128/8;
     } else {
-        fprintf(stderr, "Unsupported key length with %zu digits.\n",
-                digits);
+        logprintf(STDERR_FILENO,
+                  "Unsupported key length with %zu digits.\n",
+                  digits);
         return -1;
     }
 
@@ -188,15 +190,15 @@ key_load_key(const char *filename, enum key_format keyformat,
 
     fd = open(filename, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "Unable to open file %s: %s\n",
-                filename, strerror(errno));
+        logprintf(STDERR_FILENO, "Unable to open file %s: %s\n",
+                  filename, strerror(errno));
         return -1;
     }
     len = read(fd, filebuffer, sizeof(filebuffer) - 1);
     close(fd);
     if (len < 0) {
-        fprintf(stderr, "Unable to read key: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO, "Unable to read key: %s\n",
+                  strerror(errno));
         return -1;
     }
     filebuffer[len] = 0;
@@ -205,8 +207,9 @@ key_load_key(const char *filename, enum key_format keyformat,
     case KEY_FORMAT_BINARY:
         *keylen = len;
         if (maxkeylen < (size_t)len) {
-            fprintf(stderr, "Key is larger than buffer (%zu > %zu).\n",
-                    len, maxkeylen);
+            logprintf(STDERR_FILENO,
+                      "Key is larger than buffer (%zu > %zu).\n",
+                      len, maxkeylen);
             return -1;
         }
         memcpy(key, filebuffer, len);
@@ -251,29 +254,32 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
 #endif
 
     if (maxkeylen > sizeof(hashbuf)) {
-        fprintf(stderr, "Request keylength is too big (%zu > %zu)\n",
-                maxkeylen, sizeof(hashbuf));
+        logprintf(STDERR_FILENO,
+                  "Request keylength is too big (%zu > %zu)\n",
+                  maxkeylen, sizeof(hashbuf));
         return -1;
     }
 
     fd = open(filename, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "Unable to open file %s : %s\n",
-                filename, strerror(errno));
+        logprintf(STDERR_FILENO,
+                  "Unable to open file %s : %s\n",
+                  filename, strerror(errno));
         return -1;
     }
     len = read(fd, filebuffer, sizeof(filebuffer));
     close(fd);
 
     if (len < 0) {
-        fprintf(stderr, "Unable to read passphrase: %s\n",
-                strerror(errno));
+        logprintf(STDERR_FILENO,
+                  "Unable to read passphrase: %s\n",
+                  strerror(errno));
         return -1;
     }
 
 #ifdef USE_FREEBL_CRYPTO_LIBRARY
     if (SHA512_HashBuf(hashbuf, filebuffer, len) != SECSuccess) {
-        fprintf(stderr, "Could not hash the passphrase");
+        logprintf(STDERR_FILENO, "Could not hash the passphrase");
         return -1;
     }
 #else

@@ -135,8 +135,8 @@ int mainLoop(struct mainLoopParams *mlp,
 
     rc = TPM_Malloc(&command, max_command_length);
     if (rc != TPM_SUCCESS) {
-        fprintf(stderr, "Could not allocate %u bytes for buffer.\n",
-                max_command_length);
+        logprintf(STDERR_FILENO, "Could not allocate %u bytes for buffer.\n",
+                  max_command_length);
         return rc;
     }
 

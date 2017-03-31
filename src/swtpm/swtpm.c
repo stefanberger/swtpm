@@ -189,6 +189,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {NULL        , 0                , 0, 0  },
     };
 
+    log_set_prefix("swtpm: ");
+
     while (TRUE) {
         opt = getopt_long(argc, argv, "dhp:f:tr:", longopts, &longindex);
 
@@ -204,17 +206,19 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             errno = 0;
             val = strtoul(optarg, &end_ptr, 0);
             if (val != (unsigned int)val || errno || end_ptr[0] != '\0') {
-                fprintf(stderr, "Cannot parse socket port number '%s'.\n",
-                        optarg);
+                logprintf(STDERR_FILENO,
+                          "Cannot parse socket port number '%s'.\n",
+                          optarg);
                 exit(1);
             }
             if (val >= 0x10000) {
-                fprintf(stderr, "Port is outside valid range.\n");
+                logprintf(STDERR_FILENO, "Port is outside valid range.\n");
                 exit(1);
             }
             snprintf(buf, sizeof(buf), "%lu", val);
             if (setenv("TPM_PORT", buf, 1) != 0) {
-                fprintf(stderr, "Could not set port: %s\n", strerror(errno));
+                logprintf(STDERR_FILENO,
+                          "Could not set port: %s\n", strerror(errno));
                 exit(1);
             }
             break;
@@ -223,13 +227,14 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             errno = 0;
             val = strtoul(optarg, &end_ptr, 10);
             if (val != (unsigned int)val || errno || end_ptr[0] != '\0') {
-                fprintf(stderr, "Cannot parse socket file descriptor.\n");
+                logprintf(STDERR_FILENO,
+                          "Cannot parse socket file descriptor.\n");
                 exit(1);
             }
             mlp.fd = val;
             if (fstat(mlp.fd, &statbuf) != 0) {
-                fprintf(stderr, "Cannot stat file descriptor: %s\n", 
-                        strerror(errno));
+                logprintf(STDERR_FILENO, "Cannot stat file descriptor: %s\n", 
+                          strerror(errno));
                 exit(1);
             }
             /*
@@ -238,8 +243,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
              */
             if (S_ISREG(statbuf.st_mode) || S_ISDIR(statbuf.st_mode) || S_ISBLK(statbuf.st_mode)
                 || S_ISLNK(statbuf.st_mode)) {
-                fprintf(stderr,
-                        "Given file descriptor type is not supported.\n");
+                logprintf(STDERR_FILENO,
+                          "Given file descriptor type is not supported.\n");
                 exit(1);
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
