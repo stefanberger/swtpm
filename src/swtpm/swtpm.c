@@ -210,6 +210,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             break;
 
         case 'f':
+            errno = 0;
             val = strtoul(optarg, &end_ptr, 10);
             if (val != (unsigned int)val || errno || end_ptr[0] != '\0') {
                 fprintf(stderr, "Cannot parse socket file descriptor.\n");
