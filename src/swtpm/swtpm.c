@@ -237,7 +237,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
                         "Given file descriptor type is not supported.\n");
                 exit(1);
             }
-            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
+            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
+                         MAIN_LOOP_FLAG_KEEP_CONNECTION;
             SWTPM_IO_SetSocketFD(mlp.fd);
 
             break;
