@@ -117,7 +117,7 @@ void TPM_PrintAll(const char *string, const char *indentation,
                 TPM_AppendPrintf(&linebuffer, "%s", indentation);
             }
 
-            TPM_AppendPrintf(&linebuffer, "%.2X", buff[i]);
+            TPM_AppendPrintf(&linebuffer, "%.2X ", buff[i]);
         }
         TPM_AppendPrintf(&linebuffer, "\n");
         logprintf(STDERR_FILENO, "%s", linebuffer);
