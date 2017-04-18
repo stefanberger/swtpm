@@ -312,7 +312,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
-        handle_server_options(serverdata, &server)) {
+        handle_server_options(serverdata, &server) < 0) {
         goto exit_failure;
     }
 
