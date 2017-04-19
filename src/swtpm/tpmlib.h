@@ -54,7 +54,7 @@ struct tpm_req_header {
     uint16_t tag;
     uint32_t size;
     uint32_t ordinal;
-};
+} __attribute__((packed));
 
 /* TPM 1.2 ordinals */
 #define TPMLIB_TPM_ORD_TakeOwnership   0x0000000d
