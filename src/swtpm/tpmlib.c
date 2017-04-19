@@ -160,3 +160,35 @@ TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locality,
 
     return res;
 }
+
+static void tpmlib_write_error_response(unsigned char **rbuffer,
+                                        uint32_t *rlength,
+                                        uint32_t *rTotal,
+                                        TPM_RESULT errcode)
+{
+    struct tpm_resp_header errresp = {
+        .tag = htobe16(0xc4),
+        .size = htobe32(sizeof(errresp)),
+        .errcode = htobe32(errcode),
+    };
+
+    if (*rbuffer == NULL ||
+        *rTotal < sizeof(errresp)) {
+        TPM_Realloc(rbuffer, sizeof(errresp));
+        if (*rbuffer)
+            *rTotal = sizeof(errresp);
+        else
+            *rTotal = 0;
+    }
+    if (*rbuffer) {
+        *rlength = sizeof(errresp);
+        memcpy(*rbuffer, &errresp, sizeof(errresp));
+    }
+}
+
+void tpmlib_write_fatal_error_response(unsigned char **rbuffer,
+                                       uint32_t *rlength,
+                                       uint32_t *rTotal)
+{
+    tpmlib_write_error_response(rbuffer, rlength, rTotal, TPM_FAIL);
+}

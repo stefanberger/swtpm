@@ -49,11 +49,20 @@ int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
 bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len);
 TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locty,
                                        TPM_MODIFIER_INDICATOR locty);
+void tpmlib_write_fatal_error_response(unsigned char **rbuffer,
+                                       uint32_t *rlength,
+                                       uint32_t *rTotal);
 
 struct tpm_req_header {
     uint16_t tag;
     uint32_t size;
     uint32_t ordinal;
+} __attribute__((packed));
+
+struct tpm_resp_header {
+    uint16_t tag;
+    uint32_t size;
+    uint32_t errcode;
 } __attribute__((packed));
 
 /* TPM 1.2 ordinals */

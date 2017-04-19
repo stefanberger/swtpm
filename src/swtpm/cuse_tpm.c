@@ -204,12 +204,6 @@ static const char *usage =
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
 
-const static unsigned char TPM_Resp_FatalError[] = {
-    0x00, 0xC4,                     /* TPM Response */
-    0x00, 0x00, 0x00, 0x0A,         /* length (10) */
-    0x00, 0x00, 0x00, 0x09          /* TPM_FAIL */
-};
-
 const static unsigned char TPM_ResetEstablishmentBit[] = {
     0x00, 0xC1,                     /* TPM Request */
     0x00, 0x00, 0x00, 0x0A,         /* length (10) */
@@ -488,17 +482,9 @@ error_del_pool:
  */
 static void ptm_write_fatal_error_response(void)
 {
-    if (ptm_response == NULL ||
-        ptm_res_tot < sizeof(TPM_Resp_FatalError)) {
-        ptm_res_tot = sizeof(TPM_Resp_FatalError);
-        TPM_Realloc(&ptm_response, ptm_res_tot);
-    }
-    if (ptm_response) {
-        ptm_res_len = sizeof(TPM_Resp_FatalError);
-        memcpy(ptm_response,
-               TPM_Resp_FatalError,
-               sizeof(TPM_Resp_FatalError));
-    }
+    tpmlib_write_fatal_error_response(&ptm_response,
+                                      &ptm_res_len,
+                                      &ptm_res_tot);
 }
 
 /************************************ read() support ***************************/

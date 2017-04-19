@@ -65,15 +65,7 @@
 static TPM_MODIFIER_INDICATOR locality;
 static bool tpm_running = true;
 
-const static unsigned char TPM_Resp_FatalError[] = {
-    0x00, 0xC4,                     /* TPM Response */
-    0x00, 0x00, 0x00, 0x0A,         /* length (10) */
-    0x00, 0x00, 0x00, 0x09          /* TPM_FAIL */
-};
-
-
 bool mainloop_terminate;
-
 
 TPM_RESULT
 mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
@@ -82,24 +74,6 @@ mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
     *loc = locality;
 
     return TPM_SUCCESS;
-}
-
-static void
-mainloop_write_fatal_error_response(unsigned char **rbuffer,
-                                    uint32_t *rlength,
-                                    uint32_t *rTotal)
-{
-    if (*rbuffer == NULL ||
-        *rTotal < sizeof(TPM_Resp_FatalError)) {
-        *rTotal = sizeof(TPM_Resp_FatalError);
-        TPM_Realloc(rbuffer, *rTotal);
-    }
-    if (*rbuffer) {
-        *rlength = sizeof(TPM_Resp_FatalError);
-        memcpy(*rbuffer,
-               TPM_Resp_FatalError,
-               sizeof(TPM_Resp_FatalError));
-    }
 }
 
 int mainLoop(struct mainLoopParams *mlp,
@@ -233,8 +207,8 @@ int mainLoop(struct mainLoopParams *mlp,
 
             if (rc == 0) {
                 if (!tpm_running) {
-                    mainloop_write_fatal_error_response(&rbuffer, &rlength,
-                                                        &rTotal);
+                    tpmlib_write_fatal_error_response(&rbuffer, &rlength,
+                                                      &rTotal);
                     goto skip_process;
                 }
             }
