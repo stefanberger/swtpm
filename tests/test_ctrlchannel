@@ -29,7 +29,7 @@ function unix_tx()
 {
 	rm -f $CMD_PATH $RESP_PATH
 	echo -en "$1" > $CMD_PATH
-	socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CLIENT:$SOCK_PATH 2>&1 | \
+	socat -x -t20 FILE:$CMD_PATH,rdonly UNIX-CLIENT:$SOCK_PATH 2>&1 | \
 		sed -n '/^ /p' | \
 		tail -n1 > $RESP_PATH
 	cat $RESP_PATH
