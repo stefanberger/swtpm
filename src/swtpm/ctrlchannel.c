@@ -179,7 +179,7 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
     /* n holds the number of available data bytes */
 
     while (true) {
-        if (n > remain) {
+        if (n < 0 || (uint32_t)n > remain) {
             res = TPM_BAD_PARAMETER;
             goto err_send_resp;
         }

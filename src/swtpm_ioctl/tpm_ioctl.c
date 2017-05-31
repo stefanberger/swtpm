@@ -49,6 +49,7 @@
  *     -C cancel an ongoing TPM command
  */
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -303,7 +304,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
         numbytes = write(file_fd, pgs.u.resp.data,
                          devtoh32(is_chardev, pgs.u.resp.length));
 
-        if (numbytes != devtoh32(is_chardev, pgs.u.resp.length)) {
+        if ((uint32_t)numbytes != devtoh32(is_chardev, pgs.u.resp.length)) {
             fprintf(stderr,
                     "Could not write to file '%s': %s\n",
                     filename, strerror(errno));
@@ -420,7 +421,7 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
                had_error = true;
                break;
             }
-            pss.u.req.length = htodev32(is_chardev, numbytes);
+            pss.u.req.length = htodev32(is_chardev, (uint32_t)numbytes);
 
             /* the returnsize is zero on all intermediate packets */
             returnsize = ((size_t)numbytes < sizeof(pss.u.req.data))
@@ -863,7 +864,8 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
         /* no tpm_result here */
-        printf("ptm capability is 0x%lx\n", (uint64_t)devtoh64(is_chardev, cap));
+        printf("ptm capability is 0x%" PRIx64 "\n",
+               (uint64_t)devtoh64(is_chardev, cap));
 
     } else if (!strcmp(command, "-i")) {
         init.u.req.init_flags = htodev32(is_chardev, PTM_INIT_FLAG_DELETE_VOLATILE);
