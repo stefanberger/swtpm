@@ -436,7 +436,7 @@ fi
 
 with_vtpm_proxy=no
 case $host_os in
-linux-gnu)
+linux-*)
   with_vtpm_proxy=yes
   AC_DEFINE_UNQUOTED([WITH_VTPM_PROXY], 1,
                      [whether to build in vTPM proxy support (Linux only)])
