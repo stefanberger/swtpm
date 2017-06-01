@@ -50,6 +50,10 @@
 #include "logging.h"
 #include "tpm_ioctl.h"
 #include "swtpm_nvfile.h"
+#include "locality.h"
+#ifdef WITH_VTPM_PROXY
+#include "vtpm_proxy.h"
+#endif
 
 /*
  * convert the blobtype integer into a string that libtpms
@@ -192,3 +196,106 @@ void tpmlib_write_fatal_error_response(unsigned char **rbuffer,
 {
     tpmlib_write_error_response(rbuffer, rlength, rTotal, TPM_FAIL);
 }
+
+void tpmlib_write_locality_error_response(unsigned char **rbuffer,
+                                          uint32_t *rlength,
+                                          uint32_t *rTotal)
+{
+    tpmlib_write_error_response(rbuffer, rlength, rTotal, TPM_BAD_LOCALITY);
+}
+
+void tpmlib_write_success_response(unsigned char **rbuffer,
+                                   uint32_t *rlength,
+                                   uint32_t *rTotal)
+{
+    tpmlib_write_error_response(rbuffer, rlength, rTotal, 0);
+}
+
+#ifdef WITH_VTPM_PROXY
+static void tpmlib_write_shortmsg_error_response(unsigned char **rbuffer,
+                                                 uint32_t *rlength,
+                                                 uint32_t *rTotal)
+{
+    tpmlib_write_error_response(rbuffer, rlength, rTotal, TPM_BAD_PARAM_SIZE);
+}
+
+static TPM_RESULT tpmlib_process_setlocality(unsigned char **rbuffer,
+                                             uint32_t *rlength,
+                                             uint32_t *rTotal,
+                                             unsigned char *command,
+                                             uint32_t command_length,
+                                             uint32_t locality_flags,
+                                             TPM_MODIFIER_INDICATOR *locality)
+{
+    TPM_MODIFIER_INDICATOR new_locality;
+
+    if (command_length >= sizeof(struct tpm_req_header) + sizeof(char)) {
+        if (!(locality_flags & LOCALITY_FLAG_ALLOW_SETLOCALITY)) {
+            /* SETLOCALITY command is not allowed */
+            tpmlib_write_fatal_error_response(rbuffer,
+                                              rlength, rTotal);
+        } else {
+            new_locality = command[sizeof(struct tpm_req_header)];
+            if (new_locality >=5 ||
+                (new_locality == 4 &&
+                 locality_flags & LOCALITY_FLAG_REJECT_LOCALITY_4)) {
+                tpmlib_write_locality_error_response(rbuffer,
+                                                     rlength, rTotal);
+            } else {
+                tpmlib_write_success_response(rbuffer,
+                                              rlength, rTotal);
+                *locality = new_locality;
+            }
+        }
+    } else {
+        tpmlib_write_shortmsg_error_response(rbuffer,
+                                             rlength, rTotal);
+    }
+    return TPM_SUCCESS;
+}
+
+TPM_RESULT tpmlib_process(unsigned char **rbuffer,
+                          uint32_t *rlength,
+                          uint32_t *rTotal,
+                          unsigned char *command,
+                          uint32_t command_length,
+                          uint32_t locality_flags,
+                          TPM_MODIFIER_INDICATOR *locality)
+{
+    /* process those commands we need to handle, e.g. SetLocality */
+    struct tpm_req_header *req = (struct tpm_req_header *)command;
+    uint32_t ordinal;
+
+    if (command_length < sizeof(*req)) {
+        tpmlib_write_shortmsg_error_response(rbuffer,
+                                             rlength, rTotal);
+        return TPM_SUCCESS;
+    }
+
+    ordinal = be32toh(req->ordinal);
+
+    switch (ordinal) {
+    case TPM_CC_SET_LOCALITY:
+        return tpmlib_process_setlocality(rbuffer, rlength, rTotal,
+                                          command, command_length,
+                                          locality_flags,
+                                          locality);
+    }
+    return TPM_SUCCESS;
+}
+
+#else
+
+TPM_RESULT tpmlib_process(unsigned char **rbuffer,
+                          uint32_t *rlength,
+                          uint32_t *rTotal,
+                          unsigned char *command,
+                          uint32_t command_length,
+                          TPMLIB_TPMVersion tpmversion,
+                          uint32_t locality_flags,
+                          TPM_MODIFIER_INDICATOR *locality)
+{
+    return TPM_SUCCESS;
+}
+
+#endif /* WITH_VTPM_PROXY */

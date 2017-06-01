@@ -1,7 +1,7 @@
 /*
- * ctrlchannel.h -- control channel implementation
+ * locality.h -- locality parameters
  *
- * (c) Copyright IBM Corporation 2015.
+ * (c) Copyright IBM Corporation 2017.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -35,22 +35,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SWTPM_CTRLCHANNEL_H_
-#define _SWTPM_CTRLCHANNEL_H_
+#ifndef _SWTPM_LOCALITY_H_
+#define _SWTPM_LOCALITY_H_
 
-#include <stdbool.h>
+#define LOCALITY_FLAG_REJECT_LOCALITY_4   (1 << 0)
+#define LOCALITY_FLAG_ALLOW_SETLOCALITY   (1 << 1)
 
-struct ctrlchannel;
-struct libtpms_callbacks;
-
-struct ctrlchannel *ctrlchannel_new(int fd, bool isclient);
-int ctrlchannel_get_fd(struct ctrlchannel *cc);
-int ctrlchannel_get_client_fd(struct ctrlchannel *cc);
-int ctrlchannel_process_fd(int fd,
-                           struct libtpms_callbacks *cbs,
-                           bool *terminate,
-                           TPM_MODIFIER_INDICATOR *locality,
-                           bool *tpm_running,
-                           uint32_t locality_flags);
-
-#endif /* _SWTPM_CTRLCHANNEL_H_ */
+#endif /* _SWTPM_LOCALITY_H_ */

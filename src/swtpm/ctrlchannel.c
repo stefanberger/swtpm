@@ -55,6 +55,7 @@
 #include "tpm_ioctl.h"
 #include "tpmlib.h"
 #include "swtpm_nvfile.h"
+#include "locality.h"
 
 /* local variables */
 
@@ -231,7 +232,7 @@ err_fd_broken:
  *            number when set via CMD_SET_LOCALITY
  * @tpm_running: indicates whether the TPM is running; may be changed by
  *               this function in case TPM is stopped or started
- * @tpmversion: the emulated TPM's version
+ * @locality_flags: flags indicate how to handle locality 4
  *
  * This function returns the passed file descriptor or -1 in case the
  * file descriptor was closed.
@@ -240,7 +241,8 @@ int ctrlchannel_process_fd(int fd,
                            struct libtpms_callbacks *cbs,
                            bool *terminate,
                            TPM_MODIFIER_INDICATOR *locality,
-                           bool *tpm_running)
+                           bool *tpm_running,
+                           uint32_t locality_flags)
 {
     struct input {
         uint32_t cmd;
@@ -388,7 +390,9 @@ int ctrlchannel_process_fd(int fd,
             goto err_bad_input;
 
         pl = (ptm_loc *)input.body;
-        if (pl->u.req.loc > 4) {
+        if (pl->u.req.loc > 4 ||
+            (pl->u.req.loc == 4 &&
+             locality_flags & LOCALITY_FLAG_REJECT_LOCALITY_4)) {
             res = TPM_BAD_LOCALITY;
         } else {
             res = TPM_SUCCESS;

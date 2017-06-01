@@ -125,6 +125,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
     "                 : provide a passphrase in a file; the AES key will be\n"
     "                   derived from this passphrase\n"
+    "--locality reject-locality-4\n"
+    "                 : reject-locality-4: reject any command in locality 4\n"
     "--pid file=<path>\n"
     "                 : write the process ID into the given file\n"
     "--tpmstate dir=<dir>\n"
@@ -157,6 +159,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         .cc = NULL,
         .flags = 0,
         .fd = -1,
+        .locality_flags = 0,
     };
     struct server *server = NULL;
     unsigned long val;
@@ -165,6 +168,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *keydata = NULL;
     char *logdata = NULL;
     char *piddata = NULL;
+    char *localitydata = NULL;
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
     char *serverdata = NULL;
@@ -182,6 +186,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"server"    , required_argument, 0, 'c'},
         {"runas"     , required_argument, 0, 'r'},
         {"terminate" ,       no_argument, 0, 't'},
+        {"locality"  , required_argument, 0, 'L'},
         {"log"       , required_argument, 0, 'l'},
         {"key"       , required_argument, 0, 'k'},
         {"pid"       , required_argument, 0, 'P'},
@@ -287,6 +292,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             ctrlchdata = optarg;
             break;
 
+        case 'L':
+            localitydata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -310,6 +319,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
+        handle_locality_options(localitydata, &mlp.locality_flags) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
         handle_server_options(serverdata, &server) < 0) {

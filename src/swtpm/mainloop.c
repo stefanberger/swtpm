@@ -57,6 +57,7 @@
 #include "swtpm_debug.h"
 #include "swtpm_io.h"
 #include "tpmlib.h"
+#include "locality.h"
 #include "logging.h"
 #include "ctrlchannel.h"
 #include "mainloop.h"
@@ -181,7 +182,8 @@ int mainLoop(struct mainLoopParams *mlp,
             if (pollfds[CTRL_CLIENT_FD].revents & POLLIN) {
                 ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, callbacks,
                                                     &mainloop_terminate,
-                                                    &locality, &tpm_running);
+                                                    &locality, &tpm_running,
+                                                    mlp->locality_flags);
                 if (mainloop_terminate)
                     break;
             }
@@ -211,6 +213,19 @@ int mainLoop(struct mainLoopParams *mlp,
                                                       &rTotal);
                     goto skip_process;
                 }
+            }
+
+            if (rc == 0) {
+                rlength = 0;                                /* clear the response buffer */
+                rc = tpmlib_process(&rbuffer,
+                                    &rlength,
+                                    &rTotal,
+                                    command,                /* complete command array */
+                                    command_length,         /* actual bytes in command */
+                                    mlp->locality_flags,
+                                    &locality);
+                if (rlength)
+                    goto skip_process;
             }
 
             if (rc == 0) {

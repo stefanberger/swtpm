@@ -67,6 +67,7 @@
 #include "common.h"
 #include "tpmstate.h"
 #include "pidfile.h"
+#include "locality.h"
 #include "logging.h"
 #include "tpm_ioctl.h"
 #include "swtpm_nvfile.h"
@@ -93,6 +94,9 @@ static TPM_MODIFIER_INDICATOR locality;
 /* whether the TPM is running (TPM_Init was received) */
 static bool tpm_running;
 
+/* flags on how to handle locality */
+static uint32_t locality_flags;
+
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
@@ -118,6 +122,7 @@ struct cuse_param {
     char *migkeydata;
     char *piddata;
     char *tpmstatedata;
+    char *localitydata;
 };
 
 /* single message to send to the worker thread */
@@ -180,6 +185,8 @@ static const char *usage =
 "--key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
 "                    :  provide a passphrase in a file; the AES key will be\n"
 "                       derived from this passphrase\n"
+"--locality reject-locality-4]\n"
+"                    :  reject-locality-4: reject any command in locality 4\n"
 "--migration-key file=<path>[,mode=aes-cbc][,format=hex|binary][,remove=[true|false]]\n"
 "                    :  use an AES key for the encryption of the TPM's state\n"
 "                       when it is retrieved from the TPM via ioctls;\n"
@@ -1051,7 +1058,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
             ptm_loc *l = (ptm_loc *)in_buf;
-            if (l->u.req.loc > 4) {
+            if (l->u.req.loc > 4 ||
+                (l->u.req.loc == 4 &&
+                 locality_flags & LOCALITY_FLAG_REJECT_LOCALITY_4)) {
                 res = TPM_BAD_LOCALITY;
             } else {
                 res = TPM_SUCCESS;
@@ -1228,6 +1237,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {"name"          , required_argument, 0, 'n'},
         {"runas"         , required_argument, 0, 'r'},
         {"log"           , required_argument, 0, 'l'},
+        {"locality"      , required_argument, 0, 'L'},
         {"key"           , required_argument, 0, 'k'},
         {"migration-key" , required_argument, 0, 'K'},
         {"pid"           , required_argument, 0, 'p'},
@@ -1316,6 +1326,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case 's': /* tpmstate */
             param.tpmstatedata = optarg;
             break;
+        case 'L':
+            param.localitydata = optarg;
+            break;
         case 'h': /* help */
             fprintf(stdout, usage, prgname, iface);
             return 0;
@@ -1338,7 +1351,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_key_options(param.keydata) < 0 ||
         handle_migration_key_options(param.migkeydata) < 0 ||
         handle_pid_options(param.piddata) < 0 ||
-        handle_tpmstate_options(param.tpmstatedata) < 0)
+        handle_tpmstate_options(param.tpmstatedata) < 0 ||
+        handle_locality_options(param.localitydata, &locality_flags) < 0)
         return -3;
 
     if (setuid(0)) {

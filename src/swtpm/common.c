@@ -56,6 +56,7 @@
 #include "common.h"
 #include "options.h"
 #include "key.h"
+#include "locality.h"
 #include "logging.h"
 #include "swtpm_nvfile.h"
 #include "pidfile.h"
@@ -167,6 +168,14 @@ static const OptionDesc server_opt_desc[] = {
         .type = OPT_TYPE_INT,
     }, {
         .name = "disconnect",
+        .type = OPT_TYPE_BOOLEAN,
+    },
+    END_OPTION_DESC
+};
+
+static const OptionDesc locality_opt_desc[] = {
+    {
+        .name = "reject-locality-4",
         .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
@@ -928,6 +937,51 @@ int handle_server_options(char *options, struct server **c)
         return 0;
 
     if (parse_server_options(options, c) < 0)
+        return -1;
+
+    return 0;
+}
+
+static int parse_locality_options(char *options, uint32_t *flags)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+
+    ovs = options_parse(options, locality_opt_desc, &error);
+    if (!ovs) {
+        logprintf(STDERR_FILENO, "Error parsing locality options: %s\n", error);
+        goto error;
+    }
+
+    if (option_get_bool(ovs, "reject-locality-4", false))
+        *flags |= LOCALITY_FLAG_REJECT_LOCALITY_4;
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+
+    return -1;
+}
+
+/*
+ * handle_locality_options:
+ * Parse the 'locality' options.
+ *
+ * @options: the locality options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int handle_locality_options(char *options, uint32_t *flags)
+{
+    *flags = 0;
+
+    if (!options)
+        return 0;
+
+    if (parse_locality_options(options, flags) < 0)
         return -1;
 
     return 0;

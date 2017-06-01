@@ -46,6 +46,7 @@ struct ctrlchannel;
 int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc);
 struct server;
 int handle_server_options(char *options, struct server **s);
+int handle_locality_options(char *options, uint32_t *flags);
 
 #endif /* _SWTPM_COMMON_H_ */
 

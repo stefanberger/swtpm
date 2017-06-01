@@ -194,6 +194,11 @@ level 5, libtpms debug logging is activated.
 
 All logged lines will be prefixed with prefix. By default no prefix is prepended.
 
+=item B<--locality reject-locality-4>
+
+The I<reject-locality-4> parameter will cause TPM error messages to be
+returned for requests to set the TPM into locality 4.
+
 =item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
 
 Enable encryption of the state files of the TPM. The keyfile must contain

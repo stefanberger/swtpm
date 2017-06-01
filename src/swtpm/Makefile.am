@@ -8,6 +8,7 @@ noinst_HEADERS = \
 	common.h \
 	ctrlchannel.h \
 	key.h \
+	locality.h \
 	logging.h \
 	main.h \
 	mainloop.h \

@@ -49,6 +49,10 @@ struct vtpm_proxy_new_dev {
 
 #define VTPM_PROXY_FLAG_TPM2   1
 
+/* vendor specific commands to set locality */
+#define TPM2_CC_SET_LOCALITY 0x20001000
+#define TPM_CC_SET_LOCALITY  0x20001000
+
 #define VTPM_PROXY_IOC_NEW_DEV _IOWR(0xa1, 0x00, struct vtpm_proxy_new_dev)
 
 #endif /* _SWTPM_VTPM_PROXY_H_ */

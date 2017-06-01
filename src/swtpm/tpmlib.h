@@ -52,6 +52,18 @@ TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locty,
 void tpmlib_write_fatal_error_response(unsigned char **rbuffer,
                                        uint32_t *rlength,
                                        uint32_t *rTotal);
+void tpmlib_write_locality_error_response(unsigned char **rbuffer,
+                                          uint32_t *rlength,
+                                          uint32_t *rTotal);
+void tpmlib_write_success_response(unsigned char **rbuffer,
+                                   uint32_t *rlength,
+                                   uint32_t *rTotal);
+TPM_RESULT tpmlib_process(unsigned char **rbuffer, uint32_t *rlength,
+                          uint32_t *rTotal,
+                          unsigned char *command,
+                          uint32_t command_length,
+                          uint32_t locality_flags,
+                          TPM_MODIFIER_INDICATOR *locality);
 
 struct tpm_req_header {
     uint16_t tag;
@@ -68,5 +80,8 @@ struct tpm_resp_header {
 /* TPM 1.2 ordinals */
 #define TPMLIB_TPM_ORD_TakeOwnership   0x0000000d
 #define TPMLIB_TPM_ORD_CreateWrapKey   0x0000001f
+
+/* TPM 2 error codes */
+#define TPM_RC_LOCALITY     0x107
 
 #endif /* _SWTPM_TPMLIB_H_ */

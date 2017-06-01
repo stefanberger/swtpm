@@ -59,6 +59,7 @@
 #include "swtpm_io.h"
 #include "swtpm_nvfile.h"
 #include "common.h"
+#include "locality.h"
 #include "logging.h"
 #include "pidfile.h"
 #include "tpmlib.h"
@@ -93,7 +94,8 @@ static void sigterm_handler(int sig __attribute__((unused)))
 }
 
 #ifdef WITH_VTPM_PROXY
-static int create_vtpm_proxy(struct vtpm_proxy_new_dev *vtpm_new_dev)
+static int create_vtpm_proxy(struct vtpm_proxy_new_dev *vtpm_new_dev,
+                             int *_errno)
 {
     int fd, n, ret = 0;
 
@@ -101,6 +103,7 @@ static int create_vtpm_proxy(struct vtpm_proxy_new_dev *vtpm_new_dev)
     if (fd < 0) {
         logprintf(STDERR_FILENO, "Could not open /dev/vtpmx: %s\n",
                   strerror(errno));
+        *_errno = errno;
         return -1;
     }
 
@@ -108,6 +111,7 @@ static int create_vtpm_proxy(struct vtpm_proxy_new_dev *vtpm_new_dev)
     if (n) {
         logprintf(STDERR_FILENO, "Ioctl to create vtpm proxy failed: %s\n",
                   strerror(errno));
+        *_errno = errno;
         ret = -1;
     }
     close(fd);
@@ -163,6 +167,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--vtpm-proxy     : spawn a Linux vTPM proxy driver device and read TPM\n"
 #endif
     "                   command from its anonymous file descriptor\n"
+    "--locality reject-locality-4\n"
+    "                 : reject-locality-4: reject any command in locality 4\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -178,12 +184,14 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         .cc = NULL,
         .fd = -1,
         .flags = 0,
+        .locality_flags = 0,
     };
     unsigned long val;
     char *end_ptr;
     char *keydata = NULL;
     char *logdata = NULL;
     char *piddata = NULL;
+    char *localitydata = NULL;
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
     char *runas = NULL;
@@ -199,6 +207,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"chardev"   , required_argument, 0, 'c'},
         {"fd"        , required_argument, 0, 'f'},
         {"runas"     , required_argument, 0, 'r'},
+        {"locality"  , required_argument, 0, 'L'},
         {"log"       , required_argument, 0, 'l'},
         {"key"       , required_argument, 0, 'k'},
         {"pid"       , required_argument, 0, 'P'},
@@ -291,6 +300,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             ctrlchdata = optarg;
             break;
 
+        case 'L':
+            localitydata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -311,19 +324,25 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         }
     }
 
+    if (handle_locality_options(localitydata, &mlp.locality_flags) < 0)
+        exit(1);
+
 #ifdef WITH_VTPM_PROXY
     if (use_vtpm_proxy) {
         struct vtpm_proxy_new_dev vtpm_new_dev = {
             .flags = 0,
         };
+        int _errno;
 
         if (mlp.fd >= 0) {
             logprintf(STDERR_FILENO,
                       "Cannot use vTPM proxy with a provided device.\n");
             exit(1);
         }
-        if (create_vtpm_proxy(&vtpm_new_dev))
+
+        if (create_vtpm_proxy(&vtpm_new_dev, &_errno))
             exit(1);
+
         mlp.fd = vtpm_new_dev.fd;
 
         mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
@@ -333,6 +352,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         fprintf(stdout, "New TPM device: /dev/tpm%u (major/minor = %u/%u)\n",
                 vtpm_new_dev.tpm_num,
                 vtpm_new_dev.major, vtpm_new_dev.minor);
+        mlp.locality_flags |= LOCALITY_FLAG_ALLOW_SETLOCALITY;
     }
 #endif
 

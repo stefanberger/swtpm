@@ -57,6 +57,7 @@ struct mainLoopParams {
 
     int fd;
     struct ctrlchannel *cc;
+    uint32_t locality_flags;
 };
 
 int mainLoop(struct mainLoopParams *mlp,
