@@ -178,6 +178,10 @@ static const OptionDesc locality_opt_desc[] = {
         .name = "reject-locality-4",
         .type = OPT_TYPE_BOOLEAN,
     },
+    {
+        .name = "allow-set-locality",
+        .type = OPT_TYPE_BOOLEAN,
+    },
     END_OPTION_DESC
 };
 
@@ -955,6 +959,8 @@ static int parse_locality_options(char *options, uint32_t *flags)
 
     if (option_get_bool(ovs, "reject-locality-4", false))
         *flags |= LOCALITY_FLAG_REJECT_LOCALITY_4;
+    if (option_get_bool(ovs, "allow-set-locality", false))
+        *flags |= LOCALITY_FLAG_ALLOW_SETLOCALITY;
 
     option_values_free(ovs);
 

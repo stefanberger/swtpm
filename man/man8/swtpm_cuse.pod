@@ -58,10 +58,17 @@ level 5, libtpms debug logging is activated.
 
 All logged lines will be prefixed with prefix. By default no prefix is prepended.
 
-=item B<--locality [reject-locality-4]>
+=item B<--locality [reject-locality-4][,allow-set-locality]>
 
 The I<reject-locality-4> parameter will cause TPM error messages to be
 returned for requests to set the TPM into locality 4.
+
+The I<allow-set-locality> parameter allows the swtpm to receive
+TPM/TPM2_SetLocality commands. This is parameter is useful if the Linux
+VTPM proxy driver access is enabled by file descriptor passing.
+This option is implied by the I<--vtpm-proxy> option and therefore need not
+be explicity set if this option is passed. In all other cases care should be
+taken as to who can send the TPM/TPM2_SetLocality command.
 
 =item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
 
