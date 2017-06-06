@@ -167,8 +167,9 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--vtpm-proxy     : spawn a Linux vTPM proxy driver device and read TPM\n"
 #endif
     "                   command from its anonymous file descriptor\n"
-    "--locality reject-locality-4\n"
+    "--locality [reject-locality-4][,allow-set-locality]\n"
     "                 : reject-locality-4: reject any command in locality 4\n"
+    "                   allow-set-locality: accept SetLocality command\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
