@@ -185,8 +185,9 @@ static const char *usage =
 "--key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
 "                    :  provide a passphrase in a file; the AES key will be\n"
 "                       derived from this passphrase\n"
-"--locality reject-locality-4]\n"
+"--locality [reject-locality-4][,allow-set-locality]\n"
 "                    :  reject-locality-4: reject any command in locality 4\n"
+"                       allow-set-locality: accept SetLocality command\n"
 "--migration-key file=<path>[,mode=aes-cbc][,format=hex|binary][,remove=[true|false]]\n"
 "                    :  use an AES key for the encryption of the TPM's state\n"
 "                       when it is retrieved from the TPM via ioctls;\n"
@@ -833,6 +834,13 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size)
         if (ptm_req_len > TPM_REQ_MAX)
             ptm_req_len = TPM_REQ_MAX;
 
+        /* process SetLocality command, if */
+        tpmlib_process(&ptm_response, &ptm_res_len, &ptm_res_tot,
+                       (unsigned char *)buf, ptm_req_len,
+                       locality_flags, &locality);
+        if (ptm_res_len)
+            goto skip_process;
+
         if (tpmlib_is_request_cancelable(ptm_request, ptm_req_len)) {
             /* have command processed by thread pool */
             memcpy(ptm_request, buf, ptm_req_len);
@@ -852,6 +860,7 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size)
         ptm_write_fatal_error_response();
     }
 
+skip_process:
     fuse_reply_write(req, ptm_req_len);
 
 cleanup:
