@@ -45,6 +45,7 @@ TESTS += \
 	test_tpm2_savestate \
 	test_tpm2_save_load_state_3 \
 	test_tpm2_setbuffersize \
+	test_tpm2_volatilestate \
 	test_tpm2_wrongorder \
 	test_tpm2_probe \
 	\
@@ -126,6 +127,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm2_savestate \
 	_test_tpm2_setbuffersize \
 	_test_tpm2_swtpm_bios \
+	_test_tpm2_volatilestate \
 	_test_tpm2_wrongorder \
 	_test_volatilestate \
 	_test_wrongorder
