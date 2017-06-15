@@ -1,0 +1,264 @@
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+
+SWTPM=swtpm
+SWTPM_EXE=${ROOT}/src/swtpm/${SWTPM}
+SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
+SWTPM_BIOS=${ROOT}/src/swtpm_bios/swtpm_bios
+ECHO=$(type -P echo)
+
+# Run the swtpm_ioctl command
+#
+# @param1: type of interface
+function run_swtpm_ioctl()
+{
+	local iface=$1; shift
+
+	case "${iface}" in
+	cuse)
+		[ -z "${SWTPM_DEV_NAME}" ] && {
+			echo "SWTPM_DEV_NAME not defined"
+			exit 1
+		}
+		${SWTPM_IOCTL} $@ ${SWTPM_DEV_NAME}
+		return $?
+		;;
+	socket+socket|unix+socket)
+		[ -z "${SWTPM_SERVER_NAME}" ] && {
+			echo "SWTPM_SERVER_NAME not defined"
+			exit 1
+		}
+		[ -z "${SWTPM_SERVER_PORT}" ] && {
+			echo "SWTPM_SERVER_PORT not defined"
+			exit 1
+		}
+		${SWTPM_IOCTL} \
+			--tcp ${SWTPM_SERVER_NAME}:${SWTPM_CTRL_PORT} \
+			$@
+		return $?
+		;;
+	socket+unix|unix+unix)
+		[ -z "${SWTPM_CTRL_UNIX_PATH}" ] && {
+			echo "SWTPM_CTRL_UNIX_PATH not defined"
+			exit 1
+		}
+		${SWTPM_IOCTL} \
+			--unix ${SWTPM_CTRL_UNIX_PATH} \
+			$@
+		return $?
+		;;
+	esac
+}
+
+# Start the swtpm in the background
+#
+# @param1: type of interface
+# @param2.. : parameters to pass to 'swtpm'
+function run_swtpm()
+{
+	local iface=$1; shift
+
+	echo "==== Starting swtpm with interfaces ${iface} ===="
+
+	case "${iface}" in
+	cuse)
+		[ -z "${SWTPM_DEV_NAME}" ] && {
+			echo "SWTPM_DEV_NAME not defined"
+			exit 1
+		}
+		${SWTPM_EXE} cuse $@ -n ${SWTPM_DEV_NAME##*/}
+		sleep 0.5
+		SWTPM_PID=$(ps aux |
+		            grep "cuse" |
+		            grep -E " ${SWTPM_DEV_NAME##*/}\$" |
+		            grep -v grep |
+		            gawk '{print $2}')
+		return $?
+		;;
+	socket+socket)
+		[ -z "${SWTPM_SERVER_PORT}" ] && {
+			echo "SWTPM_SERVER_PORT not defined"
+			exit 1
+		}
+		[ -z "${SWTPM_CTRL_PORT}" ] && {
+			echo "SWTPM_CTRL_PORT not defined"
+			exit 1
+		}
+		${SWTPM_EXE} socket $@ \
+			--server type=tcp,port=${SWTPM_SERVER_PORT},disconnect \
+			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
+		rc=$?
+		SWTPM_PID=$!
+		sleep 0.5
+		return $rc
+		;;
+	socket+unix)
+		[ -z "${SWTPM_SERVER_PORT}" ] && {
+			echo "SWTPM_SERVER_PORT not defined"
+			exit 1
+		}
+		[ -z "${SWTPM_CTRL_UNIX_PATH}" ] && {
+			echo "SWTPM_CTRL_UNIX_PATH not defined"
+			exit 1
+		}
+		${SWTPM_EXE} socket $@ \
+			--server type=tcp,port=${SWTPM_SERVER_PORT},disconnect \
+			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
+		rc=$?
+		SWTPM_PID=$!
+		sleep 0.5
+		return $rc
+		;;
+	unix+socket)
+		[ -z "${SWTPM_CMD_UNIX_PATH}" ] && {
+			echo "SWTPM_CMD_UNIX_PATH not defined"
+			exit 1
+		}
+		[ -z "${SWTPM_CTRL_PORT}" ] && {
+			echo "SWTPM_CTRL_PORT not defined"
+			exit 1
+		}
+		${SWTPM_EXE} socket $@ \
+			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
+			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
+		rc=$?
+		SWTPM_PID=$!
+		sleep 0.5
+		return $rc
+		;;
+	unix+unix)
+		[ -z "${SWTPM_CMD_UNIX_PATH}" ] && {
+			echo "SWTPM_CMD_UNIX_PATH not defined"
+			exit 1
+		}
+		[ -z "${SWTPM_CTRL_UNIX_PATH}" ] && {
+			echo "SWTPM_CTRL_UNIX_PATH not defined"
+			exit 1
+		}
+		${SWTPM_EXE} socket $@ \
+			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
+			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
+		rc=$?
+		SWTPM_PID=$!
+		sleep 0.5
+		return $rc
+		;;
+	esac
+}
+
+# Open the command channel/device on fd 100
+#
+# @param1: type of interface
+# @param2: must be '100'
+function swtpm_open_cmddev()
+{
+	local iface=$1; shift
+
+	[ "$1" != "100" ] && {
+		echo "swtpm_opendev: Filedescriptor must be 100"
+		exit 1
+	}
+
+	case "${iface}" in
+	cuse)
+		[ -z "${SWTPM_DEV_NAME}" ] && {
+			echo "SWTPM_DEV_NAME not defined"
+			exit 1
+		}
+		exec 100<>${SWTPM_DEV_NAME}
+		return $?
+		;;
+	socket+socket|socket+unix)
+		[ -z "${SWTPM_SERVER_NAME}" ] && {
+			echo "SWTPM_SERVER_NAME not defined"
+			exit 1
+		}
+		[ -z "${SWTPM_SERVER_PORT}" ] && {
+			echo "SWTPM_SERVER_PORT not defined"
+			exit 1
+		}
+		exec 100<>/dev/tcp/${SWTPM_SERVER_NAME}/${SWTPM_SERVER_PORT}
+		return $?
+		;;
+	unix+socket|unix+unix)
+		;;
+	*)
+		echo "swtpm_opendev: unsupported interface $iface"
+		exit 1
+	esac
+}
+
+# Transmit a command on fd 100
+#
+# @param1: type of interface
+function swtpm_cmd_tx()
+{
+	local iface=$1
+	local cmd_path resp_path
+
+	case "${iface}" in
+	cuse)
+		$ECHO -en "$2" >&100
+		dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128
+		;;
+	socket+socket|socket+unix)
+		$ECHO -en "$2" >&100
+		cat <&100 | od -t x1 -A n -w128
+		;;
+	unix+socket|unix+unix)
+		cmd_path=$(mktemp)
+		echo -en "$2" > ${cmd_path}
+		socat -x -t20 \
+			FILE:${cmd_path},rdonly \
+			UNIX-CLIENT:${SWTPM_CMD_UNIX_PATH} 2>&1 | \
+		  sed -n '/^ /p' | \
+		  tail -n1
+		rm -f ${cmd_path}
+		;;
+	*)
+		echo "swtpm_opendev: unsupported interface $iface"
+		exit 1
+	esac
+}
+
+# Run swtpm_bios
+#
+# @param1: type of interface
+# @param2 ...: parameters to pass to swtpm_bios
+function run_swtpm_bios()
+{
+	local iface=$1
+
+	shift
+
+	case "${iface}" in
+	cuse)
+		[ -z "${SWTPM_DEV_NAME}" ] && {
+			echo "SWTPM_DEV_NAME not defined"
+			exit 1
+		}
+		${SWTPM_BIOS} --tpm-device ${SWTPM_DEV_NAME} $@
+		return $?
+		;;
+	unix+unix|unix+socket)
+		[ -z "${SWTPM_CMD_UNIX_PATH}" ] && {
+			echo "SWTPM_CMD_UNIX_PATH not defined"
+			exit 1
+		}
+		${SWTPM_BIOS} --unix ${SWTPM_CMD_UNIX_PATH} $@
+		return $?
+		;;
+	socket+unix|socket+socket)
+		[ -z "${SWTPM_SERVER_PORT}" ] && {
+			echo "SWTPM_SERVER_PORT not defined"
+			exit 1
+		}
+		${SWTPM_BIOS} --tcp ${SWTPM_SERVER_NAME}:${SWTPM_SERVER_PORT} $@
+		return $?
+		;;
+	*)
+		echo "run_swtpm_bios: unsupported interface $iface"
+		exit 1
+	esac
+}
