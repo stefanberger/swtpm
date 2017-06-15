@@ -142,6 +142,14 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   it will be treaded as client connection;\n"
     "                   NOTE: fd and clientfd are mutually exclusive and \n"
     "                   clientfd is only valid for UnixIO channels\n"
+    "--migration-key file=<path>[,mode=aes-cbc][,format=hex|binary][,remove=[true|false]]\n"
+    "                 : use an AES key for the encryption of the TPM's state\n"
+    "                   when it is retrieved from the TPM via ioctls;\n"
+    "                   Setting this key ensures that the TPM's state will always\n"
+    "                   be encrypted when migrated\n"
+    "--migration-key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
+    "                 : provide a passphrase in a file; the AES key will be\n"
+    "                   derived from this passphrase\n"
     "--log file=<path>|fd=<filedescriptor>[,level=n][,prefix=<prefix>]\n"
     "                 : write the TPM's log into the given file rather than\n"
     "                   to the console; provide '-' for path to avoid logging\n"
@@ -190,6 +198,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     unsigned long val;
     char *end_ptr;
     char *keydata = NULL;
+    char *migkeydata = NULL;
     char *logdata = NULL;
     char *piddata = NULL;
     char *localitydata = NULL;
@@ -211,6 +220,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"locality"  , required_argument, 0, 'L'},
         {"log"       , required_argument, 0, 'l'},
         {"key"       , required_argument, 0, 'k'},
+        {"migration-key", required_argument, 0, 'K'},
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
         {"ctrl"      , required_argument, 0, 'C'},
@@ -283,6 +293,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
         case 'k':
             keydata = optarg;
+            break;
+
+        case 'K':
+            migkeydata = optarg;
             break;
 
         case 'l':
@@ -371,6 +385,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
+        handle_migration_key_options(migkeydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0) {

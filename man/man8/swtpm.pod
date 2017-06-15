@@ -103,44 +103,6 @@ Create the device with the given major number.
 
 Create the device with the given minor number.
 
-=item B<--migration-key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
-
-The availability of a migration key ensures that the state of the TPM
-will not be revealed in unencrypted form when
-the TPM state blobs are retreived through the ioctl interface.
-The migration key is not used for encrypting TPM state written to files,
-this is what the I<--key> parameter is used for.
-
-The migration key and the key used for encrypting the TPM state files may be the same.
-
-While the key for the TPM state files needs to stay with those files it encrypts, the
-migration key needs to stay with the TPM state blobs. If for example the state of the
-TPM is migrated between hosts in a data center, then the TPM migration key must be
-available at all the destinations, so in effect it may have to be a key shared across
-all machines in the datacenter. In contrast to that, the key used for encrypting the
-TPM state B<files> can be different for each TPM and need only be available
-on the host where the TPM state resides.
-
-The migration key enables the encryption of the TPM state blobs of the TPM.
-The keyfile must contain an AES key of supported size; currently only 128 bit (16 bytes)
-keys are supported.
-
-The key may be in binary format, in which case the file size must be 16 bytes.
-If the key is in hex format (default), the key may consist of 32 hex digits
-starting with an optional '0x'.
-
-The I<mode> parameter indicates which block chaining mode is to be used.
-Currently only aes-cbc is supported.
-
-The I<remove> parameter will attempt to remove the given keyfile once the key
-has been read.
-
-=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc],[remove[=true|false]]>
-
-This variant of the migration key parameter allows to provide a passphrase in a file.
-A maximum of 32 bytes are read from the file and a key is derived from it using a
-SHA512 hash. Currently only 128 bit keys are supported.
-
 =back
 
 
@@ -225,6 +187,44 @@ has been read.
 =item B<--key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc],[remove[=true|false]]>
 
 This variant of the key parameter allows to provide a passphrase in a file.
+A maximum of 32 bytes are read from the file and a key is derived from it using a
+SHA512 hash. Currently only 128 bit keys are supported.
+
+=item B<--migration-key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
+
+The availability of a migration key ensures that the state of the TPM
+will not be revealed in unencrypted form when
+the TPM state blobs are retreived through the ioctl interface.
+The migration key is not used for encrypting TPM state written to files,
+this is what the I<--key> parameter is used for.
+
+The migration key and the key used for encrypting the TPM state files may be the same.
+
+While the key for the TPM state files needs to stay with those files it encrypts, the
+migration key needs to stay with the TPM state blobs. If for example the state of the
+TPM is migrated between hosts in a data center, then the TPM migration key must be
+available at all the destinations, so in effect it may have to be a key shared across
+all machines in the datacenter. In contrast to that, the key used for encrypting the
+TPM state B<files> can be different for each TPM and need only be available
+on the host where the TPM state resides.
+
+The migration key enables the encryption of the TPM state blobs of the TPM.
+The keyfile must contain an AES key of supported size; currently only 128 bit (16 bytes)
+keys are supported.
+
+The key may be in binary format, in which case the file size must be 16 bytes.
+If the key is in hex format (default), the key may consist of 32 hex digits
+starting with an optional '0x'.
+
+The I<mode> parameter indicates which block chaining mode is to be used.
+Currently only aes-cbc is supported.
+
+The I<remove> parameter will attempt to remove the given keyfile once the key
+has been read.
+
+=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc],[remove[=true|false]]>
+
+This variant of the migration key parameter allows to provide a passphrase in a file.
 A maximum of 32 bytes are read from the file and a key is derived from it using a
 SHA512 hash. Currently only 128 bit keys are supported.
 
