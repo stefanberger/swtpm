@@ -185,6 +185,7 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
             goto err_send_resp;
         }
         memcpy(&blob[offset], pss->u.req.data, n);
+        offset += n;
         remain -= n;
         if (remain) {
             n = read(fd, pss->u.req.data, sizeof(pss->u.req.data));
@@ -512,11 +513,11 @@ int ctrlchannel_process_fd(int fd,
             goto err_bad_input;
 
         pgc->u.resp.tpm_result = htobe32(0);
-        pgc->u.resp.flags = 0;
+        pgc->u.resp.flags = htobe32(0);
         if (SWTPM_NVRAM_Has_FileKey())
-            pgc->u.resp.flags |= PTM_CONFIG_FLAG_FILE_KEY;
+            pgc->u.resp.flags |= htobe32(PTM_CONFIG_FLAG_FILE_KEY);
         if (SWTPM_NVRAM_Has_MigrationKey())
-            pgc->u.resp.flags |= PTM_CONFIG_FLAG_MIGRATION_KEY;
+            pgc->u.resp.flags |= htobe32(PTM_CONFIG_FLAG_MIGRATION_KEY);
 
         out_len = sizeof(pgc->u.resp);
         break;
