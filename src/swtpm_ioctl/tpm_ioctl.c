@@ -66,6 +66,7 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/param.h>
 
 #include <swtpm/tpm_ioctl.h>
 
@@ -260,6 +261,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
     int n;
     uint32_t bt;
     unsigned char *buffer =  NULL;
+    uint32_t recvd_bytes;
 
     bt = get_blobtype(blobtype);
     if (!bt) {
@@ -275,6 +277,9 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
                 filename, strerror(errno));
         return 1;
     }
+
+    if (!is_chardev)
+        buffersize = 4096;
 
     had_error = false;
     offset = 0;
@@ -301,10 +306,18 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
             had_error = true;
             break;
         }
-        numbytes = write(file_fd, pgs.u.resp.data,
-                         devtoh32(is_chardev, pgs.u.resp.length));
 
-        if ((uint32_t)numbytes != devtoh32(is_chardev, pgs.u.resp.length)) {
+        if (!is_chardev) {
+            /* we receive them in one chunk, but we didn't read them all */
+            recvd_bytes = MIN(devtoh32(is_chardev, pgs.u.resp.length),
+                              sizeof(pgs.u.resp.data));
+        } else {
+            recvd_bytes = devtoh32(is_chardev, pgs.u.resp.length);
+        }
+
+        numbytes = write(file_fd, pgs.u.resp.data, recvd_bytes);
+
+        if ((uint32_t)numbytes != recvd_bytes) {
             fprintf(stderr,
                     "Could not write to file '%s': %s\n",
                     filename, strerror(errno));
@@ -312,8 +325,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
             break;
         }
         /* done when the last byte was received */
-        if (offset + devtoh32(is_chardev, pgs.u.resp.length) >=
-                     devtoh32(is_chardev, pgs.u.resp.totlength))
+        if (offset + recvd_bytes >= devtoh32(is_chardev, pgs.u.resp.totlength))
             break;
 
         if (buffersize) {
@@ -353,6 +365,8 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
         } else {
             offset += devtoh32(is_chardev, pgs.u.resp.length);
         }
+        if (!is_chardev)
+            break;
     }
 
     close(file_fd);
@@ -386,6 +400,7 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
     int n;
     uint32_t bt;
     unsigned char *buffer = NULL;
+    struct stat statbuf;
 
     bt = get_blobtype(blobtype);
     if (!bt) {
@@ -400,6 +415,18 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
                 "Could not open file '%s' for reading: %s\n",
                 filename, strerror(errno));
         return 1;
+    }
+
+    if (!is_chardev) {
+        n = fstat(file_fd, &statbuf);
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not stat file '%s': %s\n",
+                    filename, strerror(errno));
+            close(file_fd);
+            return 1;
+        }
+        buffersize = statbuf.st_size;
     }
 
     had_error = false;
@@ -461,7 +488,11 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
         pss.u.req.state_flags = htodev32(is_chardev, 0);
         pss.u.req.type = htodev32(is_chardev, bt);
         /* will use write interface */
-        pss.u.req.length = htodev32(is_chardev, 0);
+        if (is_chardev) {
+            pss.u.req.length = htodev32(is_chardev, 0);
+        } else {
+            pss.u.req.length = htodev32(is_chardev, buffersize);
+        }
 
         n = ctrlcmd(fd, PTM_SET_STATEBLOB, &pss,
                     offsetof(ptm_setstate, u.req.data) + 0,
@@ -496,6 +527,20 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
                 had_error = 1;
                 goto cleanup;
             }
+
+            if (!is_chardev) {
+                n = read(fd, &pss.u.resp, sizeof(pss.u.resp));
+                if (n != sizeof(pss.u.resp)) {
+                    fprintf(stderr,
+                            "Did not get enough response bytes "
+                            "from PTM_SET_STATE_BLOB: %d", n);
+                    had_error = 1;
+                    goto cleanup;
+                }
+                res = devtoh32(is_chardev, pss.u.resp.tpm_result);
+                break;
+            }
+
             if ((size_t)n < buffersize) {
                 /* close transfer with the ioctl() */
                 pss.u.req.state_flags = htodev32(is_chardev, 0);
