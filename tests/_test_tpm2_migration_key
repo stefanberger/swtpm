@@ -1,0 +1,293 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+# set -x
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+VTPM_NAME="${VTPM_NAME:-vtpm-test-tpm2-migration-key}"
+SWTPM_DEV_NAME=/dev/${VTPM_NAME}
+MIGRATION_PASSWORD="migration"
+VOLATILESTATE=${PWD}/${DIR}/data/migkey1/tpm2-volatilestate.bin
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+
+function cleanup()
+{
+	pid=$SWTPM_PID
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -rf $migpwdfile $volatilestatefile $tpmstatedir $logfile
+}
+
+trap "cleanup" EXIT
+
+tpmstatedir=$(mktemp -d)
+if [ -z "$tpmstatedir" ]; then
+	echo "Could not create temporary directory."
+	exit 1
+fi
+
+migpwdfile=$(mktemp)
+if [ -z "$migpwdfile" ]; then
+	echo "Could not create temporary file."
+	exit 1
+fi
+echo -n "$MIGRATION_PASSWORD" > $migpwdfile
+
+volatilestatefile=$(mktemp)
+if [ -z "$volatilestatefile" ]; then
+	echo "Could not create temporary file."
+	exit 1
+fi
+logfile=$(mktemp)
+
+SWTPM_CMD_UNIX_PATH=${tpmstatedir}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${tpmstatedir}/unix-ctrl.sock
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
+source ${DIR}/common
+
+# make a backup of the volatile state
+export TPM_PATH=$tpmstatedir
+cp ${PWD}/${DIR}/data/tpm2state1/* $TPM_PATH
+
+rm -f ${logfile}
+run_swtpm ${SWTPM_INTERFACE} \
+	--log file=${logfile} \
+	--tpm2 \
+	--migration-key pwdfile=$migpwdfile,remove=false
+
+kill -0 $SWTPM_PID
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Initializing the ${SWTPM_INTERFACE} TPM failed."
+	exit 1
+fi
+
+kill -0 $SWTPM_PID 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	exit 1
+fi
+
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+
+ECHO=$(which echo)
+if [ -z "$ECHO" ]; then
+	echo "Could not find NON-bash builtin echo tool."
+	exit 1
+fi
+
+# Read PCR 10 (from pcrextend -ha 10 -ic test)
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00' 100)
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Save the volatile state into a file
+run_swtpm_ioctl ${SWTPM_INTERFACE} --save volatile $volatilestatefile
+if [ $? -ne 0 ]; then
+	echo "Error: Could not save the volatile state to ${volatilestatefile}."
+	exit 1
+fi
+if [ ! -r $volatilestatefile ]; then
+	echo "Error: Volatile state file $volatilestatefile does not exist."
+	exit 1
+fi
+
+size=$(get_filesize $volatilestatefile)
+expsize="^(5850|6026|6218|8922)$"
+if ! [[ $size =~ $expsize ]]; then
+	echo "Error: Unexpected size of volatile state file."
+	echo "       Expected file with size of $expsize, found $size bytes."
+	exit 1
+fi
+
+tmp=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -g | cut -d":" -f2)
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the configration flags of the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if [ "$tmp" != " 0x2" ]; then
+	echo "Error: Unexpected configuration flags: $tmp; expected 0x2."
+	exit 1
+fi
+
+# Shut the TPM down
+exec 100>&-
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+
+echo "Test 1: Ok"
+
+# Start the vTPM again and load the encrypted volatile state into it
+rm -f ${logfile}
+run_swtpm ${SWTPM_INTERFACE} \
+	--log file=${logfile} \
+	--tpm2 \
+	--migration-key pwdfile=$migpwdfile,remove=false
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $SWTPM_PID
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} --stop
+
+# Do NOT init the TPM now; first load volatile state
+
+# load the encrypted volatile state into it
+run_swtpm_ioctl ${SWTPM_INTERFACE} --load volatile $volatilestatefile
+if [ $? -ne 0 ]; then
+	echo "Error: Could not load encrypted volatile state into TPM."
+	echo "swtpm logfile: "
+	cat $logfile
+	exit 1
+fi
+
+# Now init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Initializing the ${SWTPM_INTERFACE} TPM failed."
+	exit 1
+fi
+
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+
+# Read PCR 10
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00' 100)
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Shut the TPM down
+exec 100>&-
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+echo "Test 2: Ok"
+
+# Start the vTPM again and load the encrypted volatile state into it
+# This time we make this fail since we don't provide the migration key
+rm -f ${logfile}
+run_swtpm ${SWTPM_INTERFACE} \
+	--log file=${logfile} \
+	--tpm2
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $SWTPM_PID
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Do NOT init the TPM now; first load volatile state
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} --stop
+
+# load the encrypted volatile state into it
+# This will not work; the TPM writes the data into the volatile state file
++# and validates it
+run_swtpm_ioctl ${SWTPM_INTERFACE} --load volatile $volatilestatefile
+if [ $? -eq 0 ]; then
+	echo "Error: Could load encrypted volatile state into TPM."
+	cat $logfile
+	exit 1
+fi
+
+# Now init the TPM; this must fail since the volatile state does not
+# match with the integrity hash it is expecting to find
+#run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+#if [ $? -eq 0 ]; then
+#	echo "Error: Initializing the ${SWTPM_INTERFACE} TPM should have failed."
+#	cat $logfile
+#	exit 1
+#fi
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+rm -f ${TPM_PATH}/tpm2-00.volatilestate
+
+echo "Test 3: Ok"
+
+# In this test we now feed it an encrypted volatile state
+
+# Start the vTPM again and load the encrypted volatile state into it
+rm -f ${logfile}
+run_swtpm ${SWTPM_INTERFACE} \
+	--log file=${logfile} \
+	--tpm2 \
+	--migration-key pwdfile=$migpwdfile,remove=true
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 $SWTPM_PID
+if [ $? -ne 0 ]; then
+	echo "Error: TPM did not start."
+	cat $logfile
+	exit 1
+fi
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} --stop
+
+# load the encrypted volatile state into it
+run_swtpm_ioctl ${SWTPM_INTERFACE} --load volatile $VOLATILESTATE
+if [ $? -ne 0 ]; then
+	echo "Error: Could not load encrypted volatile state into TPM."
+	exit 1
+fi
+
+# Now init the TPM; this must work
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+
+# Read PCR 10
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00' 100)
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Shut the TPM down
+exec 100>&-
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+echo "Test 4: Ok"
