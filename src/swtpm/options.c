@@ -156,15 +156,22 @@ options_parse(char *opts, const OptionDesc optdesc[], char **error)
     int i;
     OptionValues *ovs = calloc(sizeof(OptionValues), 1);
     bool found;
+    char *opts_bak;
 
     if (!ovs) {
         option_error_set(error, "Out of memory.");
         return NULL;
     }
 
-    saveptr = opts; /* make coverity happy */
+    opts_bak = strdup(opts);
+    if (!opts_bak) {
+        option_error_set(error, "Out of memory.");
+        goto error;
+    }
 
-    tok = strtok_r(opts, ",", &saveptr);
+    saveptr = opts_bak; /* make coverity happy */
+
+    tok = strtok_r(opts_bak, ",", &saveptr);
     while (tok) {
         found = false;
         i = 0;
@@ -193,9 +200,13 @@ options_parse(char *opts, const OptionDesc optdesc[], char **error)
         tok = strtok_r(NULL, ",", &saveptr);
     }
 
+    free(opts_bak);
+
     return ovs;
 
 error:
+    free(opts_bak);
+
     option_values_free(ovs);
     return NULL;
 }
