@@ -772,11 +772,17 @@ SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
 {
     blobheader *bh = (blobheader *)data;
 
-    if (length < sizeof(bh))
+    if (length < sizeof(bh)) {
+        logprintf(STDERR_FILENO,
+                  "not enough bytes for header: %u\n", length);
         return TPM_BAD_PARAMETER;
+    }
 
-    if (ntohl(bh->totlen) != length)
+    if (ntohl(bh->totlen) != length) {
+        logprintf(STDERR_FILENO,
+                  "broken header: bh->totlen %u != %u\n", htonl(bh->totlen), length);
         return TPM_BAD_PARAMETER;
+    }
 
     if (bh->min_version > BLOB_HEADER_VERSION) {
         logprintf(STDERR_FILENO,
