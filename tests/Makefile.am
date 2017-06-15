@@ -42,6 +42,7 @@ TESTS += \
 	test_tpm2_hashing \
 	test_tpm2_hashing2 \
 	test_tpm2_hashing3 \
+	test_tpm2_resume_volatile \
 	test_tpm2_savestate \
 	test_tpm2_save_load_state_3 \
 	test_tpm2_setbuffersize \
@@ -90,6 +91,11 @@ EXTRA_DIST=$(TESTS) \
 	data/tpmstate2/tpm-00.volatilestate \
 	data/tpmstate2/pwdfile.txt \
 	data/tpmstate2/README \
+	data/tpm2state1/tpm2-00.permall \
+	data/tpm2state1/tpm2-00.volatilestate \
+	data/tpm2state2/tpm2-00.permall \
+	data/tpm2state2/tpm2-00.volatilestate \
+	data/tpm2state2/pwdfile.txt \
 	data/tpm2state3/h02000000.bin \
 	data/tpm2state3/hkey.priv \
 	data/tpm2state3/hkey.pub \
@@ -124,6 +130,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm2_init \
 	_test_tpm2_locality \
 	_test_tpm2_probe \
+	_test_tpm2_resume_volatile \
 	_test_tpm2_savestate \
 	_test_tpm2_setbuffersize \
 	_test_tpm2_swtpm_bios \
