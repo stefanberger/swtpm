@@ -59,6 +59,7 @@
 
 #include "swtpm_aes.h"
 
+#define printf(X ...)
 
 #ifdef USE_FREEBL_CRYPTO_LIBRARY
 /* TPM_SymmetricKeyData_Encrypt() is AES non-portable code to CBC encrypt 'decrypt_data' to
