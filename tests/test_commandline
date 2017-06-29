@@ -152,7 +152,7 @@ exec 200>&-
 
 wait_port_closed $PORT $PID
 # Give it time to fully shut down
-sleep 0.2
+sleep 1
 
 exec 20<&1-; exec 21<&2-
 kill -0 $PID
