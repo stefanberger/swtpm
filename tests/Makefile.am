@@ -36,6 +36,7 @@ TESTS += \
 	test_wrongorder
 
 TESTS += \
+	test_tpm2_encrypted_state \
 	test_tpm2_init \
 	test_tpm2_getcap \
 	test_tpm2_locality \
@@ -45,6 +46,7 @@ TESTS += \
 	test_tpm2_migration_key \
 	test_tpm2_resume_volatile \
 	test_tpm2_savestate \
+	test_tpm2_save_load_encrypted_state \
 	test_tpm2_save_load_state_3 \
 	test_tpm2_setbuffersize \
 	test_tpm2_volatilestate \
@@ -124,6 +126,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_setbuffersize \
 	_test_swtpm_bios \
 	_test_tpm_probe \
+	_test_tpm2_encrypted_state \
 	_test_tpm2_getcap \
 	_test_tpm2_hashing \
 	_test_tpm2_hashing2 \
@@ -134,6 +137,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm2_probe \
 	_test_tpm2_resume_volatile \
 	_test_tpm2_savestate \
+	_test_tpm2_save_load_encrypted_state \
 	_test_tpm2_setbuffersize \
 	_test_tpm2_swtpm_bios \
 	_test_tpm2_volatilestate \
