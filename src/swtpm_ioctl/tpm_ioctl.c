@@ -88,6 +88,13 @@ static unsigned long ioctl_to_cmd(unsigned long ioctlnum)
     return ((ioctlnum >> _IOC_NRSHIFT) & _IOC_NRMASK) + 1;
 }
 
+/*
+ * ctrlcmd - send a control command
+ *
+ * This function returns -1 on on error with errno indicating the error.
+ * In case an ioctl is used, it returns 0 on success; otherwise
+ * it returns the number of bytes received in the response.
+ */
 static int ctrlcmd(int fd, unsigned long cmd, void *msg, size_t msg_len_in,
                    size_t msg_len_out)
 {
@@ -118,12 +125,8 @@ static int ctrlcmd(int fd, unsigned long cmd, void *msg, size_t msg_len_in,
         if (n > 0) {
             if (msg_len_out > 0) {
                 n = read(fd, msg, msg_len_out);
-                /* simulate ioctl return value */
-                if (n > 0) {
-                    n = 0;
-                }
             } else {
-                /* simulate ioctl return value */
+                /* we read 0 bytes */
                 n = 0;
             }
         }
@@ -177,7 +180,7 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
                         sizeof(hdata));
 
             res = devtoh32(is_chardev, hdata.u.resp.tpm_result);
-            if (n != 0 || res != 0 || c == EOF)
+            if (n < 0 || res != 0 || c == EOF)
                 break;
         }
     } else {
@@ -197,11 +200,11 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
                         sizeof(hdata));
 
             res = devtoh32(is_chardev, hdata.u.resp.tpm_result);
-            if (n != 0 || res != 0)
+            if (n < 0 || res != 0)
                 break;
         }
     }
-    if (n != 0) {
+    if (n < 0) {
         fprintf(stderr,
                 "Could not execute ioctl PTM_HASH_DATA: "
                 "%s\n", strerror(errno));
@@ -256,7 +259,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
     ptm_res res;
     ptm_getstate pgs;
     uint16_t offset;
-    ssize_t numbytes;
+    ssize_t numbytes, remain = -1;
     bool had_error;
     int n;
     uint32_t bt;
@@ -307,16 +310,17 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
             break;
         }
 
+        if (remain == -1)
+            remain = devtoh32(is_chardev, pgs.u.resp.totlength);
+
         if (!is_chardev) {
-            /* we receive them in one chunk, but we didn't read them all */
-            recvd_bytes = MIN(devtoh32(is_chardev, pgs.u.resp.length),
-                              sizeof(pgs.u.resp.data));
+            /* we receive a part of the chunk */
+            recvd_bytes = n - offsetof(ptm_getstate, u.resp.data);
         } else {
             recvd_bytes = devtoh32(is_chardev, pgs.u.resp.length);
         }
 
         numbytes = write(file_fd, pgs.u.resp.data, recvd_bytes);
-
         if ((uint32_t)numbytes != recvd_bytes) {
             fprintf(stderr,
                     "Could not write to file '%s': %s\n",
@@ -324,6 +328,8 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
             had_error = true;
             break;
         }
+        remain -= recvd_bytes;
+
         /* done when the last byte was received */
         if (offset + recvd_bytes >= devtoh32(is_chardev, pgs.u.resp.totlength))
             break;
@@ -349,6 +355,8 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
                     had_error = true;
                     break;
                 }
+                remain -= n;
+
                 numbytes = write(file_fd, buffer, n);
                 if (numbytes < 0) {
                     fprintf(stderr,
@@ -357,7 +365,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
                     had_error = true;
                     break;
                 }
-                if ((size_t)n < buffersize)
+                if (remain <= 0)
                     break;
             }
 
@@ -375,6 +383,11 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
 
     if (had_error)
         return 1;
+
+    if (remain != 0) {
+        fprintf(stderr, "Unexpected number of remaining bytes: %zd\n", remain);
+        return 1;
+    }
 
     return 0;
 }
