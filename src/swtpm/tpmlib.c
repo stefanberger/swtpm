@@ -291,7 +291,6 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer,
                           uint32_t *rTotal,
                           unsigned char *command,
                           uint32_t command_length,
-                          TPMLIB_TPMVersion tpmversion,
                           uint32_t locality_flags,
                           TPM_MODIFIER_INDICATOR *locality)
 {
