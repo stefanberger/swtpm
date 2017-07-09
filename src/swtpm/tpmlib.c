@@ -152,6 +152,7 @@ TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locality,
     uint32_t rTotal = 0;
     TPM_MODIFIER_INDICATOR orig_locality = *g_locality;
     unsigned char command[sizeof(TPM_ResetEstablishmentBit)];
+    struct tpm_resp_header *tpmrh;
 
     memcpy(command, TPM_ResetEstablishmentBit, sizeof(command));
     *g_locality = locality;
@@ -159,6 +160,10 @@ TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locality,
     res = TPMLIB_Process(&rbuffer, &rlength, &rTotal,
                          command, sizeof(command));
 
+    if (res == TPM_SUCCESS && rlength >= sizeof(*tpmrh)) {
+        tpmrh = (struct tpm_resp_header *)rbuffer;
+        res = be32toh(tpmrh->errcode);
+    }
     *g_locality = orig_locality;
     TPM_Free(rbuffer);
 
