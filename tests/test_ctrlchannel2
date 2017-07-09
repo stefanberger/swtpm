@@ -118,7 +118,7 @@ echo "OK"
 # There are a few more tests here that require sending commands to the TPM
 
 # use a pseudo terminal
-$SWTPM_EXE socket --server port=65531,disconnect=true --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &
+$SWTPM_EXE socket --server port=65431,disconnect=true --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -127,7 +127,7 @@ fi
 
 PID="$(cat $PID_FILE)"
 
-exec 100<>/dev/tcp/localhost/65531
+exec 100<>/dev/tcp/localhost/65431
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
@@ -230,7 +230,7 @@ if [ "$act" != "$exp" ]; then
 fi
 
 # Read PCR 17
-exec 100<>/dev/tcp/localhost/65531
+exec 100<>/dev/tcp/localhost/65431
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
 exp=' 00 c4 00 00 00 1e 00 00 00 00 f9 87 3e 96 6b 9e 46 c8 45 46 2d 1f f2 52 eb cc c1 9b df fd'
@@ -256,7 +256,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Read PCR 17 -- should fail now
-exec 100<>/dev/tcp/localhost/65531
+exec 100<>/dev/tcp/localhost/65431
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
@@ -307,7 +307,7 @@ echo "OK"
 cp ${PWD}/${DIR}/data/tpmstate2/* ${TPMDIR}
 
 $SWTPM_EXE socket \
-	--server port=65531,disconnect=true \
+	--server port=65431,disconnect=true \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
@@ -323,7 +323,7 @@ PID="$(cat $PID_FILE)"
 
 
 # Read PCR 10
-exec 100<>/dev/tcp/localhost/65531
+exec 100<>/dev/tcp/localhost/65431
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
@@ -365,7 +365,7 @@ fi
 rm -f $TPMDIR/*.volatilestate
 
 $SWTPM_EXE socket \
-	--server port=65531,disconnect=true \
+	--server port=65431,disconnect=true \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
@@ -381,7 +381,7 @@ PID="$(cat $PID_FILE)"
 
 
 # Read PCR 10 -- this should fail now
-exec 100<>/dev/tcp/localhost/65531
+exec 100<>/dev/tcp/localhost/65431
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 0a 00 00 00 26'
@@ -415,7 +415,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Read PCR 10 -- has to return same result as before
-exec 100<>/dev/tcp/localhost/65531
+exec 100<>/dev/tcp/localhost/65431
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
@@ -428,7 +428,7 @@ fi
 
 
 # Reset PCR 20 while in locality 0 -- should not work
-exec 100<>/dev/tcp/localhost/65531
+exec 100<>/dev/tcp/localhost/65431
 echo -en '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10' >&100
 RES=$(cat <&100 | od -t x1 -A n)
 exp=' 00 c4 00 00 00 0a 00 00 00 33'
@@ -448,7 +448,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Reset PCR 20 while in locality 2 -- has to work
-exec 100<>/dev/tcp/localhost/65531
+exec 100<>/dev/tcp/localhost/65431
 echo -en '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10' >&100
 RES=$(cat <&100 | od -t x1 -A n)
 exp=' 00 c4 00 00 00 0a 00 00 00 00'

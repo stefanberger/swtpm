@@ -1,124 +1,37 @@
 #!/bin/bash
 
-# For the license, see the LICENSE file in the root directory.
-#set -x
+cd "$(dirname "$0")"
 
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Need to be root to run this test."
-	exit 77
-fi
+export SWTPM_IOCTL_BUFFERSIZE=100
+export SWTPM_INTERFACE=cuse
+bash _test_wrongorder
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
-SWTPM=swtpm_cuse
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
-VTPM_NAME="vtpm-test-wrongorder"
-export TPM_PATH=$(mktemp -d)
-STATE_FILE=$TPM_PATH/tpm-00.permall
-LOG_FILE=$TPM_PATH/tpm-00.log
-VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+export SWTPM_IOCTL_BUFFERSIZE=4096
+export SWTPM_INTERFACE=cuse
+bash _test_wrongorder
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-function cleanup()
-{
-	pid=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
-	if [ -n "$pid" ]; then
-		kill -9 $pid
-	fi
-	rm -rf $TPM_PATH
-}
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65422
+export SWTPM_CTRL_PORT=65423
+bash _test_wrongorder
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-trap "cleanup" EXIT
+export SWTPM_INTERFACE=socket+unix
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65422
+bash _test_wrongorder
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-source ${DIR}/test_cuse
-source ${DIR}/test_common
-
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
-
-$SWTPM_EXE --log file=$LOG_FILE,level=20 -n $VTPM_NAME
-sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
-
-ps aux | grep $SWTPM | grep -v grep
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM did not start."
-	exit 1
-fi
-
-# Get the established bit before the TPM has been initialized
-# This should not work
-
-$CUSE_TPM_IOCTL -e /dev/$VTPM_NAME
-if [ $? -eq 0 ]; then
-	echo "Error: Could get established bit from CUSE TPM before init."
-	exit 1
-fi
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM must have crashed."
-	exit 1
-fi
-
-# Open access to the TPM
-exec 100<>/dev/$VTPM_NAME
-
-# Read PCR 17 -- this should give a fatal error response
-echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 0a 00 00 00 09'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: Did not get expected result from TPM_PCRRead(17)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-exec 100>&-
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM must have crashed."
-	exit 1
-fi
-
-# Init the TPM
-$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not initialize the CUSE TPM."
-	exit 1
-fi
-
-kill -0 $PID 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM not running anymore after INIT."
-	exit 1
-fi
-
-$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not shut down the CUSE TPM."
-	exit 1
-fi
-
-sleep 0.5
-
-kill -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
-	echo "Error: CUSE TPM should not be running anymore."
-	exit 1
-fi
-
-if [ ! -e $STATE_FILE ]; then
-	echo "Error: TPM state file $STATE_FILE does not exist."
-	exit 1
-fi
-
-check_logfile_patterns_level_20 $LOG_FILE
-rm -f $LOG_FILE
-
-echo "OK"
+export SWTPM_INTERFACE=unix+unix
+bash _test_wrongorder
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
 exit 0

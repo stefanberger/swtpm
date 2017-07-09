@@ -1,6 +1,16 @@
 
 # For the license, see the LICENSE file in the root directory.
 
+if ! [[ "$(uname -o)" =~ Linux ]]; then
+	echo "Need Linux to run test with CUSE interface."
+	exit 77
+fi
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run test with CUSE interface."
+	exit 77
+fi
+
 if [ ! -c /dev/cuse ]; then
 	modprobe cuse
 	if [ $? -ne 0 ]; then

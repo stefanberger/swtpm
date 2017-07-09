@@ -15,7 +15,6 @@ TESTS += \
 	test_ctrlchannel2
 endif
 
-if WITH_CUSE
 TESTS += \
 	test_encrypted_state \
 	test_getcap \
@@ -24,16 +23,12 @@ TESTS += \
 	test_init \
 	test_locality \
 	test_migration_key \
-	test_migration_key_2 \
 	test_resume_volatile \
 	test_save_load_encrypted_state \
-	test_save_load_encrypted_state_2 \
 	test_save_load_state \
-	test_save_load_state_2 \
-	test_swtpm_bios \
 	test_volatilestate \
+	test_swtpm_bios \
 	test_wrongorder
-endif
 
 if WITH_SWTPM_SETUP
 TESTS += \

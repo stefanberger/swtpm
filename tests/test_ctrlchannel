@@ -155,7 +155,7 @@ echo "OK"
 
 # use a pseudo terminal
 $SWTPM_EXE socket \
-	--server port=65530,disconnect=true \
+	--server port=65430,disconnect=true \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
@@ -168,7 +168,7 @@ fi
 
 PID="$(cat $PID_FILE)"
 
-exec 100<>/dev/tcp/localhost/65530
+exec 100<>/dev/tcp/localhost/65430
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(unix_tx '\x00\x00\x00\x01')"
@@ -304,7 +304,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Read PCR 17
-exec 100<>/dev/tcp/localhost/65530
+exec 100<>/dev/tcp/localhost/65430
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c4 e1 e1 c9 81 c0 cd b1 e0 43 df 97 20 72 f9 5d a9 ff 06 ff'
@@ -340,7 +340,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Read PCR 17 -- should fail now
-exec 100<>/dev/tcp/localhost/65530
+exec 100<>/dev/tcp/localhost/65430
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
@@ -398,7 +398,7 @@ echo "OK"
 cp ${PWD}/${DIR}/data/tpmstate2/* ${TPMDIR}
 
 $SWTPM_EXE socket \
-	--server port=65530,disconnect=true \
+	--server port=65430,disconnect=true \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
@@ -415,7 +415,7 @@ PID="$(cat $PID_FILE)"
 
 
 # Read PCR 10
-exec 100<>/dev/tcp/localhost/65530
+exec 100<>/dev/tcp/localhost/65430
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
@@ -469,7 +469,7 @@ echo "OK"
 rm -f $TPMDIR/*.volatilestate
 
 $SWTPM_EXE socket \
-	--server port=65530,disconnect=true \
+	--server port=65430,disconnect=true \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
@@ -486,7 +486,7 @@ PID="$(cat $PID_FILE)"
 
 
 # Read PCR 10 -- this should fail now
-exec 100<>/dev/tcp/localhost/65530
+exec 100<>/dev/tcp/localhost/65430
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 0a 00 00 00 26'
@@ -535,7 +535,7 @@ fi
 
 
 # Read PCR 10 -- has to return same result as before
-exec 100<>/dev/tcp/localhost/65530
+exec 100<>/dev/tcp/localhost/65430
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
@@ -548,7 +548,7 @@ fi
 
 
 # Reset PCR 20 while in locality 0 -- should not work
-exec 100<>/dev/tcp/localhost/65530
+exec 100<>/dev/tcp/localhost/65430
 echo -en '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10' >&100
 RES=$(cat <&100 | od -t x1 -A n)
 exp=' 00 c4 00 00 00 0a 00 00 00 33'
@@ -571,7 +571,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Reset PCR 20 while in locality 2 -- has to work
-exec 100<>/dev/tcp/localhost/65530
+exec 100<>/dev/tcp/localhost/65430
 echo -en '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10' >&100
 RES=$(cat <&100 | od -t x1 -A n)
 exp=' 00 c4 00 00 00 0a 00 00 00 00'

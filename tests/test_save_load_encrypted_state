@@ -1,313 +1,37 @@
 #!/bin/bash
 
-# For the license, see the LICENSE file in the root directory.
-#set -x
+cd "$(dirname "$0")"
 
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Need to be root to run this test."
-	exit 77
-fi
+export SWTPM_IOCTL_BUFFERSIZE=100
+export SWTPM_INTERFACE=cuse
+bash _test_save_load_encrypted_state
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
-SWTPM=swtpm_cuse
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
-VTPM_NAME="${VTPM_NAME:-vtpm-test-save-load-encrypted-state}"
-export TPM_PATH=$(mktemp -d)
-STATE_FILE=$TPM_PATH/tpm-00.permall
-VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
-KEY=1234567890abcdef1234567890abcdef
-MY_VOLATILE_STATE_FILE=$TPM_PATH/my.volatilestate
-MY_PERMANENT_STATE_FILE=$TPM_PATH/my.permanent
+export SWTPM_IOCTL_BUFFERSIZE=4096
+export SWTPM_INTERFACE=cuse
+bash _test_save_load_encrypted_state
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-keyfile=$(mktemp)
-logfile=$(mktemp)
-echo "$KEY" > $keyfile
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65416
+export SWTPM_CTRL_PORT=65417
+bash _test_save_load_encrypted_state
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-function cleanup()
-{
-	pid=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME " | gawk '{print $2}')
-	if [ -n "$pid" ]; then
-		kill -9 $pid
-	fi
-	rm -f $keyfile $logfile
-	rm -rf $TPM_PATH
-}
+export SWTPM_INTERFACE=socket+unix
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65416
+bash _test_save_load_encrypted_state
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-trap "cleanup" EXIT
-
-ECHO=`which echo`
-if [ -z "$ECHO" ]; then
-	echo "Error: Could not find external echo tool."
-	exit 1
-fi
-
-source ${DIR}/test_cuse
-
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
-
-$SWTPM_EXE -n $VTPM_NAME --key file=$keyfile,mode=aes-cbc,format=hex \
-	--log file=$logfile
-sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME " | gawk '{print $2}')
-
-ps aux | grep $SWTPM | grep -v grep
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM did not start."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# Init the TPM
-$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM initialization failed."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-kill -0 $PID 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM not running anymore after INIT."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# Startup the TPM
-exec 100<>/dev/$VTPM_NAME
-echo -en '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n)
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-$CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not hash the data."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# Read PCR 17
-echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Assert physical presence
-$ECHO -en '\x00\xC1\x00\x00\x00\x0C\x40\x00\x00\x0A\x00\x20' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TSC_PhysicalPresence(ENABLE)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Create a big NVRAM Area with 4000 bytes (0xfa0)
-tmp='\x00\xC1\x00\x00\x00\x65\x00\x00\x00\xcc\x00\x18\x00\x00\x00\x01'
-tmp+='\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-tmp+='\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01'
-tmp+='\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-tmp+='\x00\x00\x00\x00\x00\x17\x00\x01\x00\x01\x00\x00\x00\x00\x00\x0f'
-tmp+='\xa0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-tmp+='\x00\x00\x00\x00\x00'
-$ECHO -en $tmp >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TPM_NVDefineSpace()"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-$CUSE_TPM_IOCTL --save permanent $MY_PERMANENT_STATE_FILE /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not write permanent state file $MY_PERMANENT_STATE_FILE."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-if [ ! -r $MY_PERMANENT_STATE_FILE ]; then
-	echo "Error: Permanent state file $MY_PERMANENT_STATE_FILE does not exist."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-echo "Saved permanent state."
-
-$CUSE_TPM_IOCTL --save volatile $MY_VOLATILE_STATE_FILE /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not write volatile state file $MY_PERMANENT_STATE_FILE."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-if [ ! -r $MY_VOLATILE_STATE_FILE ]; then
-	echo "Error: Volatile state file $MY_VOLATILE_STATE_FILE does not exist."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-echo "Saved volatile state."
-
-ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
-sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
-
-# we will use our own volatile state
-rm -f $VOLATILE_STATE_FILE $STATE_FILE
-
-# Stop the TPM; this will not shut it down
-exec 100>&-
-$CUSE_TPM_IOCTL --stop /dev/$VTPM_NAME
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error (2): CUSE TPM is not running anymore."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# load state into the TPM
-$CUSE_TPM_IOCTL --load permanent $MY_PERMANENT_STATE_FILE /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Could not load permanent state into vTPM"
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-echo "Loaded permanent state."
-
-$CUSE_TPM_IOCTL --load volatile $MY_VOLATILE_STATE_FILE /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Could not load volatile state into vTPM"
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-echo "Loaded volatile state."
-
-#ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
-#sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
-
-# Init the TPM
-$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "TPM Init failed."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# Volatile state must have been removed by TPM now
-if [ -r $VOLATILE_STATE_FILE ]; then
-	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# Read the PCR again ...
-exec 100<>/dev/$VTPM_NAME
-echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Save the volatile state again
-$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-if [ ! -r $VOLATILE_STATE_FILE ]; then
-	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# Send a new TPM_Init
-$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM initialization failed."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# Volatile state must have been removed by TPM now
-if [ -r $VOLATILE_STATE_FILE ]; then
-	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-# Read the PCR again ...
-exec 100<>/dev/$VTPM_NAME
-echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Final shut down
-exec 100>&-
-$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not shut down the CUSE TPM."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-sleep 0.5
-
-kill -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
-	echo "Error: CUSE TPM should not be running anymore."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-if [ ! -e $STATE_FILE ]; then
-	echo "Error: TPM state file $STATE_FILE does not exist."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
-fi
-
-echo "OK"
+export SWTPM_INTERFACE=unix+unix
+bash _test_save_load_encrypted_state
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
 exit 0

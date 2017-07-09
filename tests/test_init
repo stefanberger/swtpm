@@ -1,96 +1,37 @@
 #!/bin/bash
 
-# For the license, see the LICENSE file in the root directory.
-#set -x
+cd "$(dirname "$0")"
 
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Need to be root to run this test."
-	exit 77
-fi
+export SWTPM_IOCTL_BUFFERSIZE=100
+export SWTPM_INTERFACE=cuse
+bash _test_init
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
-SWTPM=swtpm_cuse
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
-VTPM_NAME="vtpm-test-init"
-TPM_PATH=$(mktemp -d)
-STATE_FILE=$TPM_PATH/tpm-00.permall
-VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
-PID_FILE=$TPM_PATH/${SWTPM}.pid
+export SWTPM_IOCTL_BUFFERSIZE=4096
+export SWTPM_INTERFACE=cuse
+bash _test_init
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-function cleanup()
-{
-	pid=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
-	if [ -n "$pid" ]; then
-		kill -9 $pid
-	fi
-	rm -rf $TPM_PATH
-}
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65408
+export SWTPM_CTRL_PORT=65409
+bash _test_init
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-trap "cleanup" EXIT
+export SWTPM_INTERFACE=socket+unix
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65408
+bash _test_init
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-source ${DIR}/test_cuse
-
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
-
-$SWTPM_EXE --tpmstate dir=$TPM_PATH --pid file=$PID_FILE -n $VTPM_NAME
-sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
-
-ps aux | grep $SWTPM | grep -v grep
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM did not start."
-	exit 1
-fi
-
-if [ ! -r $PID_FILE ]; then
-	echo "Error: CUSE TPM did not write pidfile."
-	exit 1
-fi
-
-PIDF="$(cat $PID_FILE)"
-if [ "$PIDF" != "$PID" ]; then
-	echo "Error: CUSE TPM wrote pid $PIDF, but found $PID."
-	exit 1
-fi
-
-# Init the TPM
-$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not initialize the CUSE TPM."
-	exit 1
-fi
-
-sleep 0.5
-
-kill -0 $PID 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM not running anymore after INIT."
-	exit 1
-fi
-
-$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not shut down the CUSE TPM."
-	exit 1
-fi
-
-sleep 0.5
-
-kill -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
-	echo "Error: CUSE TPM should not be running anymore."
-	exit 1
-fi
-
-if [ ! -e $STATE_FILE ]; then
-	echo "Error: TPM state file $STATE_FILE does not exist."
-	exit 1
-fi
-
-echo "OK"
+export SWTPM_INTERFACE=unix+unix
+bash _test_init
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
 exit 0

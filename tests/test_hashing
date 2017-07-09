@@ -1,198 +1,37 @@
 #!/bin/bash
 
-# For the license, see the LICENSE file in the root directory.
-#set -x
+cd "$(dirname "$0")"
 
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Need to be root to run this test."
-	exit 77
-fi
+export SWTPM_IOCTL_BUFFERSIZE=100
+export SWTPM_INTERFACE=cuse
+bash _test_hashing
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
-SWTPM=swtpm_cuse
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
-VTPM_NAME="vtpm-test-hashing"
-export TPM_PATH=$(mktemp -d)
-STATE_FILE=$TPM_PATH/tpm-00.permall
-VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+export SWTPM_IOCTL_BUFFERSIZE=4096
+export SWTPM_INTERFACE=cuse
+bash _test_hashing
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-function cleanup()
-{
-	pid=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
-	if [ -n "$pid" ]; then
-		kill -9 $pid
-	fi
-	rm -rf $TPM_PATH
-}
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65404
+export SWTPM_CTRL_PORT=65405
+bash _test_hashing
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-trap "cleanup" EXIT
+export SWTPM_INTERFACE=socket+unix
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65404
+bash _test_hashing
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-source ${DIR}/test_cuse
-
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
-
-$SWTPM_EXE -n $VTPM_NAME
-sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep -E "$VTPM_NAME\$" | gawk '{print $2}')
-
-ps aux | grep $SWTPM | grep -v grep
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM did not start."
-	exit 1
-fi
-
-# Init the TPM
-$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not initialize the CUSE TPM."
-	exit 1
-fi
-
-kill -0 $PID 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM not running anymore after INIT."
-	exit 1
-fi
-
-# Startup the TPM
-exec 100<>/dev/$VTPM_NAME
-echo -en '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n)
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Check the TPM Established bit before the hashing
-RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
-if [ $? -ne 0 ]; then
-	echo "Error: Could not get the TPM Established flag."
-	exit 1
-fi
-exp='tpmEstablished is 0'
-if [ "$RES" != "$exp" ]; then
-	echo "Error (1): TPM Established flag has wrong value."
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-$CUSE_TPM_IOCTL -h 1234 /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Hash command did not work."
-	exit 1
-fi
-
-# Read PCR 17
-echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Check the TPM Established bit after the hashing
-RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
-if [ $? -ne 0 ]; then
-	echo "Error: Could not get the TPM Established flag."
-	exit 1
-fi
-exp='tpmEstablished is 1'
-if [ "$RES" != "$exp" ]; then
-	echo "Error (2): TPM Established flag has wrong value."
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Reset the establishment bit via locality 3
-$CUSE_TPM_IOCTL -l 3 /dev/$VTPM_NAME
-if [ $? -ne -0 ]; then
-	echo "Error: Could not set locality 3"
-	exit 1
-fi
-
-ECHO=$(which echo)
-if [ -z "$ECHO" ]; then
-	echo "Could not find NON-bash builtin echo tool."
-	exit 1
-fi
-# \x40 or \x0B seems to confuse 'normal' echo
-$ECHO -en '\x00\xC1\x00\x00\x00\x0A\x40\x00\x00\x0B' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: Could not reset the establishment bit"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Check the TPM Established bit after the reset
-RES=$($CUSE_TPM_IOCTL -e /dev/$VTPM_NAME)
-if [ $? -ne 0 ]; then
-	echo "Error: Could not get the TPM Established flag."
-	exit 1
-fi
-exp='tpmEstablished is 0'
-if [ "$RES" != "$exp" ]; then
-	echo "Error (3): TPM Established flag has wrong value."
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# back to locality 0
-$CUSE_TPM_IOCTL -l 0 /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not set locality 0."
-	exit 1
-fi
-
-# Read from a file
-dd if=/dev/zero bs=1024 count=1024 2>/dev/null| \
-	$CUSE_TPM_IOCTL -h - /dev/$VTPM_NAME
-
-# Read PCR 17
-echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 1e 00 00 00 00 d8 0e 7a 7b 3c 37 88 7d b4 c2 88 08 1d a7 53 f6 4b 11 3a 9c'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not shut down the CUSE TPM."
-	exit 1
-fi
-
-sleep 0.5
-
-kill -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
-	echo "Error: CUSE TPM should not be running anymore."
-	exit 1
-fi
-
-if [ ! -e $STATE_FILE ]; then
-	echo "Error: TPM state file $STATE_FILE does not exist."
-	exit 1
-fi
-
-echo "OK"
+export SWTPM_INTERFACE=unix+unix
+bash _test_hashing
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
 exit 0

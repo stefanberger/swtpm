@@ -1,0 +1,266 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+VTPM_NAME="vtpm-test-encrypted-state"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
+KEY=1234567890abcdef1234567890abcdef
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+
+keyfile=$(mktemp)
+logfile=$(mktemp)
+echo "$KEY" > $keyfile
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -f $keyfile $logfile
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == cuse ] && source ${DIR}/test_cuse
+source ${DIR}/common
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+run_swtpm ${SWTPM_INTERFACE} \
+	--key file=$keyfile,mode=aes-cbc,format=hex \
+	--log file=$logfile
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Startup the TPM
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -h 1234
+if [ $? -ne 0 ]; then
+	echo "Error: Hash command did not work."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Read PCR 17
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Save the volatile state
+run_swtpm_ioctl ${SWTPM_INTERFACE} -v
+if [ $? -ne 0 ]; then
+	echo "Error: Saving the volatile state failed."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if [ ! -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+tmp=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -g | cut -d":" -f2)
+if [ $? -ne 0 ]; then
+	echo "Error: Could not get the configration flags of the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if [ "$tmp" != " 0x1" ]; then
+	echo "Error: Unexpected configuration flags: $tmp; expected 0x1."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Shut the TPM down
+exec 100>&-
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Start the TPM again; have the keyfile removed
+run_swtpm ${SWTPM_INTERFACE} \
+	--key file=$keyfile,mode=aes-cbc,format=hex,remove \
+	--log file=$logfile
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error (2): ${SWTPM_INTERFACE} TPM did not start."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if [ -r $keyfile ]; then
+	echo "Error: Keyfile $keyfile was not removed by swtpm_cuse."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Volatile state must have been removed by TPM now
+if [ -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Read the PCR again ...
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Save the volatile state again
+run_swtpm_ioctl ${SWTPM_INTERFACE} -v
+if [ $? -ne 0 ]; then
+	echo "Error: Saving the volatile state failed."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if [ ! -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Send a new TPM_Init
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Volatile state must have been removed by TPM now
+if [ -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Read the PCR again ...
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+
+# Final shut down
+exec 100>&-
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+sleep 0.5
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

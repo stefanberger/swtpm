@@ -1,165 +1,37 @@
 #!/bin/bash
 
-# For the license, see the LICENSE file in the root directory.
-#set -x
+cd "$(dirname "$0")"
 
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Need to be root to run this test."
-	exit 77
-fi
+export SWTPM_IOCTL_BUFFERSIZE=100
+export SWTPM_INTERFACE=cuse
+bash _test_resume_volatile
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
-SWTPM=swtpm_cuse
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-CUSE_TPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
-VTPM_NAME="vtpm-test-resume-volatile"
+export SWTPM_IOCTL_BUFFERSIZE=4096
+export SWTPM_INTERFACE=cuse
+bash _test_resume_volatile
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-tpmstatedir="$(mktemp -d)"
-if [ -z "$tpmstatedir" ]; then
-	echo "Could not create temporary directory"
-	exit 1
-fi
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65414
+export SWTPM_CTRL_PORT=65415
+bash _test_resume_volatile
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-function cleanup()
-{
-	pid=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
-	if [ -n "$pid" ]; then
-		kill -9 $pid
-	fi
-	rm -rf $tpmstatedir
-}
+export SWTPM_INTERFACE=socket+unix
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65414
+bash _test_resume_volatile
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-trap "cleanup" EXIT
+export SWTPM_INTERFACE=unix+unix
+bash _test_resume_volatile
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
-source ${DIR}/test_cuse
-
-export TPM_PATH=$tpmstatedir
-
-# copy all the state files
-cp ${PWD}/${DIR}/data/tpmstate1/* ${TPM_PATH}
-
-$SWTPM_EXE -n $VTPM_NAME
-sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
-
-ps aux | grep $SWTPM | grep -v grep
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM did not start."
-	exit 1
-fi
-
-# Init the TPM
-$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not initialize the CUSE TPM."
-	exit 1
-fi
-
-kill -0 $PID 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM not running anymore after INIT."
-	exit 1
-fi
-
-exec 100<>/dev/$VTPM_NAME
-
-ECHO=$(which echo)
-if [ -z "$ECHO" ]; then
-	echo "Could not find NON-bash builtin echo tool."
-	exit 1
-fi
-
-# Read PCR 10
-$ECHO -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Save the volatile state again
-$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
-	exit 1
-fi
-if [ ! -r $VOLATILE_STATE_FILE ]; then
-	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
-	exit 1
-fi
-
-# Shut the TPM down
-exec 100>&-
-$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
-
-echo "Test 1: Ok"
-
-
-# 2nd test: with encrypted state
-# copy all the state files
-cp ${PWD}/${DIR}/data/tpmstate2/* ${TPM_PATH}
-
-$SWTPM_EXE -n $VTPM_NAME --key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt
-sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep $VTPM_NAME | gawk '{print $2}')
-
-ps aux | grep $SWTPM | grep -v grep
-
-kill -0 $PID
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM did not start."
-	exit 1
-fi
-
-# Init the TPM
-$CUSE_TPM_IOCTL -i /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM initialization failed."
-	exit 1
-fi
-
-kill -0 $PID 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "Error: CUSE TPM not running anymore after INIT."
-	exit 1
-fi
-
-exec 100<>/dev/$VTPM_NAME
-
-# Read PCR 10
-$ECHO -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
-RES=$(dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
-	echo "expected: $exp"
-	echo "received: $RES"
-	exit 1
-fi
-
-# Save the volatile state again
-$CUSE_TPM_IOCTL -v /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
-	exit 1
-fi
-if [ ! -r $VOLATILE_STATE_FILE ]; then
-	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
-	exit 1
-fi
-
-# Shut the TPM down
-exec 100>&-
-$CUSE_TPM_IOCTL -s /dev/$VTPM_NAME
-if [ $? -ne 0 ]; then
-	echo "Error: Could not shut down the CUSE TPM."
-	exit 1
-fi
-
-echo "Test 2: Ok"
+exit 0
