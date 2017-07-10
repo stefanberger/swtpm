@@ -64,7 +64,7 @@
 
 /* local variables */
 static TPM_MODIFIER_INDICATOR locality;
-static bool tpm_running = true;
+bool tpm_running = false;
 
 bool mainloop_terminate;
 

@@ -37,6 +37,8 @@
 #ifndef _SWTPM_COMMON_H_
 #define _SWTPM_COMMON_H_
 
+#include <stdbool.h>
+
 int handle_log_options(char *options);
 int handle_key_options(char *options);
 int handle_migration_key_options(char *options);
@@ -47,6 +49,7 @@ int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc);
 struct server;
 int handle_server_options(char *options, struct server **s);
 int handle_locality_options(char *options, uint32_t *flags);
+int handle_flags_options(char *options, bool *need_init_cmd);
 
 #endif /* _SWTPM_COMMON_H_ */
 

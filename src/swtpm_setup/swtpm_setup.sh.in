@@ -227,7 +227,7 @@ start_tpm()
 			continue
 		fi
 
-		$swtpm -p $TPM_PORT --tpmstate dir=$swtpm_state 2>&1 1>/dev/null &
+		$swtpm --flags not-need-init -p $TPM_PORT --tpmstate dir=$swtpm_state 2>&1 1>/dev/null &
 		SWTPM_PID=$!
 
 		# poll for open port (good) or the process to have

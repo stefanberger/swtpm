@@ -185,6 +185,14 @@ static const OptionDesc locality_opt_desc[] = {
     END_OPTION_DESC
 };
 
+static const OptionDesc flags_opt_desc[] = {
+    {
+        .name = "not-need-init",
+        .type = OPT_TYPE_BOOLEAN,
+    },
+    END_OPTION_DESC
+};
+
 /*
  * handle_log_options:
  * Parse and act upon the parsed log options. Initialize the logging.
@@ -988,6 +996,49 @@ int handle_locality_options(char *options, uint32_t *flags)
         return 0;
 
     if (parse_locality_options(options, flags) < 0)
+        return -1;
+
+    return 0;
+}
+
+static int parse_flags_options(char *options, bool *need_init_cmd)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+
+    ovs = options_parse(options, flags_opt_desc, &error);
+    if (!ovs) {
+        logprintf(STDERR_FILENO, "Error parsing flags options: %s\n", error);
+        goto error;
+    }
+
+    if (option_get_bool(ovs, "not-need-init", false))
+        *need_init_cmd = false;
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+
+    return -1;
+}
+
+/*
+ * handle_flags_options:
+ * Parse the 'flags' options.
+ *
+ * @options: the flags options to parse
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int handle_flags_options(char *options, bool *need_init_cmd)
+{
+    if (!options)
+        return 0;
+
+    if (parse_flags_options(options, need_init_cmd) < 0)
         return -1;
 
     return 0;

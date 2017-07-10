@@ -311,7 +311,8 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt &
+	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt \
+	--flags not-need-init &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -368,7 +369,8 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt &
+	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt \
+	--flags not-need-init &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."

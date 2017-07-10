@@ -502,6 +502,9 @@ int ctrlchannel_process_fd(int fd,
         if (*tpm_running)
             goto err_running;
 
+        /* tpm state dir must be set */
+        SWTPM_NVRAM_Init();
+
         pss = (ptm_setstate *)input.body;
         if (n < (ssize_t)offsetof(ptm_setstate, u.req.data)) /* rw */
             goto err_bad_input;

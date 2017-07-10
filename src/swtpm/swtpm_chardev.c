@@ -178,6 +178,10 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--locality [reject-locality-4][,allow-set-locality]\n"
     "                 : reject-locality-4: reject any command in locality 4\n"
     "                   allow-set-locality: accept SetLocality command\n"
+    "--flags [not-need-init]\n"
+    "                 : not-need-init: commands can be sent without needing to\n"
+    "                   send an INIT via control channel; not needed when using\n"
+    "                   --vtpm-proxy\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -204,6 +208,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *localitydata = NULL;
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
+    char *flagsdata = NULL;
     char *runas = NULL;
 #ifdef WITH_VTPM_PROXY
     bool use_vtpm_proxy = false;
@@ -211,6 +216,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 #ifdef DEBUG
     time_t              start_time;
 #endif
+    bool need_init_cmd = true;
     static struct option longopts[] = {
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
@@ -224,6 +230,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
         {"ctrl"      , required_argument, 0, 'C'},
+        {"flags"     , required_argument, 0, 'F'},
 #ifdef WITH_VTPM_PROXY
         {"vtpm-proxy",       no_argument, 0, 'v'},
 #endif
@@ -319,6 +326,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             localitydata = optarg;
             break;
 
+        case 'F':
+            flagsdata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -388,7 +399,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         handle_migration_key_options(migkeydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
-        handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0) {
+        handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
+        handle_flags_options(flagsdata, &need_init_cmd) < 0) {
         goto exit_failure;
     }
 
@@ -434,8 +446,16 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
            tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
 #endif
 
-    if ((rc = tpmlib_start(&callbacks, 0)))
-        goto error_no_tpm;
+#ifdef WITH_VTPM_PROXY
+    if (use_vtpm_proxy)
+        need_init_cmd = false;
+#endif
+
+    if (!need_init_cmd) {
+        if ((rc = tpmlib_start(&callbacks, 0)))
+            goto error_no_tpm;
+        tpm_running = true;
+    }
 
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
         goto error_no_sighandlers;

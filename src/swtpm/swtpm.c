@@ -152,6 +152,9 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--server type=unixio[,path=path][,fd=fd]\n"
     "                 : Expect UnixIO connections on the given path; if fd is\n"
     "                   provided, packets wil be read from it directly;\n"
+    "--flags [not-need-init]\n"
+    "                 : not-need-init: commands can be sent without needing to\n"
+    "                   send an INIT via control channel;\n"
     "-r|--runas <user>: change to the given user\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
@@ -182,9 +185,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
     char *serverdata = NULL;
+    char *flagsdata = NULL;
     char *runas = NULL;
     int sock_type = 0;
     socklen_t len = 0;
+    bool need_init_cmd = true;
 #ifdef DEBUG
     time_t              start_time;
 #endif
@@ -203,6 +208,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
         {"ctrl"      , required_argument, 0, 'C'},
+        {"flags"     , required_argument, 0, 'F'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -311,6 +317,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             localitydata = optarg;
             break;
 
+        case 'F':
+            flagsdata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -338,7 +348,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_locality_options(localitydata, &mlp.locality_flags) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
-        handle_server_options(serverdata, &server) < 0) {
+        handle_server_options(serverdata, &server) < 0 ||
+        handle_flags_options(flagsdata, &need_init_cmd) < 0) {
         goto exit_failure;
     }
 
@@ -405,8 +416,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
            tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
 #endif
 
-    if ((rc = tpmlib_start(&callbacks, 0)))
-        goto error_no_tpm;
+    if (!need_init_cmd) {
+        if ((rc = tpmlib_start(&callbacks, 0)))
+            goto error_no_tpm;
+        tpm_running = true;
+    }
 
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
         goto error_no_sighandlers;
