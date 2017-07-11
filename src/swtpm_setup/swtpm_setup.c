@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
     struct passwd *passwd = NULL;
     int i = 1, j;
     const char *userid = E_USER_ID;
-    bool show_help = false;
+    bool change_user = true;
 
     while (i < argc) {
         if (!strcmp("--runas", argv[i])) {
@@ -88,9 +88,9 @@ int main(int argc, char *argv[])
             }
             userid = argv[i];
         } else if (!strcmp("--help", argv[i]) || !strcmp("-h", argv[i])) {
-            show_help = true;
+            change_user = false;
         } else if (!strcmp("--version", argv[i])) {
-            show_help = true;
+            change_user = false;
         }
         for (j = 0; one_arg_params[j] != NULL; j++) {
             if (!strcmp(one_arg_params[j], argv[i])) {
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if (!show_help) {
+    if (change_user) {
         passwd = getpwnam(userid);
         if (!passwd) {
             fprintf(stderr, "Could not get account data of user %s.\n", userid);
