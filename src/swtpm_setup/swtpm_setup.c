@@ -128,6 +128,15 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    /* we allow running this program as 'tss' (E_USER_ID) */
+    passwd = getpwnam(E_USER_ID);
+    if (!passwd) {
+        fprintf(stderr, "Could not get account data of user %s.\n", E_USER_ID);
+        return EXIT_FAILURE;
+    }
+    if (passwd->pw_uid == geteuid())
+        change_user = false;
+
     if (change_user) {
         passwd = getpwnam(userid);
         if (!passwd) {

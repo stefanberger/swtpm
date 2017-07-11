@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_setup 8"
-.TH swtpm_setup 8 "2016-06-26" "swtpm" ""
+.TH swtpm_setup 8 "2017-07-11" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -147,6 +147,9 @@ swtpm_setup
 .IX Header "DESCRIPTION"
 \&\fBswtpm_setup\fR is a tool that prepares the intial state for a libtpms-based
 \&\s-1TPM.\s0
+.PP
+For creating the initial state of a \s-1TPM 1.2,\s0 swtpm_setup must be run either
+as root or as the user the that tcsd requires, which is typically tss.
 .PP
 The following options are supported:
 .IP "\fB\-\-runas <userid\fR>" 4

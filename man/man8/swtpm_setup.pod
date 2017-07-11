@@ -11,6 +11,9 @@ B<swtpm_setup [OPTIONS]>
 B<swtpm_setup> is a tool that prepares the intial state for a libtpms-based
 TPM.
 
+For creating the initial state of a TPM 1.2, swtpm_setup must be run either
+as root or as the user the that tcsd requires, which is typically tss.
+
 The following options are supported:
 
 =over 4
