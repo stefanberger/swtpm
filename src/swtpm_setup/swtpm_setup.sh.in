@@ -1534,11 +1534,13 @@ main()
 		logit "  The TPM's state will be encrypted using a key derived from a passphrase."
 	fi
 
-	# tcsd only runs as tss, so we have to be root or tss here
-	user=$(id -un)
-	if [ "$user" != "root" ] && [ "$user" != "@TSS_USER@" ]; then
-		logerr "Need to be either root or @TSS_USER@ for being able to use tcsd"
-		exit 1
+	# tcsd only runs as tss, so we have to be root or tss here; TPM 1.2 only
+	if [ $((flags & SETUP_TPM2_F)) -eq 0 ]; then
+		user=$(id -un)
+		if [ "$user" != "root" ] && [ "$user" != "@TSS_USER@" ]; then
+			logerr "Need to be either root or @TSS_USER@ for being able to use tcsd"
+			exit 1
+		fi
 	fi
 
 	logit "Starting vTPM manufacturing as $(id -n -u):$(id -n -g) @ $(date +%c)"

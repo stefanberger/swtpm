@@ -78,6 +78,8 @@ int main(int argc, char *argv[])
     int i = 1, j;
     const char *userid = E_USER_ID;
     bool change_user = true;
+    bool use_tpm2 = false;
+    bool have_runas = false;
 
     while (i < argc) {
         if (!strcmp("--runas", argv[i])) {
@@ -87,10 +89,13 @@ int main(int argc, char *argv[])
                 exit(1);
             }
             userid = argv[i];
+            have_runas = true;
         } else if (!strcmp("--help", argv[i]) || !strcmp("-h", argv[i])) {
             change_user = false;
         } else if (!strcmp("--version", argv[i])) {
             change_user = false;
+        } else if (!strcmp("--tpm2", argv[i])) {
+            use_tpm2 = true;
         }
         for (j = 0; one_arg_params[j] != NULL; j++) {
             if (!strcmp(one_arg_params[j], argv[i])) {
@@ -128,14 +133,31 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    /* we allow running this program as 'tss' (E_USER_ID) */
-    passwd = getpwnam(E_USER_ID);
-    if (!passwd) {
-        fprintf(stderr, "Could not get account data of user %s.\n", E_USER_ID);
-        return EXIT_FAILURE;
+    /*
+     * In case of TPM2 we don't require to run as root since none
+     * of the tools we will run require root priviliges similar to
+     * TrouSerS (tcsd). So unless we saw --runas, we will not attempt
+     * to switch the user.
+     */
+    if (use_tpm2) {
+        if (!have_runas) {
+            change_user = false;
+        }
     }
-    if (passwd->pw_uid == geteuid())
-        change_user = false;
+
+    /*
+     * In case of TPM 1.2 we allow running this program as 'tss'
+     * (E_USER_ID).
+     */
+    if (!use_tpm2) {
+        passwd = getpwnam(E_USER_ID);
+        if (!passwd) {
+            fprintf(stderr, "Could not get account data of user %s.\n", E_USER_ID);
+            return EXIT_FAILURE;
+        }
+        if (passwd->pw_uid == geteuid())
+            change_user = false;
+    }
 
     if (change_user) {
         passwd = getpwnam(userid);
