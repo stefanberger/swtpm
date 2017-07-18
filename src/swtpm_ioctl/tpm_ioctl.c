@@ -316,8 +316,16 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
         if (!is_chardev) {
             /* we receive a part of the chunk */
             recvd_bytes = n - offsetof(ptm_getstate, u.resp.data);
+            if ((int32_t)recvd_bytes < 0) {
+                fprintf(stderr,
+                        "Too few bytes in response");
+                had_error = true;
+                break;
+            }
         } else {
-            recvd_bytes = devtoh32(is_chardev, pgs.u.resp.length);
+            recvd_bytes =
+                MIN(devtoh32(is_chardev, pgs.u.resp.length),
+                    sizeof(pgs.u.resp.data));
         }
 
         numbytes = write(file_fd, pgs.u.resp.data, recvd_bytes);
