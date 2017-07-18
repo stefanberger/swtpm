@@ -448,6 +448,7 @@ int
 handle_pid_options(char *options)
 {
     char *pidfile = NULL;
+    int ret = 0;
 
     if (!options)
         return 0;
@@ -456,11 +457,11 @@ handle_pid_options(char *options)
         return -1;
 
     if (pidfile_set(pidfile) < 0)
-        return -1;
+        ret = -1;
 
     free(pidfile);
 
-    return 0;
+    return ret;
 }
 
 /*
