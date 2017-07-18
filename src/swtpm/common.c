@@ -523,6 +523,7 @@ int
 handle_tpmstate_options(char *options)
 {
     char *tpmstatedir = NULL;
+    int ret = 0;
 
     if (!options)
         return 0;
@@ -531,11 +532,11 @@ handle_tpmstate_options(char *options)
         return -1;
 
     if (tpmstate_set_dir(tpmstatedir) < 0)
-        return -1;
+        ret = -1;
 
     free(tpmstatedir);
 
-    return 0;
+    return ret;
 }
 
 /*
