@@ -350,6 +350,12 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         }
     }
 
+    if (optind < argc) {
+        logprintf(STDERR_FILENO,
+                  "Unknown parameter '%s'\n", argv[optind]);
+        return EXIT_FAILURE;
+    }
+
     if (handle_locality_options(localitydata, &mlp.locality_flags) < 0)
         exit(1);
 

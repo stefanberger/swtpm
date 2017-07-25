@@ -335,6 +335,12 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         }
     }
 
+    if (optind < argc) {
+        logprintf(STDERR_FILENO,
+                  "Unknown parameter '%s'\n", argv[optind]);
+        return EXIT_FAILURE;
+    }
+
     /* change process ownership before accessing files */
     if (runas) {
         if (change_process_owner(runas) < 0)

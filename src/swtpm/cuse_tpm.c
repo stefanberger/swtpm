@@ -1351,6 +1351,12 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         }
     }
 
+    if (optind < argc) {
+        logprintf(STDERR_FILENO,
+                  "Unknown parameter '%s'\n", argv[optind]);
+        return EXIT_FAILURE;
+    }
+
     if (!cinfo.dev_info_argv) {
         logprintf(STDERR_FILENO, "Error: device name missing\n");
         return -2;
