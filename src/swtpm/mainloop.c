@@ -121,8 +121,6 @@ int mainLoop(struct mainLoopParams *mlp,
 
     sockfd = SWTPM_IO_GetSocketFD();
 
-    readall = (mlp->flags & MAIN_LOOP_FLAG_READALL);
-
     while (!mainloop_terminate) {
 
         while (rc == 0) {
@@ -165,6 +163,8 @@ int mainLoop(struct mainLoopParams *mlp,
             }
 
             if (pollfds[DATA_CLIENT_FD].revents & POLLHUP) {
+                logprintf(STDERR_FILENO, "Data client disconnected\n");
+                mlp->fd = -1;
                 /* chardev and unixio get this signal, not tcp */
                 if (mlp->flags & MAIN_LOOP_FLAG_END_ON_HUP) {
                     /* only the chardev terminates here */
@@ -183,7 +183,7 @@ int mainLoop(struct mainLoopParams *mlp,
                 ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, callbacks,
                                                     &mainloop_terminate,
                                                     &locality, &tpm_running,
-                                                    mlp->locality_flags);
+                                                    mlp);
                 if (mainloop_terminate)
                     break;
             }
@@ -199,6 +199,7 @@ int mainLoop(struct mainLoopParams *mlp,
 
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
             if (rc == 0) {
+                readall = (mlp->flags & MAIN_LOOP_FLAG_READALL);
                 rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
                                    max_command_length, mlp, readall);
                 if (rc != 0) {

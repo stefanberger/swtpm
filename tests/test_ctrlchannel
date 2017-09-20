@@ -56,7 +56,7 @@ PID="$(cat $PID_FILE)"
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(unix_tx '\x00\x00\x00\x01')"
-exp=" 00 00 00 00 00 00 0f ff"
+exp=" 00 00 00 00 00 00 1f ff"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
@@ -172,7 +172,7 @@ exec 100<>/dev/tcp/localhost/65430
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(unix_tx '\x00\x00\x00\x01')"
-exp=" 00 00 00 00 00 00 0f ff"
+exp=" 00 00 00 00 00 00 1f ff"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
@@ -608,6 +608,29 @@ fi
 # (Currently) expecting to see nothing in the log file
 check_logfile_patterns_level_1 $LOG_FILE 0
 rm -f $LOG_FILE
+
+echo "OK"
+
+# Test CMD_SET_DATAFD
+cp ${PWD}/${DIR}/data/tpmstate1/* ${TPMDIR}
+$SWTPM_EXE socket --flags not-need-init \
+           --ctrl type=unixio,path=$SOCK_PATH \
+           --tpmstate dir=$TPMDIR -t --pid file=$PID_FILE \
+           --log file=$LOG_FILE,level=20 &
+PID=$!
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: Socket TPM did not write pidfile."
+	exit 1
+fi
+
+LOG=$(SOCK_PATH=$SOCK_PATH exec python $DIR/test_setdatafd.py)
+RES=$?
+
+if [ $RES -ne 0 ]; then
+    echo "Error: CMD_SET_DATAFD failed: $LOG"
+    exit 1
+fi
 
 echo "OK"
 

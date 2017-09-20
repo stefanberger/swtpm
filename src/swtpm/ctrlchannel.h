@@ -42,6 +42,7 @@
 
 struct ctrlchannel;
 struct libtpms_callbacks;
+struct mainLoopParams;
 
 struct ctrlchannel *ctrlchannel_new(int fd, bool isclient);
 int ctrlchannel_get_fd(struct ctrlchannel *cc);
@@ -51,6 +52,6 @@ int ctrlchannel_process_fd(int fd,
                            bool *terminate,
                            TPM_MODIFIER_INDICATOR *locality,
                            bool *tpm_running,
-                           uint32_t locality_flags);
+                           struct mainLoopParams *mlp);
 
 #endif /* _SWTPM_CTRLCHANNEL_H_ */

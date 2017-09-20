@@ -193,6 +193,7 @@ typedef struct ptm_getconfig ptm_getconfig;
 #define PTM_CAP_SET_STATEBLOB      (1<<9)
 #define PTM_CAP_STOP               (1<<10)
 #define PTM_CAP_GET_CONFIG         (1<<11)
+#define PTM_CAP_SET_DATAFD         (1<<12)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
@@ -210,6 +211,7 @@ enum {
     PTM_SET_STATEBLOB      = _IOWR('P', 12, ptm_setstate),
     PTM_STOP               = _IOR('P', 13, ptm_res),
     PTM_GET_CONFIG         = _IOR('P', 14, ptm_getconfig),
+    PTM_SET_DATAFD         = _IOR('P', 15, ptm_res),
 };
 
 /*
@@ -238,6 +240,7 @@ enum {
     CMD_SET_STATEBLOB,
     CMD_STOP,
     CMD_GET_CONFIG,
+    CMD_SET_DATAFD
 };
 
 #endif /* _TPM_IOCTL_H */
