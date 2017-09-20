@@ -58,6 +58,7 @@
 #include "tpmlib.h"
 #include "swtpm_nvfile.h"
 #include "locality.h"
+#include "mainloop.h"
 
 /* local variables */
 
@@ -389,7 +390,8 @@ wait_chunk:
  *            number when set via CMD_SET_LOCALITY
  * @tpm_running: indicates whether the TPM is running; may be changed by
  *               this function in case TPM is stopped or started
- * @locality_flags: flags indicate how to handle locality 4
+ * @mlp: mainloop parameters used; may be altered by this function incase of
+ *       CMD_SET_DATAFD 
  *
  * This function returns the passed file descriptor or -1 in case the
  * file descriptor was closed.
@@ -399,7 +401,7 @@ int ctrlchannel_process_fd(int fd,
                            bool *terminate,
                            TPM_MODIFIER_INDICATOR *locality,
                            bool *tpm_running,
-                           uint32_t locality_flags)
+                           struct mainLoopParams *mlp)
 {
     struct input input;
     struct output {
@@ -409,12 +411,18 @@ int ctrlchannel_process_fd(int fd,
     struct iovec iov = {
         .iov_base = &input, .iov_len = sizeof(input)
     };
+    char control[CMSG_SPACE(sizeof(int))];
     struct msghdr msg = {
         .msg_iov = &iov,
         .msg_iovlen = 1,
-        .msg_control = NULL,
-        .msg_controllen = 0,
+        .msg_control = control,
+        .msg_controllen = sizeof(control),
     };
+    struct cmsghdr *cmsg = NULL;
+    int sock_type = 0;
+    socklen_t len = 0;
+    int *data_fd = NULL;
+
     /* Write-only */
     ptm_cap *ptm_caps = (ptm_cap *)&output.body;
     ptm_res *res_p = (ptm_res *)&output.body;
@@ -459,7 +467,8 @@ int ctrlchannel_process_fd(int fd,
             PTM_CAP_GET_STATEBLOB |
             PTM_CAP_SET_STATEBLOB |
             PTM_CAP_STOP |
-            PTM_CAP_GET_CONFIG);
+            PTM_CAP_GET_CONFIG |
+            PTM_CAP_SET_DATAFD);
 
         out_len = sizeof(*ptm_caps);
         break;
@@ -551,7 +560,7 @@ int ctrlchannel_process_fd(int fd,
         pl = (ptm_loc *)input.body;
         if (pl->u.req.loc > 4 ||
             (pl->u.req.loc == 4 &&
-             locality_flags & LOCALITY_FLAG_REJECT_LOCALITY_4)) {
+             mlp->locality_flags & LOCALITY_FLAG_REJECT_LOCALITY_4)) {
             res = TPM_BAD_LOCALITY;
         } else {
             res = TPM_SUCCESS;
@@ -683,6 +692,32 @@ int ctrlchannel_process_fd(int fd,
         out_len = sizeof(pgc->u.resp);
         break;
 
+    case CMD_SET_DATAFD:
+        if (mlp->fd != -1)
+            goto err_io;
+
+        cmsg = CMSG_FIRSTHDR(&msg);
+        if (!cmsg || cmsg->cmsg_len < CMSG_LEN(sizeof(int)) ||
+             cmsg->cmsg_level != SOL_SOCKET ||
+             cmsg->cmsg_type != SCM_RIGHTS ||
+             !(data_fd = (int *)CMSG_DATA(cmsg)) ||
+             *data_fd < 0) {
+            logprintf(STDERR_FILENO, "no valid data socket in message; cmsg = "
+                                     "%p", cmsg);
+            goto err_bad_input;
+        }
+
+        mlp->flags = MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION |
+                       MAIN_LOOP_FLAG_END_ON_HUP;
+        if (!getsockopt(*data_fd, SOL_SOCKET, SO_TYPE, &sock_type, &len)
+            && sock_type != SOCK_STREAM)
+            mlp->flags |= MAIN_LOOP_FLAG_READALL;
+        mlp->fd = *data_fd;
+
+        *res_p = htobe32(TPM_SUCCESS);
+        out_len = sizeof(ptm_res);
+        break;
+
     default:
         logprintf(STDERR_FILENO,
                   "Error: Unknown command: 0x%08x\n", be32toh(input.cmd));
@@ -716,6 +751,12 @@ err_bad_input:
 err_running:
 err_not_running:
     *res_p = htobe32(TPM_BAD_ORDINAL);
+    out_len = sizeof(ptm_res);
+
+    goto send_resp;
+
+err_io:
+    *res_p = htobe32(TPM_IOERROR);
     out_len = sizeof(ptm_res);
 
     goto send_resp;

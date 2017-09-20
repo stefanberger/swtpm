@@ -205,10 +205,9 @@ TPM_RESULT SWTPM_IO_Init(void)
     if (rc == 0) {
         port_str = getenv("TPM_PORT");
         if (port_str == NULL) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_IO_Init: Error, TPM_PORT environment variable not "
-                      "set\n");
-            rc = TPM_IOERROR;
+            TPM_DEBUG("SWTPM_IO_Init: TPM_PORT environment variable not set. "
+                      "Data channel file descriptor must be passed in.\n");
+            return 0;
         }
     }
 
