@@ -244,6 +244,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
                           "Could not set port: %s\n", strerror(errno));
                 exit(1);
             }
+            serverdata = "type=tcp,disconnect";
             break;
 
         case 'f':
