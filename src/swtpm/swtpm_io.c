@@ -77,22 +77,9 @@ static TPM_RESULT SWTPM_IO_ReadBytes(TPM_CONNECTION_FD *connection_fd,
                                      unsigned char *buffer,
                                      size_t nbytes);
 
-#ifndef TPM_UNIX_DOMAIN_SOCKET
-static TPM_RESULT SWTPM_IO_ServerSocket_Open(int *sock_fd,
-                                           short port,
-                                           uint32_t in_addr);
-#else        /* TPM_UNIX_DOMAIN_SOCKET */
-static TPM_RESULT SWTPM_IO_ServerSocket_Open(int *sock_fd);
-#endif         /* TPM_UNIX_DOMAIN_SOCKET */
-
-
 /*
   global variables
 */
-
-static const char *port_str;    /* TPM command/response server port
-                                   port number for TCP/IP
-                                   domain file name for Unix domain socket */
 
 /* platform dependent */
 
@@ -191,124 +178,11 @@ int SWTPM_IO_GetSocketFD(void)
 
 TPM_RESULT SWTPM_IO_Init(void)
 {
-    TPM_RESULT          rc = 0;
-    int                 irc;
-    unsigned short      port;
-
-
     TPM_DEBUG(" SWTPM_IO_Init:\n");
 
-    if (sock_fd >= 0)
-        return 0;
-
-    /* get the socket port number */
-    if (rc == 0) {
-        port_str = getenv("TPM_PORT");
-        if (port_str == NULL) {
-            TPM_DEBUG("SWTPM_IO_Init: TPM_PORT environment variable not set. "
-                      "Data channel file descriptor must be passed in.\n");
-            return 0;
-        }
-    }
-
-    if (rc == 0) {
-        irc = sscanf(port_str, "%hu", &port);
-        if (irc != 1) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_IO_Init: Error, TPM_PORT environment variable "
-                      "invalid\n");
-            rc = TPM_IOERROR;
-        }
-    }
-    /* create a socket */
-    if (rc == 0) {
-        rc = SWTPM_IO_ServerSocket_Open(&sock_fd,
-                                        port,
-                                        INADDR_ANY);
-        if (rc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_IO_Init: Warning, could not open TCP/IP "
-                      "server socket.\n");
-        }
-    }
-
-    if (rc == 0) {
-        TPM_DEBUG("SWTPM_IO_Init: Waiting for connections on %s\n", port_str);
-    }
-    return rc;
+    return 0;
 }
 
-
-/* Open a TCP Server socket given the provided parameters. Set it into
-   listening mode so connections can be accepted on it.
-
-   This is the Unix platform dependent socket version.
-*/
-
-static TPM_RESULT SWTPM_IO_ServerSocket_Open(int *sock_fd,
-                                             short port,
-                                             uint32_t in_addr)
-{
-    TPM_RESULT          rc = 0;
-    int                 irc;
-    int                 domain = AF_INET;
-    struct sockaddr_in  serv_addr;
-    int                 opt;
-
-    /* create a socket */
-    if (rc == 0) {
-        TPM_DEBUG(" SWTPM_IO_ServerSocket_Open: Port %s\n", port_str);
-        *sock_fd = socket(domain, SOCK_STREAM, 0);      /* socket */
-        if (*sock_fd == -1) {
-            TPM_DEBUG("SWTPM_IO_ServerSocket_Open: Error, server socket() %d %s\n",
-                   errno, strerror(errno));
-            rc = TPM_IOERROR;
-        }
-    }
-
-    if (rc == 0) {
-        memset((char *)&serv_addr, 0, sizeof(serv_addr));
-        serv_addr.sin_family = AF_INET;                 /* Internet socket */
-        serv_addr.sin_port = htons(port);               /* host to network byte order for short */
-        serv_addr.sin_addr.s_addr = htonl(in_addr);     /* host to network byte order for long */
-        opt = 1;
-        /* Set SO_REUSEADDR before calling bind() for servers that bind to a fixed port number. */
-        irc = setsockopt(*sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt,
-                         sizeof(opt));
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_IO_ServerSocket_Open: Error, server setsockopt() "
-                      "%d %s\n", errno, strerror(errno));
-            rc = TPM_IOERROR;
-        }
-    }
-
-    /* bind the (local) server port name to the socket */
-    if (rc == 0) {
-        irc = bind(*sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-        if (irc != 0) {
-            close(*sock_fd);
-            *sock_fd = -1;
-            logprintf(STDERR_FILENO,
-                      "SWTPM_IO_ServerSocket_Open: Error, server bind() %d "
-                      "%s\n", errno, strerror(errno));
-            rc = TPM_IOERROR;
-        }
-    }
-    /* listen for a connection to the socket */
-    if (rc == 0) {
-        irc = listen(*sock_fd, SOMAXCONN);
-        if (irc != 0) {
-            close(*sock_fd);
-            *sock_fd = -1;
-            logprintf(STDERR_FILENO,
-                      "SWTPM_IO_ServerSocket_Open: Error, server listen() %d "
-                      "%s\n", errno, strerror(errno));
-            rc = TPM_IOERROR;
-        }
-    }
-    return rc;
-}
 
 /* SWTPM_IO_Connect() establishes a connection between the TPM server and the host client
 
@@ -337,7 +211,7 @@ TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write 
         FD_SET(notify_fd, &readfds);
         max_fd = (notify_fd > max_fd) ? notify_fd : max_fd;
 
-        TPM_DEBUG("SWTPM_IO_Connect: Waiting for connections on port %s\n", port_str);
+        TPM_DEBUG("SWTPM_IO_Connect: Waiting for connections\n");
 
         n = select(max_fd + 1, &readfds, NULL, NULL, NULL);
 
@@ -349,7 +223,7 @@ TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write 
         if (n > 0 && FD_ISSET(sock_fd, &readfds)) {
             cli_len = sizeof(cli_addr);
             /* block until connection from client */
-            TPM_DEBUG("\n SWTPM_IO_Connect: Accepting connection from port %s ...\n", port_str);
+            TPM_DEBUG("\n SWTPM_IO_Connect: Accepting connection ...\n");
             connection_fd->fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
             if (connection_fd->fd < 0) {
                 logprintf(STDERR_FILENO,

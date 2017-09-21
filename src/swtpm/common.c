@@ -887,7 +887,6 @@ static int parse_server_options(char *options, struct server **c)
             goto error;
         }
     } else if (!strcmp(type, "tcp")) {
-        port = option_get_int(ovs, "port", -1);
         fd = option_get_int(ovs, "fd", -1);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
@@ -899,7 +898,18 @@ static int parse_server_options(char *options, struct server **c)
             flags |= SERVER_FLAG_FD_GIVEN;
 
             *c = server_new(fd, flags);
-        } else if (port >= 0) {
+        } else {
+            port = option_get_int(ovs, "port", -1);
+            if (port == -1) {
+                const char *port_str = getenv("TPM_PORT");
+                if (!port_str || sscanf(port_str, "%d", &port) == -1)
+                    port = -1;
+            }
+            if (port < 0) {
+                logprintf(STDERR_FILENO,
+                      "No valid port number provided for TCP socket.\n");
+                goto error;
+            }
             if (port >= 0x10000) {
                 logprintf(STDERR_FILENO,
                           "TCP socket port outside valid range\n");
@@ -914,10 +924,6 @@ static int parse_server_options(char *options, struct server **c)
                 goto error;
 
             *c = server_new(fd, flags);
-        } else {
-            logprintf(STDERR_FILENO,
-                      "Missing port and fd options for TCP socket\n");
-            goto error;
         }
     } else {
         logprintf(STDERR_FILENO, "Unsupport socket type: %s\n", type);
