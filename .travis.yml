@@ -1,3 +1,9 @@
+env:
+  global:
+    # COVERITY_SCAN_TOKEN
+    # ** specific to your project **
+    - secure: "ki5q_WbrO4F53nzBELVInA"
+
 sudo: required
 language: c
 dist: trusty
@@ -9,5 +15,17 @@ before_install:
   - ./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 && sudo make install
   - cd ..
   - sudo apt-get -y install libfuse-dev libglib2.0-dev libgmp-dev expect libtasn1-dev socat findutils tpm-tools
+
+addons:
+  coverity_scan:
+    project:
+      name: stefanberger/swtpm
+      version: 0.1
+      description: swtpm TPM 1.2 & 2 emulator
+    notification_email: stefanb@linux.vnet.ibm.com
+    build_command_prepend: ./configure
+    build_command: make
+    branch_pattern: coverity_scan
+
 script: ./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 check && sudo make -j4 check
 
