@@ -1,31 +1,28 @@
 env:
   global:
-    # COVERITY_SCAN_TOKEN
-    # ** specific to your project **
-    - secure: "ki5q_WbrO4F53nzBELVInA"
-
+  - secure: mcAXlw5k/1yOP2RMKWEtvU2SnsuHo5Idoi5zZ+hLj2CzdvT77Wh8HWQ7NRsiamL+3dMPxzzy60IYNZQ8F29y3rvN7gASVsYn31G5UkmfvpPLiucuPADM1rNm8FYNlia0GFW4keP+LwMrBo6KDK9k0T8w4lquXBwMmNzhvCYVwkBIM5YwhXW5nk1dOJtf6zAb6gDH/VNEYTXXRKjA5Jvln7+EVHY61pEx6rJGa2GU0A49ms5UMJVzv85FraiHwlCPnNhQWGJ6sStqxsd5i6VBTCrkwMqnnA+ZBosqIJkBXp4OkudfPWE9vsn7TtuYdbheOkUIv6GRPFJNG3Vm3Wh/IwvSOILS5xAmsB3MxyK3BlILOYcsywiSzV5J4+s5Vnih4FaRQ3xx46Fq2ldatuk7npIxfdd3Co5V1KZh1pq3ckAdKlY2PEsQc0Kh72Lxf2N0XVw4s0H7gzrFk4/ghIvoCmAWBRSrN+R7wleEcmxDRgUZHP6Qc2ZNP+kljhBLqzinW2jyxPAqQS17g5Tb01+WfqkG/T5jboyIIe/OEQ5XbQp3/d8rUA8STpJxD25lwKKqlIqU3ZFWYfRT+pA0x83AdiTm53CJSQqFyCLtZCqK0XSZbLfmFzjZJ7I8FQxZoF2o03DDkL1Xs0z0sj87i3UnsYzxGdSrcU2JDK7qRIn39sM=
 sudo: required
 language: c
 dist: trusty
 before_install:
-  - sudo apt-get -y install automake autoconf libtool libssl-dev sed make gawk sed bash dh-exec
-  - git clone https://github.com/stefanberger/libtpms
-  - cd libtpms
-  - git checkout origin/tpm2-preview.rev146 -b tpm2-preview.rev146
-  - ./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 && sudo make install
-  - cd ..
-  - sudo apt-get -y install libfuse-dev libglib2.0-dev libgmp-dev expect libtasn1-dev socat findutils tpm-tools
-
+- sudo apt-get -y install automake autoconf libtool libssl-dev sed make gawk sed bash
+  dh-exec
+- git clone https://github.com/stefanberger/libtpms
+- cd libtpms
+- git checkout origin/tpm2-preview.rev146 -b tpm2-preview.rev146
+- "./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 && sudo
+  make install"
+- cd ..
+- sudo apt-get -y install libfuse-dev libglib2.0-dev libgmp-dev expect libtasn1-dev
+  socat findutils tpm-tools
 addons:
   coverity_scan:
     project:
-      name: stefanberger/swtpm
-      version: 0.1
-      description: swtpm TPM 1.2 & 2 emulator
+      name: swtpm
+      description: Build submitted via Travis CI
     notification_email: stefanb@linux.vnet.ibm.com
-    build_command_prepend: ./configure
-    build_command: make
+    build_command_prepend: "./bootstrap.sh; ./configure --with-openssl; make clean"
+    build_command: make -j4
     branch_pattern: coverity_scan
-
-script: ./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 check && sudo make -j4 check
-
+script: "./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 check
+  && sudo make -j4 check"
