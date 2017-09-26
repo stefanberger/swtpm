@@ -922,11 +922,6 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     bool exit_prg = FALSE;
     ptm_init *init_p;
 
-    if (flags & FUSE_IOCTL_COMPAT) {
-        fuse_reply_err(req, ENOSYS);
-        return;
-    }
-
     /* some commands have to wait until the worker thread is done */
     switch(cmd) {
     case PTM_GET_CAPABILITY:
