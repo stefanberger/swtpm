@@ -44,6 +44,8 @@
 #include <stdint.h>
 #include <endian.h>
 #include <stddef.h>
+#include <time.h>
+#include <poll.h>
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
@@ -220,6 +222,157 @@ err_fd_broken:
     return fd;
 }
 
+/* timespec_diff: calculate difference between two timespecs
+ *
+ * @end: end time
+ * @start: start time; must be earlier than @end
+ * @diff: result
+ *
+ * This function will return a negative tv_sec in result, if
+ * @end is earlier than @start, the time difference otherwise.
+ */
+static void timespec_diff(struct timespec *end,
+                          struct timespec *start,
+                          struct timespec *diff)
+{
+    diff->tv_nsec = end->tv_nsec - start->tv_nsec;
+    diff->tv_sec = end->tv_sec - start->tv_sec;
+    if (diff->tv_nsec < 0) {
+        diff->tv_nsec += 1E9;
+        diff->tv_sec -= 1;
+    }
+}
+
+struct input {
+    uint32_t cmd;
+    /* ptm_hdata is the largest buffer to receive */
+    uint8_t body[sizeof(ptm_hdata)];
+} input;
+
+/*
+ * ctrlchannel_recv_cmd: Receive a command on the control channel
+ *
+ * @fd: file descriptor for control channel
+ * @buffer: buffer to receive data into
+ * @buffer_len: length of the buffer
+ *
+ * This function returns 0 or a negative number if an error receiving
+ * the command occurred, including a timeout. In case of success,
+ * the nunber of bytes received is returned.
+ */
+static ssize_t ctrlchannel_recv_cmd(int fd,
+                                    unsigned char *buffer,
+                                    size_t buffer_len)
+{
+    ssize_t n;
+    size_t recvd = 0;
+    size_t needed = offsetof(struct input, body);
+    struct input *input = (struct input *)buffer;
+    struct pollfd pollfd =  {
+        .fd = fd,
+        .events = POLLIN,
+    };
+    struct timespec deadline, now, timeout;
+    int to;
+    /* Read-write */
+    ptm_init *init_p;
+    ptm_reset_est *pre;
+    ptm_hdata *phd;
+    ptm_getstate *pgs;
+    ptm_setstate *pss;
+    ptm_loc *pl;
+
+    clock_gettime(CLOCK_REALTIME, &deadline);
+
+    /* maximum allowed time is 500ms to receive everything */
+    deadline.tv_nsec += 500 * 1E6;
+    if (deadline.tv_nsec >= 1E9) {
+        deadline.tv_nsec -= 1E9;
+        deadline.tv_sec += 1;
+    }
+
+    while (recvd < buffer_len) {
+        n = read(fd, &buffer[recvd], buffer_len - recvd);
+        if (n <= 0)
+            return n;
+        recvd += n;
+        /* we need to at least see the cmd */
+        if (recvd < offsetof(struct input, body))
+            goto wait_chunk;
+
+        switch (be32toh(input->cmd)) {
+        case CMD_GET_CAPABILITY:
+            break;
+        case CMD_INIT:
+            needed = offsetof(struct input, body) +
+                     sizeof(init_p->u.req);
+            break;
+        case CMD_SHUTDOWN:
+            break;
+        case CMD_GET_TPMESTABLISHED:
+            break;
+        case CMD_SET_LOCALITY:
+            needed = offsetof(struct input, body) +
+                     sizeof(pl->u.req);
+            break;
+        case CMD_HASH_START:
+            break;
+        case CMD_HASH_DATA:
+            needed = offsetof(struct input, body) +
+                     offsetof(struct ptm_hdata, u.req.data);
+            if (recvd >= needed) {
+                phd = (struct ptm_hdata *)&input->body;
+                needed += be32toh(phd->u.req.length);
+            }
+            break;
+        case CMD_HASH_END:
+            break;
+        case CMD_CANCEL_TPM_CMD:
+            break;
+        case CMD_STORE_VOLATILE:
+            break;
+        case CMD_RESET_TPMESTABLISHED:
+            needed = offsetof(struct input, body) +
+                     sizeof(pre->u.req);
+            break;
+        case CMD_GET_STATEBLOB:
+            needed = offsetof(struct input, body) +
+                     sizeof(pgs->u.req);
+            break;
+        case CMD_SET_STATEBLOB:
+            needed = offsetof(struct input, body) +
+                     offsetof(struct ptm_setstate, u.req.data);
+            if (recvd >= needed) {
+                pss = (struct ptm_setstate *)&input->body;
+                needed += be32toh(pss->u.req.length);
+            }
+            break;
+        case CMD_STOP:
+            break;
+        case CMD_GET_CONFIG:
+            break;
+        }
+
+        if (recvd >= needed)
+            break;
+
+wait_chunk:
+        clock_gettime(CLOCK_REALTIME, &now);
+        timespec_diff(&deadline, &now, &timeout);
+
+        if (timeout.tv_sec < 0)
+            break;
+        to = timeout.tv_sec * 1000 + timeout.tv_nsec / 1E6;
+
+        /* wait for the next chunk */
+        n = poll(&pollfd, 1, to);
+        if (n <= 0)
+            return n;
+        /* we should have data now */
+    }
+    return recvd;
+}
+
 /*
  * ctrlchannel_process_fd: Read command from control channel and execute it
  *
@@ -245,11 +398,7 @@ int ctrlchannel_process_fd(int fd,
                            bool *tpm_running,
                            uint32_t locality_flags)
 {
-    struct input {
-        uint32_t cmd;
-        /* ptm_hdata is the largest buffer to receive */
-        uint8_t body[sizeof(ptm_hdata)];
-    } input;
+    struct input input;
     struct output {
         uint8_t body[4096];
     } output;
@@ -274,12 +423,8 @@ int ctrlchannel_process_fd(int fd,
     if (fd < 0)
         return -1;
 
-    n = read(fd, &input, sizeof(input));
-    if (n < 0) {
-        goto err_socket;
-    }
-    if (n == 0) {
-        /* remote socket closed */
+    n = ctrlchannel_recv_cmd(fd, (unsigned char *)&input, sizeof(input));
+    if (n <= 0) {
         goto err_socket;
     }
     if ((size_t)n < sizeof(input.cmd)) {
