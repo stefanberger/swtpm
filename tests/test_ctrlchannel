@@ -56,7 +56,7 @@ PID="$(cat $PID_FILE)"
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(unix_tx '\x00\x00\x00\x01')"
-exp=" 00 00 00 00 00 00 07 ff"
+exp=" 00 00 00 00 00 00 0f ff"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
@@ -172,7 +172,7 @@ exec 100<>/dev/tcp/localhost/65430
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(unix_tx '\x00\x00\x00\x01')"
-exp=" 00 00 00 00 00 00 07 ff"
+exp=" 00 00 00 00 00 00 0f ff"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
