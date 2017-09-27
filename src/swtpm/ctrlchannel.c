@@ -253,27 +253,27 @@ struct input {
  * ctrlchannel_recv_cmd: Receive a command on the control channel
  *
  * @fd: file descriptor for control channel
- * @buffer: buffer to receive data into
- * @buffer_len: length of the buffer
+ * @msg: prepared msghdr struct for receiveing data with single
+ *       msg_iov.
  *
  * This function returns 0 or a negative number if an error receiving
  * the command occurred, including a timeout. In case of success,
  * the nunber of bytes received is returned.
  */
 static ssize_t ctrlchannel_recv_cmd(int fd,
-                                    unsigned char *buffer,
-                                    size_t buffer_len)
+                                    struct msghdr *msg)
 {
     ssize_t n;
     size_t recvd = 0;
     size_t needed = offsetof(struct input, body);
-    struct input *input = (struct input *)buffer;
+    struct input *input = (struct input *)msg->msg_iov[0].iov_base;
     struct pollfd pollfd =  {
         .fd = fd,
         .events = POLLIN,
     };
     struct timespec deadline, now, timeout;
     int to;
+    size_t buffer_len = msg->msg_iov[0].iov_len;
     /* Read-write */
     ptm_init *init_p;
     ptm_reset_est *pre;
@@ -292,7 +292,10 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
     }
 
     while (recvd < buffer_len) {
-        n = read(fd, &buffer[recvd], buffer_len - recvd);
+        if (!recvd)
+            n = recvmsg(fd, msg, 0);
+        else
+            n = read(fd, msg->msg_iov[0].iov_base + recvd, buffer_len - recvd);
         if (n <= 0)
             return n;
         recvd += n;
@@ -403,6 +406,15 @@ int ctrlchannel_process_fd(int fd,
         uint8_t body[4096];
     } output;
     ssize_t n;
+    struct iovec iov = {
+        .iov_base = &input, .iov_len = sizeof(input)
+    };
+    struct msghdr msg = {
+        .msg_iov = &iov,
+        .msg_iovlen = 1,
+        .msg_control = NULL,
+        .msg_controllen = 0,
+    };
     /* Write-only */
     ptm_cap *ptm_caps = (ptm_cap *)&output.body;
     ptm_res *res_p = (ptm_res *)&output.body;
@@ -423,7 +435,7 @@ int ctrlchannel_process_fd(int fd,
     if (fd < 0)
         return -1;
 
-    n = ctrlchannel_recv_cmd(fd, (unsigned char *)&input, sizeof(input));
+    n = ctrlchannel_recv_cmd(fd, &msg);
     if (n <= 0) {
         goto err_socket;
     }
