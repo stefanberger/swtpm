@@ -6,9 +6,10 @@ import socket
 import subprocess
 import time
 import struct
+
 from array import array
 if sys.version_info[0] < 3:
-    import _multiprocessing
+    import twisted.python.sendmsg as sendmsg
 
 
 def toString(arr):
@@ -56,8 +57,10 @@ def test_SetDatafd():
         ctrlfd.connect(sock_path)
         print("Sending data fd over ctrl fd...")
         if sys.version_info[0] < 3:
-            ctrlfd.send(cmd_set_data_fd)
-            _multiprocessing.sendfd(ctrlfd.fileno(), _fd.fileno())
+            sendmsg.sendmsg(ctrlfd, str(cmd_set_data_fd),
+                            [(socket.SOL_SOCKET,
+                              sendmsg.SCM_RIGHTS,
+                              struct.pack("i", _fd.fileno()))])
         else:
             ctrlfd.sendmsg([cmd_set_data_fd],
                            [(socket.SOL_SOCKET, socket.SCM_RIGHTS, fds)])

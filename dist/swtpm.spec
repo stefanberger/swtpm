@@ -27,7 +27,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 
 BuildRequires:  automake autoconf bash coreutils libtool sed
 BuildRequires:  libtpms-devel fuse-devel glib2-devel gmp-devel
-BuildRequires:  expect bash net-tools nss-devel socat
+BuildRequires:  expect bash net-tools nss-devel socat python-twisted
 %if %{with_gnutls}
 BuildRequires:  gnutls >= 3.1.0 gnutls-devel gnutls-utils
 BuildRequires:  libtasn1-devel libtasn1

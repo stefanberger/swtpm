@@ -16,6 +16,7 @@ Build-Depends: automake,
 	       socat,
 	       findutils,
 	       tpm-tools (>= 1.3.8),
+	       python-twisted
 # linux-image-extra
 
 Package: swtpm

@@ -9,6 +9,7 @@ before_install:
 - pep8 $(find . -type f | grep -E "\.py$")
 - sudo apt-get -y install automake autoconf libtool libssl-dev sed make gawk sed bash
   dh-exec
+- sudo pip install twisted
 - git clone https://github.com/stefanberger/libtpms
 - cd libtpms
 - git checkout origin/tpm2-preview.rev146 -b tpm2-preview.rev146
