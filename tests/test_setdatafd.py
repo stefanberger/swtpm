@@ -57,10 +57,10 @@ def test_SetDatafd():
         ctrlfd.connect(sock_path)
         print("Sending data fd over ctrl fd...")
         if sys.version_info[0] < 3:
-            sendmsg.sendmsg(ctrlfd, str(cmd_set_data_fd),
-                            [(socket.SOL_SOCKET,
-                              sendmsg.SCM_RIGHTS,
-                              struct.pack("i", _fd.fileno()))])
+            sendmsg.send1msg(ctrlfd.fileno(), str(cmd_set_data_fd), 0,
+                             [(socket.SOL_SOCKET,
+                               sendmsg.SCM_RIGHTS,
+                               struct.pack("i", _fd.fileno()))])
         else:
             ctrlfd.sendmsg([cmd_set_data_fd],
                            [(socket.SOL_SOCKET, socket.SCM_RIGHTS, fds)])
