@@ -391,7 +391,7 @@ wait_chunk:
  * @tpm_running: indicates whether the TPM is running; may be changed by
  *               this function in case TPM is stopped or started
  * @mlp: mainloop parameters used; may be altered by this function incase of
- *       CMD_SET_DATAFD 
+ *       CMD_SET_DATAFD
  *
  * This function returns the passed file descriptor or -1 in case the
  * file descriptor was closed.
