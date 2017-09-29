@@ -40,7 +40,7 @@ the above dependencies:
 
 On Ubuntu use the following command:
 
- - sudo mk-build-deps --install ./dist/control
+ - sudo mk-build-deps --install ./debian/control
 
 
 Use the following sequence to build and install the Software TPM.
