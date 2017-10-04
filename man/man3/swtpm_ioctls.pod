@@ -1,6 +1,7 @@
 =head1 NAME
 
-Description of the ioctl's of the CUSE tpm (swtpm_cuse)
+Description of the ioctl's of the CUSE TPM (swtpm_cuse) and control commands
+used by the control channel over socket interface.
 
 =head1 SYNOPSYS
 
@@ -10,15 +11,25 @@ B<#include E<lt>tpm_ioctl.hE<gt>>
 
 The CUSE TPM implements an ioctl interface on the CUSE TPM's character device.
 The ioctl's are used for out-of-band control of various TPM operations,
-such as its intialization, resetting, and state migration.
+such as its intialization, resetting, and state migration. The control channel
+over TCP or UnixIO sockets uses control commands for these operations.
 
-The following is an enumeration of the supported ioctl's and the names
-of the data structure types used by the individual ioctl. All ioctl's
-return a TPM error code in their response.
+The following is an enumeration of the supported ioctl's and control commands,
+along with the names of the data structure types. All ioctl's and control
+commands return a TPM error code in their response. Ioctl's are prefixed with
+I<PTM> and control commands are prefixed with I<CMD>.
+
+In case of the ioctl interface, the pointer to a command's data structure is
+passed as the 2nd parameter to the ioctl() function. The fields in the command's
+data structure are to be fill out in host endianess format.
+
+In case of control commands, the command code must be encoded as a 4 byte
+interger preceding the command's data structure. Command code and data must be
+written in big endian format.
 
 =over 4
 
-=item B<PTM_GET_CAPABILITY, ptm_cap>
+=item B<PTM_GET_CAPABILITY / CMD_GET_CAPABILITY, ptm_cap>
 
 This ioctl allows the caller to check which ioctl's are implemented
 by the CUSE TPM. The following is a list of capability flags that
@@ -28,58 +39,64 @@ may be set upon return:
 
 =item B<PTM_CAP_INIT (since v0.1)>
 
-The PTM_INIT ioctl is supported.
+The PTM_INIT ioctl or CMD_INIT command is supported.
 
 =item B<PTM_CAP_SHUTDOWN (since v0.1)>
 
-The PTM_SHUTDOWN ioctl is supported.
+The PTM_SHUTDOWN ioctl or CMD_SHUTDOWN command is supported.
 
 =item B<PTM_CAP_GET_TPMESTABLISHED (since v0.1)>
 
-The PTM_GET_TPMESTABLISHED ioctl is supported.
+The PTM_GET_TPMESTABLISHED ioctl or CMD_GET_TPMESTABLISHED command is supported.
 
 =item B<PTM_CAP_SET_LOCALITY (since v0.1)>
 
-The PTM_SET_LOCALITY ioctl is supported.
+The PTM_SET_LOCALITY ioctl or CMD_SET_LOCALITY is supported.
 
 =item B<PTM_CAP_HASHING (since v0.1)>
 
-The PTM_HASH_START, PTM_HASH_DATA, and PTM_HASH_END ioctl's are supported.
+The PTM_HASH_START, PTM_HASH_DATA, and PTM_HASH_END ioctl's or
+CMD_HASH_START, CMD_HASH_DATA, CMD_HASH_END commands are supported.
 
 =item B<PTM_CAP_CANCEL_TPM_CMD (since v0.1)>
 
-The PTM_CANCEL_TPM_CMD ioctl is supported.
+The PTM_CANCEL_TPM_CMD ioctl or CMD_CANCEL_TPM_CMD command is supported.
 
 =item B<PTM_CAP_STORE_VOLATILE (since v0.1)>
 
-The PTM_STORE_VOLATILE ioctl is supported.
+The PTM_STORE_VOLATILE ioctl or CMD_STORE_VOLATILE command is supported.
 
 =item B<PTM_CAP_RESET_TPMESTABLISHED (since v0.1)>
 
-The PTM_RESET_TPMESTABLISHED ioctl is supported.
+The PTM_RESET_TPMESTABLISHED ioctl or CMD_RESET_TPMESTABLISHED command is supported.
 
 =item B<PTM_CAP_GET_STATEBLOB (since v0.1)>
 
-The PTM_GET_STATEBLOB ioctl is supported.
+The PTM_GET_STATEBLOB ioctl or CMD_GET_STATEBLOB command is supported.
 
 =item B<PTM_CAP_SET_STATEBLOB (since v0.1)>
 
-The PTM_SET_STATEBLOB ioctl is supported.
+The PTM_SET_STATEBLOB ioctl or CMD_SET_STATEBLOB command is supported.
 
 =item B<PTM_CAP_STOP (since v0.1)>
 
-The PTM_STOP ioctl is supported.
+The PTM_STOP ioctl or CMD_STOP command is supported.
 
 =item B<PTM_CAP_GET_CONFIG (since v0.1)>
 
-The PTM_GET_CONFIG ioctl is supported.
+The PTM_GET_CONFIG ioctl or CMD_GET_CONFIG command is supported.
+
+=item B<PTM_CAP_SET_DATAFD (since v0.1)>
+
+The CMD_SET_DATAFD command is supported. This command only applies to UnixIO
+and there is no support for PTM_SET_DATAFD.
 
 =back
 
-=item B<PTM_INIT, ptm_init>
+=item B<PTM_INIT / CMD_INIT, ptm_init>
 
 This ioctl must be used to initialize the TPM. It must be sent to the
-TPM before any command is sent to the TPM.
+TPM before any TPM command is sent.
 
 The ptm_init data structure looks as follows:
 
@@ -99,33 +116,33 @@ delete the volatile state upon startup (B<PTM_INIT_FLAG_DELETE_VOLATILE>).
 
 A TPM result code is returned in the tpm_result field.
 
-=item B<PTM_SHUTDOWN, ptm_res>
+=item B<PTM_SHUTDOWN / CMD_SHUTDOWN, ptm_res>
 
 This ioctl allows to shut down the TPM.
 
 A TPM result code is returned in ptm_res.
 
-=item B<PTM_GET_TPMESTABLISHED, ptm_est>
+=item B<PTM_GET_TPMESTABLISHED / CMD_GET_TPMESTABLISHED, ptm_est>
 
 This ioctl is used to check whether the TPM established flag is set.
 
 The tpm_est data structure looks as follows:
 
-struct ptm_est {
+ struct ptm_est {
     union {
         struct {
             ptm_res tpm_result;
             unsigned char bit; /* TPM established bit */
         } resp; /* response */
     } u;
-};
+ };
 
 A TPM result code is returned in the tpm_result field.
 
 The status of the TPM establishment flag is returned in the
 bit field.
 
-=item B<PTM_SET_LOCALITY, ptm_loc>
+=item B<PTM_SET_LOCALITY / CMD_SET_LOCALITY, ptm_loc>
 
 This ioctl is used to set the current locality. All subsequent commands
 will be executed in this locality until the locality is changed.
@@ -149,18 +166,18 @@ localities are in the range of 0 to 4.
 
 A TPM result code is returned in the tpm_result field.
 
-=item B<PTM_HASH_START, ptm_res>
+=item B<PTM_HASH_START / CMD_HASH_START, ptm_res>
 
 This ioctl is used to start the hash operation that is typically
 initiated by writing into certain registers of locality 4 of the
 TPM Interface (TPM TIS). Subsequent write operations for transferring
 data must be done with the B<PTM_HASH_DATA> ioctl.
 
-A TPM result code is returned in the ptm_res.
+A TPM result code is returned in ptm_res.
 
-=item B<PTM_HASH_DATA, ptm_hdata>
+=item B<PTM_HASH_DATA / CMD_HASH_DATA, ptm_hdata>
 
-This ioctl is used to transfer the data for the hash operation.
+This command is used to transfer the data for the hash operation.
 
 The ptm_hdata structure looks as follows:
 
@@ -181,29 +198,29 @@ the data field. Up to 4096 bytes can be transferred in one call.
 
 A TPM result code is returned in the tpm_result field.
 
-=item B<PTM_HASH_END, ptm_res>
+=item B<PTM_HASH_END / CMD_HASH_END, ptm_res>
 
-This ioctl is used to indicate the end of a hash operation that was
+This command is used to indicate the end of a hash operation that was
 started with the B<PTM_HASH_START> ioctl.
 
 A TPM result code is returned in ptm_res.
 
-=item B<PTM_CANCEL_CMD, ptm_res>
+=item B<PTM_CANCEL_CMD / CMD_CANCEL_CMD, ptm_res>
 
-This ioctl is used to cancel a TPM command.
+This command is used to cancel a TPM command.
 
 A TPM result code is returned in ptm_res.
 
-=item B<PTM_STORE_VOLATILE, ptm_res>
+=item B<PTM_STORE_VOLATILE / CMD_STORE_VOLATILE, ptm_res>
 
-This ioctl is used to trigger the TPM to store the volatile state into
+This command is used to trigger the TPM to store the volatile state into
 a file.
 
 A TPM result code is returned in ptm_res.
 
-=item B<PTM_RESET_ESTABLISHED, ptm_reset_est>
+=item B<PTM_RESET_ESTABLISHED / CMD_RESET_ESTABLISHED, ptm_reset_est>
 
-This ioctl is used to reset the TPM's establishment flag.
+This command is used to reset the TPM's establishment flag.
 
 The ptm_reset_est data structure looks as follows:
 
@@ -223,9 +240,9 @@ the loc field. Valid localities are in the range of 0 to 4.
 
 A TPM result code is returned in the tpm_result field.
 
-=item B<PTM_GET_STATEBLOB, ptm_getstate>
+=item B<PTM_GET_STATEBLOB /  CMD_GET_STATEBLOB, ptm_getstate>
 
-This ioctl is used to initiate the retrieval of one of the TPM's stateblobs.
+This command is used to initiate the retrieval of one of the TPM's stateblobs.
 
 The ptm_getstate data structure looks as follows:
 
@@ -271,9 +288,9 @@ If necessary, subsequent state blob transfers must be done using this
 ioctl or using the read() call on the file descriptor. All state
 must be transferred before the TPM will accept commands again.
 
-=item B<PTM_SET_STATEBLOB, ptm_setstate>
+=item B<PTM_SET_STATEBLOB / CMD_SET_STATEBLOB, ptm_setstate>
 
-This ioctl is used to transfer one of the TPM's stateblob to the TPM.
+This command is used to transfer one of the TPM's stateblob to the TPM.
 
 The ptm_setstate data structure looks as follows:
 
@@ -307,18 +324,18 @@ length to 0.
 
 The response returns a TPM error code in the tpm_result field.
 
-=item B<PTM_STOP, ptm_res>
+=item B<PTM_STOP / CMD_STOP, ptm_res>
 
-This ioctl is used to stop the TPM. In contrast to a TPM shut down,
+This command is used to stop the TPM. In contrast to a TPM shut down,
 the stopping of the TPM only halts its operations without terminating
 the TPM process. The TPM can restart operation with the B<PTM_INIT>
 ioctl.
 
-A TPM result code is returned in pmt_res.
+A TPM result code is returned in ptm_res.
 
-=item B<PTM_GET_CONFIG, ptm_getconfig>
+=item B<PTM_GET_CONFIG / CMD_GET_CONFIG, ptm_getconfig>
 
-This ioctl is used to retrieve the TPM's current configuration.
+This command is used to retrieve the TPM's current configuration.
 
 The ptm_getconfig data structure looks as follows:
 
@@ -337,6 +354,15 @@ The flags field holds individual flags that indicate whether a file
 encryption key is used (B<PTM_CONFIG_FLAG_FILE_KEY>)
 and whether a migration key is used
 (B<PTM_CONFIG_FLAG_MIGRATION_KEY>).
+
+=item B<CMD_SET_DATAFD, ptm_res>
+
+This command is only implemented for the control channel over UnixIO socket.
+It is used to establish the TPM command channel by transferring a socket file
+descriptor using the UnixIO socket's control channel and I<SCM_RIGHTS>.
+See also B<sendmsg(2)> and B<cmsg(3)>.
+
+A TPM result code is returned in ptm_res.
 
 =back
 
