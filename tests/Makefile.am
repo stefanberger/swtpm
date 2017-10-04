@@ -64,3 +64,16 @@ EXTRA_DIST=$(TESTS) \
 	test_common \
 	test_cuse \
 	test_swtpm_cert
+
+check-display:
+	@if test -n "$$SWTPM_EXE"; then \
+		echo "*** Using SWTPM_EXE=$$SWTPM_EXE"; \
+	fi
+	@if test -n "$$SWTPM_BIOS"; then \
+		echo "*** Using SWTPM_BIOS=$$SWTPM_BIOS"; \
+	fi
+	@if test -n "$$SWTPM_IOCTL"; then \
+		echo "*** Using SWTPM_IOCTL=$$SWTPM_IOCTL"; \
+	fi
+
+check: check-am check-display

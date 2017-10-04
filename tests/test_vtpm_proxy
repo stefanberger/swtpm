@@ -11,7 +11,7 @@ fi
 DIR=$(dirname "$0")
 ROOT=${DIR}/..
 SWTPM=swtpm
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
 TPM_PATH=$(mktemp -d)
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate

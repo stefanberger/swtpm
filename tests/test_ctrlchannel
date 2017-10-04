@@ -5,7 +5,7 @@
 DIR=$(dirname "$0")
 ROOT=${DIR}/..
 SWTPM=swtpm
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+SWTPM_EXE=${SWTPM_EXEC:-$ROOT/src/swtpm/$SWTPM}
 TPMDIR=`mktemp -d`
 PID_FILE=$TPMDIR/${SWTPM}.pid
 LOG_FILE=$TPMDIR/${SWTPM}.log

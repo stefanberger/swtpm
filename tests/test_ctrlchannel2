@@ -5,8 +5,8 @@
 DIR=$(dirname "$0")
 ROOT=${DIR}/..
 SWTPM=swtpm
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-SWTPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+SWTPM_EXE=${SWTPM_EXEC:-$ROOT/src/swtpm/$SWTPM}
+SWTPM_IOCTL=${SWTPM_IOCTL:-$ROOT/src/swtpm_ioctl/swtpm_ioctl}
 TPMDIR=`mktemp -d`
 PID_FILE=$TPMDIR/${SWTPM}.pid
 SOCK_PATH=$TPMDIR/sock
