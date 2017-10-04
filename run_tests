@@ -1,0 +1,34 @@
+#!/bin/bash
+
+unset SWTPM
+
+# FIXME:
+# Due to some bug in glib2 for i686 we don't seem to be able to run a
+# 32bit swtpm with cuse interface correctly. The g_cond_wait_until()
+# doesn't behave as it does with 64bit. test_hashing2 gets stuck.
+
+
+CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 && \
+ make clean && \
+ make -j8 &&
+ sudo make -j8 install &&
+ cp /usr/bin/swtpm /tmp/swtpm64 &&
+ make -j8 check &&
+ sudo make -j8 check ||
+ exit 1
+
+CFLAGS='-m32' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib && \
+ make clean && \
+ make -j8 &&
+ sudo make -j8 install &&
+ cp /usr/bin/swtpm /tmp/swtpm32 &&
+ make -j8 check &&
+ SWTPM_EXE=/tmp/swtpm64 make -j8 check &&
+ sudo SWTPM_EXE=/tmp/swtpm64 make -j8 check ||
+ exit 1
+
+CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 && \
+ make clean && \
+ make -j8 &&
+ SWTPM_EXE=/tmp/swtpm32 make -j8 check &&
+ exit 1
