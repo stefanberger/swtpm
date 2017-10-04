@@ -524,7 +524,7 @@ main(int argc, char *argv[])
                 fprintf(stderr, "Exponent is wrong and cannot be 0.\n");
                 goto cleanup;
             }
-            if (exponent > UINT_MAX) {
+            if ((unsigned long int)exponent > UINT_MAX) {
                 fprintf(stderr, "Exponent must fit into 32bits.\n");
                 goto cleanup;
             }
