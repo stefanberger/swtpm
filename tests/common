@@ -3,9 +3,9 @@ DIR=$(dirname "$0")
 ROOT=${DIR}/..
 
 SWTPM=swtpm
-SWTPM_EXE=${ROOT}/src/swtpm/${SWTPM}
-SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
-SWTPM_BIOS=${ROOT}/src/swtpm_bios/swtpm_bios
+SWTPM_EXE=${SWTPM_EXE:-${ROOT}/src/swtpm/${SWTPM}}
+SWTPM_IOCTL=${SWTPM_IOCTL:-${ROOT}/src/swtpm_ioctl/swtpm_ioctl}
+SWTPM_BIOS=${SWTPM_BIOS:-${ROOT}/src/swtpm_bios/swtpm_bios}
 ECHO=$(type -P echo)
 
 # Run the swtpm_ioctl command
