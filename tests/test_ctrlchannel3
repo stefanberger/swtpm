@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+TPMDIR=`mktemp -d`
+SWTPM_CTRL_UNIX_PATH=$TPMDIR/sock
+PID_FILE=$TPMDIR/swtpm.pid
+LOG_FILE=$TPMDIR/swtpm.log
+
+source ${DIR}/test_common
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf $TPMDIR
+	if [ -n "$PID" ]; then
+		kill -SIGTERM $PID 2>/dev/null
+	fi
+}
+
+source ${DIR}/common
+
+if ! [[ "$(uname -o)" =~ Linux ]]; then
+	echo "Need Linux to run UnixIO test for CMD_SET_DATAFD."
+	exit 77
+fi
+
+# Test CMD_SET_DATAFD
+cp ${PWD}/${DIR}/data/tpmstate1/* ${TPMDIR}
+$SWTPM_EXE socket \
+	--flags not-need-init \
+	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH \
+	--tpmstate dir=$TPMDIR \
+	-t \
+	--pid file=$PID_FILE \
+	--log file=$LOG_FILE,level=20 &
+PID=$!
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: Socket TPM did not write pidfile."
+	exit 1
+fi
+
+LOG=$(SOCK_PATH=$SWTPM_CTRL_UNIX_PATH exec python $DIR/test_setdatafd.py)
+res=$?
+
+if [ $res -ne 0 ]; then
+	echo "Error: CMD_SET_DATAFD failed: $LOG"
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

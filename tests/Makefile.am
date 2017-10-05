@@ -16,6 +16,7 @@ TESTS += \
 endif
 
 TESTS += \
+	test_ctrlchannel3 \
 	test_encrypted_state \
 	test_getcap \
 	test_hashing \
