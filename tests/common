@@ -222,6 +222,36 @@ function swtpm_cmd_tx()
 	esac
 }
 
+# Transmit a control command on fd 101
+#
+# @param1: type of interface
+function swtpm_ctrl_tx()
+{
+	local iface=$1
+	local ctrl_path resp_path
+
+	case "${iface}" in
+	socket+socket|unix+socket)
+		$ECHO -en "$2" >&101
+		cat <&101 | od -t x1 -A n -w128
+		;;
+	socket+unix|unix+unix)
+		ctrl_path=$(mktemp)
+		echo -en "$2" > ${ctrl_path}
+		socat -x -t20 \
+			FILE:${ctrl_path},rdonly \
+			UNIX-CLIENT:${SWTPM_CTRL_UNIX_PATH} 2>&1 | \
+		  sed -n '/^ /p' | \
+		  tail -n1
+		rm -f ${ctrl_path}
+		;;
+	*)
+		echo "swtpm_opendev: unsupported interface $iface"
+		exit 1
+	esac
+}
+
+
 # Run swtpm_bios
 #
 # @param1: type of interface
