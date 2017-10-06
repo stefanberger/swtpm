@@ -1,0 +1,136 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+TPMDIR=`mktemp -d`
+SWTPM_CTRL_UNIX_PATH=$TPMDIR/sock
+PID_FILE=$TPMDIR/swtpm.pid
+LOG_FILE=$TPMDIR/swtpm.log
+
+source ${DIR}/test_common
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf $TPMDIR
+	if [ -n "$PID" ]; then
+		kill -SIGTERM $PID 2>/dev/null
+	fi
+}
+
+SWTPM_INTERFACE=socket+unix
+source ${DIR}/common
+
+# Test 1: test the control channel on the chardev tpm
+
+exec 100<>/dev/ptmx
+$SWTPM_EXE chardev \
+	--fd 100 \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH \
+	--log file=$LOG_FILE,level=20 &
+
+exec 100>&-
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: Chardev TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
+res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
+exp=" 00 00 00 00 00 00 1f ff"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# Send TPM_Init to the TPM: CMD_INIT = 0x00 00 00 02 + flags
+res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x02\x00\x00\x00\x00')"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Unexpected response from CMD_INIT:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# Send unknown command to the TPM
+res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\xff\xff')"
+exp=" 00 00 00 0a"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Unexpected response from sending unsupported command:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# Save the volatile state: CMD_STORE_VOLATILE = 0x00 00 00 0a
+res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0a')"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Unexpected response from CMD_STORE_VOLATILE:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+if [ ! -r $TPMDIR/tpm-00.volatilestate ]; then
+	echo "Error: Socket TPM: Did not write volatile state file"
+	exit 1
+fi
+
+# Send stop command to the TPM: CMD_STOP = 00 00 00 0e
+res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0e')"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from CMD_STOP:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# Send get config command to the TPM: CMD_GET_CONFIG = 00 00 00 0f
+res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0f')"
+exp=" 00 00 00 00 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Socket TPM: Unexpected response from CMD_GET_CONFIG:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+# Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
+res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x03')"
+exp=" 00 00 00 00"
+if [ "$res" != "$exp" ]; then
+	echo "Error: Unexpected response from CMD_SHUTDOWN:"
+	echo "       actual  : $res"
+	echo "       expected: $exp"
+	exit 1
+fi
+
+sleep 0.2
+kill -0 $PID 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: TPM should not be running anymore."
+	exit 1
+fi
+
+if [ -f $PID_FILE ]; then
+	echo "Error: TPM should have removed the PID file."
+	exit 1
+fi
+
+check_logfile_patterns_level_20 $LOG_FILE
+rm -f $LOG_FILE
+
+echo "OK"

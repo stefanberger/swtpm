@@ -28,11 +28,11 @@ SWTPM_SERVER_PORT=65430
 SWTPM_SERVER_NAME=localhost
 source ${DIR}/common
 
-# Test 1: test the control channel on the chardev tpm
+# Test 1: test the control channel on the socket tpm
 
 # use a pseudo terminal
 exec 100<>/dev/ptmx
-$SWTPM_EXE chardev \
+$SWTPM_EXE socket \
 	--fd 100 \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
@@ -42,7 +42,7 @@ $SWTPM_EXE chardev \
 exec 100>&-
 
 if wait_for_file $PID_FILE 3; then
-	echo "Error: Chardev TPM did not write pidfile."
+	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
