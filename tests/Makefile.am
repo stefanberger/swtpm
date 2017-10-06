@@ -11,11 +11,12 @@ TESTS = \
 
 if WITH_CHARDEV
 TESTS += \
-	test_ctrlchannel \
-	test_ctrlchannel2
+	test_ctrlchannel2 \
+	test_ctrlchannel4
 endif
 
 TESTS += \
+	test_ctrlchannel \
 	test_ctrlchannel3 \
 	test_encrypted_state \
 	test_getcap \
