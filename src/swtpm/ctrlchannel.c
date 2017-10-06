@@ -467,8 +467,11 @@ int ctrlchannel_process_fd(int fd,
             PTM_CAP_GET_STATEBLOB |
             PTM_CAP_SET_STATEBLOB |
             PTM_CAP_STOP |
-            PTM_CAP_GET_CONFIG |
-            PTM_CAP_SET_DATAFD);
+            PTM_CAP_GET_CONFIG
+#ifndef __CYGWIN__
+            | PTM_CAP_SET_DATAFD
+#endif
+            );
 
         out_len = sizeof(*ptm_caps);
         break;
@@ -693,6 +696,10 @@ int ctrlchannel_process_fd(int fd,
         break;
 
     case CMD_SET_DATAFD:
+#ifdef __CYGWIN__
+        if (1)
+            goto err_running;
+#endif
         if (mlp->fd != -1)
             goto err_io;
 
