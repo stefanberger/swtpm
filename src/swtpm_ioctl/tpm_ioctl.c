@@ -82,6 +82,14 @@
 #define devtoh64(is_chardev, x) (is_chardev ? x : be64toh(x))
 #define htodev64(is_chardev, x) (is_chardev ? x : htobe64(x))
 
+/* for OpenBSD */
+#ifndef _IOC_NRSHIFT
+# define _IOC_NRSHIFT 0
+#endif
+#ifndef _IOC_NRMASK
+# define _IOC_NRMASK 255
+#endif
+
 static unsigned long ioctl_to_cmd(unsigned long ioctlnum)
 {
     /* the ioctl number contains the command number - 1 */
