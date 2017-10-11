@@ -197,29 +197,41 @@ function swtpm_cmd_tx()
 	local iface=$1
 	local cmd_path resp_path
 
+	cmd_path=$(mktemp)
+
 	case "${iface}" in
 	cuse)
-		$ECHO -en "$2" >&100
-		dd if=/proc/self/fd/100 2>/dev/null | od -t x1 -A n -w128
+		echo -en "$2" > ${cmd_path}
+		cat ${cmd_path} >&100
+		dd if=/proc/self/fd/100 2>/dev/null | \
+		    od -t x1 -A n | \
+		    tr -s ' ' | \
+		    tr -d '\n' | \
+		    sed 's/ $//g'
 		;;
 	socket+socket|socket+unix)
-		$ECHO -en "$2" >&100
-		cat <&100 | od -t x1 -A n -w128
+		echo -en "$2" > ${cmd_path}
+		cat ${cmd_path} >&100
+		cat <&100 | od -t x1 -A n | \
+                   tr -s ' ' | \
+                   tr -d '\n' | \
+                   sed 's/ $//g'
 		;;
 	unix+socket|unix+unix)
-		cmd_path=$(mktemp)
 		echo -en "$2" > ${cmd_path}
 		socat -x -t20 \
 			FILE:${cmd_path},rdonly \
 			UNIX-CLIENT:${SWTPM_CMD_UNIX_PATH} 2>&1 | \
 		  sed -n '/^ /p' | \
 		  tail -n1
-		rm -f ${cmd_path}
 		;;
 	*)
 		echo "swtpm_opendev: unsupported interface $iface"
+		rm -f ${cmd_path}
 		exit 1
 	esac
+
+	rm -f ${cmd_path}
 }
 
 # Transmit a control command on fd 101
