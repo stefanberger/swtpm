@@ -571,7 +571,7 @@ static int unixio_open_socket(const char *path, mode_t perm)
         return -1;
     }
 
-    len = strlen(su.sun_path) + sizeof(su.sun_family);
+    len = strlen(su.sun_path) + sizeof(su.sun_family) + 1;
     n = bind(fd, (struct sockaddr *)&su, len);
     if (n < 0) {
         logprintf(STDERR_FILENO, "Could not open UnixIO socket: %s\n",
