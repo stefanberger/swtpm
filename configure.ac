@@ -397,7 +397,8 @@ dnl to avoid problems
 AC_MSG_CHECKING([the crypto library libtpms is using])
 dirs=$($CC $CFLAGS -Xlinker --verbose 2>/dev/null | \
        sed -n '/SEARCH_DIR/p' | \
-       sed 's/SEARCH_DIR("=\?\(@<:@^"@:>@\+\)"); */\1\n/g')
+       sed 's/SEARCH_DIR("\(@<:@^"@:>@*\)"); */\1 /g' | \
+       sed 's|=/|/|g')
 for dir in $dirs $LIBRARY_PATH; do
   if test -r $dir/libtpms.so; then
     if test -n "`ldd $dir/libtpms.so | grep libcrypto.so`"; then
@@ -410,12 +411,13 @@ for dir in $dirs $LIBRARY_PATH; do
     fi
   fi
   case $host_os in
-  cygwin)
+  cygwin|openbsd*)
     if test -r $dir/libtpms.a; then
       if test -n "$(nm $dir/libtpms.a | grep "U AES_encrypt")"; then
         libtpms_cryptolib="openssl"
       fi
     fi
+    ;;
   esac
 done
 
