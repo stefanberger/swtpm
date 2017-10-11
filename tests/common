@@ -304,3 +304,29 @@ function run_swtpm_bios()
 		exit 1
 	esac
 }
+
+# Get the size of a file in bytes
+#
+# @1: filename
+function get_filesize()
+{
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+		stat -c%s $1
+	else
+		# OpenBSD
+		stat -f%z $1
+	fi
+}
+
+# Get the SHA1 of a file
+#
+# @1: filename
+function get_sha1_file()
+{
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+		sha1sum $volatilestatefile | cut -f1 -d" "
+	else
+		# OpenBSD
+		sha1 $1 | cut -d "=" -f2 | tr -d " "
+	fi
+}
