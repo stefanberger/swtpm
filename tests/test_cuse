@@ -1,7 +1,7 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-if ! [[ "$(uname -o)" =~ Linux ]]; then
+if ! [[ "$(uname -s)" =~ Linux ]]; then
 	echo "Need Linux to run test with CUSE interface."
 	exit 77
 fi
