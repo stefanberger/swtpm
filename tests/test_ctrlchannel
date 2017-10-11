@@ -31,7 +31,14 @@ source ${DIR}/common
 # Test 1: test the control channel on the socket tpm
 
 # use a pseudo terminal
-exec 100<>/dev/ptmx
+if [ -c /dev/ptmx ]; then
+	exec 100<>/dev/ptmx
+elif [ -c /dev/ptm ]; then
+	exec 100<>/dev/ptm
+else
+	echo "Could not find chardev for opening file descriptor."
+	exit 1
+fi
 $SWTPM_EXE socket \
 	--fd 100 \
 	--tpmstate dir=$TPMDIR \
@@ -50,7 +57,7 @@ PID="$(cat $PID_FILE)"
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
-if [[ "$(uname -o)" =~ Linux ]]; then
+if [[ "$(uname -s)" =~ (Linux|OpenBSD) ]]; then
 	exp=" 00 00 00 00 00 00 1f ff"
 else
 	exp=" 00 00 00 00 00 00 0f ff"
@@ -166,7 +173,7 @@ swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
-if [[ "$(uname -o)" =~ Linux ]]; then
+if [[ "$(uname -s)" =~ (Linux|OpenBSD) ]]; then
 	exp=" 00 00 00 00 00 00 1f ff"
 else
 	exp=" 00 00 00 00 00 00 0f ff"
