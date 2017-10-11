@@ -265,8 +265,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
              * test for wrong file types; anonymous fd's do not seem to be any of the wrong
              * ones but are also not character devices
              */
-            if (S_ISREG(statbuf.st_mode) || S_ISDIR(statbuf.st_mode) || S_ISBLK(statbuf.st_mode)
-                || S_ISLNK(statbuf.st_mode)) {
+            if (S_ISREG(statbuf.st_mode) || S_ISDIR(statbuf.st_mode) ||
+                S_ISBLK(statbuf.st_mode) || S_ISLNK(statbuf.st_mode)) {
                 logprintf(STDERR_FILENO,
                           "Given file descriptor type is not supported.\n");
                 exit(1);
