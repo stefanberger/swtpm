@@ -37,8 +37,10 @@
 
 #include "config.h"
 
-#define _GNU_SOURCE
-#include <features.h>
+#ifndef __OpenBSD__
+ #define _GNU_SOURCE
+ #include <features.h>
+#endif
 
 #include <limits.h>
 #include <stdarg.h>
