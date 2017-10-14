@@ -65,6 +65,7 @@
 #include "tpmlib.h"
 #include "utils.h"
 #include "mainloop.h"
+#include "ctrlchannel.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -376,9 +377,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         if (!getsockopt(mlp.fd, SOL_SOCKET, SO_TYPE, &sock_type, &len) &&
                         sock_type != SOCK_STREAM)
             mlp.flags |= MAIN_LOOP_FLAG_READALL;
-
-        free(server);
-        server = NULL;
     }
 
     if (daemonize) {
@@ -445,8 +443,8 @@ error_no_tpm:
     close(notify_fd[1]);
     notify_fd[1] = -1;
 
-    free(mlp.cc);
-    free(server);
+    ctrlchannel_free(mlp.cc);
+    server_free(server);
 
     /* Fatal initialization errors cause the program to abort */
     if (rc == 0) {
@@ -458,8 +456,8 @@ error_no_tpm:
     }
 
 exit_failure:
-    free(mlp.cc);
-    free(server);
+    ctrlchannel_free(mlp.cc);
+    server_free(server);
 
     return EXIT_FAILURE;
 }

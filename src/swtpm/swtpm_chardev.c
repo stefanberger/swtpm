@@ -482,6 +482,8 @@ error_no_tpm:
     close(notify_fd[1]);
     notify_fd[1] = -1;
 
+    ctrlchannel_free(mlp.cc);
+
     /* Fatal initialization errors cause the program to abort */
     if (rc == 0) {
         return EXIT_SUCCESS;
@@ -492,7 +494,7 @@ error_no_tpm:
     }
 
 exit_failure:
-    free(mlp.cc);
+    ctrlchannel_free(mlp.cc);
 
     return EXIT_FAILURE;
 }

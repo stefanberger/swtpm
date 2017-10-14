@@ -65,15 +65,26 @@
 struct ctrlchannel {
     int fd;
     int clientfd;
+    char *sockpath;
 };
 
-struct ctrlchannel *ctrlchannel_new(int fd, bool is_client)
+struct ctrlchannel *ctrlchannel_new(int fd, bool is_client,
+                                    const char *sockpath)
 {
-    struct ctrlchannel *cc = malloc(sizeof(struct ctrlchannel));
+    struct ctrlchannel *cc = calloc(1, sizeof(struct ctrlchannel));
 
     if (!cc) {
         logprintf(STDERR_FILENO, "Out of memory");
         return NULL;
+    }
+
+    if (sockpath) {
+        cc->sockpath = strdup(sockpath);
+        if (!cc->sockpath) {
+            logprintf(STDERR_FILENO, "Out of memory");
+            free(cc);
+            return NULL;
+        }
     }
 
     cc->fd = cc->clientfd = -1;
@@ -781,4 +792,18 @@ err_socket:
     close(fd);
 
     return -1;
+}
+
+void ctrlchannel_free(struct ctrlchannel *cc)
+{
+    if (!cc)
+        return;
+
+    if (cc->fd >= 0)
+        close(cc->fd);
+    if (cc->clientfd >= 0)
+        close(cc->clientfd);
+    if (cc->sockpath)
+        unlink(cc->sockpath);
+    free(cc);
 }

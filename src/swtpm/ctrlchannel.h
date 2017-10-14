@@ -44,7 +44,8 @@ struct ctrlchannel;
 struct libtpms_callbacks;
 struct mainLoopParams;
 
-struct ctrlchannel *ctrlchannel_new(int fd, bool isclient);
+struct ctrlchannel *ctrlchannel_new(int fd, bool isclient,
+                                    const char *sockpath);
 int ctrlchannel_get_fd(struct ctrlchannel *cc);
 int ctrlchannel_get_client_fd(struct ctrlchannel *cc);
 int ctrlchannel_set_client_fd(struct ctrlchannel *cc, int fd);
@@ -54,5 +55,6 @@ int ctrlchannel_process_fd(int fd,
                            TPM_MODIFIER_INDICATOR *locality,
                            bool *tpm_running,
                            struct mainLoopParams *mlp);
+void ctrlchannel_free(struct ctrlchannel *cc);
 
 #endif /* _SWTPM_CTRLCHANNEL_H_ */

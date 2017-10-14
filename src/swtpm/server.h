@@ -43,9 +43,11 @@ struct server;
 #define SERVER_FLAG_DISCONNECT (1 << 0)
 #define SERVER_FLAG_FD_GIVEN   (1 << 1)
 
-struct server *server_new(int fd, unsigned int flags);
+struct server *server_new(int fd, unsigned int flags,
+                          const char *sockpath);
 int server_get_fd(struct server *c);
 int server_set_fd(struct server *c, int fd);
 unsigned int server_get_flags(struct server *c);
+void server_free(struct server *s);
 
 #endif /* _SWTPM_SERVER_H_ */
