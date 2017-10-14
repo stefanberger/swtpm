@@ -126,7 +126,7 @@ if [ ! -r $volatilestatefile ]; then
 fi
 
 #ls -l $volatilestatefile
-size=$(get_filesize $volatilestate)
+size=$(get_filesize $volatilestatefile)
 expsize=1290
 if [ $size -ne $expsize ]; then
 	echo "Error: Unexpected size of volatile state file."
