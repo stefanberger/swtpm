@@ -46,6 +46,24 @@ function wait_for_chardev()
   return 0
 }
 
+# Wait for a chardev to disappear
+#
+# @1: filename
+# @2: timeout in seconds
+function wait_chardev_gone()
+{
+  local filename="$1"
+  local timeout="$2"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    [ -c "${filename}" ] || return 1
+    sleep 0.1
+  done
+  return 0
+}
+
 # Wait for a socket file to appear
 #
 # @1: filename
@@ -59,6 +77,24 @@ function wait_for_socketfile()
 
   for ((loop=0; loop<loops; loop++)); do
     [ -S "${filename}" ] && return 1
+    sleep 0.1
+  done
+  return 0
+}
+
+# Wait for a socket file to disappear
+#
+# @1: filename
+# @2: timeout in seconds
+function wait_socketfile_gone()
+{
+  local filename="$1"
+  local timeout="$2"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    [ -S "${filename}" ] || return 1
     sleep 0.1
   done
   return 0
@@ -80,6 +116,27 @@ function wait_for_serversocket()
   for ((loop=0; loop<loops; loop++)); do
     (exec 127<>/dev/tcp/${host}/${port}) &>/dev/null
     [ $? -eq 0 ] && return 1
+    sleep 0.1
+  done
+  return 0
+}
+
+# Wait for a server socket to disappear
+#
+# @1: port
+# @2: host
+# @3: timeout in seconds
+function wait_serversocket_gone()
+{
+  local port="$1"
+  local host="$2"
+  local timeout="$3"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    (exec 127<>/dev/tcp/${host}/${port}) &>/dev/null
+    [ $? -eq 0 ] || return 1
     sleep 0.1
   done
   return 0
@@ -145,6 +202,11 @@ function run_swtpm()
 			exit 1
 		}
 
+		if wait_chardev_gone ${SWTPM_DEV_NAME} 2; then
+			echo "${SWTPM_DEV_NAME} is still there and may be used."
+			exit 1
+		fi
+
 		${SWTPM_EXE} cuse $@ -n ${SWTPM_DEV_NAME##*/}
 		rc=$?
 		if [ $rc -ne 0 ]; then
@@ -172,6 +234,16 @@ function run_swtpm()
 			echo "SWTPM_CTRL_PORT not defined"
 			exit 1
 		}
+
+		if wait_serversocket_gone "${SWTPM_SERVER_PORT}" 127.0.0.1 2; then
+			echo "Port ${SWTPM_SERVER_PORT} is still used"
+			exit 1
+		fi
+		if wait_serversocket_gone "${SWTPM_CTRL_PORT}" 127.0.0.1 1; then
+			echo "Port ${SWTPM_CTRL_PORT} is still used"
+			exit 1
+		fi
+
 		${SWTPM_EXE} socket $@ \
 			--server type=tcp,port=${SWTPM_SERVER_PORT},disconnect \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
@@ -202,7 +274,16 @@ function run_swtpm()
 			echo "SWTPM_CTRL_UNIX_PATH not defined"
 			exit 1
 		}
-		rm -f ${SWTPM_CTRL_UNIX_PATH}
+
+		if wait_serversocket_gone "${SWTPM_SERVER_PORT}" 127.0.0.1 2; then
+			echo "Port ${SWTPM_SERVER_PORT} is still used"
+			exit 1
+		fi
+		if wait_socketfile_gone "${SWTPM_CTRL_UNIX_PATH}" 2; then
+			echo "Unix socket ${SWTPM_CTRL_UNIX_PATH} is still there"
+			exit 1
+		fi
+
 		${SWTPM_EXE} socket $@ \
 			--server type=tcp,port=${SWTPM_SERVER_PORT},disconnect \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
@@ -234,7 +315,16 @@ function run_swtpm()
 			echo "SWTPM_CTRL_PORT not defined"
 			exit 1
 		}
-		rm -f ${SWTPM_CMD_UNIX_PATH}
+
+		if wait_socketfile_gone "${SWTPM_CMD_UNIX_PATH}" 2; then
+			echo "Unix socket ${SWTPM_CMD_UNIX_PATH} is still there"
+			exit 1
+		fi
+		if wait_serversocket_gone "${SWTPM_CTRL_PORT}" 127.0.0.1 1; then
+			echo "Port ${SWTPM_CTRL_PORT} is still used"
+			exit 1
+		fi
+
 		${SWTPM_EXE} socket $@ \
 			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
@@ -265,7 +355,16 @@ function run_swtpm()
 			echo "SWTPM_CTRL_UNIX_PATH not defined"
 			exit 1
 		}
-		rm -f ${SWTPM_CMD_UNIX_PATH} ${SWTPM_CTRL_UNIX_PATH}
+
+		if wait_socketfile_gone "${SWTPM_CMD_UNIX_PATH}" 2; then
+			echo "Unix socket ${SWTPM_CMD_UNIX_PATH} is still there"
+			exit 1
+		fi
+		if wait_socketfile_gone "${SWTPM_CTRL_UNIX_PATH}" 2; then
+			echo "Unix socket ${SWTPM_CTRL_UNIX_PATH} is still there"
+			exit 1
+		fi
+
 		${SWTPM_EXE} socket $@ \
 			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
