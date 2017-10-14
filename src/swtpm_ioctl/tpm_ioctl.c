@@ -559,10 +559,17 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
 
             if (!is_chardev) {
                 n = read(fd, &pss.u.resp, sizeof(pss.u.resp));
+                if (n < 0) {
+                    fprintf(stderr,
+                            "Error reading response: %s\n",
+                            strerror(errno));
+                    had_error = 1;
+                    goto cleanup;
+                }
                 if (n != sizeof(pss.u.resp)) {
                     fprintf(stderr,
                             "Did not get enough response bytes "
-                            "from PTM_SET_STATE_BLOB: %d", n);
+                            "from PTM_SET_STATE_BLOB: %d\n", n);
                     had_error = 1;
                     goto cleanup;
                 }
