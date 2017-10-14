@@ -8,6 +8,83 @@ SWTPM_IOCTL=${SWTPM_IOCTL:-${ROOT}/src/swtpm_ioctl/swtpm_ioctl}
 SWTPM_BIOS=${SWTPM_BIOS:-${ROOT}/src/swtpm_bios/swtpm_bios}
 ECHO=$(type -P echo)
 
+# Note: Do not use file descriptors above 127 due to OpenBSD.
+
+# Wait for a regular file to appear
+#
+# @1: filename
+# @2: timeout in seconds
+function wait_for_file()
+{
+  local filename="$1"
+  local timeout="$2"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    [ -f "${filename}" ] && return 1
+    sleep 0.1
+  done
+  return 0
+}
+
+# Wait for a chardev to appear
+#
+# @1: filename
+# @2: timeout in seconds
+function wait_for_chardev()
+{
+  local filename="$1"
+  local timeout="$2"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    [ -c "${filename}" ] && return 1
+    sleep 0.1
+  done
+  return 0
+}
+
+# Wait for a socket file to appear
+#
+# @1: filename
+# @2: timeout in seconds
+function wait_for_socketfile()
+{
+  local filename="$1"
+  local timeout="$2"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    [ -S "${filename}" ] && return 1
+    sleep 0.1
+  done
+  return 0
+}
+
+# Wait for a server socket to appear
+#
+# @1: port
+# @2: host
+# @3: timeout in seconds
+function wait_for_serversocket()
+{
+  local port="$1"
+  local host="$2"
+  local timeout="$3"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    (exec 127<>/dev/tcp/${host}/${port}) &>/dev/null
+    [ $? -eq 0 ] && return 1
+    sleep 0.1
+  done
+  return 0
+}
+
 # Run the swtpm_ioctl command
 #
 # @param1: type of interface
@@ -67,8 +144,18 @@ function run_swtpm()
 			echo "SWTPM_DEV_NAME not defined"
 			exit 1
 		}
+
 		${SWTPM_EXE} cuse $@ -n ${SWTPM_DEV_NAME##*/}
-		sleep 0.5
+		rc=$?
+		if [ $rc -ne 0 ]; then
+			echo "Could not run ${SWTPM_EXE} using ${iface}"
+			exit 1
+		fi
+		if wait_for_chardev ${SWTPM_DEV_NAME} 2; then
+			echo "$SWTPM_DEV_NAME did not appear"
+			exit 1
+		fi
+
 		SWTPM_PID=$(ps aux |
 		            grep "cuse" |
 		            grep -E " ${SWTPM_DEV_NAME##*/}\$" |
@@ -89,9 +176,22 @@ function run_swtpm()
 			--server type=tcp,port=${SWTPM_SERVER_PORT},disconnect \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
 		rc=$?
+		if [ $rc -ne 0 ]; then
+			echo "Could not run ${SWTPM_EXE} using ${iface}"
+			exit 1
+		fi
 		SWTPM_PID=$!
-		sleep 0.5
-		return $rc
+		if wait_for_serversocket "${SWTPM_SERVER_PORT}" 127.0.0.1 2; then
+			echo "Server did not open port ${SWTPM_SERVER_PORT}"
+			kill -9 ${SWTPM_PID}
+			exit 1
+		fi
+		if wait_for_serversocket "${SWTPM_CTRL_PORT}" 127.0.0.1 1; then
+			echo "Server did not open port ${SWTPM_CTRL_PORT}"
+			kill -9 ${SWTPM_PID}
+			exit 1
+		fi
+		return 0
 		;;
 	socket+unix)
 		[ -z "${SWTPM_SERVER_PORT}" ] && {
@@ -102,13 +202,28 @@ function run_swtpm()
 			echo "SWTPM_CTRL_UNIX_PATH not defined"
 			exit 1
 		}
+		rm -f ${SWTPM_CTRL_UNIX_PATH}
 		${SWTPM_EXE} socket $@ \
 			--server type=tcp,port=${SWTPM_SERVER_PORT},disconnect \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
 		rc=$?
+		if [ $rc -ne 0 ]; then
+			echo "Could not run ${SWTPM_EXE} using ${iface}"
+			exit 1
+		fi
+		[ $rc -ne 0 ] && return $rc
 		SWTPM_PID=$!
-		sleep 0.5
-		return $rc
+		if wait_for_serversocket "${SWTPM_SERVER_PORT}" 127.0.0.1 2; then
+			echo "Server did not open port ${SWTPM_SERVER_PORT}"
+			kill -9 ${SWTPM_PID}
+			exit 1
+		fi
+		if wait_for_socketfile ${SWTPM_CTRL_UNIX_PATH} 1; then
+			echo "Server did not create UnixIO socket ${SWTPM_CTRL_UNIX_PATH}"
+			kill -9 ${SWTPM_PID}
+			exit 1
+		fi
+		return 0
 		;;
 	unix+socket)
 		[ -z "${SWTPM_CMD_UNIX_PATH}" ] && {
@@ -119,13 +234,27 @@ function run_swtpm()
 			echo "SWTPM_CTRL_PORT not defined"
 			exit 1
 		}
+		rm -f ${SWTPM_CMD_UNIX_PATH}
 		${SWTPM_EXE} socket $@ \
 			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
 		rc=$?
+		if [ $rc -ne 0 ]; then
+			echo "Could not run ${SWTPM_EXE} using ${iface}"
+			exit 1
+		fi
 		SWTPM_PID=$!
-		sleep 0.5
-		return $rc
+		if wait_for_socketfile ${SWTPM_CMD_UNIX_PATH} 2; then
+			echo "Server did not create UnixIO socket ${SWTPM_CMD_UNIX_PATH}"
+			kill -9 ${SWTPM_PID}
+			exit 1
+		fi
+		if wait_for_serversocket "${SWTPM_CTRL_PORT}" 127.0.0.1 1; then
+			echo "Server did not open port ${SWTPM_CTRL_PORT}"
+			kill -9 ${SWTPM_PID}
+			exit 1
+		fi
+		return 0
 		;;
 	unix+unix)
 		[ -z "${SWTPM_CMD_UNIX_PATH}" ] && {
@@ -136,13 +265,27 @@ function run_swtpm()
 			echo "SWTPM_CTRL_UNIX_PATH not defined"
 			exit 1
 		}
+		rm -f ${SWTPM_CMD_UNIX_PATH} ${SWTPM_CTRL_UNIX_PATH}
 		${SWTPM_EXE} socket $@ \
 			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
 		rc=$?
+		if [ $rc -ne 0 ]; then
+			echo "Could not run ${SWTPM_EXE} using ${iface}"
+			exit 1
+		fi
 		SWTPM_PID=$!
-		sleep 0.5
-		return $rc
+		if wait_for_socketfile ${SWTPM_CMD_UNIX_PATH} 2; then
+			echo "Server did not create UnixIO socket ${SWTPM_CMD_UNIX_PATH}"
+			kill -9 ${SWTPM_PID}
+			exit 1
+		fi
+		if wait_for_socketfile ${SWTPM_CTRL_UNIX_PATH} 1; then
+			echo "Server did not create UnixIO socket ${SWTPM_CTRL_UNIX_PATH}"
+			kill -9 ${SWTPM_PID}
+			exit 1
+		fi
+		return 0
 		;;
 	esac
 }
