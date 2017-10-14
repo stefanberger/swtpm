@@ -36,6 +36,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "logging.h"
 #include "server.h"
@@ -43,11 +44,13 @@
 struct server {
    int fd;
    unsigned int flags;
+   char *sockpath; /* for UnixIO socket */
 };
 
-struct server *server_new(int fd, unsigned int flags)
+struct server *server_new(int fd, unsigned int flags,
+                          const char *sockpath)
 {
-    struct server *c = malloc(sizeof(struct server));
+    struct server *c = calloc(1, sizeof(struct server));
 
     if (!c) {
         logprintf(STDERR_FILENO, "Out of memory");
@@ -56,6 +59,15 @@ struct server *server_new(int fd, unsigned int flags)
 
     c->fd = fd;
     c->flags = flags;
+
+    if (sockpath) {
+        c->sockpath = strdup(sockpath);
+        if (!c->sockpath) {
+            logprintf(STDERR_FILENO, "Out of memory");
+            free(c);
+            c = NULL;
+        }
+    }
 
     return c;
 }
@@ -77,4 +89,18 @@ int server_set_fd(struct server *c, int fd)
 unsigned int server_get_flags(struct server *c)
 {
     return c->flags;
+}
+
+void server_free(struct server *c)
+{
+    if (!c)
+        return;
+
+    if (c->fd >= 0)
+        close(c->fd);
+
+    if (c->sockpath)
+        unlink(c->sockpath);
+
+    free(c);
 }

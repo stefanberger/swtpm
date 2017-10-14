@@ -743,7 +743,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
                goto error;
             }
 
-            *cc = ctrlchannel_new(fd, false);
+            *cc = ctrlchannel_new(fd, false, NULL);
         } else if (clientfd >= 0) {
             if (fstat(clientfd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
                logprintf(STDERR_FILENO,
@@ -752,13 +752,13 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
                goto error;
             }
 
-            *cc = ctrlchannel_new(clientfd, true);
+            *cc = ctrlchannel_new(clientfd, true, NULL);
         } else if (path) {
             fd = unixio_open_socket(path, 0770);
             if (fd < 0)
                 goto error;
 
-            *cc = ctrlchannel_new(fd, false);
+            *cc = ctrlchannel_new(fd, false, path);
         } else {
             logprintf(STDERR_FILENO,
                       "Missing path and fd options for UnixIO "
@@ -775,7 +775,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
                goto error;
             }
 
-            *cc = ctrlchannel_new(fd, false);
+            *cc = ctrlchannel_new(fd, false, NULL);
         } else if (port >= 0) {
             if (port >= 0x10000) {
                 logprintf(STDERR_FILENO,
@@ -790,7 +790,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
             if (fd < 0)
                 goto error;
 
-            *cc = ctrlchannel_new(fd, false);
+            *cc = ctrlchannel_new(fd, false, NULL);
         } else {
             logprintf(STDERR_FILENO,
                       "Missing port and fd options for TCP control channel\n");
@@ -873,13 +873,13 @@ static int parse_server_options(char *options, struct server **c)
                goto error;
             }
 
-            *c = server_new(fd, flags);
+            *c = server_new(fd, flags, NULL);
         } else if (path) {
             fd = unixio_open_socket(path, 0770);
             if (fd < 0)
                 goto error;
 
-            *c = server_new(fd, flags);
+            *c = server_new(fd, flags, path);
         } else {
             logprintf(STDERR_FILENO,
                       "Missing path and file descriptor option for UnixIO "
@@ -897,7 +897,7 @@ static int parse_server_options(char *options, struct server **c)
 
             flags |= SERVER_FLAG_FD_GIVEN;
 
-            *c = server_new(fd, flags);
+            *c = server_new(fd, flags, NULL);
         } else {
             port = option_get_int(ovs, "port", -1);
             if (port == -1) {
@@ -923,7 +923,7 @@ static int parse_server_options(char *options, struct server **c)
             if (fd < 0)
                 goto error;
 
-            *c = server_new(fd, flags);
+            *c = server_new(fd, flags, NULL);
         }
     } else {
         logprintf(STDERR_FILENO, "Unsupport socket type: %s\n", type);
