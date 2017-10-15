@@ -461,7 +461,7 @@ function swtpm_cmd_tx()
 		;;
 	unix+socket|unix+unix)
 		echo -en "$2" > ${cmd_path}
-		socat -x -t20 \
+		socat -x -t50 \
 			FILE:${cmd_path},rdonly \
 			UNIX-CLIENT:${SWTPM_CMD_UNIX_PATH} 2>&1 | \
 		  sed -n '/^ /p' | \
@@ -492,7 +492,7 @@ function swtpm_ctrl_tx()
 	socket+unix|unix+unix)
 		ctrl_path=$(mktemp)
 		echo -en "$2" > ${ctrl_path}
-		socat -x -t20 \
+		socat -x -t50 \
 			FILE:${ctrl_path},rdonly \
 			UNIX-CLIENT:${SWTPM_CTRL_UNIX_PATH} 2>&1 | \
 		  sed -n '/^ /p' | \
