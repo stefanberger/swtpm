@@ -118,15 +118,14 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-sleep 0.2
 kill -0 $PID 2>/dev/null
 if [ $? -eq 0 ]; then
 	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
 
-if [ -f $PID_FILE ]; then
-	echo "Error: TPM should have removed the PID file."
+if wait_file_gone $PID_FILE 2; then
+	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
