@@ -263,5 +263,10 @@ skip_process:
     if (ctrlclntfd >= 0)
         close(ctrlclntfd);
 
+    if (mlp->fd >= 0) {
+        close(mlp->fd);
+        mlp->fd = -1;
+    }
+
     return rc;
 }

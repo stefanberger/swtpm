@@ -65,6 +65,15 @@ int server_get_fd(struct server *c)
     return c->fd;
 }
 
+int server_set_fd(struct server *c, int fd)
+{
+    int oldfd = c->fd;
+
+    c->fd = fd;
+
+    return oldfd;
+}
+
 unsigned int server_get_flags(struct server *c)
 {
     return c->flags;

@@ -362,7 +362,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
     if (server) {
         if (server_get_fd(server) >= 0) {
-            mlp.fd = server_get_fd(server);
+            mlp.fd = server_set_fd(server, -1);
             SWTPM_IO_SetSocketFD(mlp.fd);
         }
 
