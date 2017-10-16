@@ -45,6 +45,7 @@ struct server;
 
 struct server *server_new(int fd, unsigned int flags);
 int server_get_fd(struct server *c);
+int server_set_fd(struct server *c, int fd);
 unsigned int server_get_flags(struct server *c);
 
 #endif /* _SWTPM_SERVER_H_ */
