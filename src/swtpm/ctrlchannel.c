@@ -101,6 +101,15 @@ int ctrlchannel_get_client_fd(struct ctrlchannel *cc)
     return cc->clientfd;
 }
 
+int ctrlchannel_set_client_fd(struct ctrlchannel *cc, int fd)
+{
+    int clientfd = cc->clientfd;
+
+    cc->clientfd = fd;
+
+    return clientfd;
+}
+
 static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
 {
     uint32_t blobtype = be32toh(pgs->u.req.type);

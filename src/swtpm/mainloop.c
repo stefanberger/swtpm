@@ -262,6 +262,7 @@ skip_process:
 
     if (ctrlclntfd >= 0)
         close(ctrlclntfd);
+    ctrlchannel_set_client_fd(mlp->cc, -1);
 
     if (mlp->fd >= 0) {
         close(mlp->fd);
