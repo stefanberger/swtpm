@@ -28,6 +28,24 @@ function wait_for_file()
   return 0
 }
 
+# Wait for a regular file to disappear
+#
+# @1: filename
+# @2: timeout in seconds
+function wait_file_gone()
+{
+  local filename="$1"
+  local timeout="$2"
+
+  local loops=$((timeout * 10)) loop
+
+  for ((loop=0; loop<loops; loop++)); do
+    [ -f "${filename}" ] || return 1
+    sleep 0.1
+  done
+  return 0
+}
+
 # Wait for a chardev to appear
 #
 # @1: filename
