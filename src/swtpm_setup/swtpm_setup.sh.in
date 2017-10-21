@@ -106,6 +106,9 @@ TPMA_NV_WRITEDEFINE=$((0x2000))
 TPM2_NV_INDEX_EKCert=$((0x01c00000))
 TPM2_NV_INDEX_PlatformCert=$((0x01c08000))
 
+# custom option
+TPM2_EK_HANDLE=$((0x81010000))
+
 # Default logging goes to stderr
 LOGFILE=""
 
@@ -952,9 +955,12 @@ tpm2_evictcontrol()
 # Create the primary key, either RSA or ECC
 #
 # @param1: flags
+# @param2: non-evict handle, if any
 tpm2_createprimary()
 {
 	local flags="$1"
+	local nehandle="$2"
+
 	local res handle
 
 	tpm2_stirrandom
@@ -971,8 +977,10 @@ tpm2_createprimary()
 	handle=$(echo $res | cut -d "," -f1)
 
 	# make key permanent
-	tpm2_evictcontrol "$handle" "$((0x81010000))"
-	[ $? -ne 0 ] && return 1
+	if [ -n "$nehandle" ]; then
+		tpm2_evictcontrol "$handle" "$nehandle"
+		[ $? -ne 0 ] && return 1
+	fi
 
 	# ek
 	echo $res | cut -d "," -f2-
@@ -1172,7 +1180,7 @@ init_tpm2()
 	fi
 
 	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
-		ek=$(tpm2_createprimary "$flags")
+		ek=$(tpm2_createprimary "$flags" "${TPM2_EK_HANDLE}")
 		if [ $? -ne 0 ]; then
 			logerr "tpm2_createprimary failed"
 			return 1
