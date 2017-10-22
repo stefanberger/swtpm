@@ -719,7 +719,7 @@ tpm2_changeeps()
 # Create the primary key (EK equivalent)
 #
 # @param1: flags
-tpm2_createprimary_rsa()
+tpm2_createprimary_ek_rsa()
 {
 	local flags="$1"
 
@@ -841,7 +841,7 @@ function tpm2_createprimary_rsa_params()
 # Create the primary key as an ECC key (EK equivalent)
 #
 # @param1: flags
-tpm2_createprimary_ecc()
+tpm2_createprimary_ek_ecc()
 {
 	local flags="$1"
 
@@ -993,9 +993,9 @@ tpm2_createprimary()
 	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
-		res=$(tpm2_createprimary_ecc "$flags")
+		res=$(tpm2_createprimary_ek_ecc "$flags")
 	else
-		res=$(tpm2_createprimary_rsa "$flags")
+		res=$(tpm2_createprimary_ek_rsa "$flags")
 	fi
 	[ $? -ne 0 ] && return 1
 
