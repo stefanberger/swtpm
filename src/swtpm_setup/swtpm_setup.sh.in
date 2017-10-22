@@ -1070,11 +1070,11 @@ tpm2_evictcontrol()
 	return 0
 }
 
-# Create the primary key, either RSA or ECC
+# Create the EK, either RSA or ECC
 #
 # @param1: flags
 # @param2: non-evict handle, if any
-tpm2_createprimary()
+tpm2_create_ek()
 {
 	local flags="$1"
 	local nehandle="$2"
@@ -1298,12 +1298,13 @@ init_tpm2()
 	fi
 
 	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
-		ek=$(tpm2_createprimary "$flags" "${TPM2_EK_HANDLE}")
+		ek=$(tpm2_create_ek "$flags" "${TPM2_EK_HANDLE}")
 		if [ $? -ne 0 ]; then
-			logerr "tpm2_createprimary failed"
+			logerr "tpm2_create_ek failed"
 			return 1
 		fi
-		logit "Successfully created EK."
+		logit "Successfully created EK with handle" \
+		      "$(printf "0x%08x" ${TPM2_EK_HANDLE})."
 	fi
 
 	# have external program create the certificates now
