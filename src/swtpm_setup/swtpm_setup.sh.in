@@ -723,7 +723,7 @@ tpm2_createprimary_rsa()
 {
 	local flags="$1"
 
-	local req rsq exp res symkeydata keyflags totlen publen off min_exp
+	local symkeydata keyflags totlen publen off min_exp authpolicy
 
 	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
 		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
@@ -749,12 +749,36 @@ tpm2_createprimary_rsa()
 		off=228
 	fi
 
+	authpolicy='\\x83\\x71\\x97\\x67\\x44\\x84\\xb3\\xf8\\x1a\\x90\\xcc\\x8d'
+	authpolicy+='\\x46\\xa5\\xd7\\x24\\xfd\\x52\\xd7\\x6e\\x06\\x52\\x0b\\x64'
+	authpolicy+='\\xf2\\xa1\\xda\\x1b\\x33\\x14\\x69\\xaa'
+
 	# Check the TCG EK Credential Profile doc for TPM 2 for
 	# parameters used here
 
-	req='\x80\x02@TOTLEN-4@\x00\x00\x01\x31'
 	# TPM_RH_ENDORSEMENT
-	req+='\x40\x00\x00\x0b'
+	tpm2_createprimary_rsa_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
+	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off}" \
+	    "${authpolicy}"
+	return $?
+}
+
+function tpm2_createprimary_rsa_params()
+{
+	local primaryhandle="$1"
+	local keyflags="$2"
+	local symkeydata="$3"
+	local publen="$4"
+	local totlen="$5"
+	local min_exp="$6"
+	local off="$7"
+	local authpolicy="$8"
+
+	local req rsp res
+	local authpolicylen=$((${#authpolicy} / 5))
+
+	req='\x80\x02@TOTLEN-4@\x00\x00\x01\x31'
+	req+='@KEYHANDLE-4@'
 	# size of buffer
 	req+='\x00\x00\x00\x09'
 	# TPM_RS_PW
@@ -768,10 +792,8 @@ tpm2_createprimary_rsa()
 	# restricted, decrypt
 	req+='@KEYFLAGS-4@'
 	# authPolicy;32 bytes
-	req+='\x00\x20'
-	req+='\x83\x71\x97\x67\x44\x84\xb3\xf8\x1a\x90\xcc\x8d'
-	req+='\x46\xa5\xd7\x24\xfd\x52\xd7\x6e\x06\x52\x0b\x64'
-	req+='\xf2\xa1\xda\x1b\x33\x14\x69\xaa'
+	req+='@AUTHPOLICYLEN-2@'
+	req+='@AUTHPOLICY@'
 	req+='@SYMKEYDATA@'
 	# scheme: TPM_ALG_NULL, keyBits: 2048bits
 	req+='\x00\x10\x08\x00'
@@ -786,7 +808,10 @@ tpm2_createprimary_rsa()
 	      sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
 	          -e "s/@SYMKEYDATA@/$symkeydata/" \
 	          -e "s/@PUBLEN-2@/$(_format "$publen" 2)/" \
-	          -e "s/@TOTLEN-4@/$(_format "$totlen" 4)/")
+	          -e "s/@TOTLEN-4@/$(_format "$totlen" 4)/" \
+	          -e "s/@KEYHANDLE-4@/$primaryhandle/" \
+	          -e "s/@AUTHPOLICY@/$authpolicy/" \
+	          -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/")
 
 	rsp="$(tpm_transfer "${req}")"
 
