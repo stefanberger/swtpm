@@ -104,12 +104,14 @@ TPMA_NV_PPWRITE=$((0x1))
 TPMA_NV_POLICY_DELETE=$((0x400))
 TPMA_NV_WRITEDEFINE=$((0x2000))
 
-TPM2_NV_INDEX_RSA_EKCert=$((0x01c00000))
+# Use standard EK Cert NVRAM, EK and SRK handles per IWG spec.
+# "TCG TPM v2.0 Provisioning Guide"; Version 1.0, Rev 1.0, March 15, 2017
+# Table 2
+TPM2_NV_INDEX_RSA_EKCert=$((0x01c00002))
 TPM2_NV_INDEX_PlatformCert=$((0x01c08000))
 
-# custom option
-TPM2_EK_HANDLE=$((0x81010000))
-TPM2_SPK_HANDLE=$((0x81000000))
+TPM2_EK_HANDLE=$((0x81010001))
+TPM2_SPK_HANDLE=$((0x81000001))
 
 # Default logging goes to stderr
 LOGFILE=""
