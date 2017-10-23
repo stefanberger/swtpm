@@ -706,12 +706,12 @@ The following options are supported:
 
 --pwdfile <pwdfile>
                  : Path to a file containing a passphrase from which the
-                   TPM will derive the 128bit AES key. The passphrase ca be
+                   TPM will derive the 128bit AES key. The passphrase can be
                    32 bytes long.
                    This parameter will be passed to the TPM using
                    '--key pwdfile=<file>'.
 
---verion         : Display version and exit
+--version        : Display version and exit
 
 --help,-h,-?     : Display this help screen
 EOF
