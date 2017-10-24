@@ -1006,6 +1006,34 @@ tpm2_createprimary_ek_ecc()
 	return $?
 }
 
+# Create primary storage key as an ECC key
+#
+# @param1: flags
+tpm2_createprimary_spk_ecc()
+{
+	local flags="$1"
+
+	local min_exp symkeydata keyflags totlen publen off1 off2
+
+	# keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
+	# userWithAuth, noDA, restricted, decrypt
+	keyflags=$((0x00030472))
+	# symmetric: TPM_ALG_AES, 128bit, TPM_ALG_CFB
+	symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
+	publen=$((0x1a + 2 * NONCE_ECC_SIZE))
+	totlen=$((0x43 + 2 * NONCE_ECC_SIZE))
+	# some version of TPM2 returns 942, another 990
+	min_exp=894
+	# offset of length indicator for key
+	off1=126
+	off2=228
+
+	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
+	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off1}" \
+	    "${off2}" ""
+	return $?
+}
+
 tpm2_createprimary_ecc_params()
 {
 	local primaryhandle="$1"
@@ -1175,7 +1203,11 @@ tpm2_create_spk()
 	tpm2_changeeps
 	[ $? -ne 0 ] && return 1
 
-	res=$(tpm2_createprimary_spk_rsa "$flags")
+	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
+		res=$(tpm2_createprimary_spk_ecc "$flags")
+	else
+		res=$(tpm2_createprimary_spk_rsa "$flags")
+	fi
 
 	[ $? -ne 0 ] && return 1
 
