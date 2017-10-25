@@ -57,6 +57,11 @@ int install_sighandlers(int pipefd[2], sighandler_t handler)
         goto err_close_pipe;
     }
 
+    if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+        logprintf(STDERR_FILENO, "Could not install signal handler for SIGPIPE.\n");
+        goto err_close_pipe;
+    }
+
     return 0;
 
 err_close_pipe:
