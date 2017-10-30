@@ -114,8 +114,12 @@ int ctrlchannel_get_client_fd(struct ctrlchannel *cc)
 
 int ctrlchannel_set_client_fd(struct ctrlchannel *cc, int fd)
 {
-    int clientfd = cc->clientfd;
+    int clientfd;
 
+    if (!cc)
+        return -1;
+
+    clientfd = cc->clientfd;
     cc->clientfd = fd;
 
     return clientfd;
