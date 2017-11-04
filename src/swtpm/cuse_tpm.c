@@ -928,6 +928,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     case PTM_SET_LOCALITY:
     case PTM_CANCEL_TPM_CMD:
     case PTM_GET_CONFIG:
+    case PTM_SET_BUFFERSIZE:
         /* no need to wait */
         break;
     case PTM_INIT:
@@ -965,7 +966,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                 | PTM_CAP_GET_STATEBLOB
                 | PTM_CAP_SET_STATEBLOB
                 | PTM_CAP_STOP
-                | PTM_CAP_GET_CONFIG;
+                | PTM_CAP_GET_CONFIG
+                | PTM_CAP_SET_BUFFERSIZE;
             fuse_reply_ioctl(req, 0, &ptm_caps, sizeof(ptm_caps));
         }
         break;
@@ -1173,6 +1175,32 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             if (SWTPM_NVRAM_Has_MigrationKey())
                 pgs.u.resp.flags |= PTM_CONFIG_FLAG_MIGRATION_KEY;
             fuse_reply_ioctl(req, 0, &pgs, sizeof(pgs));
+        }
+        break;
+
+    case PTM_SET_BUFFERSIZE:
+        if (out_bufsz != sizeof(ptm_setbuffersize)) {
+            struct iovec iov = { arg, sizeof(uint32_t) };
+            fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
+        } else {
+            ptm_setbuffersize *in_psbs = (ptm_setbuffersize *)in_buf;
+            ptm_setbuffersize out_psbs;
+            uint32_t buffersize, minsize, maxsize;
+
+            buffersize = in_psbs->u.req.buffersize;
+
+            if (buffersize > 0 && tpm_running)
+                goto error_running;
+
+            buffersize = TPMLIB_SetBufferSize(buffersize,
+                                              &minsize,
+                                              &maxsize);
+
+            out_psbs.u.resp.tpm_result = TPM_SUCCESS;
+            out_psbs.u.resp.buffersize = buffersize;
+            out_psbs.u.resp.minsize = minsize;
+            out_psbs.u.resp.maxsize = maxsize;
+            fuse_reply_ioctl(req, 0, &out_psbs, sizeof(out_psbs));
         }
         break;
 

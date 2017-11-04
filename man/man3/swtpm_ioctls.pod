@@ -91,6 +91,10 @@ The PTM_GET_CONFIG ioctl or CMD_GET_CONFIG command is supported.
 The CMD_SET_DATAFD command is supported. This command only applies to UnixIO
 and there is no support for PTM_SET_DATAFD.
 
+=item B<PTM_SET_BUFFERSIZE (since v0.1)>
+
+The PTM_SET_BUFFERSIZE ioctl or CMD_SET_BUFFERSIZE command is supported.
+
 =back
 
 =item B<PTM_INIT / CMD_INIT, ptm_init>
@@ -363,6 +367,36 @@ descriptor using the UnixIO socket's control channel and I<SCM_RIGHTS>.
 See also B<sendmsg(2)> and B<cmsg(3)>.
 
 A TPM result code is returned in ptm_res.
+
+=item B<CMD_SET_BUFFERSIZE, ptm_setbuffersize>
+
+This command allows to set and query for the buffer size that the TPM is
+using for input and output I/O buffers.
+
+The ptm_setbuffersize data structure looks as follows:
+
+ struct ptm_setbuffersize {
+    union {
+        struct {
+            uint32_t buffersize; /* 0 to query for current buffer size */
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+            uint32_t buffersize; /* buffer size in use */
+            uint32_t minsize; /* min. supported buffer size */
+            uint32_t maxsize; /* max. supported buffer size */
+        } resp; /* response */
+    } u;
+ };
+
+If a 0 is set in the buffer size of the request, the response will
+return the buffer size that is currently in use. Any other number
+will try to change the buffer size, but the TPM may adjust it to
+an allowed minimum or maximum. The minimum and maximum supported
+buffer sizes are returned in the response.
+
+The buffersize can only be changed when the TPM is stopped. The
+currently used buffersize can be read at any time.
 
 =back
 

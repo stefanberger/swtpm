@@ -777,6 +777,8 @@ static void usage(const char *prgname)
 "                        type may be one of volatile, permanent, or savestate\n"
 "-g                    : get configuration flags indicating which keys are in\n"
 "                        use\n"
+"-b <buffersize>       : set the buffer size of the TPM and get its current\n"
+"                        size; get minimum and maximum supported sizes\n"
 "--version             : display version and exit\n"
 "--help                : display help screen and exit\n"
 "\n"
@@ -793,6 +795,7 @@ int main(int argc, char *argv[])
     ptm_res res;
     ptm_init init;
     ptm_getconfig cfg;
+    ptm_setbuffersize psbs;
     char *tmp;
     size_t buffersize = 0;
     static struct option long_options[] = {
@@ -810,6 +813,7 @@ int main(int argc, char *argv[])
         {"l", required_argument, NULL, 'l'},
         {"h", required_argument, NULL, 'h'},
         {"g", no_argument, NULL, 'g'},
+        {"b", required_argument, NULL, 'b'},
         {"save", required_argument, NULL, 'S'},
         {"load", required_argument, NULL, 'L'},
         {"version", no_argument, NULL, 'V'},
@@ -822,6 +826,7 @@ int main(int argc, char *argv[])
     const char *tpm_device = NULL, *unix_path = NULL;
     char *tcp_hostname = NULL;
     unsigned int locality = 0;
+    unsigned int tpmbuffersize = 0;
     int tcp_port = -1;
     bool is_chardev;
 
@@ -888,6 +893,14 @@ int main(int argc, char *argv[])
             blobtype = argv[optind - 1];
             blobfile = argv[optind];
             optind++;
+            break;
+        case 'b':
+            command = argv[optind - 2];
+            if (sscanf(argv[optind - 1], "%u", &tpmbuffersize) != 1) {
+                fprintf(stderr, "Could not get buffersize from %s.\n",
+                        argv[optind - 1]);
+                return EXIT_FAILURE;
+            }
             break;
         case 'V':
             versioninfo(argv[0]);
@@ -1102,6 +1115,28 @@ int main(int argc, char *argv[])
         }
         printf("ptm configuration flags: 0x%x\n",
                devtoh32(is_chardev, cfg.u.resp.flags));
+    } else if (!strcmp(command, "-b")) {
+        psbs.u.req.buffersize = htodev32(is_chardev, tpmbuffersize);
+        n = ctrlcmd(fd, PTM_SET_BUFFERSIZE, &psbs,
+                    sizeof(psbs.u.req), sizeof(psbs.u.resp));
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not execute PTM_SET_BUFFERSIZE: "
+                    "%s\n", strerror(errno));
+            return EXIT_FAILURE;
+        }
+        res = devtoh32(is_chardev, psbs.u.resp.tpm_result);
+        if (res != 0) {
+            fprintf(stderr,
+                    "TPM result from PTM_SET_BUFFERSIZE: 0x%x\n", res);
+            return EXIT_FAILURE;
+        }
+        printf("TPM buffersize: %u\n"
+               "minimum size  : %u\n"
+               "maximum size  : %u\n",
+               devtoh32(is_chardev, psbs.u.resp.buffersize),
+               devtoh32(is_chardev, psbs.u.resp.minsize),
+               devtoh32(is_chardev, psbs.u.resp.maxsize));
     } else {
         usage(argv[0]);
         return EXIT_FAILURE;
