@@ -28,6 +28,7 @@ TESTS += \
 	test_resume_volatile \
 	test_save_load_encrypted_state \
 	test_save_load_state \
+	test_setbuffersize \
 	test_volatilestate \
 	test_swtpm_bios \
 	test_wrongorder

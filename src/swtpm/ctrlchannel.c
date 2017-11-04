@@ -1,3 +1,4 @@
+#include <stdio.h>
 /*
  * ctrlchannel.c -- control channel implementation
  *
@@ -379,6 +380,8 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
             break;
         case CMD_GET_CONFIG:
             break;
+        case CMD_SET_BUFFERSIZE:
+            break;
         }
 
         if (recvd >= needed)
@@ -459,10 +462,12 @@ int ctrlchannel_process_fd(int fd,
     ptm_getstate *pgs;
     ptm_setstate *pss;
     ptm_loc *pl;
+    ptm_setbuffersize *psbs;
 
     size_t out_len = 0;
     TPM_RESULT res;
     uint32_t remain;
+    uint32_t buffersize, maxsize, minsize;
 
     if (fd < 0)
         return -1;
@@ -491,10 +496,11 @@ int ctrlchannel_process_fd(int fd,
             PTM_CAP_GET_STATEBLOB |
             PTM_CAP_SET_STATEBLOB |
             PTM_CAP_STOP |
-            PTM_CAP_GET_CONFIG
+            PTM_CAP_GET_CONFIG |
 #ifndef __CYGWIN__
-            | PTM_CAP_SET_DATAFD
+            PTM_CAP_SET_DATAFD |
 #endif
+            PTM_CAP_SET_BUFFERSIZE
             );
 
         out_len = sizeof(*ptm_caps);
@@ -747,6 +753,31 @@ int ctrlchannel_process_fd(int fd,
 
         *res_p = htobe32(TPM_SUCCESS);
         out_len = sizeof(ptm_res);
+        break;
+
+    case CMD_SET_BUFFERSIZE:
+        psbs = (ptm_setbuffersize *)input.body;
+        if (n < (ssize_t)sizeof(psbs->u.req)) /* rw */
+            goto err_bad_input;
+
+        buffersize = be32toh(psbs->u.req.buffersize);
+
+        if (buffersize > 0 && *tpm_running)
+            goto err_running;
+
+        buffersize = TPMLIB_SetBufferSize(buffersize,
+                                          &minsize,
+                                          &maxsize);
+
+        *res_p = htobe32(TPM_SUCCESS);
+
+        psbs = (ptm_setbuffersize *)&output.body;
+        out_len = sizeof(psbs->u.resp);
+
+        psbs->u.resp.buffersize = htobe32(buffersize);
+        psbs->u.resp.minsize = htobe32(minsize);
+        psbs->u.resp.maxsize = htobe32(maxsize);
+
         break;
 
     default:
