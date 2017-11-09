@@ -68,6 +68,8 @@ SETUP_PLATFORM_CERT_F=8
 SETUP_LOCK_NVRAM_F=16
 SETUP_SRKPASS_ZEROS_F=32
 SETUP_OWNERPASS_ZEROS_F=64
+SETUP_STATE_OVERWRITE_F=128
+SETUP_STATE_NOT_OVERWRITE_F=256
 
 SETUP_DISPLAY_RESULTS_F=4096
 
@@ -641,6 +643,36 @@ init_tpm()
 	return 0
 }
 
+# Check whether a TPM state file already exists and whether we are
+# allowed to overwrite it or should leave it as is.
+#
+# @param1: flags
+# @param2: the TPM state path (directory)
+#
+# Return 0 if we can continue, 2 if we should end without an error (state file
+# exists and we are not supposed to overwrite it), or 1 if we need to terminate
+# with an error
+check_state_overwrite()
+{
+	local flags="$1"
+	local tpm_state_path="$2"
+
+	local statefile="tpm-00.permall"
+
+	if [ -f "${tpm_state_path}/${statefile}" ]; then
+		if [ $((flags & SETUP_STATE_NOT_OVERWRITE_F)) -ne 0 ]; then
+			logit "Not overwriting existing state file."
+			return 2
+		fi
+		if [ $((flags & SETUP_STATE_OVERWRITE_F)) -ne  0 ]; then
+			return 0
+		fi
+		logerr "Found existing TPM state file ${statefile}."
+		return 1
+	fi
+	return 0
+}
+
 versioninfo()
 {
 	cat <<EOF
@@ -711,6 +743,12 @@ The following options are supported:
                    This parameter will be passed to the TPM using
                    '--key pwdfile=<file>'.
 
+--overwrite      : Overwrite existing TPM state be re-initializing it; if this
+                   option is not given, this program will return an error if
+                   existing state is detected
+
+--no-overwrite   : Do not overwrite existing TPM state but silently end
+
 --version        : Display version and exit
 
 --help,-h,-?     : Display this help screen
@@ -749,6 +787,8 @@ main()
 		--pwdfile) shift; pwdfile="$1";;
 		--runas) shift;; # ignore here
 		--logfile) shift; LOGFILE="$1";;
+		--overwrite) flags=$((flags | SETUP_STATE_OVERWRITE_F));;
+		--not-overwrite) flags=$((flags | SETUP_STATE_NOT_OVERWRITE_F));;
 		--version) versioninfo $0; exit 0;;
 		--help|-h|-?) usage $0; exit 0;;
 		*) logerr "Unknown option $1"; usage $0; exit 1;;
@@ -784,6 +824,13 @@ main()
 		logerr "Need write rights on directory $tpm_state_path for user $(whoami)."
 		exit 1
 	fi
+
+        check_state_overwrite "$flags" "$tpm_state_path"
+        case $? in
+        0) ;;
+        1) exit 1;;
+        2) exit 0;;
+        esac
 
 	rm -f \
 		"$tpm_state_path"/*permall \

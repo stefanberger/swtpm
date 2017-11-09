@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_setup 8"
-.TH swtpm_setup 8 "2017-07-11" "swtpm" ""
+.TH swtpm_setup 8 "2017-11-09" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -212,6 +212,15 @@ for encrypting the state of the \s-1TPM. \s0
 The passpharse file contains a passphrase from which the \s-1TPM\s0 emulator
 will derive the encyrption key from and use the key for encrypting the \s-1TPM\s0
 state.
+.IP "\fB\-\-overwrite\fR" 4
+.IX Item "--overwrite"
+Overwrite existing \s-1TPM\s0 state. All previous state will be erased.
+If this option is not given and an existing state file is found, an error
+code is returned.
+.IP "\fB\-\-not\-overwrite\fR" 4
+.IX Item "--not-overwrite"
+Do not overwrite existing \s-1TPM\s0 state. If exising \s-1TPM\s0 state is found, the
+program ends without an error.
 .IP "\fB\-\-help, \-h\fR" 4
 .IX Item "--help, -h"
 Display the help screen
