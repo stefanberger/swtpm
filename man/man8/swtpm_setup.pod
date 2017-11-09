@@ -95,6 +95,17 @@ The passpharse file contains a passphrase from which the TPM emulator
 will derive the encyrption key from and use the key for encrypting the TPM
 state.
 
+=item B<--overwrite>
+
+Overwrite existing TPM state. All previous state will be erased.
+If this option is not given and an existing state file is found, an error
+code is returned.
+
+=item B<--not-overwrite>
+
+Do not overwrite existing TPM state. If exising TPM state is found, the
+program ends without an error.
+
 =item B<--help, -h>
 
 Display the help screen
