@@ -414,6 +414,10 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
         }
     }
 
+    if (rc != 0 && file != NULL) {
+        unlink(filename);
+    }
+
     TPM_Free(encrypt_data);
 
     TPM_DEBUG(" SWTPM_NVRAM_StoreData: rc=%d\n", rc);
