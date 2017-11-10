@@ -39,9 +39,14 @@
 #define _SWTPM_UTILS_H_
 
 #include <signal.h>
+
+#include <libtpms/tpm_library.h>
+
 typedef void (*sighandler_t)(int);
 
 int install_sighandlers(int pipefd[2], sighandler_t handler);
 int change_process_owner(const char *owner);
+
+void tpmlib_debug_libtpms_parameters(TPMLIB_TPMVersion tpmversion);
 
 #endif /* _SWTPM_UTILS_H_ */
