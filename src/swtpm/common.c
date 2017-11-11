@@ -78,6 +78,9 @@ static const OptionDesc logging_opt_desc[] = {
     }, {
         .name = "prefix",
         .type = OPT_TYPE_STRING,
+    }, {
+        .name = "truncate",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -207,6 +210,7 @@ handle_log_options(char *options)
     const char *logfile = NULL, *logprefix = NULL;
     int logfd;
     unsigned int loglevel;
+    bool logtruncate;
     OptionValues *ovs = NULL;
 
     if (!options)
@@ -222,7 +226,8 @@ handle_log_options(char *options)
     logfd = option_get_int(ovs, "fd", -1);
     loglevel = option_get_uint(ovs, "level", 0);
     logprefix = option_get_string(ovs, "prefix", NULL);
-    if (logfile && (log_init(logfile) < 0)) {
+    logtruncate = option_get_bool(ovs, "truncate", false);
+    if (logfile && (log_init(logfile, logtruncate) < 0)) {
         logprintf(STDERR_FILENO,
                   "Could not open logfile for writing: %s\n",
                   strerror(errno));

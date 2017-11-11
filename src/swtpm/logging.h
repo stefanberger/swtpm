@@ -41,7 +41,7 @@
 #include <unistd.h> /* STD???_FILENO */
 #include <stdbool.h>
 
-int log_init(const char *filename);
+int log_init(const char *filename, bool truncate);
 int log_init_fd(int fd);
 int log_set_level(unsigned int level);
 int logprintf(int fd, const char *format, ...);

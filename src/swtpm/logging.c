@@ -77,14 +77,22 @@ static void log_prefix_clear(void)
  *
  * Returns 0 on success, -1 on failure with errno set.
  */
-int log_init(const char *filename)
+int log_init(const char *filename, bool truncate)
 {
+    int flags;
+
     if (!strcmp(filename, "-")) {
         logfd = SUPPRESS_LOGGING;
         return 0;
     }
 
-    logfd = open(filename, O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR);
+    if (!truncate) {
+        flags = O_WRONLY|O_CREAT|O_APPEND;
+    } else {
+        flags = O_WRONLY|O_CREAT|O_TRUNC;
+    }
+
+    logfd = open(filename, flags, S_IRUSR|S_IWUSR);
     if (logfd < 0)
         return -1;
 
