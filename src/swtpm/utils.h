@@ -42,6 +42,8 @@
 
 #include <libtpms/tpm_library.h>
 
+#define min(a,b) ((a) < (b) ? (a) : (b))
+
 typedef void (*sighandler_t)(int);
 
 int install_sighandlers(int pipefd[2], sighandler_t handler);

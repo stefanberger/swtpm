@@ -128,8 +128,6 @@ struct cuse_param {
 /* single message to send to the worker thread */
 static struct thread_message msg;
 
-#define min(a,b) ((a) < (b) ? (a) : (b))
-
 struct stateblob {
     uint8_t type;
     uint8_t *data;
