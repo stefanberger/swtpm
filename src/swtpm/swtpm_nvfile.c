@@ -382,6 +382,10 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
     if (rc == 0 && encrypt) {
         rc = SWTPM_NVRAM_EncryptData(&filekey, &encrypt_data, &encrypt_length,
                                      data, length);
+        if (rc) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_EncryptData failed: 0x%02x\n", rc);
+        }
         if (encrypt_data) {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Encrypted %u bytes before "
                       "write, will write %u bytes\n", length, encrypt_length);
