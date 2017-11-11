@@ -59,6 +59,7 @@
 #include "swtpm_nvfile.h"
 #include "locality.h"
 #include "mainloop.h"
+#include "swtpm_debug.h"
 
 /* local variables */
 
@@ -475,6 +476,9 @@ int ctrlchannel_process_fd(int fd,
     if (n <= 0) {
         goto err_socket;
     }
+
+    TPM_PrintAll(" Ctrl Cmd:", " ", msg.msg_iov->iov_base, n);
+
     if ((size_t)n < sizeof(input.cmd)) {
         goto err_bad_input;
     }
@@ -788,6 +792,8 @@ int ctrlchannel_process_fd(int fd,
     }
 
 send_resp:
+    TPM_PrintAll(" Ctrl Rsp:", " ", output.body, out_len);
+
     n = write(fd, output.body, out_len);
     if (n < 0) {
         logprintf(STDERR_FILENO,
