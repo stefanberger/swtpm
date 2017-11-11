@@ -145,10 +145,10 @@ int log_set_level(unsigned int level)
         }
         TPMLIB_SetDebugPrefix(prefixbuf);
         free(prefixbuf);
-
-        if (logfd != SUPPRESS_LOGGING)
-            TPMLIB_SetDebugFD(logfd);
     }
+
+    if (logfd != SUPPRESS_LOGGING)
+        TPMLIB_SetDebugFD(logfd);
 
 err_exit:
     return ret;
