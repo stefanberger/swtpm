@@ -68,6 +68,42 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# Init the TPM again but make its state file inaccessible; this only
+# works if the TPM runs as non-root
+if [ "$(id -u)" != "0" ]; then
+	chmod 000 "${STATE_FILE}"
+	run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+	if [ $? -eq 0 ]; then
+		echo "Error: Unexpected initialization success of the ${SWTPM_INTERFACE} TPM."
+		exit 1
+	fi
+
+	sleep 0.5
+
+	kill -0 ${SWTPM_PID} 2>/dev/null
+	if [ $? -ne 0 ]; then
+		echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after failed INIT."
+		exit 1
+	fi
+	chmod 644 "${STATE_FILE}"
+
+	# Init the TPM again; now with state file accessible again
+	run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+		exit 1
+	fi
+
+	sleep 0.5
+
+	kill -0 ${SWTPM_PID} 2>/dev/null
+	if [ $? -ne 0 ]; then
+		echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+		exit 1
+	fi
+fi
+
+# Shut down
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
