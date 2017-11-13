@@ -50,6 +50,7 @@ endif
 
 EXTRA_DIST=$(TESTS) \
 	swtpm_setup.conf \
+	common \
 	create_certs.sh \
 	data/issuercert.pem \
 	data/pubek.pem \
@@ -64,9 +65,26 @@ EXTRA_DIST=$(TESTS) \
 	data/tpmstate2/tpm-00.volatilestate \
 	data/tpmstate2/pwdfile.txt \
 	data/tpmstate2/README \
+	test_clientfds.py \
 	test_common \
 	test_cuse \
-	test_swtpm_cert
+	test_setdatafd.py \
+	test_swtpm_cert \
+	_test_encrypted_state \
+	_test_getcap \
+	_test_hashing \
+	_test_hashing2 \
+	_test_init \
+	_test_locality \
+	_test_migration_key \
+	_test_migration_key_2 \
+	_test_resume_volatile \
+	_test_save_load_encrypted_state \
+	_test_save_load_state \
+	_test_setbuffersize \
+	_test_swtpm_bios \
+	_test_volatilestate \
+	_test_wrongorder
 
 check-display:
 	@if test -n "$$SWTPM_EXE"; then \
