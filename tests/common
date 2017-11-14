@@ -584,7 +584,7 @@ function get_filesize()
 function get_sha1_file()
 {
 	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
-		sha1sum $volatilestatefile | cut -f1 -d" "
+		sha1sum $1 | cut -f1 -d" "
 	else
 		# OpenBSD
 		sha1 $1 | cut -d "=" -f2 | tr -d " "
