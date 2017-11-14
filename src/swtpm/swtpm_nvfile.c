@@ -912,6 +912,10 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
          res = SWTPM_NVRAM_DecryptData(&migrationkey,
                                        &plain, &plain_len,
                                        &data[dataoffset], length - dataoffset);
+         if (res != 0)
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Decrypting the state blob "
+                      "failed res = %d\n", res);
          if (res == TPM_SUCCESS) {
              res = SWTPM_NVRAM_StoreData_Intern(plain, plain_len,
                                                 tpm_number,
