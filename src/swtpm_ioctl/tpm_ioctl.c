@@ -574,6 +574,13 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
                     goto cleanup;
                 }
                 res = devtoh32(is_chardev, pss.u.resp.tpm_result);
+                if (res != 0) {
+                    fprintf(stderr,
+                            "TPM result from PTM_SET_STATEBLOB: 0x%x\n",
+                            res);
+                    had_error = 1;
+                    goto cleanup;
+                }
                 break;
             }
 
