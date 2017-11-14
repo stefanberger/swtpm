@@ -316,6 +316,11 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
                                      *data, *length);
         TPM_DEBUG(" SWTPM_NVRAM_LoadData: SWTPM_NVRAM_DecryptData rc = %d\n",
                   rc);
+        if (rc != 0)
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Decrypting the NVRAM data "
+                      "failed rc = %d\n", rc);
+
         if (rc == 0) {
             if (decrypt_data) {
                 TPM_DEBUG(" SWTPM_NVRAM_LoadData: Decrypted %u bytes of "
