@@ -375,7 +375,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         if ((server_get_flags(server) & SERVER_FLAG_FD_GIVEN))
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
 
-        if (!getsockopt(mlp.fd, SOL_SOCKET, SO_TYPE, &sock_type, &len) &&
+        if (mlp.fd >= 0 &&
+            !getsockopt(mlp.fd, SOL_SOCKET, SO_TYPE, &sock_type, &len) &&
                         sock_type != SOCK_STREAM)
             mlp.flags |= MAIN_LOOP_FLAG_READALL;
     }
