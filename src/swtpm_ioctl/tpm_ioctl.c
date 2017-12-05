@@ -337,7 +337,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
         }
 
         numbytes = write(file_fd, pgs.u.resp.data, recvd_bytes);
-        if ((uint32_t)numbytes != recvd_bytes) {
+        if (numbytes < 0 || (uint32_t)numbytes != recvd_bytes) {
             fprintf(stderr,
                     "Could not write to file '%s': %s\n",
                     filename, strerror(errno));
