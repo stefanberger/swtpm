@@ -431,7 +431,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
     TPM_DEBUG("main: Initializing TPM at %s", ctime(&start_time));
 
-    tpmlib_debug_libtpms_parameters(TPMLIB_TPM_VERSION_1_2);
+    tpmlib_debug_libtpms_parameters();
 
 #ifdef WITH_VTPM_PROXY
     if (use_vtpm_proxy)

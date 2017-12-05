@@ -108,37 +108,30 @@ change_process_owner(const char *user)
     return 0;
 }
 
-void tpmlib_debug_libtpms_parameters(TPMLIB_TPMVersion tpmversion)
+void tpmlib_debug_libtpms_parameters(void)
 {
-    switch (tpmversion) {
-    case TPMLIB_TPM_VERSION_1_2:
-        TPM_DEBUG("TPM 1.2: Compiled for %u auth, %u transport, "
-                  "and %u DAA session slots\n",
-            tpmlib_get_tpm_property(TPMPROP_TPM_MIN_AUTH_SESSIONS),
-            tpmlib_get_tpm_property(TPMPROP_TPM_MIN_TRANS_SESSIONS),
-            tpmlib_get_tpm_property(TPMPROP_TPM_MIN_DAA_SESSIONS));
-        TPM_DEBUG("TPM 1.2: Compiled for %u key slots, %u owner evict slots\n",
-            tpmlib_get_tpm_property(TPMPROP_TPM_KEY_HANDLES),
-            tpmlib_get_tpm_property(TPMPROP_TPM_OWNER_EVICT_KEY_HANDLES));
-        TPM_DEBUG("TPM 1.2: Compiled for %u counters, %u saved sessions\n",
-           tpmlib_get_tpm_property(TPMPROP_TPM_MIN_COUNTERS),
-           tpmlib_get_tpm_property(TPMPROP_TPM_MIN_SESSION_LIST));
-        TPM_DEBUG("TPM 1.2: Compiled for %u family, "
-                  "%u delegate table entries\n",
-           tpmlib_get_tpm_property(TPMPROP_TPM_NUM_FAMILY_TABLE_ENTRY_MIN),
-           tpmlib_get_tpm_property(TPMPROP_TPM_NUM_DELEGATE_TABLE_ENTRY_MIN));
-        TPM_DEBUG("TPM 1.2: Compiled for %u total NV, %u savestate, "
-                  "%u volatile space\n",
-           tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_SPACE),
-           tpmlib_get_tpm_property(TPMPROP_TPM_MAX_SAVESTATE_SPACE),
-           tpmlib_get_tpm_property(TPMPROP_TPM_MAX_VOLATILESTATE_SPACE));
+    TPM_DEBUG("TPM 1.2: Compiled for %u auth, %u transport, "
+              "and %u DAA session slots\n",
+        tpmlib_get_tpm_property(TPMPROP_TPM_MIN_AUTH_SESSIONS),
+        tpmlib_get_tpm_property(TPMPROP_TPM_MIN_TRANS_SESSIONS),
+        tpmlib_get_tpm_property(TPMPROP_TPM_MIN_DAA_SESSIONS));
+    TPM_DEBUG("TPM 1.2: Compiled for %u key slots, %u owner evict slots\n",
+        tpmlib_get_tpm_property(TPMPROP_TPM_KEY_HANDLES),
+        tpmlib_get_tpm_property(TPMPROP_TPM_OWNER_EVICT_KEY_HANDLES));
+    TPM_DEBUG("TPM 1.2: Compiled for %u counters, %u saved sessions\n",
+        tpmlib_get_tpm_property(TPMPROP_TPM_MIN_COUNTERS),
+        tpmlib_get_tpm_property(TPMPROP_TPM_MIN_SESSION_LIST));
+    TPM_DEBUG("TPM 1.2: Compiled for %u family, "
+              "%u delegate table entries\n",
+        tpmlib_get_tpm_property(TPMPROP_TPM_NUM_FAMILY_TABLE_ENTRY_MIN),
+        tpmlib_get_tpm_property(TPMPROP_TPM_NUM_DELEGATE_TABLE_ENTRY_MIN));
+    TPM_DEBUG("TPM 1.2: Compiled for %u total NV, %u savestate, "
+              "%u volatile space\n",
+        tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_SPACE),
+        tpmlib_get_tpm_property(TPMPROP_TPM_MAX_SAVESTATE_SPACE),
+        tpmlib_get_tpm_property(TPMPROP_TPM_MAX_VOLATILESTATE_SPACE));
 #if 0
-        TPM_DEBUG("TPM1.2: Compiled for %u NV defined space\n",
-           tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
+    TPM_DEBUG("TPM1.2: Compiled for %u NV defined space\n",
+        tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
 #endif
-        break;
-    case TPMLIB_TPM_VERSION_2:
-        break;
-    }
-
 }

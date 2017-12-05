@@ -401,7 +401,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
     TPM_DEBUG("main: Initializing TPM at %s", ctime(&start_time));
 
-    tpmlib_debug_libtpms_parameters(TPMLIB_TPM_VERSION_1_2);
+    tpmlib_debug_libtpms_parameters();
 
     if (!need_init_cmd) {
         if ((rc = tpmlib_start(&callbacks, 0)))
