@@ -153,6 +153,12 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
     size_t idx;
     ptm_hdata hdata;
 
+    if (!input) {
+        fprintf(stderr,
+                "Input buffer for hashing must not be NULL.\n");
+        return 1;
+    }
+
     /* hash string given on command line */
     n = ctrlcmd(fd, PTM_HASH_START, &res, 0, sizeof(res));
     if (n < 0) {
@@ -437,6 +443,12 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
     if (!bt) {
         fprintf(stderr,
                 "Unknown TPM state type '%s'", blobtype);
+        return 1;
+    }
+
+    if (!filename) {
+        fprintf(stderr,
+                "Filename parameter must not be NULL\n");
         return 1;
     }
 
