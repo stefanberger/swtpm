@@ -242,6 +242,8 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
 
 static uint32_t get_blobtype(const char *blobname)
 {
+    if (!blobname)
+        return 0;
     if (!strcmp(blobname, "permanent"))
         return PTM_BLOB_TYPE_PERMANENT;
     if (!strcmp(blobname, "volatile"))
