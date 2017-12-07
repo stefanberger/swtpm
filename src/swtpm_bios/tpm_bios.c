@@ -218,7 +218,7 @@ use_device:
 }
 
 
-static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
+static int talk(const void *cmd, size_t count, int *tpm_errcode,
 		unsigned int to_seconds,
 		struct tpm_resp_header *res, size_t res_size)
 {
@@ -238,7 +238,7 @@ static int talk(const struct tpm_header *hdr, size_t count, int *tpm_errcode,
 		goto err_exit;
 	}
 
-	len = write(fd, hdr, count);
+	len = write(fd, cmd, count);
 	if (len < 0 || (size_t)len != count) {
 		fprintf(stderr, "Write to file descriptor failed.\n");
 		goto err_close_fd;
@@ -300,7 +300,7 @@ static int TPM_Startup(unsigned char parm, int *tpm_errcode)
 		.startup_type = htobe16(parm),
 	};
 
-	return talk(&tss.hdr, sizeof(tss), tpm_errcode, TPM_DURATION_SHORT,
+	return talk(&tss, sizeof(tss), tpm_errcode, TPM_DURATION_SHORT,
 		    NULL, 0);
 }
 
@@ -316,7 +316,7 @@ static int TSC_PhysicalPresence(unsigned short physical_presence,
 		.physical_presence = htobe16(physical_presence),
 	};
 
-	return talk(&tpp.hdr, sizeof(tpp), tpm_errcode, TPM_DURATION_SHORT,
+	return talk(&tpp, sizeof(tpp), tpm_errcode, TPM_DURATION_SHORT,
 		    NULL, 0);
 }
 
@@ -335,7 +335,7 @@ static int TPM_GetCapability_Subcap(uint32_t cap, uint32_t subcap,
 		.subcap = htobe32(subcap),
 	};
 
-	return talk(&tgc.hdr, sizeof(tgc), tpm_errcode, TPM_DURATION_SHORT,
+	return talk(&tgc, sizeof(tgc), tpm_errcode, TPM_DURATION_SHORT,
 		    res, res_size);
 }
 
@@ -349,7 +349,7 @@ static int TPM_PhysicalEnable(int *tpm_errcode)
 		},
 	};
 
-	return talk(&tpe.hdr, sizeof(tpe), tpm_errcode, TPM_DURATION_SHORT,
+	return talk(&tpe, sizeof(tpe), tpm_errcode, TPM_DURATION_SHORT,
 		    NULL, 0);
 }
 
@@ -364,7 +364,7 @@ static int TPM_PhysicalSetDeactivated(unsigned char parm, int *tpm_errcode)
 		.state = parm,
 	};
 
-	return talk(&tpsd.hdr, sizeof(tpsd), tpm_errcode, TPM_DURATION_SHORT,
+	return talk(&tpsd, sizeof(tpsd), tpm_errcode, TPM_DURATION_SHORT,
 		    NULL, 0);
 }
 
@@ -378,7 +378,7 @@ static int TPM_ContinueSelfTest(int *tpm_errcode)
 		},
 	};
 
-	return talk(&tcs.hdr, sizeof(tcs), tpm_errcode, TPM_DURATION_LONG,
+	return talk(&tcs, sizeof(tcs), tpm_errcode, TPM_DURATION_LONG,
 		    NULL, 0);
 }
 
