@@ -107,6 +107,13 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
     uint32_t            paramSize;      /* from command stream */
     ssize_t             n;
 
+    if (rc == 0) {
+        if (connection_fd->fd < 0) {
+            TPM_DEBUG("SWTPM_IO_Read: Passed file descriptor is invalid\n");
+            rc = TPM_IOERROR;
+        }
+    }
+
     /* check that the buffer can at least fit the command through the paramSize */
     if (rc == 0) {
         headerSize = sizeof(TPM_TAG) + sizeof(uint32_t);
