@@ -143,8 +143,9 @@ static int open_connection(char *devname, char *tcp_device_hostname,
 
 	if (unix_path) {
 		struct sockaddr_un addr;
+		size_t unix_path_len = strlen(unix_path) + 1;
 
-		if (strlen(unix_path) + 1 > sizeof(addr.sun_path)) {
+		if (unix_path_len > sizeof(addr.sun_path)) {
 			fprintf(stderr, "Socket path is too long.\n");
 			return -1;
 		}
@@ -152,7 +153,7 @@ static int open_connection(char *devname, char *tcp_device_hostname,
 		fd = socket(AF_UNIX, SOCK_STREAM, 0);
 		if (fd > 0) {
 			addr.sun_family = AF_UNIX;
-			strncpy(addr.sun_path, unix_path, sizeof(addr.sun_path));
+			strncpy(addr.sun_path, unix_path, unix_path_len);
 
 			if (connect(fd,
 				    (struct sockaddr*)&addr, sizeof(addr)) < 0) {
