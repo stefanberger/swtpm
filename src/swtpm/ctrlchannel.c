@@ -436,13 +436,14 @@ int ctrlchannel_process_fd(int fd,
                            bool *tpm_running,
                            struct mainLoopParams *mlp)
 {
-    struct input input;
+    struct input input = {0, };
     struct output {
         uint8_t body[4096];
     } output;
     ssize_t n;
     struct iovec iov = {
-        .iov_base = &input, .iov_len = sizeof(input)
+        .iov_base = &input,
+        .iov_len = sizeof(input),
     };
     char control[CMSG_SPACE(sizeof(int))];
     struct msghdr msg = {
