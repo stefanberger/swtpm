@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # For the license, see the LICENSE file in the root directory.
-#set -x
+set -x
 
 DIR=$(dirname "$0")
 ROOT=${DIR}/..
@@ -13,6 +13,7 @@ VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
 SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+OUTFILE=${TPM_PATH}/output
 
 function cleanup()
 {
@@ -39,16 +40,28 @@ if [ $? -ne 0 ]; then
 fi
 
 # Check the buffer size
-run_swtpm_ioctl ${SWTPM_INTERFACE} -b 0
+run_swtpm_ioctl ${SWTPM_INTERFACE} -b 0 > ${OUTFILE}
 if [ $? -ne 0 ]; then
 	echo "Error: Could not get the buffersize of the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
+cat ${OUTFILE}
 
-# set the buffer size -- it's not going to change but command must not fail
-run_swtpm_ioctl ${SWTPM_INTERFACE} -b 4000
+if [ -z "$(grep "TPM buffersize" ${OUTFILE} | grep 4096)" ]; then
+	echo "Error: The TPM buffersize of the ${SWPTM_INTERFACE} TPM is not 4096."
+	exit 1
+fi
+                
+# set the buffer size
+run_swtpm_ioctl ${SWTPM_INTERFACE} -b 4000 > ${OUTFILE}
 if [ $? -ne 0 ]; then
 	echo "Error: Could not set the buffersize of the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+cat ${OUTFILE}
+
+if [ -z "$(grep "TPM buffersize" ${OUTFILE} | grep 4000)" ]; then
+	echo "Error: The TPM buffersize of the ${SWPTM_INTERFACE} TPM is not 4000."
 	exit 1
 fi
 
