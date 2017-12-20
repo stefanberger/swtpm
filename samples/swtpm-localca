@@ -39,6 +39,9 @@
 
 # some flags
 SETUP_TPM2_F=1
+# for TPM 2 EK
+ALLOW_SIGNING_F=2
+DECRYPTION_F=4
 
 LOCALCA_OPTIONS=/etc/swtpm-localca.options
 LOCALCA_CONFIG=/etc/swtpm-localca.conf
@@ -159,6 +162,15 @@ create_cert() {
 	else
 		# TPM 1.2 cert needs a header
 		options="$options --add-header"
+	fi
+
+	if [ "$typ" == "ek" ]; then
+		if [ $((flags & ALLOW_SIGNING_F)) -ne 0 ]; then
+			options="$options --allow-signing"
+		fi
+		if [ $((flags & DECRYPTION_F)) -ne 0 ]; then
+			options="$options --decryption"
+		fi
 	fi
 
 	# if ek contains x=..,y=... it's an ECC key
@@ -379,6 +391,12 @@ main() {
 			;;
 		--tpm2)
 			flags=$((flags | SETUP_TPM2_F))
+			;;
+		--allow-signing)
+			flags=$((flags | ALLOW_SIGNING_F))
+			;;
+		--decryption)
+			flags=$((flags | DECRYPTION_F))
 			;;
 		*)
 			logerr "Unsupported option $1"

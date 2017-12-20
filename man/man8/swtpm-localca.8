@@ -177,6 +177,9 @@ ek.cert and the platform certificate under the name platform.cert.
 .IX Item "--ek ek"
 This parameter indicates the modulus of the public key of the endorsement key
 (\s-1EK\s0). The public key is provided as a sequence of \s-1ASCII\s0 hex digits.
+.Sp
+In case \s-1ECC \s0(elliptic curve crypography) keys are used, the parameter must
+have the format \-\-ek x=<hex digits>,y=<hex digits>.
 .IP "\fB\-\-vmid \s-1ID\s0\fR" 4
 .IX Item "--vmid ID"
 This parameter indicates the \s-1ID\s0 of the \s-1VM\s0 for which to create the certificate.
@@ -200,6 +203,15 @@ to swtpm_cert for the creation of the \s-1EK\s0 certificate.
 .IP "\fB\-\-tpm2\fR" 4
 .IX Item "--tpm2"
 Create \s-1TPM 2\s0 compliant certificates.
+.IP "\fB\-\-allow\-signing\fR" 4
+.IX Item "--allow-signing"
+Create an \s-1EK\s0 that can also be used for signing. Without this option, the
+\&\s-1EK\s0 can only be used for key encipherment. This option requires \-\-tpm2.
+.IP "\fB\-\-decryption\fR" 4
+.IX Item "--decryption"
+If \-\-allow\-signing is passed and the \s-1EK\s0 should also be useable for key
+encipherment, this option must be passed. Otherwise key encipherment is the
+default. This option requires \-\-tpm2.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBswtpm\-localca.conf\fR, \fBswtpm\-localca.options\fR, 
