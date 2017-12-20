@@ -67,6 +67,7 @@ enum cert_type_t {
 /* some flags */
 #define CERT_TYPE_TPM2_F 1
 #define ALLOW_SIGNING_F  2 /* EK can be used for signing */
+#define DECRYPTION_F     4 /* EK can be used for decryption; default */
 
 extern const ASN1_ARRAY_TYPE tpm_asn1_tab[];
 
@@ -133,6 +134,8 @@ usage(const char *prg)
         "--tpm2                    : Issue a TPM 2 compliant certificate\n"
         "--allow-signing           : The EK of a TPM 2 allows signing;\n"
         "                            requires --tpm2\n"
+        "--decryption              : The EK if a TPM 2 can be used for key\n"
+        "                            encipherment; requires --tpm2\n"
         "--version                 : Display version and exit\n"
         "--help                    : Display this help screen and exit\n"
         "\n",
@@ -814,7 +817,7 @@ main(int argc, char *argv[])
     size_t id_size = sizeof(id);
     enum cert_type_t certtype = CERT_TYPE_EK;
     const char *oid;
-    unsigned int key_usage;
+    unsigned int key_usage = 0;
     char *tpm_manufacturer = NULL;
     char *tpm_version = NULL;
     char *tpm_model = NULL;
@@ -1028,6 +1031,8 @@ main(int argc, char *argv[])
             flags |= CERT_TYPE_TPM2_F;
         } else if (!strcmp(argv[i], "--allow-signing")) {
             flags |= ALLOW_SIGNING_F;
+        } else if (!strcmp(argv[i], "--decryption")) {
+            flags |= DECRYPTION_F;
         } else if (!strcmp(argv[i], "--version")) {
             versioninfo(argv[0]);
             exit(0);
@@ -1363,13 +1368,16 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     case CERT_TYPE_EK:
     case CERT_TYPE_PLATFORM:
         if (flags & CERT_TYPE_TPM2_F) {
+            /* support 'User Device TPM' and 'Non-User Device TPM' in spec */
             if (flags & ALLOW_SIGNING_F) {
-                key_usage = GNUTLS_KEY_DIGITAL_SIGNATURE;
-            } else {
+                key_usage |= GNUTLS_KEY_DIGITAL_SIGNATURE;
+            }
+            if ((flags & (ALLOW_SIGNING_F | DECRYPTION_F)) == 0 ||
+                (flags & DECRYPTION_F) == DECRYPTION_F) {
                 if (is_ecc) {
-                    key_usage = GNUTLS_KEY_KEY_AGREEMENT;
+                    key_usage |= GNUTLS_KEY_KEY_AGREEMENT;
                 } else {
-                    key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+                    key_usage |= GNUTLS_KEY_KEY_ENCIPHERMENT;
                 }
             }
         } else {
