@@ -78,6 +78,17 @@ to swtpm_cert for the creation of the EK certificate.
 
 Create TPM 2 compliant certificates.
 
+=item B<--allow-signing>
+
+Create an EK that can also be used for signing. Without this option, the
+EK can only be used for key encipherment. This option requires --tpm2.
+
+=item B<--decryption>
+
+If --allow-signing is passed and the EK should also be useable for key
+encipherment, this option must be passed. Otherwise key encipherment is the
+default. This option requires --tpm2.
+
 =back
 
 =head1 SEE ALSO
