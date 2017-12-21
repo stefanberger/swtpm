@@ -81,6 +81,7 @@ SETUP_ALLOW_SIGNING_F=1024
 SETUP_TPM2_ECC_F=2048
 SETUP_CREATE_SPK_F=4096
 SETUP_DISPLAY_RESULTS_F=8192
+SETUP_DECRYPTION_F=16384
 
 # default values for passwords
 DEFAULT_OWNER_PASSWORD=ooo
@@ -820,10 +821,22 @@ tpm2_createprimary_ek_rsa()
 
 	local symkeydata keyflags totlen publen off min_exp authpolicy
 
-	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
+	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ] && \
+	   [ $((flags & SETUP_DECRYPTION_F)) -ne 0 ]; then
 		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
 		# adminWithPolicy, sign, decrypt
 		keyflags=$((0x000600b2))
+		# symmetric: TPM_ALG_NULL
+		symkeydata='\\x00\\x10'
+		publen=$((0x36 + NONCE_RSA_SIZE))
+		totlen=$((0x5f + NONCE_RSA_SIZE))
+		min_exp=1506
+		# offset of length indicator for key
+		off=216
+	elif [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# adminWithPolicy, sign
+		keyflags=$((0x000400b2))
 		# symmetric: TPM_ALG_NULL
 		symkeydata='\\x00\\x10'
 		publen=$((0x36 + NONCE_RSA_SIZE))
@@ -969,10 +982,23 @@ tpm2_createprimary_ek_ecc()
 
 	local min_exp symkeydata keyflags totlen publen off1 off2 authpolicy
 
-	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
+	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ] && \
+	   [ $((flags & SETUP_DECRYPTION_F)) -ne 0 ]; then
 		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
 		# adminWithPolicy, sign, decrypt
 		keyflags=$((0x000600b2))
+		# symmetric: TPM_ALG_NULL
+		symkeydata='\\x00\\x10'
+		publen=$((0x36 + 2 * NONCE_ECC_SIZE))
+		totlen=$((0x5f + 2 * NONCE_ECC_SIZE))
+		min_exp=930
+		# offset of length indicator for key
+		off1=210
+		off2=312
+	elif [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# adminWithPolicy, sign
+		keyflags=$((0x000400b2))
 		# symmetric: TPM_ALG_NULL
 		symkeydata='\\x00\\x10'
 		publen=$((0x36 + 2 * NONCE_ECC_SIZE))
@@ -1600,7 +1626,11 @@ The following options are supported:
 
 --createek       : Create the EK
 
---allow-signing  : Create an EK that can also be used for signing;
+--allow-signing  : Create an EK that can be used for signing;
+                   this option requires --tpm2.
+
+--decryption     : Create an EK that can be used for key encipherment;
+                   this is the default unless --allow-signing is given;
                    this option requires --tpm2.
 
 --ecc            : Create ECC keys rather than RSA keys; this requires --tpm2
@@ -1698,6 +1728,7 @@ main()
 		--overwrite) flags=$((flags | SETUP_STATE_OVERWRITE_F));;
 		--not-overwrite) flags=$((flags | SETUP_STATE_NOT_OVERWRITE_F));;
 		--allow-signing) flags=$((flags | SETUP_ALLOW_SIGNING_F));;
+		--decryption) flags=$((flags | SETUP_DECRYPTION_F));;
 		--version) versioninfo $0; exit 0;;
 		--help|-h|-?) usage $0; exit 0;;
 		*) logerr "Unknown option $1"; usage $0; exit 1;;
