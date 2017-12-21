@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_setup 8"
-.TH swtpm_setup 8 "2017-11-09" "swtpm" ""
+.TH swtpm_setup 8 "2017-12-20" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -221,6 +221,11 @@ code is returned.
 .IX Item "--not-overwrite"
 Do not overwrite existing \s-1TPM\s0 state. If exising \s-1TPM\s0 state is found, the
 program ends without an error.
+.IP "\fB\-\-vmid <\s-1VM ID\s0\fR>" 4
+.IX Item "--vmid <VM ID>"
+Optional \s-1VM ID\s0 that can be used to keep track of certificates issued
+for VMs (or conainers). This parameter will be pass through to the tool
+used for creating the certificates and may be required by that tool.
 .IP "\fB\-\-help, \-h\fR" 4
 .IX Item "--help, -h"
 Display the help screen

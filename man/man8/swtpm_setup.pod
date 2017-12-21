@@ -106,6 +106,12 @@ code is returned.
 Do not overwrite existing TPM state. If exising TPM state is found, the
 program ends without an error.
 
+=item B<--vmid <VM ID>>
+
+Optional VM ID that can be used to keep track of certificates issued
+for VMs (or conainers). This parameter will be pass through to the tool
+used for creating the certificates and may be required by that tool.
+
 =item B<--help, -h>
 
 Display the help screen

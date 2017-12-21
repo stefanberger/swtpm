@@ -139,6 +139,10 @@ call_create_certs()
 	local logparam tmp
 	local params="" cmd
 
+	if [ -n "$vmid" ]; then
+		params="$params --vmid \"$vmid\""
+	fi
+
 	if [ -n "$LOGFILE" ]; then
 		logparam="--logfile $LOGFILE"
 	fi
@@ -178,7 +182,6 @@ call_create_certs()
 				--type ek \
 				--ek "$ek" \
 				--dir "$certdir" \
-				--vmid "$vmid" \
 				${logparam} ${params}"
 			logit "  Invoking: $(echo $cmd | tr -s " ")"
 			tmp="$(eval $cmd 2>&1)"
@@ -193,7 +196,6 @@ call_create_certs()
 				--type platform \
 				--ek "$ek" \
 				--dir "$certdir" \
-				--vmid "$vmid" \
 				${logparam} ${params}"
 			logit "  Invoking: $(echo $cmd | tr -s " ")"
 			tmp="$(eval $cmd 2>&1)"
