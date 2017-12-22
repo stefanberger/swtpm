@@ -142,6 +142,12 @@ create_cert() {
 		options=$(cat ${LOCALCA_OPTIONS})
 	fi
 
+	if [ -n "$vmid" ]; then
+		options="$options --subject \"CN=$vmid\""
+	else
+		options="$options --subject \"CN=unknown\""
+	fi
+
 	case "$typ" in
 	ek)
 		if [ -z "$(type -p swtpm_cert)" ]; then
