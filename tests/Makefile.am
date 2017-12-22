@@ -54,6 +54,8 @@ TESTS += \
 	test_tpm2_probe \
 	\
 	test_tpm2_swtpm_bios
+	\
+	test_tpm2_samples_swtpm_localca
 
 if WITH_SWTPM_SETUP
 TESTS += \
