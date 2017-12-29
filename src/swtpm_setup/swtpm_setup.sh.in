@@ -909,7 +909,7 @@ function tpm2_createprimary_rsa_params()
 	local off="$7"
 	local authpolicy="$8"
 
-	local req rsp res
+	local req rsp res temp
 	local authpolicylen=$((${#authpolicy} / 5))
 
 	req='\x80\x02@TOTLEN-4@\x00\x00\x01\x31'
@@ -922,31 +922,35 @@ function tpm2_createprimary_rsa_params()
 	# Size of TPM2B_PUBLIC
 	req+='@PUBLEN-2@'
 	# TPM_ALG_RSA, TPM_ALG_SHA256
-	req+='\x00\x01\x00\x0b'
+	temp='\x00\x01\x00\x0b'
 	# fixedTPM, fixedParent, sensitiveDatOrigin, adminWithPolicy
 	# restricted, decrypt
-	req+='@KEYFLAGS-4@'
+	temp+='@KEYFLAGS-4@'
 	# authPolicy;32 bytes
-	req+='@AUTHPOLICYLEN-2@'
-	req+='@AUTHPOLICY@'
-	req+='@SYMKEYDATA@'
+	temp+='@AUTHPOLICYLEN-2@'
+	temp+='@AUTHPOLICY@'
+	temp+='@SYMKEYDATA@'
 	# scheme: TPM_ALG_NULL, keyBits: 2048bits
-	req+='\x00\x10\x08\x00'
+	temp+='\x00\x10\x08\x00'
 	# exponent
-	req+='\x00\x00\x00\x00'
+	temp+='\x00\x00\x00\x00'
 	# TPM2B_DATA
-	req+=${NONCE_RSA}
+	temp+=${NONCE_RSA}
+
+	temp=$(echo $temp | \
+	       sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
+	           -e "s/@SYMKEYDATA@/$symkeydata/" \
+	           -e "s/@AUTHPOLICY@/$authpolicy/" \
+	           -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/")
+
+	req+=${temp}
 	# TPML_PCR_SELECTION
 	req+='\x00\x00\x00\x00\x00\x00'
 
 	req=$(echo $req | \
-	      sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
-	          -e "s/@SYMKEYDATA@/$symkeydata/" \
-	          -e "s/@PUBLEN-2@/$(_format "$publen" 2)/" \
+	      sed -e "s/@PUBLEN-2@/$(_format "$publen" 2)/" \
 	          -e "s/@TOTLEN-4@/$(_format "$totlen" 4)/" \
-	          -e "s/@KEYHANDLE-4@/$primaryhandle/" \
-	          -e "s/@AUTHPOLICY@/$authpolicy/" \
-	          -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/")
+	          -e "s/@KEYHANDLE-4@/$primaryhandle/")
 
 	rsp="$(tpm_transfer "${req}")"
 
@@ -1072,7 +1076,7 @@ tpm2_createprimary_ecc_params()
 	local off2="$8"
 	local authpolicy="$9"
 
-	local req rsp res
+	local req rsp res temp
 	local authpolicylen=$((${#authpolicy} / 5))
 
 	# Check the TCG EK Credential Profile doc for TPM 2 for
@@ -1090,33 +1094,37 @@ tpm2_createprimary_ecc_params()
 	# Size of TPM2B_PUBLIC
 	req+='@PUBLEN-2@'
 	# TPM_ALG_ECC, TPM_ALG_SHA256
-	req+='\x00\x23\x00\x0b'
+	temp='\x00\x23\x00\x0b'
 	# flags: fixedTPM, fixedParent, sensitiveDatOrigin, adminWithPolicy
 	# restricted, decrypt
-	req+='@KEYFLAGS-4@'
+	temp+='@KEYFLAGS-4@'
 	# authPolicy: size = 32 bytes
 	# authPolicy;32 bytes
-	req+='@AUTHPOLICYLEN-2@'
-	req+='@AUTHPOLICY@'
-	req+='@SYMKEYDATA@'
+	temp+='@AUTHPOLICYLEN-2@'
+	temp+='@AUTHPOLICY@'
+	temp+='@SYMKEYDATA@'
 	# scheme: TPM_ALG_NULL, curveID: TPM_ECC_NIST_P256
-	req+='\x00\x10\x00\x03'
+	temp+='\x00\x10\x00\x03'
 	# kdf->scheme: TPM_ALG_NULL
-	req+='\x00\x10'
+	temp+='\x00\x10'
 	# TPM2B_DATA for x and y
-	req+=${NONCE_ECC}
-	req+=${NONCE_ECC}
+	temp+=${NONCE_ECC}
+	temp+=${NONCE_ECC}
+
+	temp=$(echo $temp | \
+	       sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
+	           -e "s/@SYMKEYDATA@/$symkeydata/" \
+	           -e "s/@AUTHPOLICY@/$authpolicy/" \
+	           -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/")
+
+	req+=${temp}
 	# TPML_PCR_SELECTION
 	req+='\x00\x00\x00\x00\x00\x00'
 
 	req=$(echo $req | \
-	      sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
-	          -e "s/@SYMKEYDATA@/$symkeydata/" \
-	          -e "s/@PUBLEN-2@/$(_format "$publen" 2)/" \
+	      sed -e "s/@PUBLEN-2@/$(_format "$publen" 2)/" \
 	          -e "s/@TOTLEN-4@/$(_format "$totlen" 4)/" \
-	          -e "s/@KEYHANDLE-4@/$primaryhandle/" \
-	          -e "s/@AUTHPOLICY@/$authpolicy/" \
-	          -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/")
+	          -e "s/@KEYHANDLE-4@/$primaryhandle/")
 
 	rsp="$(tpm_transfer "${req}")"
 	if [ ${#rsp} -lt $min_exp ]; then
