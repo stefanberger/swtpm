@@ -109,6 +109,7 @@ TPMA_NV_WRITEDEFINE=$((0x2000))
 # "TCG TPM v2.0 Provisioning Guide"; Version 1.0, Rev 1.0, March 15, 2017
 # Table 2
 TPM2_NV_INDEX_RSA_EKCert=$((0x01c00002))
+TPM2_NV_INDEX_RSA_EKTemplate=$((0x01c00004))
 TPM2_NV_INDEX_PlatformCert=$((0x01c08000))
 
 TPM2_EK_HANDLE=$((0x81010001))
@@ -815,9 +816,11 @@ tpm2_changeeps()
 # Create the primary key (EK equivalent)
 #
 # @param1: flags
+# @param2: filename for template
 tpm2_createprimary_ek_rsa()
 {
 	local flags="$1"
+	local templatefile="$2"
 
 	local symkeydata keyflags totlen publen off min_exp authpolicy
 
@@ -867,7 +870,7 @@ tpm2_createprimary_ek_rsa()
 	# TPM_RH_ENDORSEMENT
 	tpm2_createprimary_rsa_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off}" \
-	    "${authpolicy}"
+	    "${authpolicy}" "${templatefile}"
 	return $?
 }
 
@@ -894,7 +897,8 @@ tpm2_createprimary_spk_rsa()
 
 	# TPM_RH_OWNER
 	tpm2_createprimary_rsa_params '\\x40\\x00\\x00\\x01' "${keyflags}" \
-	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off}" ""
+	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off}" "" \
+	    ""
 	return $?
 }
 
@@ -908,6 +912,7 @@ function tpm2_createprimary_rsa_params()
 	local min_exp="$6"
 	local off="$7"
 	local authpolicy="$8"
+	local templatefile="$9"
 
 	local req rsp res temp
 	local authpolicylen=$((${#authpolicy} / 5))
@@ -974,15 +979,21 @@ function tpm2_createprimary_rsa_params()
 	res+="$(echo "${rsp:$off:768}" | sed -n 's/ //pg')"
 	echo $res
 
+	if [ -n "${templatefile}" ]; then
+		$ECHO -en ${temp} > ${templatefile}
+	fi
+
 	return 0
 }
 
 # Create the primary key as an ECC key (EK equivalent)
 #
 # @param1: flags
+# @param2: filename for template
 tpm2_createprimary_ek_ecc()
 {
 	local flags="$1"
+	local templatefile="$2"
 
 	local min_exp symkeydata keyflags totlen publen off1 off2 authpolicy
 
@@ -1032,7 +1043,7 @@ tpm2_createprimary_ek_ecc()
 
 	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off1}" \
-	    "${off2}" "${authpolicy}"
+	    "${off2}" "${authpolicy}" "${templatefile}"
 	return $?
 }
 
@@ -1060,7 +1071,7 @@ tpm2_createprimary_spk_ecc()
 
 	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off1}" \
-	    "${off2}" ""
+	    "${off2}" "" ""
 	return $?
 }
 
@@ -1075,6 +1086,7 @@ tpm2_createprimary_ecc_params()
 	local off1="$7"
 	local off2="$8"
 	local authpolicy="$9"
+	local templatefile="${10}"
 
 	local req rsp res temp
 	local authpolicylen=$((${#authpolicy} / 5))
@@ -1149,6 +1161,10 @@ tpm2_createprimary_ecc_params()
 	res+="$(echo x=${rsp:$off1:96},y=${rsp:$off2:96} | sed -n 's/ //pg')"
 	echo $res
 
+	if [ -n "${templatefile}" ]; then
+		$ECHO -en ${temp} > ${templatefile}
+	fi
+
 	return 0
 }
 
@@ -1190,10 +1206,12 @@ tpm2_evictcontrol()
 #
 # @param1: flags
 # @param2: non-evict handle, if any
+# @param3: filename for EK template
 tpm2_create_ek()
 {
 	local flags="$1"
 	local nehandle="$2"
+	local ektemplatefile="$3"
 
 	local res handle
 
@@ -1202,9 +1220,9 @@ tpm2_create_ek()
 	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
-		res=$(tpm2_createprimary_ek_ecc "$flags")
+		res=$(tpm2_createprimary_ek_ecc "$flags" "${ektemplatefile}")
 	else
-		res=$(tpm2_createprimary_ek_rsa "$flags")
+		res=$(tpm2_createprimary_ek_rsa "$flags" "${ektemplatefile}")
 	fi
 	[ $? -ne 0 ] && return 1
 
@@ -1434,6 +1452,7 @@ init_tpm2()
 
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
+	local EK_TEMP_FILE="$certsdir/ektemplate"
 
 	start_tpm "$SWTPM" "$tpm2_state_path"
 	if [ $? -ne 0 ]; then
@@ -1461,13 +1480,49 @@ init_tpm2()
 	fi
 
 	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
-		ek=$(tpm2_create_ek "$flags" "${TPM2_EK_HANDLE}")
+		ek=$(tpm2_create_ek "$flags" "${TPM2_EK_HANDLE}" \
+		     "${EK_TEMP_FILE}")
 		if [ $? -ne 0 ]; then
 			logerr "tpm2_create_ek failed"
 			return 1
 		fi
 		logit "Successfully created EK with handle" \
 		      "$(printf "0x%08x" ${TPM2_EK_HANDLE})."
+
+		if [ $((flags & $SETUP_ALLOW_SIGNING_F )) -ne 0 ]; then
+			tpm2_nv_define \
+				$((TPM2_NV_INDEX_RSA_EKTemplate)) \
+				$((TPMA_NV_PLATFORMCREATE | \
+				   TPMA_NV_AUTHREAD | \
+				   TPMA_NV_NO_DA | \
+				   TPMA_NV_PPWRITE | \
+				   TPMA_NV_POLICY_DELETE | \
+				   TPMA_NV_WRITEDEFINE)) \
+				$(stat -c%s "${EK_TEMP_FILE}")
+			if [ $? -ne 0 ]; then
+				logerr "Could not create NVRAM area for EK template."
+				return 1
+			fi
+			tpm2_nv_write \
+				$((TPM2_NV_INDEX_RSA_EKTemplate)) \
+				"${EK_TEMP_FILE}"
+			if [ $? -ne 0 ]; then
+				logerr "Could not write EK template into" \
+				       "NVRAM location."
+				return 1
+			fi
+			if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
+				tpm2_nv_writelock \
+					$((TPM2_NV_INDEX_RSA_EKTemplate))
+				if [ $? -ne 0 ]; then
+					logerr "Could not lock EK template NVRAM" \
+					       "location."
+					return 1
+				fi
+			fi
+			logit "Successfully created NVRAM area for EK template."
+		fi
+		rm -f ${EK_TEMP_FILE}
 	fi
 
 	# have external program create the certificates now
