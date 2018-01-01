@@ -151,6 +151,10 @@ create_cert() {
 		options=$(cat ${LOCALCA_OPTIONS})
 	fi
 
+	if [ -n "${SIGNKEY_PASSWORD}" ]; then
+		options="$options --signkey-password ${SIGNKEY_PASSWORD}"
+	fi
+
 	if [ -n "$vmid" ]; then
 		options="$options --subject \"CN=$vmid\""
 	else
@@ -271,6 +275,8 @@ create_localca_cert() {
 			}
 			chmod 640 ${cakey}
 
+			certtool --generate-privkey > ${SIGNKEY}
+
 			local tmp=$(mktemp)
 			echo "cn=swtpm-localca-rootca" > ${tmp}
 			echo "ca" >> ${tmp}
@@ -291,6 +297,10 @@ create_localca_cert() {
 			}
 
 			# now our signing CA
+			if [ -n "${SIGNKEY_PASSWORD}" ]; then
+				export GNUTLS_PIN=${SIGNKEY_PASSWORD}
+			fi
+
 			msg=$(certtool \
 				--generate-privkey \
 				--outfile ${SIGNKEY} \
@@ -452,6 +462,8 @@ main() {
 		logerr "Missing signingkey variable in config file $LOCALCA_CONFIG."
 		exit 1
 	fi
+	SIGNKEY_PASSWORD=$(get_config_value "$LOCALCA_CONFIG" "signingkey_password")
+
 	ISSUERCERT=$(get_config_value "$LOCALCA_CONFIG" "issuercert")
 	if [ -z "$ISSUERCERT" ]; then
 		logerr "Missing issuercert variable in config file $LOCALCA_CONFIG."
