@@ -21,6 +21,10 @@ in this directory.
 The file containing the key used for signing the certificates. Provide
 a key in PEM format.
 
+=item B<signingkey_password>
+
+The password to use for the signing key.
+
 =item B<issuercert>
 
 The file containing the certificate for this CA. Provide a certificate
