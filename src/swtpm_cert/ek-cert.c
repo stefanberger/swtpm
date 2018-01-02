@@ -946,7 +946,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                        gnutls_strerror(err))
 
     /* sign cert */
-    err = gnutls_x509_crt_sign(crt, sigcert, sigkey);
+    err = gnutls_x509_crt_sign2(crt, sigcert, sigkey, GNUTLS_DIG_SHA256, 0);
     CHECK_GNUTLS_ERROR(err, "Could not sign the CRT: %s\n",
                        gnutls_strerror(err))
 
