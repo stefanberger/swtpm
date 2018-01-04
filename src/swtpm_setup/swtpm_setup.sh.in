@@ -1448,7 +1448,7 @@ init_tpm2()
 
 	# where external app writes certs into
 	local certsdir="$tpm2_state_path"
-	local ek tmp output
+	local ek tmp output nvindex
 
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
@@ -1489,9 +1489,11 @@ init_tpm2()
 		logit "Successfully created EK with handle" \
 		      "$(printf "0x%08x" ${TPM2_EK_HANDLE})."
 
+		nvindex=${TPM2_NV_INDEX_RSA_EKTemplate}
+
 		if [ $((flags & $SETUP_ALLOW_SIGNING_F )) -ne 0 ]; then
 			tpm2_nv_define \
-				$((TPM2_NV_INDEX_RSA_EKTemplate)) \
+				${nvindex} \
 				$((TPMA_NV_PLATFORMCREATE | \
 				   TPMA_NV_AUTHREAD | \
 				   TPMA_NV_NO_DA | \
@@ -1504,7 +1506,7 @@ init_tpm2()
 				return 1
 			fi
 			tpm2_nv_write \
-				$((TPM2_NV_INDEX_RSA_EKTemplate)) \
+				${nvindex} \
 				"${EK_TEMP_FILE}"
 			if [ $? -ne 0 ]; then
 				logerr "Could not write EK template into" \
@@ -1513,7 +1515,7 @@ init_tpm2()
 			fi
 			if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
 				tpm2_nv_writelock \
-					$((TPM2_NV_INDEX_RSA_EKTemplate))
+					${nvindex}
 				if [ $? -ne 0 ]; then
 					logerr "Could not lock EK template NVRAM" \
 					       "location."
@@ -1533,8 +1535,11 @@ init_tpm2()
 
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] && \
 	   [ -r "${EK_CERT_FILE}" ]; then
+
+		nvindex=${TPM2_NV_INDEX_RSA_EKCert}
+
 		tpm2_nv_define \
-			$((TPM2_NV_INDEX_RSA_EKCert)) \
+			${nvindex} \
 			$((TPMA_NV_PLATFORMCREATE | \
 			   TPMA_NV_AUTHREAD | \
 			   TPMA_NV_NO_DA | \
@@ -1547,7 +1552,7 @@ init_tpm2()
 			return 1
 		fi
 		tpm2_nv_write \
-			$((TPM2_NV_INDEX_RSA_EKCert)) \
+			${nvindex} \
 			"${EK_CERT_FILE}"
 		if [ $? -ne 0 ]; then
 			logerr "Could not write EK certificate into" \
@@ -1556,7 +1561,7 @@ init_tpm2()
 		fi
 		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
 			tpm2_nv_writelock \
-				$((TPM2_NV_INDEX_RSA_EKCert))
+				${nvindex}
 			if [ $? -ne 0 ]; then
 				logerr "Could not lock EK certificate NVRAM" \
 				       "location."
