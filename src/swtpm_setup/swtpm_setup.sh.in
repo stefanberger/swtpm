@@ -749,7 +749,7 @@ The following options are supported:
                    option is not given, this program will return an error if
                    existing state is detected
 
---no-overwrite   : Do not overwrite existing TPM state but silently end
+--not-overwrite  : Do not overwrite existing TPM state but silently end
 
 --version        : Display version and exit
 
