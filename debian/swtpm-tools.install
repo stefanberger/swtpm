@@ -13,6 +13,10 @@ cat <<_EOF_
 /usr/share/man/man8/swtpm_setup.8*
 /usr/share/man/man8/swtpm_setup.conf.8*
 /usr/share/man/man8/swtpm_setup.sh.8*
+/usr/share/swtpm/swtpm-localca
+/etc/swtpm-localca.conf
+/etc/swtpm-localca.options
+/etc/swtpm_setup.conf
 _EOF_
 if test -n "$(find $(dirname "$0")/tmp -name swtpm_cert)"; then
 echo "/usr/bin/swtpm_cert"
