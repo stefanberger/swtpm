@@ -96,9 +96,9 @@ struct ptm_hdata {
  * with this ioctl and with adjusted offset are necessary. All bytes
  * must be transferred and the transfer is done once the last byte has been
  * returned.
- * It is possible to use the read() interface for reading the data; however,
- * the first bytes of the state blob will be part of the response to the ioctl();
- * a subsequent read() is only necessary if the total length (totlength) exceeds
+ * It is possible to use the read() interface for reading the data; however, the
+ * first bytes of the state blob will be part of the response to the ioctl(); a
+ * subsequent read() is only necessary if the total length (totlength) exceeds
  * the number of received bytes. seek() is not supported.
  */
 struct ptm_getstate {
@@ -205,19 +205,19 @@ typedef struct ptm_setbuffersize ptm_setbuffersize;
 
 /* capability flags returned by PTM_GET_CAPABILITY */
 #define PTM_CAP_INIT               (1)
-#define PTM_CAP_SHUTDOWN           (1<<1)
-#define PTM_CAP_GET_TPMESTABLISHED (1<<2)
-#define PTM_CAP_SET_LOCALITY       (1<<3)
-#define PTM_CAP_HASHING            (1<<4)
-#define PTM_CAP_CANCEL_TPM_CMD     (1<<5)
-#define PTM_CAP_STORE_VOLATILE     (1<<6)
-#define PTM_CAP_RESET_TPMESTABLISHED (1<<7)
-#define PTM_CAP_GET_STATEBLOB      (1<<8)
-#define PTM_CAP_SET_STATEBLOB      (1<<9)
-#define PTM_CAP_STOP               (1<<10)
-#define PTM_CAP_GET_CONFIG         (1<<11)
-#define PTM_CAP_SET_DATAFD         (1<<12)
-#define PTM_CAP_SET_BUFFERSIZE     (1<<13)
+#define PTM_CAP_SHUTDOWN           (1 << 1)
+#define PTM_CAP_GET_TPMESTABLISHED (1 << 2)
+#define PTM_CAP_SET_LOCALITY       (1 << 3)
+#define PTM_CAP_HASHING            (1 << 4)
+#define PTM_CAP_CANCEL_TPM_CMD     (1 << 5)
+#define PTM_CAP_STORE_VOLATILE     (1 << 6)
+#define PTM_CAP_RESET_TPMESTABLISHED (1 << 7)
+#define PTM_CAP_GET_STATEBLOB      (1 << 8)
+#define PTM_CAP_SET_STATEBLOB      (1 << 9)
+#define PTM_CAP_STOP               (1 << 10)
+#define PTM_CAP_GET_CONFIG         (1 << 11)
+#define PTM_CAP_SET_DATAFD         (1 << 12)
+#define PTM_CAP_SET_BUFFERSIZE     (1 << 13)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
