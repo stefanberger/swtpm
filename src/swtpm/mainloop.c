@@ -94,6 +94,7 @@ int mainLoop(struct mainLoopParams *mlp,
     int                 ctrlclntfd;
     bool                readall;
     int                 sockfd;
+    int                 ready;
 
     /* poolfd[] indexes */
     enum {
@@ -156,7 +157,11 @@ int mainLoop(struct mainLoopParams *mlp,
             if (connection_fd.fd < 0)
                 pollfds[DATA_SERVER_FD].fd = sockfd;
 
-            if (poll(pollfds, 5, -1) < 0 ||
+            ready = poll(pollfds, 5, -1);
+            if (ready < 0 && errno == EINTR)
+                continue;
+
+            if (ready < 0 ||
                 (pollfds[NOTIFY_FD].revents & POLLIN) != 0) {
                 SWTPM_IO_Disconnect(&connection_fd);
                 break;
