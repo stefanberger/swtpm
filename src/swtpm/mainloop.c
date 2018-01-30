@@ -162,7 +162,7 @@ int mainLoop(struct mainLoopParams *mlp,
                 break;
             }
 
-            if (pollfds[DATA_CLIENT_FD].revents & POLLHUP) {
+            if (pollfds[DATA_CLIENT_FD].revents & (POLLHUP | POLLERR)) {
                 logprintf(STDERR_FILENO, "Data client disconnected\n");
                 mlp->fd = -1;
                 /* chardev and unixio get this signal, not tcp */
