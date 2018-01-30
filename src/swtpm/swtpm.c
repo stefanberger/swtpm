@@ -344,6 +344,13 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         return EXIT_FAILURE;
     }
 
+    if (mlp.fd >= 0 && mlp.fd < 3) {
+        /* no std{in,out,err} */
+        logprintf(STDERR_FILENO,
+            "Error: Cannot accept file descriptors with values 0, 1, or 2\n");
+        return EXIT_FAILURE;
+    }
+
     /* change process ownership before accessing files */
     if (runas) {
         if (change_process_owner(runas) < 0)

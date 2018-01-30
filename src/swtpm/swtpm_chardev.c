@@ -393,6 +393,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         logprintf(STDERR_FILENO,
                   "Error: Missing character device or file descriptor\n");
         return EXIT_FAILURE;
+    } else if (mlp.fd < 3) {
+        /* no std{in,out,err} */
+        logprintf(STDERR_FILENO,
+            "Error: Cannot accept file descriptors with values 0, 1, or 2\n");
+        return EXIT_FAILURE;
     }
 
     /* change process ownership before accessing files */
