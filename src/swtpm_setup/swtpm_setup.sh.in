@@ -99,9 +99,12 @@ TPM_NV_INDEX_LOCK=$((0xFFFFFFFF))
 
 # TPM 2 constants
 TPMA_NV_PLATFORMCREATE=$((0x40000000))
+TPMA_NV_AUTHWRITE=$((0x4))
 TPMA_NV_AUTHREAD=$((0x40000))
 TPMA_NV_NO_DA=$((0x2000000))
 TPMA_NV_PPWRITE=$((0x1))
+TPMA_NV_PPREAD=$((0x10000))
+TPMA_NV_OWNERREAD=$((0x20000))
 TPMA_NV_POLICY_DELETE=$((0x400))
 TPMA_NV_WRITEDEFINE=$((0x2000))
 
@@ -1496,9 +1499,10 @@ init_tpm2()
 				${nvindex} \
 				$((TPMA_NV_PLATFORMCREATE | \
 				   TPMA_NV_AUTHREAD | \
-				   TPMA_NV_NO_DA | \
+				   TPMA_NV_OWNERREAD | \
+				   TPMA_NV_PPREAD | \
 				   TPMA_NV_PPWRITE | \
-				   TPMA_NV_POLICY_DELETE | \
+				   TPMA_NV_NO_DA | \
 				   TPMA_NV_WRITEDEFINE)) \
 				$(stat -c%s "${EK_TEMP_FILE}")
 			if [ $? -ne 0 ]; then
@@ -1542,9 +1546,10 @@ init_tpm2()
 			${nvindex} \
 			$((TPMA_NV_PLATFORMCREATE | \
 			   TPMA_NV_AUTHREAD | \
-			   TPMA_NV_NO_DA | \
+			   TPMA_NV_OWNERREAD | \
+			   TPMA_NV_PPREAD | \
 			   TPMA_NV_PPWRITE | \
-			   TPMA_NV_POLICY_DELETE | \
+			   TPMA_NV_NO_DA | \
 			   TPMA_NV_WRITEDEFINE)) \
 			$(stat -c%s "${EK_CERT_FILE}")
 		if [ $? -ne 0 ]; then
@@ -1578,9 +1583,10 @@ init_tpm2()
 			$((TPM2_NV_INDEX_PlatformCert)) \
 			$((TPMA_NV_PLATFORMCREATE | \
 			   TPMA_NV_AUTHREAD | \
-			   TPMA_NV_NO_DA | \
+			   TPMA_NV_OWNERREAD | \
+			   TPMA_NV_PPREAD | \
 			   TPMA_NV_PPWRITE | \
-			   TPMA_NV_POLICY_DELETE | \
+			   TPMA_NV_NO_DA | \
 			   TPMA_NV_WRITEDEFINE)) \
 			-s $(stat -c%s "${PLATFORM_CERT_FILE}")
 		if [ $? -ne 0 ]; then
