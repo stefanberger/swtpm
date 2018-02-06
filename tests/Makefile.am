@@ -65,6 +65,7 @@ EXTRA_DIST=$(TESTS) \
 	data/tpmstate2/tpm-00.volatilestate \
 	data/tpmstate2/pwdfile.txt \
 	data/tpmstate2/README \
+	load_vtpm_proxy \
 	test_clientfds.py \
 	test_common \
 	test_cuse \
