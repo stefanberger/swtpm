@@ -1451,7 +1451,7 @@ init_tpm2()
 
 	# where external app writes certs into
 	local certsdir="$tpm2_state_path"
-	local ek tmp output nvindex
+	local ek tmp output nvindex nxindex_str
 
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
@@ -1493,6 +1493,7 @@ init_tpm2()
 		      "$(printf "0x%08x" ${TPM2_EK_HANDLE})."
 
 		nvindex=${TPM2_NV_INDEX_RSA_EKTemplate}
+		nvindex_str="$(printf "0x%08x" ${nvindex})"
 
 		if [ $((flags & $SETUP_ALLOW_SIGNING_F )) -ne 0 ]; then
 			tpm2_nv_define \
@@ -1506,7 +1507,8 @@ init_tpm2()
 				   TPMA_NV_WRITEDEFINE)) \
 				$(stat -c%s "${EK_TEMP_FILE}")
 			if [ $? -ne 0 ]; then
-				logerr "Could not create NVRAM area for EK template."
+				logerr "Could not create NVRAM area ${nvindex_str}" \
+				       "for EK template."
 				return 1
 			fi
 			tpm2_nv_write \
@@ -1514,7 +1516,7 @@ init_tpm2()
 				"${EK_TEMP_FILE}"
 			if [ $? -ne 0 ]; then
 				logerr "Could not write EK template into" \
-				       "NVRAM location."
+				       "NVRAM area ${nvindex_str}."
 				return 1
 			fi
 			if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
@@ -1522,11 +1524,11 @@ init_tpm2()
 					${nvindex}
 				if [ $? -ne 0 ]; then
 					logerr "Could not lock EK template NVRAM" \
-					       "location."
+					       "area ${nvindex_str}."
 					return 1
 				fi
 			fi
-			logit "Successfully created NVRAM area for EK template."
+			logit "Successfully created NVRAM area ${nvindex_str} for EK template."
 		fi
 		rm -f ${EK_TEMP_FILE}
 	fi
@@ -1541,6 +1543,7 @@ init_tpm2()
 	   [ -r "${EK_CERT_FILE}" ]; then
 
 		nvindex=${TPM2_NV_INDEX_RSA_EKCert}
+		nvindex_str="$(printf "0x%08x" ${nvindex})"
 
 		tpm2_nv_define \
 			${nvindex} \
@@ -1553,7 +1556,8 @@ init_tpm2()
 			   TPMA_NV_WRITEDEFINE)) \
 			$(stat -c%s "${EK_CERT_FILE}")
 		if [ $? -ne 0 ]; then
-			logerr "Could not create NVRAM area for EK certificate."
+			logerr "Could not create NVRAM area ${nvindex_str}" \
+			       "for EK certificate."
 			return 1
 		fi
 		tpm2_nv_write \
@@ -1561,7 +1565,7 @@ init_tpm2()
 			"${EK_CERT_FILE}"
 		if [ $? -ne 0 ]; then
 			logerr "Could not write EK certificate into" \
-			       "NVRAM location."
+			       "NVRAM area ${nvindex_str}."
 			return 1
 		fi
 		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
@@ -1569,18 +1573,22 @@ init_tpm2()
 				${nvindex}
 			if [ $? -ne 0 ]; then
 				logerr "Could not lock EK certificate NVRAM" \
-				       "location."
+				       "area ${nvindex_str}."
 				return 1
 			fi
 		fi
-		logit "Successfully created NVRAM area for EK certificate."
+		logit "Successfully created NVRAM area ${nvindex_str} for EK certificate."
 		rm -f ${EK_CERT_FILE}
 	fi
 
 	if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ] && \
 	   [ -r "${PLATFORM_CERT_FILE}" ] ; then
+
+		nvindex=${TPM2_NV_INDEX_PlatformCert}
+		nvindex_str="$(printf "0x%08x" ${nvindex})"
+
 		tpm2_nv_define \
-			$((TPM2_NV_INDEX_PlatformCert)) \
+			${nvindex} \
 			$((TPMA_NV_PLATFORMCREATE | \
 			   TPMA_NV_AUTHREAD | \
 			   TPMA_NV_OWNERREAD | \
@@ -1590,8 +1598,8 @@ init_tpm2()
 			   TPMA_NV_WRITEDEFINE)) \
 			-s $(stat -c%s "${PLATFORM_CERT_FILE}")
 		if [ $? -ne 0 ]; then
-			logerr "Could not create NVRAM area for platform" \
-			       "certificate."
+			logerr "Could not create NVRAM area ${nvindex_str}" \
+			       "for platform certificate."
 			return 1
 		fi
 		tpm2_nv_write \
@@ -1599,7 +1607,7 @@ init_tpm2()
 			"$PLATFORM_CERT_FILE" 2>&1 >/dev/null
 		if [ $? -ne 0 ]; then
 			logerr "Could not write platform certificate into" \
-			       "NVRAM location."
+			       "NVRAM area ${nvindex_str}."
 			return 1
 		fi
 		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
@@ -1607,12 +1615,12 @@ init_tpm2()
 				$((TPM2_NV_INDEX_PlatformCert))
 			if [ $? -ne 0 ]; then
 				logerr "Could not lock platform certificate" \
-				       "NVRAM location."
+				       "NVRAM area ${nvindex_str}."
 				return 1
 			fi
 		fi
-		logit "Successfully created NVRAM area for platform" \
-		       "certificate."
+		logit "Successfully created NVRAM area ${nvindex_str}" \
+		      "for platform certificate."
 		rm -f ${PLATFORM_CERT_FILE}
 	fi
 
