@@ -155,7 +155,8 @@ create_cert() {
 	case "$typ" in
 	ek)
 		if [ -z "$(type -p swtpm_cert)" ]; then
-			echo "Missing swtpm_cert tool" > ${dir}/ek.cert
+			logerr "Missing swtpm_cert tool"
+			rc=1
 		else
 			eval swtpm_cert \
 			$options \
@@ -176,7 +177,8 @@ create_cert() {
 		;;
 	platform)
 		if [ -z "$(type -p swtpm_cert)" ]; then
-			echo "Missing swtpm_cert tool" > ${dir}/platform.cert
+			logerr "Missing swtpm_cert tool"
+			rc=1
 		else
 			eval swtpm_cert \
 			$options \
