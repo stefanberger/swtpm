@@ -589,9 +589,17 @@ init_tpm()
 
 	if [ $((flags & SETUP_DISPLAY_RESULTS_F)) -ne 0 ]; then
 		local nvidxs=`tpm_nvinfo -n | grep 0x | gawk '{print $1}'`
+		local passparam
+
+		if [ $((flags & $SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
+			passparam="-z"
+		else
+			passparam="--password=$ownerpass"
+		fi
+
 		for i in $nvidxs; do
 			logit "Content of NVRAM area $i:"
-			tmp="tpm_nvread -i $i --password=$ownerpass"
+			tmp="tpm_nvread -i $i $passparam"
 			logit_cmd "$cmd"
 		done
 	fi
@@ -609,15 +617,19 @@ init_tpm()
 	# give up ownership if not wanted
 	if [ $((flags & SETUP_TAKEOWN_F))   -eq 0 -a \
 	     $((flags & SETUP_CREATE_EK_F)) -ne 0 ] ; then
-		a=$(expect -c "
-			spawn tpm_clear
-			expect {
-				\"Enter owner password:\" { send \"$ownerpass\n\" }
-			}
-			expect eof
-			catch wait result
-			exit [lindex \$result 3]
-		")
+		if [ $((flags & $SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
+			tpm_clear -z &>/dev/null
+		else
+			a=$(expect -c "
+				spawn tpm_clear
+				expect {
+					\"Enter owner password:\" { send \"$ownerpass\n\" }
+				}
+				expect eof
+				catch wait result
+				exit [lindex \$result 3]
+			")
+		fi
 		if [ $? -ne 0 ]; then
 			logerr "Could not give up ownership of TPM."
 			return 1
@@ -765,6 +777,7 @@ main()
 	local vmid=""
 	local ret
 	local keyfile pwdfile
+	local got_ownerpass=0 got_srkpass=0
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
@@ -773,9 +786,9 @@ main()
 		--createek) flags=$((flags | SETUP_CREATE_EK_F));;
 		--take-ownership) flags=$((flags |
 		                   SETUP_CREATE_EK_F|SETUP_TAKEOWN_F));;
-		--ownerpass) shift; ownerpass="$1";;
+		--ownerpass) shift; ownerpass="$1"; got_ownerpass=1;;
 		--owner-well-known) flags=$((flags | SETUP_OWNERPASS_ZEROS_F));;
-		--srkpass) shift; srkpass="$1";;
+		--srkpass) shift; srkpass="$1"; got_srkpass=1;;
 		--srk-well-known) flags=$((flags | SETUP_SRKPASS_ZEROS_F));;
 		--create-ek-cert) flags=$((flags |
 		                   SETUP_CREATE_EK_F|SETUP_EK_CERT_F));;
@@ -798,8 +811,24 @@ main()
 		shift
 	done
 
-	[ "$ownerpass" == "" ] && ownerpass=$DEFAULT_OWNER_PASSWORD
-	[ "$srkpass" == "" ] && srkpass=$DEFAULT_SRK_PASSWORD
+	[ $got_ownerpass -eq 0 ] && flags=$((flags | SETUP_OWNERPASS_ZEROS_F))
+	[ $got_srkpass -eq 0 ] && flags=$((flags | SETUP_SRKPASS_ZEROS_F))
+
+        # set owner password to default if user didn't provide any password wish
+        # and wants to take ownership
+	if [ $((flags & SETUP_TAKEOWN_F)) -ne 0 ] && \
+	   [ $((flags & SETUP_OWNERPASS_ZEROS_F)) -ne 0 ] && \
+	   [ $got_ownerpass -eq 0 ]; then
+		ownerpass=$DEFAULT_OWNER_PASSWORD
+	fi
+
+        # set SRK password to default if user didn't provide any password wish
+        # and wants to take ownership
+	if [ $((flags & SETUP_TAKEOWN_F)) -ne 0 ] && \
+	   [ $((flags & SETUP_SRKPASS_ZEROS_F)) -ne 0 ] && \
+	   [ $got_srkpass -eq 0 ]; then
+		srkpass=$DEFAULT_SRK_PASSWORD
+	fi
 
 	if [ -n "$LOGFILE" ]; then
 		touch $LOGFILE &>/dev/null
