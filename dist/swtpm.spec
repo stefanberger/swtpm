@@ -39,7 +39,7 @@ BuildRequires:  libtasn1-tools
 BuildRequires:  kernel-modules-extra
 %endif
 
-Requires:       fuse expect
+Requires:       fuse
 %if 0%{?fedora} > 16
 Requires:       kernel-modules-extra
 %endif
