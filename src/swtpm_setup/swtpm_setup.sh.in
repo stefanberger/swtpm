@@ -496,34 +496,43 @@ init_tpm()
 		if [ $((flags & $SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
 			parm_y="-y"
 		fi
-		a=$(expect -c "
-			set parm_z \"$parm_z\"
-			set parm_y \"$parm_y\"
-			spawn tpm_takeownership \$parm_z \$parm_y
-			if { \$parm_y == \"\" } {
-				expect {
-					\"Enter owner password:\"
-						{ send \"$ownerpass\n\" }
+		if [ -n "${parm_y}" ] && [ -n "${parm_z}" ]; then
+			tpm_takeownership $parm_z $parm_y &>/dev/null
+		else
+			if [ -z "$(type -p expect)" ]; then
+				logerr "Missing 'expect' tool to take" \
+				       "ownership with non-standard password."
+				return 1
+			fi
+			a=$(expect -c "
+				set parm_z \"$parm_z\"
+				set parm_y \"$parm_y\"
+				spawn tpm_takeownership \$parm_z \$parm_y
+				if { \$parm_y == \"\" } {
+					expect {
+						\"Enter owner password:\"
+							{ send \"$ownerpass\n\" }
+					}
+					expect {
+						\"Confirm password:\"
+							{ send \"$ownerpass\n\" }
+					}
 				}
-				expect {
-					\"Confirm password:\"
-						{ send \"$ownerpass\n\" }
+				if { \$parm_z == \"\" } {
+					expect {
+						\"Enter SRK password:\"
+							{ send \"$srkpass\n\" }
+					}
+					expect {
+						\"Confirm password:\"
+							{ send \"$srkpass\n\" }
+					}
 				}
-			}
-			if { \$parm_z == \"\" } {
-				expect {
-					\"Enter SRK password:\"
-						{ send \"$srkpass\n\" }
-				}
-				expect {
-					\"Confirm password:\"
-						{ send \"$srkpass\n\" }
-				}
-			}
-			expect eof
-			catch wait result
-			exit [lindex \$result 3]
-		")
+				expect eof
+				catch wait result
+				exit [lindex \$result 3]
+			")
+		fi
 		if [ $? -ne 0 ]; then
 			logerr "Could not take ownership of TPM."
 			return 1
@@ -620,6 +629,11 @@ init_tpm()
 		if [ $((flags & $SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
 			tpm_clear -z &>/dev/null
 		else
+			if [ -z "$(type -p expect)" ]; then
+				logerr "Missing 'expect' tool to take" \
+				       "ownership with non-standard password."
+				return 1
+			fi
 			a=$(expect -c "
 				spawn tpm_clear
 				expect {
