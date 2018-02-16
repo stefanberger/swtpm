@@ -17,7 +17,7 @@ TOOLSPATH=$(dirname $(type -P ${PREFIX}startup))
 DIR=$(dirname "$0")
 ROOT=${DIR}/..
 SWTPM=swtpm
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
 SWTPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
 TPMDIR=`mktemp -d`
 PID_FILE=$TPMDIR/${SWTPM}.pid
@@ -29,6 +29,7 @@ VOLATILESTATE=$TPMDIR/volatile
 TMPFILE=$TPMDIR/tmpfile
 BINFILE=$TPMDIR/binfile
 SIGFILE=$TPMDIR/sigfile
+SIGFILE2=$TPMDIR/sigfile2
 TMP2FILE=$TPMDIR/tmpfile2
 
 
@@ -36,6 +37,7 @@ HKEYPRIV=${DIR}/data/tpm2state3/hkey.priv
 HKEYPUB=${DIR}/data/tpm2state3/hkey.pub
 
 source ${DIR}/test_common
+source ${DIR}/common
 
 trap "cleanup" SIGTERM EXIT
 
@@ -574,6 +576,88 @@ function test_hmac_context()
 	fi
 }
 
+function test_primary_volatile_load()
+{
+	local create="$1"
+	local check="$2"
+	# whether we are using previous stored stated that had a different
+	# key and we have to use the old signature
+	local previousstate="$3"
+
+	local i res rc
+
+	if [ $create -eq 1 ]; then
+		# Create a permanent primary key that we expecte
+		# to again see after the TPM has been restarted
+		${TOOLSPATH}/${PREFIX}createprimary -hi o -si > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: createprimary failed."
+			exit 1
+		fi
+		if [ -z "$(grep 80000000 $TMPFILE)" ]; then
+			echo "Error: createprimary did not result in expected handle 80000000"
+			exit 1
+		fi
+
+		echo -n "123" > $BINFILE
+		${TOOLSPATH}/${PREFIX}sign -hk 80000000 -if ${BINFILE} -os ${SIGFILE} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not create signature."
+			cat $TMPFILE
+			exit 1
+		fi
+
+		printf "Verifying signature with this key (create phase)\n"
+		${TOOLSPATH}/${PREFIX}verifysignature -hk 80000000 \
+			-is ${SIGFILE} \
+			-if ${BINFILE} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Verifying signature failed."
+			exit 1
+		fi
+	fi
+
+	if [ $check -eq 1 ]; then
+		local sigfile=${SIGFILE} hash1 hash2
+
+		if [ $previousstate -ne 0 ]; then
+			sigfile=${DIR}/data/tpm2state3/signature2.bin
+		fi
+
+		printf "Checking availability of key with handle 0x80000000\n"
+		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 0x80000000 >$TMPFILE
+		if [ -z "$(grep 80000000 $TMPFILE)" ]; then
+			echo "Could not find key with handle 0x80000000"
+			exit 1
+		fi
+
+		printf "Verifying signature with this key (check phase)\n"
+		echo -n "123" > $BINFILE
+		${TOOLSPATH}/${PREFIX}verifysignature -hk 80000000 \
+			-is ${sigfile} \
+			-if ${BINFILE} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Verifying signature failed."
+			exit 1
+		fi
+
+		if [ $previousstate -eq 0 ]; then
+			${TOOLSPATH}/${PREFIX}sign -hk 80000000 -if ${BINFILE} -os ${SIGFILE2} > $TMPFILE
+			if [ $? -ne 0 ]; then
+				echo "Error: Could not create signature."
+				cat $TMPFILE
+				exit 1
+			fi
+			hash1=$(get_sha1_file ${SIGFILE})
+			hash2=$(get_sha1_file ${SIGFILE2})
+			if [ "${hash1}" != "${hash2}" ]; then
+				echo "Error: hashes of signatures are different. Loaded key may be different."
+				exit 1
+			fi
+		fi
+	fi
+}
+
 export TPM_SERVER_TYPE=raw
 export TPM_COMMAND_PORT=65533
 export TPM_DATA_DIR=$TPMDIR
@@ -1051,5 +1135,154 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Test 3 OK"
+
+
+#
+#
+# Tests with volatile state -- 3rd test
+#
+#
+
+rm -f ${TPMDIR}/*
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+test_primary_volatile_load 1 0 0
+
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -v 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_STORE_VOLATILE failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+#################################################################
+# Run TPM2 with the saved volatile state
+
+# create a backup for running the next test...
+# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3/tpm2-00.volatilestate.3rd
+# cp $SIGFILE ${DIR}/data/tpm2state3/signature2.bin
+
+#echo $TPMDIR
+#ls -l $TPMDIR
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	cat $LOGFILE
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+test_primary_volatile_load 0 1 0
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+#####################################################################
+# Run TPM2 with previously saved (volatile) state and verify it's
+# working as well
+
+cp -f ${DIR}/data/tpm2state3/tpm2-00.volatilestate.3rd $TPMDIR/tpm2-00.volatilestate
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+echo "TPM started with previously generated state"
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+test_primary_volatile_load 0 1 1
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "Test 4 OK"
 
 exit 0
