@@ -239,6 +239,8 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
 
     res = SWTPM_NVRAM_SetStateBlob(blob, blob_length, is_encrypted,
                                    tpm_number, blobname);
+    if (res == TPM_SUCCESS && blob_length)
+        res = tpmlib_validate_blob(blobtype);
 
 err_send_resp:
     pss->u.resp.tpm_result = htobe32(res);

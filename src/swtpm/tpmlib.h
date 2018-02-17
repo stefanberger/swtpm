@@ -65,6 +65,8 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer, uint32_t *rlength,
                           uint32_t locality_flags,
                           TPM_MODIFIER_INDICATOR *locality);
 
+TPM_RESULT tpmlib_validate_blob(uint32_t blobtype);
+
 struct tpm_req_header {
     uint16_t tag;
     uint32_t size;
