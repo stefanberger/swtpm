@@ -646,9 +646,12 @@ ptm_set_stateblob_append(uint32_t blobtype,
                                        stateblob.is_encrypted,
                                        0 /* tpm_number */,
                                        blobname);
+        if (res == TPM_SUCCESS && stateblob.length)
+            res = tpmlib_validate_blob(blobtype);
     } else {
         res = TPM_BAD_PARAMETER;
     }
+
 
     TPM_Free(stateblob.data);
     stateblob.data = NULL;
