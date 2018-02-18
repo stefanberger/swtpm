@@ -132,7 +132,7 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
     uint32_t blobtype = be32toh(pgs->u.req.type);
     const char *blobname = tpmlib_get_blobname(blobtype);
     uint32_t tpm_number = 0;
-    unsigned char *blob;
+    unsigned char *blob = NULL;
     uint32_t blob_length = 0, return_length;
     TPM_BOOL is_encrypted = 0;
     TPM_BOOL decrypt =
@@ -190,6 +190,8 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
         close(fd);
         fd = -1;
     }
+
+    TPM_Free(blob);
 
     return fd;
 }
@@ -253,6 +255,9 @@ err_send_resp:
     }
 
 err_fd_broken:
+
+    TPM_Free(blob);
+
     return fd;
 }
 

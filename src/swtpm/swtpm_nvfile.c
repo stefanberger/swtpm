@@ -765,6 +765,8 @@ SWTPM_NVRAM_PrependHeader(unsigned char **data, uint32_t *length,
     memcpy(out, &bh, sizeof(bh));
     memcpy(&out[sizeof(bh)], *data, *length);
 
+    TPM_Free(*data);
+
     *data = out;
     *length = out_len;
 
