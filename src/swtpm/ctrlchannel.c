@@ -857,7 +857,9 @@ void ctrlchannel_free(struct ctrlchannel *cc)
         close(cc->fd);
     if (cc->clientfd >= 0)
         close(cc->clientfd);
-    if (cc->sockpath)
+    if (cc->sockpath) {
         unlink(cc->sockpath);
+        free(cc->sockpath);
+    }
     free(cc);
 }
