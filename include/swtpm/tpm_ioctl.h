@@ -250,23 +250,23 @@ enum {
  * and ptm_set_state:u.req.data) are 0xffffffff.
  */
 enum {
-    CMD_GET_CAPABILITY = 1,
-    CMD_INIT,
-    CMD_SHUTDOWN,
-    CMD_GET_TPMESTABLISHED,
-    CMD_SET_LOCALITY,
-    CMD_HASH_START,
-    CMD_HASH_DATA,
-    CMD_HASH_END,
-    CMD_CANCEL_TPM_CMD,
-    CMD_STORE_VOLATILE,
-    CMD_RESET_TPMESTABLISHED,
-    CMD_GET_STATEBLOB,
-    CMD_SET_STATEBLOB,
-    CMD_STOP,
-    CMD_GET_CONFIG,
-    CMD_SET_DATAFD,
-    CMD_SET_BUFFERSIZE,
+    CMD_GET_CAPABILITY = 1,   /* 0x01 */
+    CMD_INIT,                 /* 0x02 */
+    CMD_SHUTDOWN,             /* 0x03 */
+    CMD_GET_TPMESTABLISHED,   /* 0x04 */
+    CMD_SET_LOCALITY,         /* 0x05 */
+    CMD_HASH_START,           /* 0x06 */
+    CMD_HASH_DATA,            /* 0x07 */
+    CMD_HASH_END,             /* 0x08 */
+    CMD_CANCEL_TPM_CMD,       /* 0x09 */
+    CMD_STORE_VOLATILE,       /* 0x0a */
+    CMD_RESET_TPMESTABLISHED, /* 0x0b */
+    CMD_GET_STATEBLOB,        /* 0x0c */
+    CMD_SET_STATEBLOB,        /* 0x0d */
+    CMD_STOP,                 /* 0x0e */
+    CMD_GET_CONFIG,           /* 0x0f */
+    CMD_SET_DATAFD,           /* 0x10 */
+    CMD_SET_BUFFERSIZE,       /* 0x11 */
 };
 
 #endif /* _TPM_IOCTL_H */
