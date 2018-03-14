@@ -11,7 +11,7 @@ before_install:
   dh-exec python-twisted
 - git clone https://github.com/stefanberger/libtpms
 - cd libtpms
-- git checkout origin/tpm2-preview.rev146 -b tpm2-preview.rev146
+- git checkout origin/tpm2-preview.rev146.v2 -b tpm2-preview.rev146.v2
 - "./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 && sudo
   make install"
 - cd ..
