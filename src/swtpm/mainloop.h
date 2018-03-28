@@ -62,8 +62,7 @@ struct mainLoopParams {
 };
 
 int mainLoop(struct mainLoopParams *mlp,
-             int notify_fd,
-             struct libtpms_callbacks *callbacks);
+             int notify_fd);
 TPM_RESULT mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
                                     uint32_t tpmnum);
 

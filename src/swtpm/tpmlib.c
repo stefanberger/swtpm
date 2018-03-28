@@ -73,15 +73,20 @@ const char *tpmlib_get_blobname(uint32_t blobtype)
     }
 }
 
-TPM_RESULT tpmlib_start(struct libtpms_callbacks *cbs, uint32_t flags)
+TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs)
 {
     TPM_RESULT res;
 
     if ((res = TPMLIB_RegisterCallbacks(cbs)) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,
                   "Error: Could not register the callbacks.\n");
-        return res;
     }
+    return res;
+}
+
+TPM_RESULT tpmlib_start(uint32_t flags)
+{
+    TPM_RESULT res;
 
     if ((res = TPMLIB_MainInit()) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,

@@ -443,8 +443,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         need_init_cmd = false;
 #endif
 
+    if ((rc = tpmlib_register_callbacks(&callbacks)))
+        goto error_no_tpm;
+
     if (!need_init_cmd) {
-        if ((rc = tpmlib_start(&callbacks, 0)))
+        if ((rc = tpmlib_start(0)))
             goto error_no_tpm;
         tpm_running = true;
     }
@@ -455,7 +458,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     mlp.flags |= MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION | \
       MAIN_LOOP_FLAG_END_ON_HUP;
 
-    rc = mainLoop(&mlp, notify_fd[0], &callbacks);
+    rc = mainLoop(&mlp, notify_fd[0]);
 
 error_no_sighandlers:
     TPMLIB_Terminate();

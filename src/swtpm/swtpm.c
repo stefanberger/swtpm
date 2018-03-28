@@ -410,8 +410,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
     tpmlib_debug_libtpms_parameters();
 
+    if ((rc = tpmlib_register_callbacks(&callbacks)))
+        goto error_no_tpm;
+
     if (!need_init_cmd) {
-        if ((rc = tpmlib_start(&callbacks, 0)))
+        if ((rc = tpmlib_start(0)))
             goto error_no_tpm;
         tpm_running = true;
     }
@@ -419,7 +422,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
         goto error_no_sighandlers;
 
-    rc = mainLoop(&mlp, notify_fd[0], &callbacks);
+    rc = mainLoop(&mlp, notify_fd[0]);
 
 error_no_sighandlers:
     TPMLIB_Terminate();

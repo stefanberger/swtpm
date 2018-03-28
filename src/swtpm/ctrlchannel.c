@@ -421,7 +421,6 @@ wait_chunk:
  * ctrlchannel_process_fd: Read command from control channel and execute it
  *
  * @fd: file descriptor for control channel
- * @cbs: callback functions; needed in case of CMD_INIT
  * @terminate: pointer to a boolean that will be set to true by this
  *             function in case the process should shut down; CMD_SHUTDOWN
  *             will set this
@@ -437,7 +436,6 @@ wait_chunk:
  * file descriptor was closed.
  */
 int ctrlchannel_process_fd(int fd,
-                           struct libtpms_callbacks *cbs,
                            bool *terminate,
                            TPM_MODIFIER_INDICATOR *locality,
                            bool *tpm_running,
@@ -532,7 +530,7 @@ int ctrlchannel_process_fd(int fd,
         TPMLIB_Terminate();
 
         *tpm_running = false;
-        res = tpmlib_start(cbs, be32toh(init_p->u.req.init_flags));
+        res = tpmlib_start(be32toh(init_p->u.req.init_flags));
         if (res) {
             logprintf(STDERR_FILENO,
                       "Error: Could not initialize the TPM\n");

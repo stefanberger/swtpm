@@ -44,7 +44,8 @@
 #include <libtpms/tpm_library.h>
 
 const char *tpmlib_get_blobname(uint32_t blobtype);
-TPM_RESULT tpmlib_start(struct libtpms_callbacks *cbs, uint32_t flags);
+TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs);
+TPM_RESULT tpmlib_start(uint32_t flags);
 int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
 bool tpmlib_is_request_cancelable(const unsigned char *request, size_t req_len);
 TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locty,

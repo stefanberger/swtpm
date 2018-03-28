@@ -467,7 +467,7 @@ static int tpm_start(uint32_t flags)
         goto error_del_pool;
     }
 
-    if (tpmlib_start(&cbs, flags) != TPM_SUCCESS)
+    if (tpmlib_start(flags) != TPM_SUCCESS)
         goto error_del_pool;
 
     logprintf(STDOUT_FILENO,
@@ -1437,6 +1437,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
                   path);
         return -1;
     }
+
+    if (tpmlib_register_callbacks(&cbs) != TPM_SUCCESS)
+        return -1;
 
     worker_thread_init();
 

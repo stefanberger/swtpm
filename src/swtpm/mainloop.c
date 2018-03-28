@@ -78,8 +78,7 @@ mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
 }
 
 int mainLoop(struct mainLoopParams *mlp,
-             int notify_fd,
-             struct libtpms_callbacks *callbacks)
+             int notify_fd)
 {
     TPM_RESULT          rc = 0;
     TPM_CONNECTION_FD   connection_fd;             /* file descriptor for read/write */
@@ -185,7 +184,7 @@ int mainLoop(struct mainLoopParams *mlp,
                 ctrlclntfd = accept(ctrlfd, NULL, 0);
 
             if (pollfds[CTRL_CLIENT_FD].revents & POLLIN) {
-                ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, callbacks,
+                ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd,
                                                     &mainloop_terminate,
                                                     &locality, &tpm_running,
                                                     mlp);

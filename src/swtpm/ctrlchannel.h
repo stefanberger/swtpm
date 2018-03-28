@@ -50,7 +50,6 @@ int ctrlchannel_get_fd(struct ctrlchannel *cc);
 int ctrlchannel_get_client_fd(struct ctrlchannel *cc);
 int ctrlchannel_set_client_fd(struct ctrlchannel *cc, int fd);
 int ctrlchannel_process_fd(int fd,
-                           struct libtpms_callbacks *cbs,
                            bool *terminate,
                            TPM_MODIFIER_INDICATOR *locality,
                            bool *tpm_running,
