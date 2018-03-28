@@ -224,11 +224,11 @@ fi
 # Do NOT init the TPM now; first load volatile state
 
 # load the encrypted volatile state into it
-# This will work; the TPM writes the data into the volatile state file
-# but doesn't vaidate it
+# This will not work; the TPM writes the data into the volatile state file
+# and validates it
 run_swtpm_ioctl ${SWTPM_INTERFACE} --load volatile $volatilestatefile
-if [ $? -ne 0 ]; then
-	echo "Error: Could not load encrypted volatile state into TPM."
+if [ $? -eq 0 ]; then
+	echo "Error: Could load encrypted volatile state into TPM."
 	exit 1
 fi
 
