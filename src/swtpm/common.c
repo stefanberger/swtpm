@@ -146,6 +146,9 @@ static const OptionDesc ctrl_opt_desc[] = {
     }, {
         .name = "clientfd",
         .type = OPT_TYPE_INT,
+    }, {
+        .name = "mode",
+        .type = OPT_TYPE_MODE_T,
     },
     END_OPTION_DESC
 };
@@ -172,6 +175,9 @@ static const OptionDesc server_opt_desc[] = {
     }, {
         .name = "disconnect",
         .type = OPT_TYPE_BOOLEAN,
+    }, {
+        .name = "mode",
+        .type = OPT_TYPE_MODE_T,
     },
     END_OPTION_DESC
 };
@@ -722,6 +728,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
     const char *type, *path, *bindaddr, *ifname;
     int fd, clientfd, port;
     struct stat stat;
+    mode_t mode;
 
     ovs = options_parse(options, ctrl_opt_desc, &error);
     if (!ovs) {
@@ -740,6 +747,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
         path = option_get_string(ovs, "path", NULL);
         fd = option_get_int(ovs, "fd", -1);
         clientfd = option_get_int(ovs, "clientfd", -1);
+        mode = option_get_mode_t(ovs, "mode", 0770);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
                logprintf(STDERR_FILENO,
@@ -759,7 +767,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
 
             *cc = ctrlchannel_new(clientfd, true, NULL);
         } else if (path) {
-            fd = unixio_open_socket(path, 0770);
+            fd = unixio_open_socket(path, mode);
             if (fd < 0)
                 goto error;
 
@@ -855,6 +863,7 @@ static int parse_server_options(char *options, struct server **c)
     int fd, port;
     struct stat stat;
     unsigned int flags = 0;
+    mode_t mode;
 
     ovs = options_parse(options, server_opt_desc, &error);
     if (!ovs) {
@@ -870,6 +879,7 @@ static int parse_server_options(char *options, struct server **c)
     if (!strcmp(type, "unixio")) {
         path = option_get_string(ovs, "path", NULL);
         fd = option_get_int(ovs, "fd", -1);
+        mode = option_get_mode_t(ovs, "mode", 0770);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
                logprintf(STDERR_FILENO,
@@ -880,7 +890,7 @@ static int parse_server_options(char *options, struct server **c)
 
             *c = server_new(fd, flags, NULL);
         } else if (path) {
-            fd = unixio_open_socket(path, 0770);
+            fd = unixio_open_socket(path, mode);
             if (fd < 0)
                 goto error;
 

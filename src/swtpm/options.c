@@ -135,6 +135,19 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
             ovs->options[idx].u.boolean = false;
         }
         break;
+    case OPT_TYPE_MODE_T:
+        lui = strtol(val, &endptr, 8);
+        if (*endptr != '\0') {
+            option_error_set(error, "invalid mode type '%s'", val);
+            return -1;
+        }
+        if (lui > 0777) {
+            option_error_set(error, "mode %s is invalid", val);
+            return -1;
+        }
+        ovs->options[idx].u.mode = (mode_t)lui;
+
+        break;
     }
 
     return ret;
@@ -234,6 +247,7 @@ option_values_free(OptionValues *ovs)
         case OPT_TYPE_INT:
         case OPT_TYPE_UINT:
         case OPT_TYPE_BOOLEAN:
+        case OPT_TYPE_MODE_T:
             break;
         }
     }
@@ -339,6 +353,32 @@ option_get_bool(OptionValues *ovs, const char *name, bool def)
             if (ovs->options[i].type == OPT_TYPE_BOOLEAN)
                 return ovs->options[i].u.boolean;
             return false;
+        }
+    }
+
+    return def;
+}
+
+/*
+ * Given the name of a mode_t (chmod) option, return the value it received when it
+ * was parsed.
+ * @ovs: The OptionValues
+ * @name: the name of the option
+ * @def: the default value
+ *
+ * Returns the parsed value or the default value if none was parsed
+ * If the value is of different type than a mode_t, ~0 is returned.
+ */
+mode_t
+option_get_mode_t(OptionValues *ovs, const char *name, mode_t def)
+{
+    size_t i;
+
+    for (i = 0; i < ovs->n_options; i++) {
+        if (!strcmp(name, ovs->options[i].name)) {
+            if (ovs->options[i].type == OPT_TYPE_MODE_T)
+                return ovs->options[i].u.mode;
+            return ~0;
         }
     }
 

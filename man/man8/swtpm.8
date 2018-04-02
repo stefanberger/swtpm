@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2017-11-11" "swtpm" ""
+.TH swtpm 8 "2018-04-02" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -188,10 +188,12 @@ provided with \fIifname\fR.
 .Sp
 This parameter enables a persistent connection by default unless the disconnect option
 is given. This parameter should be used rather than the \-p and \-\-fd options.
-.IP "\fB\-\-server type=unixio[,path=<path>][,fd=<fd>]\fR" 4
-.IX Item "--server type=unixio[,path=<path>][,fd=<fd>]"
-Expect UnixIO connections on the given path. If no path is provide, a file descriptor
-must be passed instead.
+.IP "\fB\-\-server type=unixio[,path=<path>][,fd=<fd>][,mode=<0...>]\fR" 4
+.IX Item "--server type=unixio[,path=<path>][,fd=<fd>][,mode=<0...>]"
+Expect UnixIO connections on the given path. If no path is provided, a file descriptor
+must be passed instead. The mode parameter allows to set the file mode bits of the
+UnixIO path. The mode bits value must be given as an octal number starting with a '0'.
+The default value is 0770.
 .SH "Options for character device interface"
 .IX Header "Options for character device interface"
 The following options are supported if the \fIchardev\fR interface is chosen:
@@ -226,14 +228,18 @@ For the socket interface, this option automatically assumes \-t.
 .IP "\fB\-d|\-\-daemon\fR" 4
 .IX Item "-d|--daemon"
 Daemonize the process.
-.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>] \fR" 4
-.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>] "
+.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>][,mode=<0...>] \fR" 4
+.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>][,mode=<0...>] "
 This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
 a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
 If a port is provided the \fIbind address\fR on which to listen for \s-1TCP\s0 connections
 can be provided as well; the default bind address is 127.0.0.1. If a link
 local IPv6 addresss if provided, the name of the interface to bind to must be
 provided with \fIifname\fR.
+.Sp
+The mode parameter allows to set the file mode bits of the UnixIO path.
+The mode bits value must be given as an octal number starting with a '0'.
+The default value is 0770.
 .Sp
 The control channel enables out-of-band control of the \s-1TPM,\s0 such as resetting the \s-1TPM.\s0
 .IP "\fB\-\-flags [not\-need\-init]\fR" 4
