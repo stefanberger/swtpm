@@ -46,6 +46,8 @@ enum OptionType {
     OPT_TYPE_UINT,
     OPT_TYPE_BOOLEAN,
     OPT_TYPE_MODE_T,
+    OPT_TYPE_UID_T,
+    OPT_TYPE_GID_T,
 };
 
 typedef struct {
@@ -57,6 +59,8 @@ typedef struct {
         unsigned int uinteger;
         bool boolean;
         mode_t mode;
+        uid_t uid;
+        gid_t gid;
     }u;
 } OptionValue;
 
@@ -84,5 +88,7 @@ int option_get_int(OptionValues *ovs, const char *name, int def);
 unsigned int option_get_uint(OptionValues *ovs, const char *name, unsigned int def);
 bool option_get_bool(OptionValues *ovs, const char *name, bool def);
 mode_t option_get_mode_t(OptionValues *ovs, const char *name, mode_t def);
+uid_t option_get_uid_t(OptionValues *ovs, const char *name, uid_t def);
+gid_t option_get_gid_t(OptionValues *ovs, const char *name, gid_t def);
 
 #endif /* _SWTPM_OPTIONS_H */

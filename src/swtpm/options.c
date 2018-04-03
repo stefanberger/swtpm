@@ -48,6 +48,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <pwd.h>
+#include <grp.h>
 
 #include "options.h"
 
@@ -83,6 +85,8 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
     char *endptr = NULL;
     long int li;
     long unsigned int lui;
+    struct passwd *passwd;
+    struct group *group;
     
     size_t idx = ovs->n_options;
     
@@ -146,6 +150,44 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
             return -1;
         }
         ovs->options[idx].u.mode = (mode_t)lui;
+
+        break;
+    case OPT_TYPE_UID_T:
+        lui = strtol(val, &endptr, 10);
+        if (*endptr == '\0') {
+            if (lui > UINT_MAX) {
+                option_error_set(error, "uid %s outside valid range", val);
+                return -1;
+            }
+        } else {
+            /* try as a string */
+            passwd = getpwnam(val);
+            if (!passwd) {
+                option_error_set(error, "User '%s' does not exist.\n", val);
+                return -1;
+            }
+            lui = passwd->pw_uid;
+        }
+        ovs->options[idx].u.uid = (uid_t)lui;
+
+        break;
+    case OPT_TYPE_GID_T:
+        lui = strtol(val, &endptr, 10);
+        if (*endptr == '\0') {
+            if (lui > UINT_MAX) {
+                option_error_set(error, "gid %s outside valid range", val);
+                return -1;
+            }
+        } else {
+            /* try as a string */
+            group = getgrnam(val);
+            if (!group) {
+                option_error_set(error, "Group '%s' does not exist.\n", val);
+                return -1;
+            }
+            lui = group->gr_gid;
+        }
+        ovs->options[idx].u.gid = (uid_t)lui;
 
         break;
     }
@@ -248,6 +290,8 @@ option_values_free(OptionValues *ovs)
         case OPT_TYPE_UINT:
         case OPT_TYPE_BOOLEAN:
         case OPT_TYPE_MODE_T:
+        case OPT_TYPE_UID_T:
+        case OPT_TYPE_GID_T:
             break;
         }
     }
@@ -379,6 +423,58 @@ option_get_mode_t(OptionValues *ovs, const char *name, mode_t def)
             if (ovs->options[i].type == OPT_TYPE_MODE_T)
                 return ovs->options[i].u.mode;
             return ~0;
+        }
+    }
+
+    return def;
+}
+
+/*
+ * Given the name of a uid_t (chown) option, return the value it received when it
+ * was parsed.
+ * @ovs: The OptionValues
+ * @name: the name of the option
+ * @def: the default value
+ *
+ * Returns the parsed value or the default value if none was parsed
+ * If the value is of different type than a uid_t, -1 is returned.
+ */
+uid_t
+option_get_uid_t(OptionValues *ovs, const char *name, uid_t def)
+{
+    size_t i;
+
+    for (i = 0; i < ovs->n_options; i++) {
+        if (!strcmp(name, ovs->options[i].name)) {
+            if (ovs->options[i].type == OPT_TYPE_UID_T)
+                return ovs->options[i].u.uid;
+            return -1;
+        }
+    }
+
+    return def;
+}
+
+/*
+ * Given the name of a gid_t (chown) option, return the value it received when it
+ * was parsed.
+ * @ovs: The OptionValues
+ * @name: the name of the option
+ * @def: the default value
+ *
+ * Returns the parsed value or the default value if none was parsed
+ * If the value is of different type than a uid_t, -1 is returned.
+ */
+gid_t
+option_get_gid_t(OptionValues *ovs, const char *name, gid_t def)
+{
+    size_t i;
+
+    for (i = 0; i < ovs->n_options; i++) {
+        if (!strcmp(name, ovs->options[i].name)) {
+            if (ovs->options[i].type == OPT_TYPE_GID_T)
+                return ovs->options[i].u.gid;
+            return -1;
         }
     }
 

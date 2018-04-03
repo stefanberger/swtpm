@@ -131,7 +131,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : use the given character device\n"
     "-f|--fd <fd>     : use the given character device file descriptor\n"
     "-d|--daemon      : daemonize the TPM\n"
-    "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=address[,ifname=ifname]]][,fd=<filedescriptor|clientfd=<filedescriptor>][,mode=0...]\n"
+    "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=address[,ifname=ifname]]][,fd=<filedescriptor|clientfd=<filedescriptor>][,mode=0...][,uid=uid][,gid=gid]\n"
     "                 : TPM control channel using either UnixIO or TCP sockets;\n"
     "                   the path is only valid for Unixio channels; the port must\n"
     "                   be given in case the type is TCP; the TCP socket is bound\n"
@@ -144,6 +144,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   clientfd is only valid for UnixIO channels\n"
     "                   mode allows to set the file mode bits of a Unixio socket;\n"
     "                   the value must be given in octal number format\n"
+    "                   uid and gid set the ownership of the Unixio socket's file;\n"
     "--migration-key file=<path>[,mode=aes-cbc][,format=hex|binary][,remove=[true|false]]\n"
     "                 : use an AES key for the encryption of the TPM's state\n"
     "                   when it is retrieved from the TPM via ioctls;\n"
@@ -402,10 +403,14 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         return EXIT_FAILURE;
     }
 
+    if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0) {
+        goto exit_failure;
+    }
+
     /* change process ownership before accessing files */
     if (runas) {
         if (change_process_owner(runas) < 0)
-            return EXIT_FAILURE;
+            goto exit_failure;
     }
 
     if (handle_log_options(logdata) < 0 ||
@@ -413,7 +418,6 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         handle_migration_key_options(migkeydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
-        handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
         handle_flags_options(flagsdata, &need_init_cmd) < 0) {
         goto exit_failure;
     }

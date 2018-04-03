@@ -149,6 +149,12 @@ static const OptionDesc ctrl_opt_desc[] = {
     }, {
         .name = "mode",
         .type = OPT_TYPE_MODE_T,
+    }, {
+        .name = "uid",
+        .type = OPT_TYPE_UID_T,
+    }, {
+        .name = "gid",
+        .type = OPT_TYPE_GID_T,
     },
     END_OPTION_DESC
 };
@@ -178,6 +184,12 @@ static const OptionDesc server_opt_desc[] = {
     }, {
         .name = "mode",
         .type = OPT_TYPE_MODE_T,
+    }, {
+        .name = "uid",
+        .type = OPT_TYPE_UID_T,
+    }, {
+        .name = "gid",
+        .type = OPT_TYPE_GID_T,
     },
     END_OPTION_DESC
 };
@@ -555,8 +567,11 @@ handle_tpmstate_options(char *options)
  *
  * @path: UnixIO socket path
  * @perm: UnixIO socket permissions
+ * @uid: uid to set the ownership of the UnixIO socket path to
+ * @gid: gid to set the ownership of the UnixIO socket path to
  */
-static int unixio_open_socket(const char *path, mode_t perm)
+static int unixio_open_socket(const char *path, mode_t perm,
+                              uid_t uid, gid_t gid)
 {
     struct sockaddr_un su;
     int fd = -1, n;
@@ -594,6 +609,14 @@ static int unixio_open_socket(const char *path, mode_t perm)
         logprintf(STDERR_FILENO,
                   "Could not change permssions on UnixIO socket: %s\n",
                   strerror(errno));
+        goto error;
+    }
+
+    if ((uid != (uid_t)-1 || gid != (gid_t)-1) &&
+        chown(su.sun_path, uid, gid) < 0) {
+        logprintf(STDERR_FILENO,
+                  "Could not change ownership of UnixIO socket to "
+                  "%u:%u %s\n", uid, gid, strerror(errno));
         goto error;
     }
 
@@ -729,6 +752,8 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
     int fd, clientfd, port;
     struct stat stat;
     mode_t mode;
+    uid_t uid;
+    gid_t gid;
 
     ovs = options_parse(options, ctrl_opt_desc, &error);
     if (!ovs) {
@@ -748,6 +773,8 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
         fd = option_get_int(ovs, "fd", -1);
         clientfd = option_get_int(ovs, "clientfd", -1);
         mode = option_get_mode_t(ovs, "mode", 0770);
+        uid = option_get_uid_t(ovs, "uid", -1);
+        gid = option_get_gid_t(ovs, "gid", -1);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
                logprintf(STDERR_FILENO,
@@ -767,7 +794,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
 
             *cc = ctrlchannel_new(clientfd, true, NULL);
         } else if (path) {
-            fd = unixio_open_socket(path, mode);
+            fd = unixio_open_socket(path, mode, uid, gid);
             if (fd < 0)
                 goto error;
 
@@ -864,6 +891,8 @@ static int parse_server_options(char *options, struct server **c)
     struct stat stat;
     unsigned int flags = 0;
     mode_t mode;
+    uid_t uid;
+    gid_t gid;
 
     ovs = options_parse(options, server_opt_desc, &error);
     if (!ovs) {
@@ -880,6 +909,8 @@ static int parse_server_options(char *options, struct server **c)
         path = option_get_string(ovs, "path", NULL);
         fd = option_get_int(ovs, "fd", -1);
         mode = option_get_mode_t(ovs, "mode", 0770);
+        uid = option_get_uid_t(ovs, "uid", -1);
+        gid = option_get_gid_t(ovs, "gid", -1);
         if (fd >= 0) {
             if (fstat(fd, &stat) < 0 || !S_ISSOCK(stat.st_mode)) {
                logprintf(STDERR_FILENO,
@@ -890,7 +921,7 @@ static int parse_server_options(char *options, struct server **c)
 
             *c = server_new(fd, flags, NULL);
         } else if (path) {
-            fd = unixio_open_socket(path, mode);
+            fd = unixio_open_socket(path, mode, uid, gid);
             if (fd < 0)
                 goto error;
 

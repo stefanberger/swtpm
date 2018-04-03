@@ -58,12 +58,13 @@ provided with I<ifname>.
 This parameter enables a persistent connection by default unless the disconnect option
 is given. This parameter should be used rather than the -p and --fd options.
 
-=item B<--server type=unixio[,path=E<lt>pathE<gt>][,fd=E<lt>fdE<gt>][,mode=E<lt>0...E<gt>]>
+=item B<--server type=unixio[,path=E<lt>pathE<gt>][,fd=E<lt>fdE<gt>][,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>]>
 
 Expect UnixIO connections on the given path. If no path is provided, a file descriptor
 must be passed instead. The mode parameter allows to set the file mode bits of the
 UnixIO path. The mode bits value must be given as an octal number starting with a '0'.
-The default value is 0770.
+The default value is 0770. uid and gid set the ownership of the UnixIO socket's path.
+This operation requires root privileges.
 
 =back
 
@@ -124,7 +125,7 @@ For the socket interface, this option automatically assumes -t.
 
 Daemonize the process.
 
-=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>[,bindaddress=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>filedescriptorE<gt>|clientfd=E<lt>filedescriptorE<gt>][,mode=E<lt>0...E<gt>] >
+=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>[,bindaddress=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>filedescriptorE<gt>|clientfd=E<lt>filedescriptorE<gt>][,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>] >
 
 This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
 a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
@@ -135,7 +136,8 @@ provided with I<ifname>.
 
 The mode parameter allows to set the file mode bits of the UnixIO path.
 The mode bits value must be given as an octal number starting with a '0'.
-The default value is 0770.
+The default value is 0770. uid and gid set the ownership of the UnixIO socket's path.
+This operation requires root privileges.
 
 The control channel enables out-of-band control of the TPM, such as resetting the TPM.
 
