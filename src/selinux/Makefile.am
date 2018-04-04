@@ -7,6 +7,7 @@
 policiesconfdir = $(datadir)/@PACKAGE@
 
 POLICIES = \
+	swtpm.pp \
 	swtpmcuse.pp \
 	swtpmcuse_svirt.pp
 
@@ -27,6 +28,9 @@ clean:
 
 EXTRA_DIST = \
 	adapt_policy.sh \
+	swtpm.fc \
+	swtpm.if \
+	swtpm.te \
 	swtpmcuse.fc \
 	swtpmcuse.if \
 	swtpmcuse.te \

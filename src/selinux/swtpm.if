@@ -1,0 +1,76 @@
+
+## <summary>policy for swtpmcuse</summary>
+
+########################################
+## <summary>
+##	Execute TEMPLATE in the swtpm domin.
+## </summary>
+## <param name="domain">
+## <summary>
+##	Domain allowed to transition.
+## </summary>
+## </param>
+#
+interface(`swtpm_domtrans',`
+	gen_require(`
+		type swtpm_t, swtpm_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	domtrans_pattern($1, swtpm_exec_t, swtpm_t)
+')
+
+########################################
+## <summary>
+##	Execute swtpm in the swtpm domain, and
+##	allow the specified role the swtpm domain.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed to transition
+##	</summary>
+## </param>
+## <param name="role">
+##	<summary>
+##	The role to be allowed the swtpm domain.
+##	</summary>
+## </param>
+#
+interface(`swtpm_run',`
+	gen_require(`
+		type swtpm_t;
+		attribute_role swtpm_roles;
+	')
+
+	swtpm_domtrans($1)
+	roleattribute $2 swtpm_roles;
+')
+
+########################################
+## <summary>
+##	Role access for swtpm
+## </summary>
+## <param name="role">
+##	<summary>
+##	Role allowed access
+##	</summary>
+## </param>
+## <param name="domain">
+##	<summary>
+##	User domain for the role
+##	</summary>
+## </param>
+#
+interface(`swtpm_role',`
+	gen_require(`
+		type swtpm_t;
+		attribute_role swtpm_roles;
+	')
+
+	roleattribute $1 swtpm_roles;
+
+	swtpm_domtrans($2)
+
+	ps_process_pattern($2, swtpm_t)
+	allow $2 swtpm_t:process { signull signal sigkill };
+')

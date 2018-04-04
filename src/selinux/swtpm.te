@@ -1,0 +1,33 @@
+policy_module(swtpm, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+attribute_role swtpm_roles;
+roleattribute system_r swtpm_roles;
+
+type swtpm_t;
+type swtpm_exec_t;
+application_domain(swtpm_t, swtpm_exec_t)
+role swtpm_roles types swtpm_t;
+
+permissive swtpm_t;
+
+########################################
+#
+# swtpm local policy
+#
+allow swtpm_t self:capability { setgid setuid dac_override dac_read_search };
+
+allow swtpm_t self:fifo_file manage_fifo_file_perms;
+allow swtpm_t self:unix_stream_socket create_stream_socket_perms;
+
+domain_use_interactive_fds(swtpm_t)
+
+files_read_etc_files(swtpm_t)
+
+auth_use_nsswitch(swtpm_t)
+
+miscfiles_read_localization(swtpm_t)

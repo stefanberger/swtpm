@@ -30,6 +30,7 @@ Makefile
 /.pc/*
 /patches/*
 /include/swtpm.h
+/src/selinux/swtpm.pp
 /src/selinux/swtpmcuse.pp
 /src/selinux/swtpmcuse_svirt.fc
 /src/selinux/swtpmcuse_svirt.if
