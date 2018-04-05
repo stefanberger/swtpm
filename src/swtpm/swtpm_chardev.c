@@ -168,7 +168,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--key pwdfile=<path>[,mode=aes-cbc][,remove=[true|false]]\n"
     "                 : provide a passphrase in a file; the AES key will be\n"
     "                   derived from this passphrase\n"
-    "--pid file=<path>\n"
+    "--pid file=<path>|fd=<filedescriptor>\n"
     "                 : write the process ID into the given file\n"
     "--tpmstate dir=<dir>\n"
     "                 : set the directory where the TPM's state will be written\n"

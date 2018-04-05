@@ -47,6 +47,7 @@
 #include "logging.h"
 
 static char *g_pidfile;
+static int pidfilefd = -1;
 
 int pidfile_set(const char *pidfile)
 {
@@ -57,6 +58,13 @@ int pidfile_set(const char *pidfile)
    }
 
    return 0;
+}
+
+int pidfile_set_fd(int newpidfilefd)
+{
+    pidfilefd = newpidfilefd;
+
+    return 0;
 }
 
 /*
@@ -70,10 +78,14 @@ int pidfile_write(pid_t pid)
 {
     FILE *f;
 
-    if (!g_pidfile)
+    if (g_pidfile) {
+        f = fopen(g_pidfile, "w+");
+    } else if (pidfilefd >= 0) {
+        f = fdopen(pidfilefd, "w");
+    } else {
         return 0;
+    }
 
-    f = fopen(g_pidfile, "w+");
     if (!f) {
         logprintf(STDERR_FILENO, "Could not open pidfile %s : %s\n",
                   g_pidfile, strerror(errno));

@@ -112,6 +112,10 @@ static const OptionDesc pid_opt_desc[] = {
         .name = "file",
         .type = OPT_TYPE_STRING,
     },
+    {
+        .name = "fd",
+        .type = OPT_TYPE_INT,
+    },
     END_OPTION_DESC
 };
 
@@ -418,18 +422,18 @@ handle_migration_key_options(char *options)
  *
  * @options: the 'pid' options to parse
  * @pidfile: Point to pointer for pidfile
+ * @pidfilefd: Pointer to file descriptor for pidfile
  *
  * Returns 0 on success, -1 on failure.
  */
 static int
-parse_pid_options(char *options, char **pidfile)
+parse_pid_options(char *options, char **pidfile, int *pidfilefd)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
     const char *filename = NULL;
 
     ovs = options_parse(options, pid_opt_desc, &error);
-
     if (!ovs) {
         logprintf(STDERR_FILENO, "Error parsing pid options: %s\n",
                 error);
@@ -437,16 +441,19 @@ parse_pid_options(char *options, char **pidfile)
     }
 
     filename = option_get_string(ovs, "file", NULL);
-    if (!filename) {
+    *pidfilefd = option_get_int(ovs, "fd", -1);
+    if (!filename && *pidfilefd < 0) {
         logprintf(STDERR_FILENO,
-                  "The file parameter is required for the pid option.\n");
+                  "The file or fd parameter is required for the pid option.\n");
         goto error;
     }
 
-    *pidfile = strdup(filename);
-    if (!*pidfile) {
-        logprintf(STDERR_FILENO, "Out of memory.");
-        goto error;
+    if (filename) {
+        *pidfile = strdup(filename);
+        if (!*pidfile) {
+            logprintf(STDERR_FILENO, "Out of memory.");
+            goto error;
+        }
     }
 
     option_values_free(ovs);
@@ -471,15 +478,18 @@ int
 handle_pid_options(char *options)
 {
     char *pidfile = NULL;
+    int pidfilefd = -1;
     int ret = 0;
 
     if (!options)
         return 0;
 
-    if (parse_pid_options(options, &pidfile) < 0)
+    if (parse_pid_options(options, &pidfile, &pidfilefd) < 0)
         return -1;
 
-    if (pidfile_set(pidfile) < 0)
+    if (pidfile && pidfile_set(pidfile) < 0)
+        ret = -1;
+    else if (pidfile_set_fd(pidfilefd) < 0)
         ret = -1;
 
     free(pidfile);

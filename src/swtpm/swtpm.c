@@ -141,7 +141,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--locality [reject-locality-4][,allow-set-locality]\n"
     "                 : reject-locality-4: reject any command in locality 4\n"
     "                   allow-set-locality: accept SetLocality command\n"
-    "--pid file=<path>\n"
+    "--pid file=<path>|fd=<filedescriptor>\n"
     "                 : write the process ID into the given file\n"
     "--tpmstate dir=<dir>\n"
     "                 : set the directory where the TPM's state will be written\n"

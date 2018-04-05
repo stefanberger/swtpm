@@ -39,6 +39,7 @@
 #define _SWTPM_PIDFILE_H_
 
 int pidfile_set(const char *pidfile);
+int pidfile_set_fd(int newpidfilefd);
 int pidfile_write(pid_t pid);
 void pidfile_remove(void);
 
