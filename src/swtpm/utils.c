@@ -41,6 +41,10 @@
 #include <pwd.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 #include "utils.h"
 #include "logging.h"
@@ -134,4 +138,21 @@ void tpmlib_debug_libtpms_parameters(void)
     TPM_DEBUG("TPM1.2: Compiled for %u NV defined space\n",
         tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
 #endif
+}
+
+char *fd_to_filename(int fd)
+{
+    char buffer[64];
+    char *path;
+
+    snprintf(buffer, sizeof(buffer), "/proc/self/fd/%d", fd);
+
+    path = realpath(buffer, NULL);
+    if (!path) {
+        logprintf(STDERR_FILENO, "Could not read %s: %s\n",
+                  buffer, strerror(errno));
+        return NULL;
+    }
+
+    return path;
 }

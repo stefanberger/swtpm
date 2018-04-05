@@ -45,6 +45,7 @@
 
 #include "pidfile.h"
 #include "logging.h"
+#include "utils.h"
 
 static char *g_pidfile;
 static int pidfilefd = -1;
@@ -82,6 +83,11 @@ int pidfile_write(pid_t pid)
         f = fopen(g_pidfile, "w+");
     } else if (pidfilefd >= 0) {
         f = fdopen(pidfilefd, "w");
+        if (f) {
+            g_pidfile = fd_to_filename(pidfilefd);
+            if (!g_pidfile)
+                goto error;
+        }
     } else {
         return 0;
     }
@@ -95,7 +101,6 @@ int pidfile_write(pid_t pid)
     if (fprintf(f, "%d", pid) < 0) {
         logprintf(STDERR_FILENO, "Could not write to pidfile : %s\n",
                   strerror(errno));
-        fclose(f);
         goto error;
     }
 
@@ -104,6 +109,8 @@ int pidfile_write(pid_t pid)
     return 0;
 
 error:
+    if (f)
+        fclose(f);
     return -1;
 }
 

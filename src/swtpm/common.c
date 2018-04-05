@@ -432,6 +432,7 @@ parse_pid_options(char *options, char **pidfile, int *pidfilefd)
     OptionValues *ovs = NULL;
     char *error = NULL;
     const char *filename = NULL;
+    struct stat stat;
 
     ovs = options_parse(options, pid_opt_desc, &error);
     if (!ovs) {
@@ -454,6 +455,12 @@ parse_pid_options(char *options, char **pidfile, int *pidfilefd)
             logprintf(STDERR_FILENO, "Out of memory.");
             goto error;
         }
+    } else {
+        if (fstat(*pidfilefd, &stat) < 0 || !S_ISREG(stat.st_mode)) {
+            logprintf(STDERR_FILENO,
+                      "Bad filedescriptor %d for pid file\n", *pidfilefd);
+            goto error;
+        }
     }
 
     option_values_free(ovs);
@@ -462,6 +469,7 @@ parse_pid_options(char *options, char **pidfile, int *pidfilefd)
 
 error:
     option_values_free(ovs);
+    close(*pidfilefd);
 
     return -1;
 }

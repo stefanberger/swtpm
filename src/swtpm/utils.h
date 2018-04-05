@@ -51,4 +51,6 @@ int change_process_owner(const char *owner);
 
 void tpmlib_debug_libtpms_parameters(void);
 
+char *fd_to_filename(int fd);
+
 #endif /* _SWTPM_UTILS_H_ */
