@@ -67,6 +67,49 @@ const char *one_arg_params[] = {
     NULL
 };
 
+static int change_process_owner(const char *user)
+{
+    struct passwd *passwd;
+    long int uid, gid;
+    char *endptr = NULL;
+
+    uid = strtoul(user, &endptr, 10);
+    if (*endptr != '\0') {
+        /* a string */
+        passwd = getpwnam(user);
+        if (!passwd) {
+            fprintf(stderr, "Error: User '%s' does not exist.\n", user);
+            return -1;
+        }
+
+        if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
+            fprintf(stderr, "Error: initgroups(%s, %d) failed.\n",
+                    passwd->pw_name, passwd->pw_gid);
+           return -1;
+        }
+        gid = passwd->pw_gid;
+        uid = passwd->pw_uid;
+    } else {
+        /* an integer */
+        if ((unsigned long int)uid > UINT_MAX) {
+            fprintf(stderr, "Error: uid %s outside valid range.\n", user);
+            return -1;
+        }
+        gid = uid;
+    }
+
+    if (setgid(gid) < 0) {
+        fprintf(stderr, "Error: setgid(%ld) failed.\n", gid);
+        return -1;
+    }
+    if (setuid(uid) < 0) {
+        fprintf(stderr, "Error: setuid(%ld) failed.\n", uid);
+        return -1;
+    }
+    return 0;
+}
+
+
 int main(int argc, char *argv[])
 {
     const char *program = "swtpm_setup.sh";
@@ -137,30 +180,8 @@ int main(int argc, char *argv[])
     if (passwd->pw_uid == geteuid())
         change_user = false;
 
-    if (change_user) {
-        passwd = getpwnam(userid);
-        if (!passwd) {
-            fprintf(stderr, "Could not get account data of user %s.\n", userid);
-            return EXIT_FAILURE;
-        }
-
-        if (setgid(passwd->pw_gid)) {
-            fprintf(stderr,"Setting groupid to %s (%d) failed: %s\n",
-                    userid, passwd->pw_gid, strerror(errno));
-            return EXIT_FAILURE;
-        }
-
-        if (initgroups(passwd->pw_name, passwd->pw_gid)) {
-            fprintf(stderr,"initgroups() failed: %s\n", strerror(errno));
-            return EXIT_FAILURE;
-        }
-
-        if (setuid(passwd->pw_uid)) {
-            fprintf(stderr,"Setting userid to %s (%d) failed.\n",
-                    userid, passwd->pw_uid);
-            return EXIT_FAILURE;
-        }
-    }
+    if (change_user && change_process_owner(userid))
+        return EXIT_FAILURE;
     /*
      * need to pass unmodified argv to swtpm_setup.sh
      */
