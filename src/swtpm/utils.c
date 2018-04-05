@@ -83,30 +83,50 @@ err_exit:
 int
 change_process_owner(const char *user)
 {
-    struct passwd *passwd = getpwnam(user);
+    struct passwd *passwd;
+    long int uid, gid;
+    char *endptr = NULL;
 
-    if (!passwd) {
-        logprintf(STDERR_FILENO,
-                  "Error: User '%s' does not exist.\n",
-                  user);
-        return 14;
+    uid = strtoul(user, &endptr, 10);
+    if (*endptr != '\0') {
+        /* a string */
+        passwd = getpwnam(user);
+        if (!passwd) {
+            logprintf(STDERR_FILENO,
+                      "Error: User '%s' does not exist.\n",
+                      user);
+            return 14;
+        }
+
+        if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Error: initgroups(%s, %d) failed.\n",
+                      passwd->pw_name, passwd->pw_gid);
+           return -10;
+        }
+        gid = passwd->pw_gid;
+        uid = passwd->pw_uid;
+    } else {
+        /* an integer */
+        if ((unsigned long int)uid > UINT_MAX) {
+            logprintf(STDERR_FILENO,
+                      "Error: uid %s outside valid range.\n",
+                      user);
+            return -13;
+        }
+        gid = uid;
     }
-    if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
-        logprintf(STDERR_FILENO,
-                  "Error: initgroups(%s, %d) failed.\n",
-                  passwd->pw_name, passwd->pw_gid);
-        return -10;
-    }
-    if (setgid(passwd->pw_gid) < 0) {
+
+    if (setgid(gid) < 0) {
         logprintf(STDERR_FILENO,
                   "Error: setgid(%d) failed.\n",
-                  passwd->pw_gid);
+                  gid);
         return -11;
     }
-    if (setuid(passwd->pw_uid) < 0) {
+    if (setuid(uid) < 0) {
         logprintf(STDERR_FILENO,
                   "Error: setuid(%d) failed.\n",
-                  passwd->pw_uid);
+                  uid);
         return -12;
     }
     return 0;
