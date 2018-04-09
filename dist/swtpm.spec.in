@@ -86,12 +86,14 @@ Tools for the TPM emulator from the swtpm package
 %defattr(-,root,root,-)
 %attr( 755, root, root) %{_bindir}/swtpm
 %{_mandir}/man8/swtpm.8*
+%attr( 755, root, root) %{_datadir}/swtpm/swtpm.pp
+%attr( 755, root, root) %{_datadir}/swtpm/swtpm_svirt.pp
 
 %files cuse
 %defattr(-,root,root,-)
 %attr( 755, root, root) %{_bindir}/swtpm_cuse
 %{_mandir}/man8/swtpm_cuse.8*
-%attr( 755, root, root) %{_datadir}/swtpm/*.pp
+%attr( 755, root, root) %{_datadir}/swtpm/swtpmcuse.pp
 
 %files libs
 %{_libdir}/libswtpm_libtpms.so.*
@@ -154,9 +156,31 @@ make %{?_smp_mflags} check
 make %{?_smp_mflags} install DESTDIR=${RPM_BUILD_ROOT}
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/*.a ${RPM_BUILD_ROOT}%{_libdir}/*.la
 
+%post
+if [ -n "$(type -p semodule)" ]; then
+  for pp in /usr/share/swtpm/swtpm.pp /usr/share/swtpm/swtpm_svirt.pp ; do
+    echo "Activating SELinux policy $pp"
+    semodule -i $pp
+  done
+fi
+
+if [ -n "$(type -p restorecon)" ]; then
+  restorecon /usr/bin/swtpm
+fi
+
+%postun
+if [ $1 -eq  0 ]; then
+  if [ -n "$(type -p semodule)" ]; then
+    for p in swtpm swtpm_svirt ; do
+      echo "Removing SELinux policy $p"
+      semodule -r $p
+    done
+  fi
+fi
+
 %post cuse
 if [ -n "$(type -p semodule)" ]; then
-  for pp in /usr/share/swtpm/*.pp ; do
+  for pp in /usr/share/swtpm/swtpmcuse.pp ; do
     echo "Activating SELinux policy $pp"
     semodule -i $pp
   done
@@ -169,7 +193,7 @@ fi
 %postun cuse
 if [ $1 -eq  0 ]; then
   if [ -n "$(type -p semodule)" ]; then
-    for p in swtpmcuse_svirt swtpmcuse ; do
+    for p in swtpmcuse ; do
       echo "Removing SELinux policy $p"
       semodule -r $p
     done
