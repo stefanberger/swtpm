@@ -1,0 +1,15 @@
+module swtpm_svirt 1.0;
+
+require {
+	type svirt_t;
+	type swtpm_exec_t;
+	type virtd_t;
+
+	class file { entrypoint };
+	class process sigchld;
+	class fifo_file write;
+}
+
+#============= svirt_t ==============
+allow svirt_t virtd_t:fifo_file write;
+allow svirt_t virtd_t:process sigchld;

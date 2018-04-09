@@ -8,8 +8,8 @@ policiesconfdir = $(datadir)/@PACKAGE@
 
 POLICIES = \
 	swtpm.pp \
-	swtpmcuse.pp \
-	swtpmcuse_svirt.pp
+	swtpm_svirt.pp \
+	swtpmcuse.pp
 
 policiesconf_DATA = \
 	$(POLICIES)
@@ -31,7 +31,7 @@ EXTRA_DIST = \
 	swtpm.fc \
 	swtpm.if \
 	swtpm.te \
+	swtpm_svirt.te \
 	swtpmcuse.fc \
 	swtpmcuse.if \
-	swtpmcuse.te \
-	swtpmcuse_svirt.te
+	swtpmcuse.te

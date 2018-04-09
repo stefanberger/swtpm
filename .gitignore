@@ -31,10 +31,10 @@ Makefile
 /patches/*
 /include/swtpm.h
 /src/selinux/swtpm.pp
+/src/selinux/swtpm_svirt.fc
+/src/selinux/swtpm_svirt.if
+/src/selinux/swtpm_svirt.pp
 /src/selinux/swtpmcuse.pp
-/src/selinux/swtpmcuse_svirt.fc
-/src/selinux/swtpmcuse_svirt.if
-/src/selinux/swtpmcuse_svirt.pp
 /src/selinux/tmp
 /src/swtpm/swtpm
 /src/swtpm/swtpm_cuse
