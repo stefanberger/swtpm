@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2018-04-05" "swtpm" ""
+.TH swtpm 8 "2018-04-10" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -252,10 +252,14 @@ start without requiring a \s-1INIT\s0 to be sent to it through the command chann
 .SH "Options for all interfaces"
 .IX Header "Options for all interfaces"
 The following options are support by all interfaces:
-.IP "\fB\-\-tpmstate dir=<dir>\fR" 4
-.IX Item "--tpmstate dir=<dir>"
+.IP "\fB\-\-tpmstate dir=<dir>[,mode=<0...>]\fR" 4
+.IX Item "--tpmstate dir=<dir>[,mode=<0...>]"
 Use the given path rather than using the environment variable \s-1TPM_PATH.\s0
-.IP "\fB\-\-log [fd=<fd>|file=<path>][,level=<n>]\fR[,prefix=<prefix>][,truncate]" 4
+.Sp
+The \s-1TPM\s0 state files will be written with the given file mode bits.
+This value must be given as an octal number starting with a '0'.
+The default value is 0640.
+.IP "\fB\-\-log [fd=<fd>|file=<path>][,level=<n>][,prefix=<prefix>][,truncate]\fR" 4
 .IX Item "--log [fd=<fd>|file=<path>][,level=<n>][,prefix=<prefix>][,truncate]"
 Enable logging to a file given its file descriptor or its path. Use '\-' for path to
 suppress the logging.

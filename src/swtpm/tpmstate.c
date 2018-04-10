@@ -47,6 +47,7 @@
 #include "logging.h"
 
 static char *g_tpmstatedir;
+static mode_t g_tpmstate_mode = 0640;
 
 int tpmstate_set_dir(char *tpmstatedir)
 {
@@ -64,4 +65,16 @@ const char *tpmstate_get_dir(void)
     if (g_tpmstatedir)
         return g_tpmstatedir;
     return getenv("TPM_PATH");
+}
+
+int tpmstate_set_mode(mode_t mode)
+{
+    g_tpmstate_mode = mode;
+
+    return 0;
+}
+
+mode_t tpmstate_get_mode(void)
+{
+    return g_tpmstate_mode;
 }

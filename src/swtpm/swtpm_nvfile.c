@@ -57,7 +57,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
-
+#include <sys/stat.h>
 #include <arpa/inet.h>
 
 #include <libtpms/tpm_error.h>
@@ -244,6 +244,16 @@ SWTPM_NVRAM_LoadData_Intern(unsigned char **data,     /* freed by caller */
             }
         }
     }
+
+    if (rc == 0) {
+        if (fchmod(fileno(file), tpmstate_get_mode()) < 0) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Could not fchmod %s : %s\n",
+                      filename, strerror(errno));
+            rc = TPM_FAIL;
+        }
+    }
+
     /* determine the file length */
     if (rc == 0) {
         irc = fseek(file, 0L, SEEK_END);        /* seek to end of file */
@@ -380,6 +390,15 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_StoreData: Error (fatal) opening %s for "
                       "write failed, %s\n", filename, strerror(errno));
+            rc = TPM_FAIL;
+        }
+    }
+
+    if (rc == 0) {
+        if (fchmod(fileno(file), tpmstate_get_mode()) < 0) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData: Could not fchmod %s : %s\n",
+                      filename, strerror(errno));
             rc = TPM_FAIL;
         }
     }

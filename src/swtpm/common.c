@@ -125,6 +125,10 @@ static const OptionDesc tpmstate_opt_desc[] = {
         .name = "dir",
         .type = OPT_TYPE_STRING,
     },
+    {
+        .name = "mode",
+        .type = OPT_TYPE_MODE_T,
+    },
     END_OPTION_DESC
 };
 
@@ -511,11 +515,12 @@ handle_pid_options(char *options)
  *
  * @options: the 'pid' options to parse
  * @tpmstatedir: Point to pointer for tpmstatedir
+ * @mode: the mode of the TPM's state files
  *
  * Returns 0 on success, -1 on failure.
  */
 static int
-parse_tpmstate_options(char *options, char **tpmstatedir)
+parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -535,6 +540,7 @@ parse_tpmstate_options(char *options, char **tpmstatedir)
                   "The file parameter is required for the tpmstate option.\n");
         goto error;
     }
+    *mode = option_get_mode_t(ovs, "mode", 0640);
 
     *tpmstatedir = strdup(directory);
     if (!*tpmstatedir) {
@@ -565,14 +571,16 @@ handle_tpmstate_options(char *options)
 {
     char *tpmstatedir = NULL;
     int ret = 0;
+    mode_t mode;
 
     if (!options)
         return 0;
 
-    if (parse_tpmstate_options(options, &tpmstatedir) < 0)
+    if (parse_tpmstate_options(options, &tpmstatedir, &mode) < 0)
         return -1;
 
-    if (tpmstate_set_dir(tpmstatedir) < 0)
+    if (tpmstate_set_dir(tpmstatedir) < 0 ||
+        tpmstate_set_mode(mode) < 0)
         ret = -1;
 
     free(tpmstatedir);

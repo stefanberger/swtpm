@@ -38,7 +38,11 @@
 #ifndef _SWTPM_TPMSTATE_H_
 #define _SWTPM_TPMSTATE_H_
 
+#include <sys/types.h>
+
 int tpmstate_set_dir(char *tpmstatdir);
 const char *tpmstate_get_dir(void);
+int tpmstate_set_mode(mode_t mode);
+mode_t tpmstate_get_mode(void);
 
 #endif /* _SWTPM_TPMSTATE_H_ */
