@@ -148,6 +148,9 @@ create_cert() {
 		options="$options --subject \"CN=unknown\""
 	fi
 
+	# TPM 1.2 cert needs a header
+	options="$options --add-header"
+
 	case "$typ" in
 	ek)
 		if [ -z "$(type -p swtpm_cert)" ]; then
