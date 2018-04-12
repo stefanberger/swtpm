@@ -48,6 +48,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <limits.h>
+#include <unistd.h>
 
 #include <arpa/inet.h>
 
@@ -66,6 +67,20 @@ enum cert_type_t {
 extern const ASN1_ARRAY_TYPE tpm_asn1_tab[];
 
 ASN1_TYPE _tpm_asn;
+
+typedef struct tdTCG_PCCLIENT_STORED_CERT {
+    uint16_t tag;
+    uint8_t certType;
+    uint16_t certSize;
+} __attribute__((packed)) tdTCG_PCCLIENT_STORED_CERT;
+
+typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
+    tdTCG_PCCLIENT_STORED_CERT stored_cert;
+    uint16_t tag;
+} __attribute__((packed)) TCG_PCCLIENT_STORED_FULL_CERT_HEADER;
+
+#define TCG_TAG_PCCLIENT_STORED_CERT 0x1001
+#define TCG_TAG_PCCLIENT_FULL_CERT 0x1002
 
 static void
 versioninfo(const char *prg)
@@ -104,6 +119,8 @@ usage(const char *prg)
         "--platform-version <version>   : The Platform version (firmware version)\n"
         "--subject <subject>       : Subject such as location in format\n"
         "                            C=US,ST=NY,L=NewYork\n"
+        "--add-header              : Add the TCG certificate header describing\n"
+        "                            a TCG_PCCLIENT_STORED_CERT for TPM1.2 NVRAM\n"
         "--version                 : Display version and exit\n"
         "--help                    : Display this help screen and exit\n"
         "\n",
@@ -493,6 +510,7 @@ main(int argc, char *argv[])
     char *platf_manufacturer = NULL;
     char *platf_version = NULL;
     char *platf_model = NULL;
+    bool add_header = false;
 
     i = 1;
     while (i < argc) {
@@ -639,6 +657,8 @@ main(int argc, char *argv[])
             platf_version = argv[i];
         } else if (!strcmp(argv[i], "--pem")) {
             write_pem = true;
+        } else if (!strcmp(argv[i], "--add-header")) {
+            add_header = true;
         } else if (!strcmp(argv[i], "--version")) {
             versioninfo(argv[0]);
             exit(0);
@@ -963,10 +983,28 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                     strerror(errno));
             goto cleanup;
         }
+        if (add_header) {
+            TCG_PCCLIENT_STORED_FULL_CERT_HEADER hdr = {
+                .stored_cert = {
+                    .tag = htobe16(TCG_TAG_PCCLIENT_STORED_CERT),
+                    .certType = 0,
+                    .certSize = htobe16(out.size + 2),
+                },
+                .tag = htobe16(TCG_TAG_PCCLIENT_FULL_CERT),
+            };
+            if (sizeof(hdr) != fwrite(&hdr, 1, sizeof(hdr), cert_file)) {
+                fprintf(stderr, "Could not write certificate header: %s\n",
+                        strerror(errno));
+                fclose(cert_file);
+                unlink(cert_filename);
+                goto cleanup;
+            }
+        }
         if (out.size != fwrite(out.data, 1, out.size, cert_file)) {
             fprintf(stderr, "Could not write certificate into file: %s\n",
                     strerror(errno));
             fclose(cert_file);
+            unlink(cert_filename);
             goto cleanup;
         }
         fclose(cert_file);
