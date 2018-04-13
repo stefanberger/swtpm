@@ -127,7 +127,7 @@ fi
 
 #ls -l $volatilestatefile
 size=$(get_filesize $volatilestatefile)
-expsize=1290
+expsize=1302
 if [ $size -ne $expsize ]; then
 	echo "Error: Unexpected size of volatile state file."
 	echo "       Expected file with size of $expsize, found $size bytes."
@@ -135,7 +135,7 @@ if [ $size -ne $expsize ]; then
 fi
 
 hash=$(get_sha1_file $volatilestatefile)
-exphash="bafa4b918745dee45537484f1a1089f9967b7df7"
+exphash="87c36e1dce24a78c67a67ce3fdced3e953ba0f06"
 if [ "$hash" != "$exphash" ]; then
 	echo "Error: The checksum of the volatile state file is wrong."
 	echo "       Calculated: $hash"

@@ -320,7 +320,7 @@ fi
 #                                                  cmd  |     flags     |     type      |    offset     |
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00')"
 #      result    |   flags   | totlength |   length  |
-exp=" 00 00 00 00 00 00 00 00 00 00 04 d9 00 00 04 d9"
+exp=" 00 00 00 00 00 00 00 00 00 00 04 e5 00 00 04 e5"
 if [ "${res:0:48}" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_STATEBLOB:"
 	echo "       actual  : $res"
@@ -420,7 +420,7 @@ fi
 #                                                      cmd  |     flags     |     type      |    offset     |
 vstate="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00')"
 #      result    |   flags   | totlength |   length  |
-exp=" 00 00 00 00 00 00 00 02 00 00 04 fa 00 00 04 fa"
+exp=" 00 00 00 00 00 00 00 02 00 00 05 0c 00 00 05 0c"
 if [ "${vstate:0:48}" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_STATEBLOB:"
 	echo "       actual  : ${vstate:0:48}"
