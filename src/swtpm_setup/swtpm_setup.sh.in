@@ -1596,15 +1596,15 @@ init_tpm2()
 			   TPMA_NV_PPWRITE | \
 			   TPMA_NV_NO_DA | \
 			   TPMA_NV_WRITEDEFINE)) \
-			-s $(stat -c%s "${PLATFORM_CERT_FILE}")
+			$(stat -c%s "${PLATFORM_CERT_FILE}")
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area ${nvindex_str}" \
 			       "for platform certificate."
 			return 1
 		fi
 		tpm2_nv_write \
-			$((TPM2_NV_INDEX_PlatformCert)) \
-			"$PLATFORM_CERT_FILE" 2>&1 >/dev/null
+			${nvindex} \
+			"${PLATFORM_CERT_FILE}"
 		if [ $? -ne 0 ]; then
 			logerr "Could not write platform certificate into" \
 			       "NVRAM area ${nvindex_str}."
@@ -1612,7 +1612,7 @@ init_tpm2()
 		fi
 		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
 			tpm2_nv_writelock \
-				$((TPM2_NV_INDEX_PlatformCert))
+				${nvindex}
 			if [ $? -ne 0 ]; then
 				logerr "Could not lock platform certificate" \
 				       "NVRAM area ${nvindex_str}."
