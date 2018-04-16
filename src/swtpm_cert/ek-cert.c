@@ -117,6 +117,9 @@ usage(const char *prg)
         "--platform-manufacturer <name> : The name of the Platform manufacturer\n"
         "--platfrom-model <model>       : The Platform model (part number)\n"
         "--platform-version <version>   : The Platform version (firmware version)\n"
+        "--tpm-spec-family <family>     : Specification family (string)\n"
+        "--tpm-spec-level <level>       : Specification level (integer)\n"
+        "--tpm-spec-revision <rev>      : Specification revision (integer)\n"
         "--subject <subject>       : Subject such as location in format\n"
         "                            C=US,ST=NY,L=NewYork\n"
         "--add-header              : Add the TCG certificate header describing\n"
@@ -466,6 +469,72 @@ create_platf_manufacturer_info(const char *manufacturer,
     return err;
 }
 
+static int
+create_tpm_specification_info(const char *spec_family,
+                              unsigned int spec_level,
+                              unsigned int spec_revision,
+                              gnutls_datum_t *asn1)
+{
+    ASN1_TYPE at = ASN1_TYPE_EMPTY;
+    int err;
+
+    err = asn_init();
+    if (err != ASN1_SUCCESS) {
+        goto cleanup;
+    }
+
+    err = asn1_create_element(_tpm_asn, "TPM.TPMSpecificationInfo", &at);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "asn1_create_element error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "tpmSpecificationSeq.id", "2.23.133.2.16", 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "c1b. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at,
+        "tpmSpecificationSeq.tpmSpecificationSet.tpmSpecification.family",
+        spec_family, 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "c1c. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at,
+        "tpmSpecificationSeq.tpmSpecificationSet.tpmSpecification.level",
+        &spec_level, sizeof(spec_level));
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "c1d. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at,
+        "tpmSpecificationSeq.tpmSpecificationSet.tpmSpecification.revision",
+        &spec_revision, sizeof(spec_revision));
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "c1e. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = encode_asn1(asn1, at);
+
+#if 0
+    fprintf(stderr, "size=%d\n", asn1->size);
+    unsigned int i = 0;
+    for (i = 0; i < asn1->size; i++) {
+        fprintf(stderr, "%02x ", asn1->data[i]);
+    }
+    fprintf(stderr, "\n");
+#endif
+
+ cleanup:
+    asn1_delete_structure(&at);
+
+    return err;
+}
 
 int
 main(int argc, char *argv[])
@@ -507,6 +576,9 @@ main(int argc, char *argv[])
     char *platf_version = NULL;
     char *platf_model = NULL;
     bool add_header = false;
+    char *spec_family = NULL;
+    long int spec_level = 0;
+    long int spec_revision = 0;
 
     i = 1;
     while (i < argc) {
@@ -651,6 +723,35 @@ main(int argc, char *argv[])
                 goto cleanup;
             }
             platf_version = argv[i];
+        } else if (!strcmp(argv[i], "--tpm-spec-family")) {
+            i++;
+            if (i == argc) {
+                fprintf(stderr, "Missing argument for --tpm-spec-family.\n");
+                goto cleanup;
+            }
+            spec_family = argv[i];
+        } else if (!strcmp(argv[i], "--tpm-spec-level")) {
+            i++;
+            if (i == argc) {
+                fprintf(stderr, "Missing argument for --tpm-spec-level.\n");
+                goto cleanup;
+            }
+            spec_level = strtol(argv[i], NULL, 0);
+            if (spec_level < 0) {
+                fprintf(stderr, "--tpm-spec-level must pass a positive number.\n");
+                goto cleanup;
+            }
+        } else if (!strcmp(argv[i], "--tpm-spec-revision")) {
+            i++;
+            if (i == argc) {
+                fprintf(stderr, "Missing argument for --tpm-spec-revision.\n");
+                goto cleanup;
+            }
+            spec_revision = strtol(argv[i], NULL, 0);
+            if (spec_revision < 0) {
+                fprintf(stderr, "--tpm-spec-revision must pass a positive number.\n");
+                goto cleanup;
+            }
         } else if (!strcmp(argv[i], "--pem")) {
             write_pem = true;
         } else if (!strcmp(argv[i], "--add-header")) {
@@ -910,12 +1011,43 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     }
     gnutls_free(datum.data);
     datum.data = NULL;
+    datum.size = 0;
 
     /* 3.5.10 Basic Constraints */
     err = gnutls_x509_crt_set_basic_constraints(crt, 0, -1);
     CHECK_GNUTLS_ERROR(err, "Could not set key usage id: %s\n",
                        gnutls_strerror(err))
-    /* 3.5.11 Subject Directory Attributes -- missing */
+
+    /* 3.5.11 Subject Directory Attributes */
+    switch (certtype) {
+    case CERT_TYPE_EK:
+        if (spec_family) {
+            err = create_tpm_specification_info(spec_family, spec_level,
+                                                spec_revision, &datum);
+            if (err) {
+                fprintf(stderr, "Could not create TPMSpecification\n");
+                goto cleanup;
+            }
+        }
+        break;
+    case CERT_TYPE_PLATFORM:
+    case CERT_TYPE_AIK:
+        break;
+    default:
+        fprintf(stderr, "Internal error: unhandled case in line %d\n",
+                __LINE__);
+        goto cleanup;
+    }
+
+    if (!err && datum.size > 0) {
+        err = gnutls_x509_crt_set_extension_by_oid(crt, "2.5.29.9",
+                                                   datum.data, datum.size,
+                                                   0);
+        CHECK_GNUTLS_ERROR(err, "Could not set subject directory attributes: "
+                           "%s\n", gnutls_strerror(err))
+    }
+    gnutls_free(datum.data);
+    datum.data = NULL;
 
     /* 3.5.12 Authority Key Id */
     err = gnutls_x509_crt_get_authority_key_id(sigcert, id, &id_size, NULL);

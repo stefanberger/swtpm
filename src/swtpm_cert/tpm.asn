@@ -16,6 +16,26 @@ tcg-at-tpmVersion OBJECT IDENTIFIER ::= {tcg-attribute 3}
 tcg-at-platformManufacturer OBJECT IDENTIFIER ::= {tcg-attribute 4}
 tcg-at-platformModel OBJECT IDENTIFIER ::= {tcg-attribute 5}
 tcg-at-platformVersion OBJECT IDENTIFIER ::= {tcg-attribute 6}
+tcg-at-tpmSpecification OBJECT IDENTIFIER ::= {tcg-attribute 16}
+
+TPMSpecificationInfo ::= SEQUENCE {
+  tpmSpecificationSeq TPMSpecificationSeq
+}
+
+TPMSpecificationSeq ::= SEQUENCE {
+  id OBJECT IDENTIFIER,
+  tpmSpecificationSet TPMSpecificationSet
+}
+
+TPMSpecificationSet ::= SET {
+  tpmSpecification TPMSpecification
+}
+
+TPMSpecification ::= SEQUENCE {
+  family UTF8String,
+  level INTEGER,
+  revision INTEGER
+}
 
 TPMManufacturerInfo ::= SEQUENCE {
   tpmManufacturerSet TPMManufacturerSet,
