@@ -243,6 +243,34 @@ cleanup:
 }
 
 static int
+encode_asn1(gnutls_datum_t *asn1, ASN1_TYPE at)
+{
+    int err;
+
+    /* determine needed size of byte array */
+    asn1->size = 0;
+    err = asn1_der_coding(at, "", NULL, (int *)&asn1->size, NULL);
+    if (err != ASN1_MEM_ERROR) {
+        fprintf(stderr, "1. asn1_der_coding error: %d\n", err);
+        return err;
+    }
+
+    asn1->data = gnutls_malloc(asn1->size + 16);
+    if (!asn1->data) {
+        fprintf(stderr, "2. Could not allocate memory\n");
+        return ASN1_MEM_ERROR;
+    }
+
+    err = asn1_der_coding(at, "", asn1->data, (int *)&asn1->size, NULL);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "3. asn1_der_coding error: %d\n", err);
+        gnutls_free(asn1->data);
+        asn1->data = NULL;
+    }
+    return err;
+}
+
+static int
 create_tpm_manufacturer_info(const char *manufacturer,
                              const char *tpm_model,
                              const char *tpm_version,
@@ -320,24 +348,8 @@ create_tpm_manufacturer_info(const char *manufacturer,
         fprintf(stderr, "6. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
-    
-    /* determine needed size of byte array */
-    asn1->size = 0;
-    err = asn1_der_coding(at, "", NULL, (int *)&asn1->size, NULL);
-    if (err != ASN1_MEM_ERROR) {
-        fprintf(stderr, "1. asn1_der_coding error: %d\n", err);
-        goto cleanup;
-    }
-    //fprintf(stderr, "size=%d\n", asn1->size);
-    asn1->data = gnutls_malloc(asn1->size + 16);
-    err = asn1_der_coding(at, "", asn1->data, (int *)&asn1->size, NULL);
 
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "2. asn1_der_coding error: %d\n", err);
-        gnutls_free(asn1->data);
-        asn1->data = NULL;
-        goto cleanup;
-    }
+    err = encode_asn1(asn1, at);
 
 #if 0
     fprintf(stderr, "size=%d\n", asn1->size);
@@ -437,23 +449,7 @@ create_platf_manufacturer_info(const char *manufacturer,
         goto cleanup;
     }
     
-    /* determine needed size of byte array */
-    asn1->size = 0;
-    err = asn1_der_coding(at, "", NULL, (int *)&asn1->size, NULL);
-    if (err != ASN1_MEM_ERROR) {
-        fprintf(stderr, "b1. asn1_der_coding error: %d\n", err);
-        goto cleanup;
-    }
-    //fprintf(stderr, "size=%d\n", asn1->size);
-    asn1->data = gnutls_malloc(asn1->size + 16);
-    err = asn1_der_coding(at, "", asn1->data, (int *)&asn1->size, NULL);
-
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b2. asn1_der_coding error: %d\n", err);
-        gnutls_free(asn1->data);
-        asn1->data = NULL;
-        goto cleanup;
-    }
+    err = encode_asn1(asn1, at);
 
 #if 0
     fprintf(stderr, "size=%d\n", asn1->size);
