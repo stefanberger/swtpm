@@ -198,7 +198,9 @@ create_cert() {
 	return $rc
 }
 
-# Create the local CA's (self signed) certificate if it doesn't already exist.
+# Create the local CA's certificate if it doesn't already exist.
+# The local CA will be an intermediate CA with a root CA we create
+# here as well so that we get an Authority Key Id in our EK cert.
 #
 create_localca_cert() {
 	touch ${LOCK}
@@ -215,18 +217,74 @@ create_localca_cert() {
 			mkdir -p ${STATEDIR}
 		fi
 		if [ ! -r ${SIGNKEY} ]; then
-			certtool --generate-privkey > ${SIGNKEY}
+			local dir=$(dirname ${SIGNKEY})
+			local cakey=${dir}/swtpm-localca-rootca-privkey.pem
+			local cacert=${dir}/swtpm-localca-rootca-cert.pem
+			local msg
+
+			# create a CA first
+			msg=$(certtool \
+				--generate-privkey \
+				--outfile ${cakey} \
+				2>&1)
+			[ $? -ne 0 ] && {
+				logerr "Could not create root-CA key ${cakey}."
+				logerr "${msg}"
+				return 1
+			}
+			chmod 640 ${cakey}
 
 			local tmp=$(mktemp)
+			echo "cn=swtpm-localca-rootca" > ${tmp}
+			echo "ca" >> ${tmp}
+			echo "cert_signing_key" >> ${tmp}
+			echo "expiration_days = 3650" >> ${tmp}
+
+			msg=$(certtool \
+				--generate-self-signed \
+				--template ${tmp} \
+				--outfile ${cacert} \
+				--load-privkey ${cakey} \
+				2>&1)
+			[ $? -ne 0 ] && {
+				logerr "Could not create root CA."
+				logerr "${msg}"
+				rm -f ${cakey}
+				return 1
+			}
+
+			# now our signing CA
+			msg=$(certtool \
+				--generate-privkey \
+				--outfile ${SIGNKEY} \
+				2>&1)
+			[ $? -ne 0 ] && {
+				rm -f ${cakey} ${cacert}
+				logerr "Could not create local-CA key ${SIGNKEY}."
+				logerr "${msg}"
+				return 1
+			}
+			chmod 640 ${SIGNKEY}
+
 			echo "cn=swtpm-localca" > ${tmp}
 			echo "ca" >> ${tmp}
 			echo "cert_signing_key" >> ${tmp}
+			echo "expiration_days = 3650" >> ${tmp}
 
-			certtool \
-				--generate-self-signed \
+			msg=$(certtool \
+				--generate-certificate \
 				--template ${tmp} \
 				--outfile ${ISSUERCERT} \
-				--load-privkey ${SIGNKEY}
+				--load-privkey ${SIGNKEY} \
+				--load-ca-privkey ${cakey} \
+				--load-ca-certificate ${cacert} \
+				2>&1)
+			[ $? -ne 0 ] && {
+				rm -f ${cakey} ${cacert} ${SIGNKEY}
+				logerr "Could not create local CA."
+				logerr "${msg}"
+				return 1
+			}
 			rm -f ${tmp}
 		fi
 	) 200>${LOCK}
@@ -329,7 +387,7 @@ main() {
 
 	if [ ! -r "$SIGNKEY" ]; then
 		# Create the signing key and issuer cert since it will be missing
-		logit "Creating local CA's signing key and self signed issuer cert."
+		logit "Creating root CA and a local CA's signing key and issuer cert."
 		create_localca_cert
 		if [ $? -ne 0 ]; then
 			logerr "Error creating local CA's signing key and cert"

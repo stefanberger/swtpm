@@ -18,6 +18,14 @@ a variable needs to be set that points to this program.
 It implements command line options that the I<swtpm_setup>
 program uses to provide the necessary parameters to it.
 
+B<swtpm-localca> will automatically try to create the signing key and
+certificate if the configuration points to a missing signing key.
+Since this certificate must be signed by a CA, a root certificate authority
+will also be created and will sign this certificate. The root CA's
+private key and certificate will be located in the same directory as the
+signing key and have the names swtpm-localca-rootca-privkey.pem and
+swtpm-localca-rootca-cert.pem respectively.
+
 The following options are supported:
 
 =over 4
