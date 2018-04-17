@@ -249,7 +249,7 @@ start_tpm()
 			           grep ":$TPM_PORT ")" ]; then
 			        # in rare occasions tcsd refuses connections
 			        # test the connection
-				exec 100<>/dev/tcp/localhost/$TPM_PORT 2>/dev/null
+				(exec 100<>/dev/tcp/localhost/$TPM_PORT) 2>/dev/null
 				if [ $? -ne 0 ]; then
 					stop_tpm
 					break
@@ -355,7 +355,7 @@ EOF
 			           grep ":$TSS_TCSD_PORT ")" ]; then
 			        # in rare occasions tcsd refuses connections
 			        # test the connection
-				exec 100<>/dev/tcp/localhost/$TSS_TCSD_PORT 2>/dev/null
+				(exec 100<>/dev/tcp/localhost/$TSS_TCSD_PORT) 2>/dev/null
 				if [ $? -ne 0 ]; then
 					stop_tcsd
 					break
