@@ -1055,6 +1055,9 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         err = gnutls_x509_crt_set_authority_key_id(crt, id, id_size);
         CHECK_GNUTLS_ERROR(err, "Could not set the authority key id: %s\n",
                            gnutls_strerror(err))
+    } else {
+        CHECK_GNUTLS_ERROR(err, "Could not get the authority key id from the cert: %s\n",
+                           gnutls_strerror(err))
     }
     /* 3.5.13 Authority Info Access -- may be omitted */
     /* 3.5.14 CRL Distribution -- missing  */
