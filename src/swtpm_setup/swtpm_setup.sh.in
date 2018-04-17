@@ -177,6 +177,8 @@ call_create_certs()
 	fi
 
 	if [ -n "$create_certs_tool" ]; then
+		local fn=$(basename "${create_certs_tool}")
+
 		if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ]; then
 			cmd="$create_certs_tool \
 				--type ek \
@@ -186,8 +188,9 @@ call_create_certs()
 			logit "  Invoking: $(echo $cmd | tr -s " ")"
 			tmp="$(eval $cmd 2>&1)"
 			ret=$?
+			logit "$(echo "${tmp}" | sed -e "s/^/$fn: /")"
 			if [ $ret -ne 0 ]; then
-				logerr "Error running '$cmd' : $tmp"
+				logerr "Error running '$cmd'."
 				return $ret
 			fi
 		fi
@@ -200,8 +203,9 @@ call_create_certs()
 			logit "  Invoking: $(echo $cmd | tr -s " ")"
 			tmp="$(eval $cmd 2>&1)"
 			ret=$?
+			logit "$(echo "${tmp}" | sed -e "s/^/$fn: /")"
 			if [ $ret -ne 0 ]; then
-				logerr "Error running '$cmd' : $tmp"
+				logerr "Error running '$cmd'."
 				return $ret
 			fi
 		fi
