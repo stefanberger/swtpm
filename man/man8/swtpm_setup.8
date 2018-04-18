@@ -176,6 +176,12 @@ Create the \s-1EK\s0
 .IP "\fB\-\-allow\-signing\fR" 4
 .IX Item "--allow-signing"
 Create an \s-1EK\s0 that can sign. This option requires \-\-tpm2.
+.Sp
+Note that the \s-1TCG\s0 specification \*(L"\s-1EK\s0 Credential Profile For \s-1TPM\s0 Family 2.0; Level 0\*(R"
+suggests in its section on \*(L"\s-1EK\s0 Usage\*(R" that \*(L"the Endorsement Key can be a
+created as a decryption or signing key.\*(R" However, some platforms will
+not accept an \s-1EK\s0 as a signing key, or as a signing and encryption key, and
+therefore this option should be used very carfully.
 .IP "\fB\-\-decryption\fR" 4
 .IX Item "--decryption"
 Create an \s-1EK\s0 that can be used for key encipherment. This is the default
