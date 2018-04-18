@@ -49,6 +49,12 @@ Create the EK
 
 Create an EK that can sign. This option requires --tpm2.
 
+Note that the TCG specification "EK Credential Profile For TPM Family 2.0; Level 0"
+suggests in its section on "EK Usage" that "the Endorsement Key can be a
+created as a decryption or signing key." However, some platforms will
+not accept an EK as a signing key, or as a signing and encryption key, and
+therefore this option should be used very carfully.
+
 =item B<--decryption>
 
 Create an EK that can be used for key encipherment. This is the default
