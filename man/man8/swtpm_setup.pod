@@ -109,7 +109,7 @@ program ends without an error.
 =item B<--vmid <VM ID>>
 
 Optional VM ID that can be used to keep track of certificates issued
-for VMs (or conainers). This parameter will be pass through to the tool
+for VMs (or containers). This parameter will be passed through to the tool
 used for creating the certificates and may be required by that tool.
 
 =item B<--help, -h>
@@ -117,6 +117,17 @@ used for creating the certificates and may be required by that tool.
 Display the help screen
 
 =back
+
+=head1 EXAMPLE USAGE
+
+To simulate manufacturing of a TPM, one would typically run the following command:
+
+  #> sudo swtpm_setup --tpmstate /tmp/mytpm1/ \
+      --create-ek-cert --create-platform-cert --lock-nvram
+
+Note: since setting up a TPM 1.2 relies on the I<tcsd> for some of its operations,
+B<swtpm_setup> has to be run as root so that it can invoke the I<tcsd> either as root
+or tss user.
 
 =head1 SEE ALSO
 
