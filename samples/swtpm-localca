@@ -386,6 +386,11 @@ main() {
 	fi
 
 	if [ ! -r "$SIGNKEY" ]; then
+		if [ -f "$SIGNKEY" ]; then
+			logerr "Signing key $SIGNKEY exists but cannot access" \
+			       "it as $(id -un):$(id -gn)."
+			exit 1
+		fi
 		# Create the signing key and issuer cert since it will be missing
 		logit "Creating root CA and a local CA's signing key and issuer cert."
 		create_localca_cert
