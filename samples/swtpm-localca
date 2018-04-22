@@ -130,6 +130,7 @@ create_cert() {
 	local dir="$2"
 	local ek="$3"
 	local vmid="$4"
+	local tpm_spec_params="$5"
 
 	local serial=$(get_next_cert_serial)
 	local options rc=0
@@ -158,6 +159,7 @@ create_cert() {
 		else
 			eval swtpm_cert \
 			$options \
+			$tpm_spec_params \
 			--signkey ${SIGNKEY} \
 			--issuercert ${ISSUERCERT} \
 			--out-cert ${dir}/ek.cert \
@@ -294,6 +296,7 @@ create_localca_cert() {
 
 main() {
 	local typ ek dir vmid tmp
+	local tpm_spec_params=""
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
@@ -324,6 +327,18 @@ main() {
 		--logfile)
 			shift
 			LOGFILE="$1"
+			;;
+		--tpm-spec-family)
+			shift
+			tpm_spec_params+="--tpm-spec-family $1 "
+			;;
+		--tpm-spec-revision)
+			shift
+			tpm_spec_params+="--tpm-spec-revision $1 "
+			;;
+		--tpm-spec-level)
+			shift
+			tpm_spec_params+="--tpm-spec-level $1 "
 			;;
 		*)
 			logerr "Unsupported option $1"
@@ -413,7 +428,7 @@ main() {
 	CERTSERIAL=$(get_config_value "$LOCALCA_CONFIG" "certserial" \
 	    "${STATEDIR}/certserial")
 
-	create_cert "$typ" "$dir" "$ek" "$vmid"
+	create_cert "$typ" "$dir" "$ek" "$vmid" "$tpm_spec_params"
 
 	exit $?
 }
