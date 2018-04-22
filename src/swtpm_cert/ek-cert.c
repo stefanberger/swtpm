@@ -577,8 +577,8 @@ main(int argc, char *argv[])
     char *platf_model = NULL;
     bool add_header = false;
     char *spec_family = NULL;
-    long int spec_level = 0;
-    long int spec_revision = 0;
+    long int spec_level = ~0;
+    long int spec_revision = ~0;
 
     i = 1;
     while (i < argc) {
@@ -811,6 +811,14 @@ main(int argc, char *argv[])
         }
         break;
     case CERT_TYPE_EK:
+        if (spec_family == NULL ||
+            spec_level == ~0 ||
+            spec_revision == ~0) {
+            fprintf(stderr, "--tpm-spec-family and --tpm-spec-level and "
+                            "--tpm-spec-revision must all be provided\n");
+            goto cleanup;
+        }
+        break;
     case CERT_TYPE_AIK:
         break;
     }
@@ -1021,13 +1029,11 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     /* 3.5.11 Subject Directory Attributes */
     switch (certtype) {
     case CERT_TYPE_EK:
-        if (spec_family) {
-            err = create_tpm_specification_info(spec_family, spec_level,
-                                                spec_revision, &datum);
-            if (err) {
-                fprintf(stderr, "Could not create TPMSpecification\n");
-                goto cleanup;
-            }
+        err = create_tpm_specification_info(spec_family, spec_level,
+                                            spec_revision, &datum);
+        if (err) {
+            fprintf(stderr, "Could not create TPMSpecification\n");
+            goto cleanup;
         }
         break;
     case CERT_TYPE_PLATFORM:
