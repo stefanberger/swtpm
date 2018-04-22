@@ -14,7 +14,7 @@ CMD_PATH=$TPMDIR/cmd
 RESP_PATH=$TPMDIR/resp
 VOLATILESTATE=$TPMDIR/volatile
 
-source ${DIR}/test_common
+source ${DIR}/common
 
 trap "cleanup" SIGTERM EXIT
 
