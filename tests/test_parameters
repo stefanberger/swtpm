@@ -54,6 +54,7 @@ fi
 
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
+SWTPM_IOCTL=${SWTPM_IOCTL:-$ROOT/src/swtpm_ioctl/swtpm_ioctl}
 TCSD=`type -P tcsd`
 TPMDIR=`mktemp -d`
 SWTPM_SETUP_CONF=$ROOT/etc/swtpm_setup.conf
@@ -94,6 +95,7 @@ for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 	$TPMAUTHORING \
 		--tpm-state $TPMDIR \
 		--tpm "$SWTPM_EXE socket" \
+		--swtpm_ioctl "$SWTPM_IOCTL" \
 		${PARAMETERS[$i]} 2>&1 >/dev/null
 	
 	if [ $? -ne 0 ]; then

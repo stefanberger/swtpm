@@ -64,6 +64,7 @@ const char *one_arg_params[] = {
     "--logfile",
     "--keyfile",
     "--pwdfile",
+    "--swtpm_ioctl",
     NULL
 };
 

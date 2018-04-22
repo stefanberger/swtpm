@@ -12,6 +12,7 @@ ROOT=${DIR}/..
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
 SWTPM=${ROOT}/src/swtpm/swtpm
+SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
 
 workdir=$(mktemp -d)
 
@@ -61,7 +62,8 @@ $SWTPM_SETUP \
 	--create-ek-cert \
 	--config ${workdir}/swtpm_setup.conf \
 	--logfile ${workdir}/logfile \
-	--tpm "${SWTPM} socket"
+	--tpm "${SWTPM} socket" \
+	--swtpm_ioctl ${SWTPM_IOCTL}
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."

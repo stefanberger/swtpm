@@ -54,6 +54,7 @@ if [ -z "$TCSD" ]; then
     echo "Error: tcsd program not found. (PATH=$PATH)"
     exit 1
 fi
+SWTPM_IOCTL=`type -P swtpm_ioctl`
 
 ECHO=`which echo`
 if [ -z "$ECHO" ]; then
@@ -90,6 +91,8 @@ TPM_NV_INDEX_LOCK=$((0xFFFFFFFF))
 # Default logging goes to stderr
 LOGFILE=""
 
+TPMLIB_INFO_TPMSPECIFICATION=1
+
 trap "cleanup" SIGTERM EXIT
 
 logit()
@@ -119,6 +122,40 @@ logerr()
 	fi
 }
 
+# Get the TPM specification parameters from the TPM using swtpm_ioctl
+get_tpm_spec_parameters()
+{
+	local json
+	local res part arr
+
+	json="$($SWTPM_IOCTL \
+		--info $TPMLIB_INFO_TPMSPECIFICATION \
+		--tcp :$((TPM_PORT+1)) 2>&1)"
+	if [ $? -ne 0 ]; then
+		logerr "Error: $SWTPM_IOCTL failed: $json"
+		return 1
+	fi
+
+	for params in \
+		's/.*"family":\s*"\([^"]*\)".*/\1/p --tpm-spec-family' \
+		's/.*"level":\s*\([0-9\.]*\).*/\1/p --tpm-spec-level' \
+		's/.*"revision":\s*\([0-9]*\).*/\1/p --tpm-spec-revision';
+	do
+		arr=($params)
+		part=$(echo "$json" | sed -n "${arr[0]}")
+		if [ -z "$part" ]; then
+			logerr "Error: Could not parse JSON output"
+			logerr "       No result from \"echo '$json' | sed -n '${arr[0]}'\""
+			return 1
+		fi
+		res+="${arr[1]} ${part} "
+	done
+
+	echo "${res}"
+
+	return 0
+}
+
 # Call external program to create certificates
 #
 # @param1: flags
@@ -146,6 +183,9 @@ call_create_certs()
 	if [ -n "$LOGFILE" ]; then
 		logparam="--logfile $LOGFILE"
 	fi
+
+	params+="$(get_tpm_spec_parameters) "
+	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] || \
 	   [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ]; then
@@ -230,12 +270,17 @@ start_tpm()
 		# skip used ports
 		if [ -n "$(netstat -lnpt 2>/dev/null |
 		         gawk '{print $4}' |
-		         grep ":${TPM_PORT} ")" ]; then
+		         grep -E ":(${TPM_PORT}|$((TPM_PORT+1))) ")" ]; then
 			let ctr=$ctr+1
 			continue
 		fi
 
-		$swtpm --flags not-need-init -p $TPM_PORT --tpmstate dir=$swtpm_state 2>&1 1>/dev/null &
+		$swtpm \
+			--flags not-need-init \
+			-p $TPM_PORT \
+			--tpmstate dir=$swtpm_state \
+			--ctrl type=tcp,port=$((TPM_PORT+1)) \
+			2>&1 1>/dev/null &
 		SWTPM_PID=$!
 
 		# poll for open port (good) or the process to have
@@ -734,6 +779,10 @@ The following options are supported:
                  : Path to the TPM executable; this is an optional argument and
                    by default $SWTPM is used.
 
+--swtpm_ioctl <executable>
+                 : Path to the swtpm_ioctl executable; this is an optional
+                   argument and by default $SWTPM_IOCTL is used.
+
 --createek       : Create the EK
 
 --take-ownership : Take ownership; this option implies --createek
@@ -801,6 +850,7 @@ main()
 		case "$1" in
 		--tpm-state|--tpmstate) shift; tpm_state_path="$1";;
 		--tpm) shift; SWTPM="$1";;
+		--swtpm_ioctl) shift; SWTPM_IOCTL="$1";;
 		--createek) flags=$((flags | SETUP_CREATE_EK_F));;
 		--take-ownership) flags=$((flags |
 		                   SETUP_CREATE_EK_F|SETUP_TAKEOWN_F));;
@@ -903,6 +953,16 @@ main()
 
 	if [ ! -x "$TCSD" ]; then
 		logerr "TSS at $TCSD is not an executable."
+		exit 1
+	fi
+
+	if [ -z "$SWTPM_IOCTL" ]; then
+		logerr "Default 'swtpm_ioctl' could not be found and was not provided using --swtpm_ioctl."
+		exit 1
+	fi
+
+	if [ ! -x "$(echo $SWTPM_IOCTL | cut -d " " -f1)" ]; then
+		logerr "swtpm_ioctl at $SWTPM_IOCTL is not an executable."
 		exit 1
 	fi
 

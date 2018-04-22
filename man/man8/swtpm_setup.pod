@@ -112,6 +112,11 @@ Optional VM ID that can be used to keep track of certificates issued
 for VMs (or containers). This parameter will be passed through to the tool
 used for creating the certificates and may be required by that tool.
 
+=item B<--swtpm_ioctl <executable>>
+
+Pass the path to the swtpm_ioctl executable. By default the swtpm_ioctl
+in the PATH is used.
+
 =item B<--help, -h>
 
 Display the help screen

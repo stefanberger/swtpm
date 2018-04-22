@@ -59,6 +59,11 @@ The options file to use. This file typically contains options that the
 invoked program uses. If omitted, the program must use its default
 options file.
 
+=item B<--tpm-spec-family <family>>, B<--tpm-spec-level <level>>, B<--tpm-spec-revision <revision>>
+
+These 3 options describe the TPM specification that was followed for
+the implementation of the TPM and will be part of the EK certificate.
+
 =back
 
 =item B<create_certs_tool_config>
