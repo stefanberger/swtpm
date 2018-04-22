@@ -475,11 +475,16 @@ int ctrlchannel_process_fd(int fd,
     ptm_setstate *pss;
     ptm_loc *pl;
     ptm_setbuffersize *psbs;
+    ptm_getinfo *pgi;
 
     size_t out_len = 0;
     TPM_RESULT res;
     uint32_t remain;
     uint32_t buffersize, maxsize, minsize;
+    uint64_t info_flags;
+    uint32_t offset;
+    char *info_data = NULL;
+    size_t length;
 
     if (fd < 0)
         return -1;
@@ -515,7 +520,8 @@ int ctrlchannel_process_fd(int fd,
 #ifndef __CYGWIN__
             PTM_CAP_SET_DATAFD |
 #endif
-            PTM_CAP_SET_BUFFERSIZE
+            PTM_CAP_SET_BUFFERSIZE |
+            PTM_CAP_GET_INFO
             );
 
         out_len = sizeof(*ptm_caps);
@@ -795,6 +801,37 @@ int ctrlchannel_process_fd(int fd,
 
         break;
 
+    case CMD_GET_INFO:
+        pgi = (ptm_getinfo *)input.body;
+        if (n < (ssize_t)sizeof(pgi->u.req)) /* rw */
+            goto err_bad_input;
+
+        info_flags = be64toh(pgi->u.req.flags);
+
+        info_data = TPMLIB_GetInfo(info_flags);
+        if (!info_data)
+            goto err_memory;
+
+        offset = be32toh(pgi->u.req.offset);
+        if (offset >= strlen(info_data)) {
+            free(info_data);
+            goto err_bad_input;
+        }
+
+        length = min(strlen(info_data) + 1 - offset,
+                     sizeof(pgi->u.resp.buffer));
+
+        pgi = (ptm_getinfo *)&output.body;
+        pgi->u.resp.tpm_result = htobe32(0);
+        pgi->u.resp.totlength = htobe32(strlen(info_data) + 1);
+        pgi->u.resp.length = htobe32(length);
+        strncpy(pgi->u.resp.buffer, &info_data[offset], length);
+        free(info_data);
+
+        out_len = offsetof(ptm_getinfo, u.resp.buffer) + length;
+
+        break;
+
     default:
         logprintf(STDERR_FILENO,
                   "Error: Unknown command: 0x%08x\n", be32toh(input.cmd));
@@ -836,6 +873,12 @@ err_not_running:
 
 err_io:
     *res_p = htobe32(TPM_IOERROR);
+    out_len = sizeof(ptm_res);
+
+    goto send_resp;
+
+err_memory:
+    *res_p = htobe32(TPM_SIZE);
     out_len = sizeof(ptm_res);
 
     goto send_resp;

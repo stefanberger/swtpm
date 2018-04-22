@@ -58,9 +58,9 @@ PID="$(cat $PID_FILE)"
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
 if [[ "$(uname -s)" =~ (Linux|OpenBSD) ]]; then
-	exp=" 00 00 00 00 00 00 3f ff"
+	exp=" 00 00 00 00 00 00 7f ff"
 else
-	exp=" 00 00 00 00 00 00 2f ff"
+	exp=" 00 00 00 00 00 00 6f ff"
 fi
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
@@ -173,9 +173,9 @@ swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
 if [[ "$(uname -s)" =~ (Linux|OpenBSD) ]]; then
-	exp=" 00 00 00 00 00 00 3f ff"
+	exp=" 00 00 00 00 00 00 7f ff"
 else
-	exp=" 00 00 00 00 00 00 2f ff"
+	exp=" 00 00 00 00 00 00 6f ff"
 fi
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_CAPABILITY:"

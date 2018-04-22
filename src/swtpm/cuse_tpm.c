@@ -1209,6 +1209,39 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         }
         break;
 
+    case PTM_GET_INFO:
+        if (out_bufsz != sizeof(ptm_getinfo)) {
+            struct iovec iov = { arg, sizeof(uint32_t) };
+            fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
+        } else {
+            ptm_getinfo *in_pgi = (ptm_getinfo *)in_buf;
+            ptm_getinfo out_pgi;
+            char *info_data;
+            uint32_t length, offset;
+
+            info_data = TPMLIB_GetInfo(in_pgi->u.req.flags);
+            if (!info_data)
+                goto error_memory;
+
+            offset = in_pgi->u.req.offset;
+            if (offset >= strlen(info_data)) {
+                free(info_data);
+                goto error_bad_input;
+            }
+
+            length = min(strlen(info_data) + 1 - offset,
+                         sizeof(out_pgi.u.resp.buffer));
+
+            out_pgi.u.resp.tpm_result = 0;
+            out_pgi.u.resp.totlength = strlen(info_data) + 1;
+            out_pgi.u.resp.length = length;
+            strncpy(out_pgi.u.resp.buffer, &info_data[offset], length);
+            free(info_data);
+
+            fuse_reply_ioctl(req, 0, &out_pgi, sizeof(out_pgi));
+        }
+        break;
+
     default:
         fuse_reply_err(req, EINVAL);
     }
@@ -1225,9 +1258,21 @@ cleanup:
 
     return;
 
+error_bad_input:
+    res = TPM_BAD_PARAMETER;
+    fuse_reply_ioctl(req, 0, &res, sizeof(res));
+
+    goto cleanup;
+
 error_running:
 error_not_running:
     res = TPM_BAD_ORDINAL;
+    fuse_reply_ioctl(req, 0, &res, sizeof(res));
+
+    goto cleanup;
+
+error_memory:
+    res = TPM_SIZE;
     fuse_reply_ioctl(req, 0, &res, sizeof(res));
 
     goto cleanup;

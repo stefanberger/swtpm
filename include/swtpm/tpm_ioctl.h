@@ -191,6 +191,30 @@ struct ptm_setbuffersize {
     } u;
 };
 
+#define PTM_GETINFO_SIZE (3 * 1024)
+/*
+ * PTM_GET_INFO: Get info about the TPM implementation (from libtpms)
+ *
+ * This request allows to indirectly call TPMLIB_GetInfo(flags) and
+ * retrieve information from libtpms.
+ * Only one transaction is currently necessary for returning results
+ * to a client. Therefore, totlength and length will be the same if
+ * offset is 0.
+ */
+struct ptm_getinfo {
+    union {
+        struct {
+            uint64_t flags;
+            uint32_t offset;      /* offset from where to read */
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+            uint32_t totlength;
+            uint32_t length;
+            char buffer[PTM_GETINFO_SIZE];
+        } resp; /* response */
+    } u;
+};
 
 typedef uint64_t ptm_cap;
 typedef struct ptm_est ptm_est;
@@ -202,6 +226,7 @@ typedef struct ptm_getstate ptm_getstate;
 typedef struct ptm_setstate ptm_setstate;
 typedef struct ptm_getconfig ptm_getconfig;
 typedef struct ptm_setbuffersize ptm_setbuffersize;
+typedef struct ptm_getinfo ptm_getinfo;
 
 /* capability flags returned by PTM_GET_CAPABILITY */
 #define PTM_CAP_INIT               (1)
@@ -218,6 +243,7 @@ typedef struct ptm_setbuffersize ptm_setbuffersize;
 #define PTM_CAP_GET_CONFIG         (1 << 11)
 #define PTM_CAP_SET_DATAFD         (1 << 12)
 #define PTM_CAP_SET_BUFFERSIZE     (1 << 13)
+#define PTM_CAP_GET_INFO           (1 << 14)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
@@ -237,6 +263,7 @@ enum {
     PTM_GET_CONFIG         = _IOR('P', 14, ptm_getconfig),
     PTM_SET_DATAFD         = _IOR('P', 15, ptm_res),
     PTM_SET_BUFFERSIZE     = _IOWR('P', 16, ptm_setbuffersize),
+    PTM_GET_INFO           = _IOWR('P', 17, ptm_getinfo),
 };
 
 /*
@@ -267,6 +294,7 @@ enum {
     CMD_GET_CONFIG,           /* 0x0f */
     CMD_SET_DATAFD,           /* 0x10 */
     CMD_SET_BUFFERSIZE,       /* 0x11 */
+    CMD_GET_INFO,             /* 0x12 */
 };
 
 #endif /* _TPM_IOCTL_H */
