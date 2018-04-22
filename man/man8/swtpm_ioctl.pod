@@ -114,6 +114,12 @@ be issued.
 Get configuration flags that for example indicate which keys (file encryption
 or migration key) are in use by the TPM.
 
+=item B<--info E<lt>flagE<gt>>
+
+Get information about the TPM implementation in JSON format. The flag
+<TPMLIB_INFO_TPMSPECIFICATION>, which has the value 1, returns information
+about the specification the TPM implementation followed.
+
 =back
 
 =head1 SEE ALSO

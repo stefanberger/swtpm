@@ -801,6 +801,8 @@ static void usage(const char *prgname)
 "                        use\n"
 "-b <buffersize>       : set the buffer size of the TPM and get its current\n"
 "                        size; get minimum and maximum supported sizes\n"
+"--info <flags>        : get TPM implementation specific information;\n"
+"                        flags must be an interger value\n"
 "--version             : display version and exit\n"
 "--help                : display help screen and exit\n"
 "\n"
@@ -818,6 +820,7 @@ int main(int argc, char *argv[])
     ptm_init init;
     ptm_getconfig cfg;
     ptm_setbuffersize psbs;
+    ptm_getinfo pgi;
     char *tmp;
     size_t buffersize = 0;
     static struct option long_options[] = {
@@ -839,6 +842,7 @@ int main(int argc, char *argv[])
         {"save", required_argument, NULL, 'S'},
         {"load", required_argument, NULL, 'L'},
         {"version", no_argument, NULL, 'V'},
+        {"info", required_argument, NULL, 'I'},
         {"help", no_argument, NULL, 'H'},
         {NULL, 0, NULL, 0},
     };
@@ -851,6 +855,8 @@ int main(int argc, char *argv[])
     unsigned int tpmbuffersize = 0;
     int tcp_port = -1;
     bool is_chardev;
+    unsigned long int info_flags = 0;
+    char *endptr = NULL;
 
     while ((opt = getopt_long_only(argc, argv, "", long_options,
                                    &option_index)) != -1) {
@@ -921,6 +927,15 @@ int main(int argc, char *argv[])
             if (sscanf(argv[optind - 1], "%u", &tpmbuffersize) != 1) {
                 fprintf(stderr, "Could not get buffersize from %s.\n",
                         argv[optind - 1]);
+                return EXIT_FAILURE;
+            }
+            break;
+        case 'I':
+            command = argv[optind - 2];
+            errno = 0;
+            info_flags = strtoul(argv[optind - 1], &endptr, 0);
+            if (errno || endptr[0] != '\0') {
+                fprintf(stderr, "Cannot parse info flags.\n");
                 return EXIT_FAILURE;
             }
             break;
@@ -1159,6 +1174,24 @@ int main(int argc, char *argv[])
                devtoh32(is_chardev, psbs.u.resp.buffersize),
                devtoh32(is_chardev, psbs.u.resp.minsize),
                devtoh32(is_chardev, psbs.u.resp.maxsize));
+    } else if (!strcmp(command, "--info")) {
+        pgi.u.req.flags = htodev64(is_chardev, info_flags);
+        pgi.u.req.offset = htodev64(is_chardev, 0);
+        n = ctrlcmd(fd, PTM_GET_INFO, &pgi,
+                    sizeof(pgi.u.req), sizeof(pgi.u.resp));
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not execute PTM_GET_INFO: %s\n",
+                    strerror(errno));
+            return EXIT_FAILURE;
+        }
+        res = devtoh32(is_chardev, pgi.u.resp.tpm_result);
+        if (res != 0) {
+            fprintf(stderr,
+                    "TPM result from PTM_GET_INFO: 0x%x\n", res);
+            return EXIT_FAILURE;
+        }
+        printf("%s\n", pgi.u.resp.buffer);
     } else {
         usage(argv[0]);
         return EXIT_FAILURE;
