@@ -184,7 +184,7 @@ call_create_certs()
 		logparam="--logfile $LOGFILE"
 	fi
 
-	params+="$(get_tpm_spec_parameters) "
+	params="${params} $(get_tpm_spec_parameters)"
 	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] || \
