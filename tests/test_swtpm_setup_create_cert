@@ -55,6 +55,9 @@ create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=${workdir}/swtpm-localca.options
 _EOF_
 
+# We need to adapt the PATH so the correct swtpm_cert is picked
+export PATH=${ROOT}/src/swtpm_cert:${PATH}
+
 # we need to create at least one cert: --create-ek-cert
 $SWTPM_SETUP \
 	--runas root \
