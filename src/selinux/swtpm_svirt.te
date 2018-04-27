@@ -6,7 +6,7 @@ require {
 	type virtd_t;
 	type user_tmp_t;
 
-	class file { entrypoint };
+	class file { entrypoint map execute read };
 	class process sigchld;
 	class fifo_file write;
 	class sock_file { create setattr };
@@ -16,4 +16,4 @@ require {
 allow svirt_t virtd_t:fifo_file write;
 allow svirt_t virtd_t:process sigchld;
 allow svirt_t user_tmp_t:sock_file { create setattr };
-allow svirt_t swtpm_exec_t:file entrypoint;
+allow svirt_t swtpm_exec_t:file { entrypoint map execute read };
