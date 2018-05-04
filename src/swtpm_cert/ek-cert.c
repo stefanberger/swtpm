@@ -186,6 +186,22 @@ hex_str_to_bin(const char *hexstr, int *modulus_len)
     return result;
 }
 
+static size_t
+calc_twos_complement(unsigned int number,
+                     unsigned char *twoscomp, size_t twoscomp_len)
+{
+    size_t i = 0;
+
+    twoscomp[i++] = 0;
+
+    do {
+        twoscomp[i++] = (number & 0xff);
+        number >>= 8;
+    } while (number && i < twoscomp_len);
+
+    return i;
+}
+
 static gnutls_pubkey_t
 create_rsa_from_modulus(unsigned char *modulus, unsigned int modulus_len,
                         uint32_t exponent)
@@ -477,6 +493,8 @@ create_tpm_specification_info(const char *spec_family,
 {
     ASN1_TYPE at = ASN1_TYPE_EMPTY;
     int err;
+    unsigned char twoscomp[5];
+    size_t twoscomp_len;
 
     err = asn_init();
     if (err != ASN1_SUCCESS) {
@@ -503,17 +521,21 @@ create_tpm_specification_info(const char *spec_family,
         goto cleanup;
     }
 
+    twoscomp_len = calc_twos_complement(spec_level, twoscomp, sizeof(twoscomp));
+
     err = asn1_write_value(at,
         "tpmSpecificationSeq.tpmSpecificationSet.tpmSpecification.level",
-        &spec_level, sizeof(spec_level));
+        twoscomp, twoscomp_len);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "c1d. asn1_write_value error: %d\n", err);
         goto cleanup;
     }
 
+    twoscomp_len = calc_twos_complement(spec_revision, twoscomp, sizeof(twoscomp));
+
     err = asn1_write_value(at,
         "tpmSpecificationSeq.tpmSpecificationSet.tpmSpecification.revision",
-        &spec_revision, sizeof(spec_revision));
+        twoscomp, twoscomp_len);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "c1e. asn1_write_value error: %d\n", err);
         goto cleanup;
