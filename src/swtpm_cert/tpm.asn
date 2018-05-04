@@ -18,6 +18,10 @@ tcg-at-platformModel OBJECT IDENTIFIER ::= {tcg-attribute 5}
 tcg-at-platformVersion OBJECT IDENTIFIER ::= {tcg-attribute 6}
 tcg-at-tpmSpecification OBJECT IDENTIFIER ::= {tcg-attribute 16}
 
+tcg-kp-EKCertificate OBJECT IDENTIFIER ::= {
+  joint-iso-itu-t(2) international-organizations(23) tcg(133) kp(8) 1
+}
+
 TPMSpecificationInfo ::= SEQUENCE {
   tpmSpecificationSeq TPMSpecificationSeq
 }
@@ -101,6 +105,10 @@ PlatformVersionSet ::= SET {
 PlatformVersion ::= SEQUENCE {
   id OBJECT IDENTIFIER,
   version UTF8String
+}
+
+TPMEKCertExtendedKeyUsage ::= SEQUENCE {
+  id OBJECT IDENTIFIER
 }
 
 END

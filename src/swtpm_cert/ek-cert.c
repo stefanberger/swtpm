@@ -536,6 +536,46 @@ create_tpm_specification_info(const char *spec_family,
     return err;
 }
 
+static int
+create_cert_extended_key_usage(const char *oid, gnutls_datum_t *asn1)
+{
+    ASN1_TYPE at = ASN1_TYPE_EMPTY;
+    int err;
+
+    err = asn_init();
+    if (err != ASN1_SUCCESS) {
+        goto cleanup;
+    }
+
+    err = asn1_create_element(_tpm_asn, "TPM.TPMEKCertExtendedKeyUsage", &at);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "asn1_create_element error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "id", oid, 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "d1. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = encode_asn1(asn1, at);
+
+#if 0
+    fprintf(stderr, "size=%d\n", asn1->size);
+    unsigned int i = 0;
+    for (i = 0; i < asn1->size; i++) {
+        fprintf(stderr, "%02x ", asn1->data[i]);
+    }
+    fprintf(stderr, "\n");
+#endif
+
+ cleanup:
+    asn1_delete_structure(&at);
+
+    return err;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1086,7 +1126,41 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     CHECK_GNUTLS_ERROR(err, "Could not set key usage id: %s\n",
                        gnutls_strerror(err))
 
-    /* 3.5.16 Extended Key Usage -- missing */
+    /* 3.5.16 Extended Key Usage */
+    oid = NULL;
+
+    switch (certtype) {
+    case CERT_TYPE_EK:
+        oid = "2.23.133.8.1";
+        break;
+    case CERT_TYPE_PLATFORM:
+        oid = "2.23.133.8.2";
+        break;
+    case CERT_TYPE_AIK:
+        break;
+    default:
+        fprintf(stderr, "Internal error: unhandled case in line %d\n",
+                __LINE__);
+        goto cleanup;
+    }
+
+    if (oid) {
+        err = create_cert_extended_key_usage(oid, &datum);
+        if (err) {
+            fprintf(stderr, "Could not create ASN.1 for extended key usage\n");
+            goto cleanup;
+        }
+
+        err = gnutls_x509_crt_set_extension_by_oid(crt,
+            GNUTLS_X509EXT_OID_EXTENDED_KEY_USAGE,
+            datum.data, datum.size, 0);
+        CHECK_GNUTLS_ERROR(err, "Could not set extended key usage by oid: %s\n",
+                           gnutls_strerror(err))
+
+        gnutls_free(datum.data);
+        datum.data = NULL;
+    }
+
     /* 3.5.17 Subject Key Id -- should not be included */
     /* 3.5.18 Issuer Alt. Name -- should not be included */
     /* 3.5.19 FreshestCRL -- should not be included */
