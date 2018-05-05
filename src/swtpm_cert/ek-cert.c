@@ -327,7 +327,7 @@ create_tpm_manufacturer_info(const char *manufacturer,
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "tpmModelSet.tpmModel.model", manufacturer, 0);
+    err = asn1_write_value(at, "tpmModelSet.tpmModel.model", tpm_model, 0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "4. asn1_write_value error: %d\n", err);
         goto cleanup;
@@ -346,7 +346,7 @@ create_tpm_manufacturer_info(const char *manufacturer,
         goto cleanup;
     }
 
-    err = asn1_write_value(at, "tpmVersionSet.tpmVersion.version", manufacturer, 0);
+    err = asn1_write_value(at, "tpmVersionSet.tpmVersion.version", tpm_version, 0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "6. asn1_write_value error: %d\n", err);
         goto cleanup;
