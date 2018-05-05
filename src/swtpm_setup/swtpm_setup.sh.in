@@ -92,6 +92,7 @@ TPM_NV_INDEX_LOCK=$((0xFFFFFFFF))
 LOGFILE=""
 
 TPMLIB_INFO_TPMSPECIFICATION=1
+TPMLIB_INFO_TPMATTRIBUTES=2
 
 trap "cleanup" SIGTERM EXIT
 
@@ -123,13 +124,14 @@ logerr()
 }
 
 # Get the TPM specification parameters from the TPM using swtpm_ioctl
-get_tpm_spec_parameters()
+get_tpm_parameters()
 {
 	local json
 	local res part arr
 
 	json="$($SWTPM_IOCTL \
-		--info $TPMLIB_INFO_TPMSPECIFICATION \
+		--info $((TPMLIB_INFO_TPMSPECIFICATION |
+		          TPMLIB_INFO_TPMATTRIBUTES)) \
 		--tcp :$((TPM_PORT+1)) 2>&1)"
 	if [ $? -ne 0 ]; then
 		logerr "Error: $SWTPM_IOCTL failed: $json"
@@ -139,7 +141,10 @@ get_tpm_spec_parameters()
 	for params in \
 		's/.*"family":\s*"\([^"]*\)".*/\1/p --tpm-spec-family' \
 		's/.*"level":\s*\([0-9\.]*\).*/\1/p --tpm-spec-level' \
-		's/.*"revision":\s*\([0-9]*\).*/\1/p --tpm-spec-revision';
+		's/.*"revision":\s*\([0-9]*\).*/\1/p --tpm-spec-revision' \
+		's/.*"manufacturer":\s*"\([^"]*\)".*/\1/p --tpm-manufacturer' \
+		's/.*"model":\s*"\([^"]*\)".*/\1/p --tpm-model' \
+		's/.*"version":\s*"\([^"]*\)".*/\1/p --tpm-version';
 	do
 		arr=($params)
 		part=$(echo "$json" | sed -n "${arr[0]}")
@@ -184,7 +189,7 @@ call_create_certs()
 		logparam="--logfile $LOGFILE"
 	fi
 
-	params="${params} $(get_tpm_spec_parameters)"
+	params="${params} $(get_tpm_parameters)"
 	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] || \
