@@ -469,7 +469,11 @@ cleanup:
 }
 
 static int
-create_platf_manufacturer_info(const char *manufacturer,
+create_tpm_and_platform_manuf_info(
+                               const char *tpm_manufacturer,
+                               const char *tpm_model,
+                               const char *tpm_version,
+                               const char *platf_manufacturer,
                                const char *platf_model,
                                const char *platf_version,
                                gnutls_datum_t *asn1)
@@ -482,9 +486,15 @@ create_platf_manufacturer_info(const char *manufacturer,
         goto cleanup;
     }
 
-    err = build_platf_manufacturer_info(&at, manufacturer,
+    err = build_tpm_manufacturer_info(&at, tpm_manufacturer,
+                                      tpm_model, tpm_version);
+    if (err != ASN1_SUCCESS) {
+        goto cleanup;
+    }
+
+    err = build_platf_manufacturer_info(&at, platf_manufacturer,
                                         platf_model, platf_version);
-    if (!err != ASN1_SUCCESS) {
+    if (err != ASN1_SUCCESS) {
         goto cleanup;
     }
 
@@ -980,6 +990,8 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     err = gnutls_x509_crt_import(sigcert, &datum, GNUTLS_X509_FMT_PEM);
     gnutls_free(datum.data);
     datum.data = NULL;
+    datum.size = 0;
+
     CHECK_GNUTLS_ERROR(err, "Could not import issuer certificate: %s\n",
                        gnutls_strerror(err));
 
@@ -1041,39 +1053,28 @@ if (_err != GNUTLS_E_SUCCESS) {             \
 
     /* 3.5.8 Certificate Policies -- skip since not mandated */
     /* 3.5.9 Subject Alternative Names -- missing code */
-    err = create_tpm_manufacturer_info(tpm_manufacturer, tpm_model,
-                                       tpm_version, &datum);
-    if (!err && datum.size > 0) {
-        /*
-         * GNUTLS's write_new_general_name can only handle a few GNUTLS_SAN_*
-         * -> we have to use GNUTLS_SAN_URI
-         */
-#if GNUTLS_VERSION_NUMBER < 0x030500
-        err = gnutls_x509_crt_set_subject_alt_name(crt,
-                                                   GNUTLS_SAN_URI,
-                                                   datum.data, datum.size,
-                                                   GNUTLS_FSAN_SET);
-#else
-        /* supported since GNUTLS 3.5.0 */
-        err = gnutls_x509_crt_set_subject_alt_othername(crt,
-                                                   "2.5.29.17",
-                                                   datum.data, datum.size,
-                                                   GNUTLS_FSAN_SET);
-#endif
-        CHECK_GNUTLS_ERROR(err, "Could not set subject alt name: %s\n",
-                           gnutls_strerror(err))
-    }
-    gnutls_free(datum.data);
-    datum.data = NULL;
-    datum.size = 0;
-
     switch (certtype) {
+    case CERT_TYPE_EK:
+        err = create_tpm_manufacturer_info(tpm_manufacturer, tpm_model,
+                                           tpm_version, &datum);
+        if (err) {
+            fprintf(stderr, "Could not create TPM manufacturer info");
+            goto cleanup;
+        }
+        break;
     case CERT_TYPE_PLATFORM:
-        err = create_platf_manufacturer_info(platf_manufacturer, platf_model,
-                                             platf_version, &datum);
+        err = create_tpm_and_platform_manuf_info(tpm_manufacturer, tpm_model,
+                                                 tpm_version,
+                                                 platf_manufacturer,
+                                                 platf_model, platf_version,
+                                                 &datum);
+        if (err) {
+            fprintf(stderr, "Could not create TPM and platform manufacturer "
+                    "info");
+            goto cleanup;
+        }
         break;
     case CERT_TYPE_AIK:
-    case CERT_TYPE_EK:
         break;
     default:
         fprintf(stderr, "Internal error: unhandle case in line %d\n",
@@ -1081,24 +1082,11 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         goto cleanup;
     }
 
-    if (!err && datum.size > 0) {
-        /*
-         * GNUTLS's write_new_general_name can only handle a few GNUTLS_SAN_*
-         * -> we have to use GNUTLS_SAN_URI
-         */
-#if GNUTLS_VERSION_NUMBER < 0x030500
-        err = gnutls_x509_crt_set_subject_alt_name(crt,
-                                                   GNUTLS_SAN_URI,
+    if (datum.size > 0) {
+        err = gnutls_x509_crt_set_extension_by_oid(crt, GNUTLS_X509EXT_OID_SAN,
                                                    datum.data, datum.size,
-                                                   GNUTLS_FSAN_APPEND);
-#else
-        /* supported since GNUTLS 3.5.0 */
-        err = gnutls_x509_crt_set_subject_alt_othername(crt,
-                                                   "2.5.29.17",
-                                                   datum.data, datum.size,
-                                                   GNUTLS_FSAN_APPEND);
-#endif
-        CHECK_GNUTLS_ERROR(err, "Could not append to subject alt name: %s\n",
+                                                   1);
+        CHECK_GNUTLS_ERROR(err, "Could not set subject alt name: %s\n",
                            gnutls_strerror(err))
     }
     gnutls_free(datum.data);
