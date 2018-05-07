@@ -479,24 +479,87 @@ create_tpm_and_platform_manuf_info(
                                gnutls_datum_t *asn1)
 {
     ASN1_TYPE at = ASN1_TYPE_EMPTY;
+    ASN1_TYPE tpm_at = ASN1_TYPE_EMPTY;
+    ASN1_TYPE platf_at = ASN1_TYPE_EMPTY;
     int err;
+    gnutls_datum_t datum;
 
     err = asn_init();
     if (err != ASN1_SUCCESS) {
         goto cleanup;
     }
 
-    err = build_tpm_manufacturer_info(&at, tpm_manufacturer,
-                                      tpm_model, tpm_version);
+    err = asn1_create_element(_tpm_asn, "TPM.PlatformCertificateSAN", &at);
     if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d:  asn1_create_element error: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
         goto cleanup;
     }
 
-    err = build_platf_manufacturer_info(&at, platf_manufacturer,
-                                        platf_model, platf_version);
+    /* build the TPM manufacturer data */
+    err = build_tpm_manufacturer_info(&tpm_at, tpm_manufacturer,
+                                      tpm_model, tpm_version);
     if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d: Could not build TPM manufacturer info: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
         goto cleanup;
     }
+
+    err = encode_asn1(&datum, tpm_at);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d: Could not encode TPM data as ASN.1: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "", "NEW", 1);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d: Could not create a NEW element: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "?1", datum.data, datum.size);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d: Could not write 1st element: %s!\n",
+                __func__, __LINE__, asn1_strerror(err));
+        goto cleanup;
+    }
+    gnutls_free(datum.data);
+    datum.data = NULL;
+
+    /* build the platform manufacturer data */
+    err = build_platf_manufacturer_info(&platf_at, platf_manufacturer,
+                                        platf_model, platf_version);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d: Could not build platform manufacturer info: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
+        goto cleanup;
+    }
+
+    err = encode_asn1(&datum, platf_at);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d: Could not encode platform data as ASN.1: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "", "NEW", 1);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d: Could not create a NEW element: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "?2", datum.data, datum.size);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "%s: %d: Could not write 2nd element: %s!\n",
+                __func__, __LINE__, asn1_strerror(err));
+        goto cleanup;
+    }
+
+    gnutls_free(datum.data);
+    datum.data = NULL;
 
     err = encode_asn1(asn1, at);
 
@@ -510,6 +573,7 @@ create_tpm_and_platform_manuf_info(
 #endif
 
  cleanup:
+    gnutls_free(datum.data);
     asn1_delete_structure(&at);
 
     return err;

@@ -90,6 +90,8 @@ const asn1_static_node tpm_asn1_tab[] = {
   { "PlatformVersion", 1610612741, NULL },
   { "id", 1073741836, NULL },
   { "version", 34, NULL },
+  { "PlatformCertificateSAN", 1610612747, NULL },
+  { NULL, 13, NULL },
   { "TPMEKCertExtendedKeyUsage", 536870917, NULL },
   { "id", 12, NULL },
   { NULL, 0, NULL }

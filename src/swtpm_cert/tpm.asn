@@ -107,6 +107,8 @@ PlatformVersion ::= SEQUENCE {
   version UTF8String
 }
 
+PlatformCertificateSAN ::= SEQUENCE OF ANY
+
 TPMEKCertExtendedKeyUsage ::= SEQUENCE {
   id OBJECT IDENTIFIER
 }
