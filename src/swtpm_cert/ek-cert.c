@@ -121,7 +121,7 @@ usage(const char *prg)
         "--tpm-spec-level <level>       : Specification level (integer)\n"
         "--tpm-spec-revision <rev>      : Specification revision (integer)\n"
         "--subject <subject>       : Subject such as location in format\n"
-        "                            C=US,ST=NY,L=NewYork\n"
+        "                            C=US,ST=NY,L=NewYork; not used with TPM1.2\n"
         "--add-header              : Add the TCG certificate header describing\n"
         "                            a TCG_PCCLIENT_STORED_CERT for TPM1.2 NVRAM\n"
         "--version                 : Display version and exit\n"
@@ -1083,8 +1083,8 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     CHECK_GNUTLS_ERROR(err, "Could not set expiration time on CRT: %s\n",
                        gnutls_strerror(err))
 
-    /* 3.5.6 Subject -- should be empty, but we allow it anyway */
-    if (subject) {
+    /* 3.5.6 Subject -- must be empty for TPM 1.2 */
+    if (subject && false) {
         err = gnutls_x509_crt_set_dn(crt, subject, &error);
         CHECK_GNUTLS_ERROR(err,
                            "Could not set DN on CRT: %s\n"
