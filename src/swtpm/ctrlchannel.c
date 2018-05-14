@@ -822,7 +822,8 @@ int ctrlchannel_process_fd(int fd,
         pgi->u.resp.tpm_result = htobe32(0);
         pgi->u.resp.totlength = htobe32(strlen(info_data) + 1);
         pgi->u.resp.length = htobe32(length);
-        strncpy(pgi->u.resp.buffer, &info_data[offset], length);
+        /* client has to collect whole string in case buffer is too small */
+        memcpy(pgi->u.resp.buffer, &info_data[offset], length);
         free(info_data);
 
         out_len = offsetof(ptm_getinfo, u.resp.buffer) + length;

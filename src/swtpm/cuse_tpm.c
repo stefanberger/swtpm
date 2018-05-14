@@ -1226,7 +1226,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             out_pgi.u.resp.tpm_result = 0;
             out_pgi.u.resp.totlength = strlen(info_data) + 1;
             out_pgi.u.resp.length = length;
-            strncpy(out_pgi.u.resp.buffer, &info_data[offset], length);
+            /* client has to collect whole string in case buffer is too small */
+            memcpy(out_pgi.u.resp.buffer, &info_data[offset], length);
             free(info_data);
 
             fuse_reply_ioctl(req, 0, &out_pgi, sizeof(out_pgi));
