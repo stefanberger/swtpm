@@ -473,7 +473,8 @@ parse_pid_options(char *options, char **pidfile, int *pidfilefd)
 
 error:
     option_values_free(ovs);
-    close(*pidfilefd);
+    if (*pidfilefd >= 0)
+        close(*pidfilefd);
 
     return -1;
 }
