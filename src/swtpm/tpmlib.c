@@ -309,19 +309,15 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer,
 
 #endif /* WITH_VTPM_PROXY */
 
-/* validate_blob calls libtpms to ensure that it can use the
-   state blobs once we invoke TPM_INIT. This is useful to
-   be able to fail TPM state migration early.
- */
-TPM_RESULT tpmlib_validate_blob(uint32_t blobtype)
+enum TPMLIB_StateType tpmlib_blobtype_to_statetype(uint32_t blobtype)
 {
     switch (blobtype) {
     case PTM_BLOB_TYPE_PERMANENT:
-        return TPMLIB_ValidateState(TPMLIB_STATE_PERMANENT, 0);
+        return TPMLIB_STATE_PERMANENT;
     case PTM_BLOB_TYPE_VOLATILE:
-        return TPMLIB_ValidateState(TPMLIB_STATE_VOLATILE, 0);
+        return TPMLIB_STATE_VOLATILE;
     case PTM_BLOB_TYPE_SAVESTATE:
-        return TPMLIB_ValidateState(TPMLIB_STATE_SAVE_STATE, 0);
+        return TPMLIB_STATE_SAVE_STATE;
     }
-    return TPM_FAIL;
+    return 0;
 }

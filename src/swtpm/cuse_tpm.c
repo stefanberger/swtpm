@@ -602,7 +602,6 @@ ptm_set_stateblob_append(uint32_t blobtype,
                          const unsigned char *data, uint32_t length,
                          bool is_encrypted, bool is_last)
 {
-    const char *blobname;
     TPM_RESULT res = 0;
     static struct stateblob stateblob;
 
@@ -641,20 +640,12 @@ ptm_set_stateblob_append(uint32_t blobtype,
         /* full packet -- expecting more data */
         return res;
     }
-    blobname = tpmlib_get_blobname(blobtype);
 
-    if (blobname) {
-        res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
-                                       stateblob.length,
-                                       stateblob.is_encrypted,
-                                       0 /* tpm_number */,
-                                       blobname);
-        if (res == TPM_SUCCESS && stateblob.length)
-            res = tpmlib_validate_blob(blobtype);
-    } else {
-        res = TPM_BAD_PARAMETER;
-    }
-
+    res = SWTPM_NVRAM_SetStateBlob(stateblob.data,
+                                   stateblob.length,
+                                   stateblob.is_encrypted,
+                                   0 /* tpm_number */,
+                                   blobtype);
 
     TPM_Free(stateblob.data);
     stateblob.data = NULL;

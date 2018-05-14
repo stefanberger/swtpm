@@ -232,14 +232,6 @@ if [ $? -eq 0 ]; then
 	exit 1
 fi
 
-# Now init the TPM; this must fail since the volatile state does not
-# match with the integrity hash it is expecting to find
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
-if [ $? -eq 0 ]; then
-	echo "Error: Initializing the ${SWTPM_INTERFACE} TPM should have failed."
-	exit 1
-fi
-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."

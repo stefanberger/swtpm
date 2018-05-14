@@ -44,6 +44,7 @@
 #include <libtpms/tpm_library.h>
 
 const char *tpmlib_get_blobname(uint32_t blobtype);
+enum TPMLIB_StateType tpmlib_blobtype_to_statetype(uint32_t blobtype);
 TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs);
 TPM_RESULT tpmlib_start(uint32_t flags);
 int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
@@ -66,7 +67,6 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer, uint32_t *rlength,
                           uint32_t locality_flags,
                           TPM_MODIFIER_INDICATOR *locality);
 
-TPM_RESULT tpmlib_validate_blob(uint32_t blobtype);
 
 struct tpm_req_header {
     uint16_t tag;

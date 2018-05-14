@@ -89,7 +89,7 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                     uint32_t length,
                                     TPM_BOOL is_encrypted,
                                     uint32_t tpm_number,
-                                    const char *name);
+                                    uint32_t blobtype);
 
 TPM_BOOL SWTPM_NVRAM_Has_FileKey(void);
 TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void);

@@ -81,6 +81,7 @@
 #include "key.h"
 #include "logging.h"
 #include "tpmstate.h"
+#include "tpmlib.h"
 
 /* local structures */
 typedef struct {
@@ -901,24 +902,31 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                     uint32_t length,
                                     TPM_BOOL is_encrypted,
                                     uint32_t tpm_number,
-                                    const char *name)
+                                    uint32_t blobtype)
 {
-    TPM_BOOL encrypt = !is_encrypted;
     TPM_RESULT res;
     uint32_t dataoffset;
-    unsigned char *plain = NULL;
-    uint32_t plain_len = 0;
+    unsigned char *plain = NULL, *mig_decrypt = NULL;
+    uint32_t plain_len = 0, mig_decrypt_len = 0;
     uint16_t hdrflags;
+    enum TPMLIB_StateType st = tpmlib_blobtype_to_statetype(blobtype);
+    const char *blobname = tpmlib_get_blobname(blobtype);
 
-    if (length == 0) {
-        /* with 0 bytes length we delete any existing file */
-        SWTPM_NVRAM_DeleteName(tpm_number, name, FALSE);
-        return TPM_SUCCESS;
+    if (st == 0) {
+        logprintf(STDERR_FILENO,
+                  "Unknown blob type %u\n", blobtype);
+        return TPM_BAD_PARAMETER;
     }
+
+    if (length == 0)
+        return TPMLIB_SetState(st, NULL, 0);
 
     res = SWTPM_NVRAM_CheckHeader(data, length, &dataoffset, &hdrflags);
     if (res != TPM_SUCCESS)
         return res;
+
+    if (length - dataoffset == 0)
+        return TPMLIB_SetState(st, NULL, 0);
 
     /*
      * We allow setting of blobs that were not encrypted before;
@@ -926,27 +934,65 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
      * set. This allows to 'upgrade' to encryption. 'Downgrading'
      * will not be possible once a migration key was used.
      */
-    if ((hdrflags & BLOB_FLAG_MIGRATION_ENCRYPTED) && migrationkey.symkey.valid) {
-         /*
-          * we first need to decrypt the data with the migration key
-          */
-         res = SWTPM_NVRAM_DecryptData(&migrationkey,
-                                       &plain, &plain_len,
-                                       &data[dataoffset], length - dataoffset);
-         if (res != 0)
+    if ((hdrflags & BLOB_FLAG_MIGRATION_ENCRYPTED)) {
+        /*
+         * we first need to decrypt the data with the migration key
+         */
+        if (!SWTPM_NVRAM_Has_MigrationKey()) {
             logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_LoadData: Decrypting the state blob "
-                      "failed res = %d\n", res);
-         if (res == TPM_SUCCESS) {
-             res = SWTPM_NVRAM_StoreData_Intern(plain, plain_len,
-                                                tpm_number,
-                                                name,
-                                                encrypt);
-             TPM_Free(plain);
-         }
-         return res;
+                      "Missing migration key to decrypt %s\n", blobname);
+            return TPM_KEYNOTFOUND;
+        }
+
+        res = SWTPM_NVRAM_DecryptData(&migrationkey,
+                                      &mig_decrypt, &mig_decrypt_len,
+                                      &data[dataoffset], length - dataoffset);
+        if (res != 0) {
+            logprintf(STDERR_FILENO,
+                      "Decrypting the %s blob with the migration key failed; "
+                      "res = %d\n", blobname, res);
+            return res;
+        }
+    } else {
+        mig_decrypt = &data[dataoffset];
+        mig_decrypt_len = length - dataoffset;
     }
 
-    return SWTPM_NVRAM_StoreData_Intern(&data[dataoffset], length - dataoffset,
-                                        tpm_number, name, encrypt);
+    /*
+     * Migration key has decrytped the data; if they are still encrypted
+     * with the state encryption key, we need to decrypt them using that
+     * key now.
+     */
+    if (is_encrypted) {
+        if (!SWTPM_NVRAM_Has_FileKey()) {
+            logprintf(STDERR_FILENO,
+                      "Missing state key to decrypt %s\n", blobname);
+            res = TPM_KEYNOTFOUND;
+            goto cleanup;
+        }
+        res = SWTPM_NVRAM_DecryptData(&filekey,
+                                      &plain, &plain_len,
+                                      mig_decrypt, mig_decrypt_len);
+        if (res != 0) {
+            logprintf(STDERR_FILENO,
+                      "Decrypting the %s blob with the state key "
+                      "failed; res = %d\n", blobname, res);
+            goto cleanup;
+        }
+    } else {
+        plain_len = mig_decrypt_len;
+        plain = mig_decrypt;
+    }
+
+    /* SetState will make a copy of the buffer */
+    res = TPMLIB_SetState(st, plain, plain_len);
+
+    if (plain != mig_decrypt)
+        TPM_Free(plain);
+
+cleanup:
+    if (mig_decrypt != &data[dataoffset])
+        TPM_Free(mig_decrypt);
+
+    return res;
 }

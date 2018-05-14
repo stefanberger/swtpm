@@ -199,7 +199,6 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
 static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
 {
     uint32_t blobtype = be32toh(pss->u.req.type);
-    const char *blobname = tpmlib_get_blobname(blobtype);
     uint32_t tpm_number = 0;
     unsigned char *blob = NULL;
     uint32_t blob_length = be32toh(pss->u.req.length);
@@ -240,9 +239,7 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
     }
 
     res = SWTPM_NVRAM_SetStateBlob(blob, blob_length, is_encrypted,
-                                   tpm_number, blobname);
-    if (res == TPM_SUCCESS && blob_length)
-        res = tpmlib_validate_blob(blobtype);
+                                   tpm_number, blobtype);
 
 err_send_resp:
     pss->u.resp.tpm_result = htobe32(res);
