@@ -243,12 +243,12 @@ function test_pcr_allocation()
 
 	if [ $create -eq 1 ]; then
 		echo "Allocating SHA256 PCR bank"
-		${TOOLSPATH}/${PREFIX}pcrallocate -sha256
+		${TOOLSPATH}/${PREFIX}pcrallocate -sha512 +sha256
 
 		for ((ha = 0; ha < 24; ha++)); do
-			${TOOLSPATH}/${PREFIX}pcrread -ha ${ha} -halg sha1 > $TMPFILE
+			${TOOLSPATH}/${PREFIX}pcrread -ha ${ha} -halg sha512 > $TMPFILE
 			if [ -z "$(grep "^count 1.*$" $TMPFILE)" ]; then
-				echo "Error: PCR ${ha} in SHA1 bank should be available for read before reboot"
+				echo "Error: PCR ${ha} in SHA512 bank should be available for read before reboot"
 				cat $TMPFILE
 				exit 1
 			fi
@@ -265,9 +265,9 @@ function test_pcr_allocation()
 		echo "Checking the PCR Allocation"
 
 		for ((ha = 0; ha < 24; ha++)); do
-			${TOOLSPATH}/${PREFIX}pcrread -ha ${ha} -halg sha1 > $TMPFILE
+			${TOOLSPATH}/${PREFIX}pcrread -ha ${ha} -halg sha512 > $TMPFILE
 			if [ -z "$(grep "^count 0.*$" $TMPFILE)" ]; then
-				echo "Error: PCR ${ha} in SHA1 bank should be unavailable for read after reboot"
+				echo "Error: PCR ${ha} in SHA512 bank should be unavailable for read after reboot"
 				cat $TMPFILE
 				exit 1
 			fi
@@ -478,7 +478,7 @@ function test_session()
 			exit 1
 		fi
 		AUTHSESSION_HANDLE=$(cat $TMPFILE | sed 's/Handle//')
-		if [ -z "$AUTHSESSION_HANDLE" ]; then
+		if [ -z "${AUTHSESSION_HANDLE}" ]; then
 			echo "Error: Could not get auth session handle."
 			exit 1
 		fi
@@ -568,7 +568,7 @@ function test_hmac_context()
 			-hs 80000002 \
 			-if ${TMP2FILE} -v |
 		      tail -n 4 > ${TMPFILE}
-		if [ -z "$(grep " 85 56 6a 12 " ${TMPFILE})" ]; then
+		if [ -z "$(grep " 6e 40 33 1a " ${TMPFILE})" ]; then
 			echo "Error: Did not get expected result from completing HMAC sequence."
 			cat $TMPFILE
 			exit 1
@@ -621,7 +621,7 @@ function test_primary_volatile_load()
 		local sigfile=${SIGFILE} hash1 hash2
 
 		if [ $previousstate -ne 0 ]; then
-			sigfile=${DIR}/data/tpm2state3/signature2.bin
+			sigfile=${DIR}/data/tpm2state3d/signature2.bin
 		fi
 
 		printf "Checking availability of key with handle 0x80000000\n"
@@ -715,8 +715,8 @@ echo "============================" >> $LOGFILE
 echo "TPM was shut down"
 
 # Store this state for later usage
-# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3; cp $SIGFILE ${DIR}/data/tpm2state3/signature.bin
-
+# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3;
+# cp $SIGFILE ${DIR}/data/tpm2state3/signature.bin
 
 #################################################################
 # Run TPM2 with the created state and verify it's the same
@@ -897,11 +897,11 @@ fi
 # Run TPM2 with the saved volatile state
 
 # create a backup for running the next test...
-# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3/tpm2-00.volatilestate
-# cp $TPMDIR/h02000000.bin ${DIR}/data/tpm2state3/h02000000.bin
+# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3b/tpm2-00.permall
+# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3b/tpm2-00.volatilestate
+# cp $TPMDIR/h02000000.bin ${DIR}/data/tpm2state3b/h02000000.bin
+# cp $TPMDIR/h81000000.bin ${DIR}/data/tpm2state3b/h81000000.bin
 
-#echo $TPMDIR
-#ls -l $TPMDIR
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
 	--tpmstate dir=$TPMDIR \
@@ -946,8 +946,10 @@ fi
 # Run TPM2 with previously saved (volatile) state and verify it's
 # working as well
 
-cp -f ${DIR}/data/tpm2state3/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
-cp -f ${DIR}/data/tpm2state3/h02000000.bin $TPMDIR/h02000000.bin
+cp -f ${DIR}/data/tpm2state3b/tpm2-00.permall $TPMDIR/tpm2-00.permall
+cp -f ${DIR}/data/tpm2state3b/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
+cp -f ${DIR}/data/tpm2state3b/h02000000.bin $TPMDIR/h02000000.bin
+cp -f ${DIR}/data/tpm2state3b/h81000000.bin $TPMDIR/h81000000.bin
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
@@ -970,6 +972,7 @@ PID="$(cat $PID_FILE)"
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	tail -n 10 $LOGFILE
 	exit 1
 fi
 
@@ -1049,7 +1052,8 @@ fi
 # Run TPM2 with the saved volatile state
 
 # create a backup for running the next test...
-# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3/tpm2-00.volatilestate.2nd
+# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3c/tpm2-00.permall
+# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3c/tpm2-00.volatilestate
 
 #echo $TPMDIR
 #ls -l $TPMDIR
@@ -1099,7 +1103,8 @@ fi
 # Run TPM2 with previously saved (volatile) state and verify it's
 # working as well
 
-cp -f ${DIR}/data/tpm2state3/tpm2-00.volatilestate.2nd $TPMDIR/tpm2-00.volatilestate
+cp -f ${DIR}/data/tpm2state3c/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
+cp -f ${DIR}/data/tpm2state3c/tpm2-00.permall $TPMDIR/tpm2-00.permall
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
@@ -1200,8 +1205,9 @@ fi
 # Run TPM2 with the saved volatile state
 
 # create a backup for running the next test...
-# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3/tpm2-00.volatilestate.3rd
-# cp $SIGFILE ${DIR}/data/tpm2state3/signature2.bin
+# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3d/tpm2-00.volatilestate
+# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3d/tpm2-00.permall
+# cp $SIGFILE ${DIR}/data/tpm2state3d/signature2.bin
 
 #echo $TPMDIR
 #ls -l $TPMDIR
@@ -1248,7 +1254,8 @@ fi
 # Run TPM2 with previously saved (volatile) state and verify it's
 # working as well
 
-cp -f ${DIR}/data/tpm2state3/tpm2-00.volatilestate.3rd $TPMDIR/tpm2-00.volatilestate
+cp -f ${DIR}/data/tpm2state3d/tpm2-00.permall $TPMDIR/tpm2-00.permall
+cp -f ${DIR}/data/tpm2state3d/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
