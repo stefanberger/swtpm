@@ -90,7 +90,7 @@ get_config_value() {
 			return 1
 		fi
 	else
-		echo "$tmp"
+		echo $(eval echo "$tmp")
 	fi
 
 	return 0
