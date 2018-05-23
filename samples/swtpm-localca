@@ -43,8 +43,8 @@ SETUP_TPM2_F=1
 ALLOW_SIGNING_F=2
 DECRYPTION_F=4
 
-LOCALCA_OPTIONS=/etc/swtpm-localca.options
-LOCALCA_CONFIG=/etc/swtpm-localca.conf
+LOCALCA_OPTIONS=${XDG_CONFIG_HOME:-/etc}/swtpm-localca.options
+LOCALCA_CONFIG=${XDG_CONFIG_HOME:-/etc}/swtpm-localca.conf
 
 # Default logging goes to stderr
 LOGFILE=""
