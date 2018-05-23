@@ -96,6 +96,19 @@ get_config_value() {
 	return 0
 }
 
+make_dir() {
+	local dir="$1"
+
+	if [ ! -d "$dir" ]; then
+		logit "Creating swtpm-local dir."
+		mkdir -p "$dir"
+		if [ $? -ne 0 ]; then
+			logerr "Could not create directory '${dir}."
+			exit 1
+		fi
+	fi
+}
+
 # Get the next serial number for the certificate
 #
 # If an error occurs nothing is echo'ed and the return code 1 is returned,
@@ -438,14 +451,7 @@ main() {
 		exit 1
 	fi
 	STATEDIR="$tmp"
-	if [ ! -d "$STATEDIR" ]; then
-		logit "Creating swtpm-local state dir."
-		mkdir -p "$STATEDIR"
-		if [ $? -ne 0 ]; then
-			logerr "Could not create directory '${STATEDIR}."
-			exit 1
-		fi
-	fi
+	make_dir "$STATEDIR"
 	LOCK="${STATEDIR}/.lock"
 	if [ ! -w ${LOCK} ]; then
 		touch $LOCK
@@ -460,6 +466,7 @@ main() {
 		logerr "Missing signingkey variable in config file $LOCALCA_CONFIG."
 		exit 1
 	fi
+	make_dir $(dirname "$SIGNKEY")
 	SIGNKEY_PASSWORD=$(get_config_value "$LOCALCA_CONFIG" "signingkey_password")
 
 	ISSUERCERT=$(get_config_value "$LOCALCA_CONFIG" "issuercert")
@@ -467,6 +474,7 @@ main() {
 		logerr "Missing issuercert variable in config file $LOCALCA_CONFIG."
 		exit 1
 	fi
+	make_dir $(dirname "$ISSUERCERT")
 
 	if [ ! -r "$SIGNKEY" ]; then
 		if [ -f "$SIGNKEY" ]; then
@@ -495,6 +503,7 @@ main() {
 
 	CERTSERIAL=$(get_config_value "$LOCALCA_CONFIG" "certserial" \
 	    "${STATEDIR}/certserial")
+	make_dir $(dirname "$CERTSERIAL")
 
 	create_cert "$flags" "$typ" "$dir" "$ek" "$vmid" "$tpm_spec_params" \
 		"$tpm_attr_params"
