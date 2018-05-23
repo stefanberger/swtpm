@@ -88,7 +88,7 @@ DEFAULT_OWNER_PASSWORD=ooo
 DEFAULT_SRK_PASSWORD=sss
 
 # default configuration file
-DEFAULT_CONFIG_FILE="/etc/swtpm_setup.conf"
+DEFAULT_CONFIG_FILE="${XDG_CONFIG_HOME:-/etc}/swtpm_setup.conf"
 
 # TPM constants
 TPM_NV_INDEX_D_BIT=$((0x10000000))
