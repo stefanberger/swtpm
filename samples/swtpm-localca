@@ -90,6 +90,9 @@ get_config_value() {
 			return 1
 		fi
 	else
+		# don't let eval execute subshells: removed '`' and
+		# convert '$(' to '('
+		tmp=$(echo "$tmp" | sed -e 's/\$(/(/g' -e 's/`\(.*\)`/\1/g')
 		echo $(eval echo "$tmp")
 	fi
 
