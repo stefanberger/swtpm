@@ -27,6 +27,11 @@ Use this userid to run swtpm_setup.sh; by default 'tss' is used.
 Path to configuration file containing the tool to use for creating
 certificates; see also B<swtpm_setup.conf>
 
+If this parameter is not provided, the default configuration file
+/etc/swtpm_setup.conf will be used. If the environment variable
+XDG_CONFIG_HOME is set, the configuration file is assumed to be
+$XDG_CONFIG_HOME/swtpm_setup.conf.
+
 =item B<--tpm-state <dir>> or B<--tpmstate <dir>>
 
 Path to a directory where the TPM's state will be written into;
@@ -156,6 +161,48 @@ To simulate manufacturing of a TPM, one would typically run the following comman
 Note: since setting up a TPM 1.2 relies on the I<tcsd> for some of its operations,
 B<swtpm_setup> has to be run as root so that it can invoke the I<tcsd> either as root
 or tss user.
+
+
+A normal user can also simulate the manufacturing of a TPM 2 using the
+swtpm-localca plugin. The following example assumes that the user has
+set the environment variable XDG_CONFIG_HOME as follows (using bash for
+example):
+
+    export XDG_CONFIG_HOME=~/.config
+
+Note: The XDG_CONFIG_HOME variable is part of the XDG Base Directory
+Specification.
+
+The following configuration files need to be created:
+
+~/.config/swtpm_setup.conf:
+
+    # Program invoked for creating certificates
+    create_certs_tool= /usr/share/swtpm/swtpm-localca
+    create_certs_tool_config = ${XDG_CONFIG_HOME}/swtpm-localca.conf
+    create_certs_tool_options = ${XDG_CONFIG_HOME}/swtpm-localca.options
+
+~/.config/swtpm-localca.conf:
+
+    statedir = ${XDG_CONFIG_HOME}/var/lib/swtpm-localca
+    signingkey = ${XDG_CONFIG_HOME}/var/lib/swtpm-localca/signkey.pem
+    issuercert = ${XDG_CONFIG_HOME}/var/lib/swtpm-localca/issuercert.pem
+    certserial = ${XDG_CONFIG_HOME}/var/lib/swtpm-localca/certserial
+
+~/.config/swtpm-localca.options:
+
+    --platform-manufacturer Fedora
+    --platform-version 2.12
+    --platform-model QEMU
+
+The following commands now create a TPM 2 with an EK and platform
+certificate. The state of the TPM 2 will be stored in the directory
+${XDG_CONFIG_HOME}/mytpm1.
+
+  #> mkdir -p ${XDG_CONFIG_HOME}/mytpm1
+  #> swtpm_setup --tpm2 --tpmstate ${XDG_CONFIG_HOME}/mytpm1 \
+      --create-ek-cert --create-platform-cert --lock-nvram
+
 
 =head1 SEE ALSO
 
