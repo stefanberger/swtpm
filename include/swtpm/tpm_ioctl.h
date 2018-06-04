@@ -206,6 +206,7 @@ struct ptm_getinfo {
         struct {
             uint64_t flags;
             uint32_t offset;      /* offset from where to read */
+            uint32_t pad;         /* 32 bit arch */
         } req; /* request */
         struct {
             ptm_res tpm_result;
