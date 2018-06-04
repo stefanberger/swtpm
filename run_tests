@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ $(uname -p) != "x86_64" ]; then
+ echo "This test only runs on x86_64 host"
+ exit 1
+fi
+
 unset SWTPM
 
 # FIXME:
@@ -17,7 +22,8 @@ CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/l
  sudo make -j8 check ||
  exit 1
 
-CFLAGS='-m32' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib && \
+PKG_CONFIG_PATH=/usr/lib/pkgconfig \
+ CFLAGS='-m32' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib && \
  make clean && \
  make -j8 &&
  sudo make -j8 install &&
