@@ -102,13 +102,19 @@ EXTRA_DIST=$(TESTS) \
 	data/tpm2state2/tpm2-00.permall \
 	data/tpm2state2/tpm2-00.volatilestate \
 	data/tpm2state2/pwdfile.txt \
-	data/tpm2state3/h02000000.bin \
 	data/tpm2state3/hkey.priv \
 	data/tpm2state3/hkey.pub \
 	data/tpm2state3/signature.bin \
 	data/tpm2state3/tpm2-00.permall \
-	data/tpm2state3/tpm2-00.volatilestate \
-	data/tpm2state3/tpm2-00.volatilestate.2nd \
+	data/tpm2state3c/tpm2-00.volatilestate \
+	data/tpm2state3c/tpm2-00.permall \
+	data/tpm2state3d/tpm2-00.volatilestate \
+	data/tpm2state3d/signature2.bin \
+	data/tpm2state3d/tpm2-00.permall \
+	data/tpm2state3b/h81000000.bin \
+	data/tpm2state3b/h02000000.bin \
+	data/tpm2state3b/tpm2-00.volatilestate \
+	data/tpm2state3b/tpm2-00.permall \
 	load_vtpm_proxy \
 	test_clientfds.py \
 	test_common \
