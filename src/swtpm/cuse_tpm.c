@@ -260,7 +260,7 @@ static bool cached_stateblob_is_loaded(uint32_t blobtype,
  */
 static void cached_stateblob_free(void)
 {
-    TPM_Free(cached_stateblob.data);
+    free(cached_stateblob.data);
     cached_stateblob.data = NULL;
     cached_stateblob.data_length = 0;
 }
@@ -604,10 +604,11 @@ ptm_set_stateblob_append(uint32_t blobtype,
 {
     TPM_RESULT res = 0;
     static struct stateblob stateblob;
+    unsigned char *tmp;
 
     if (stateblob.type != blobtype) {
         /* new blob; clear old data */
-        TPM_Free(stateblob.data);
+        free(stateblob.data);
         stateblob.data = NULL;
         stateblob.length = 0;
         stateblob.type = blobtype;
@@ -622,16 +623,19 @@ ptm_set_stateblob_append(uint32_t blobtype,
     }
 
     /* append */
-    res = TPM_Realloc(&stateblob.data, stateblob.length + length);
-    if (res != 0) {
+    tmp = realloc(stateblob.data, stateblob.length + length);
+    if (!tmp) {
+        logprintf(STDERR_FILENO,
+                  "Could not allocate %u bytes.\n", stateblob.length + length);
         /* error */
-        TPM_Free(stateblob.data);
+        free(stateblob.data);
         stateblob.data = NULL;
         stateblob.length = 0;
         stateblob.type = 0;
 
-        return res;
-    }
+        return TPM_FAIL;
+    } else
+        stateblob.data = tmp;
 
     memcpy(&stateblob.data[stateblob.length], data, length);
     stateblob.length += length;
@@ -647,7 +651,7 @@ ptm_set_stateblob_append(uint32_t blobtype,
                                    0 /* tpm_number */,
                                    blobtype);
 
-    TPM_Free(stateblob.data);
+    free(stateblob.data);
     stateblob.data = NULL;
     stateblob.length = 0;
     stateblob.type = 0;
@@ -1001,7 +1005,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
         tpm_running = false;
 
-        TPM_Free(ptm_response);
+        free(ptm_response);
         ptm_response = NULL;
 
         fuse_reply_ioctl(req, 0, &res, sizeof(res));
@@ -1014,7 +1018,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         res = TPM_SUCCESS;
         TPMLIB_Terminate();
 
-        TPM_Free(ptm_response);
+        free(ptm_response);
         ptm_response = NULL;
 
         fuse_reply_ioctl(req, 0, &res, sizeof(res));

@@ -300,8 +300,8 @@ SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
     /* allocate a buffer for the actual data */
     if ((rc == 0) && *length != 0) {
         TPM_DEBUG(" SWTPM_NVRAM_LoadData: Reading %u bytes of data\n", *length);
-        rc = TPM_Malloc(data, *length);
-        if (rc != 0) {
+        *data = malloc(*length);
+        if (!*data) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_LoadData: Error (fatal) allocating %u "
                       "bytes\n", *length);
@@ -360,7 +360,7 @@ SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
             TPM_DEBUG(" SWTPM_NVRAM_LoadData: Decrypted %u bytes of "
                       "data to %u bytes.\n",
                       *length, decrypt_length);
-            TPM_Free(*data);
+            free(*data);
             *data = decrypt_data;
             *length = decrypt_length;
         }
@@ -481,7 +481,7 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
     }
 
     tlv_data_free(td, td_len);
-    TPM_Free(filedata);
+    free(filedata);
 
     TPM_DEBUG(" SWTPM_NVRAM_StoreData: rc=%d\n", rc);
 
@@ -578,7 +578,7 @@ TPM_RESULT SWTPM_NVRAM_Store_Volatile(void)
         rc = SWTPM_NVRAM_StoreData(buffer, buflen, tpm_number, name);
     }
 
-    TPM_Free(buffer);
+    free(buffer);
 
     return rc;
 }
@@ -673,11 +673,15 @@ SWTPM_CalcHMAC(const unsigned char *in, uint32_t in_length,
         return TPM_FAIL;
     }
 
-    rc = TPM_Malloc(&buffer, md_len);
+    buffer = malloc(md_len);
 
-    if (rc == TPM_SUCCESS) {
+    if (buffer) {
         *td = TLV_DATA(TAG_HMAC, md_len, buffer);
         memcpy(buffer, md, md_len);
+    } else {
+       logprintf(STDOUT_FILENO,
+                 "Could not allocate %u bytes.\n", md_len);
+       rc = TPM_FAIL;
     }
 
     return rc;
@@ -756,11 +760,15 @@ SWTPM_CheckHash(const unsigned char *in, uint32_t in_length,
     }
 
     if (rc == 0) {
-        rc = TPM_Malloc(&dest, data_length);
-        if (rc == 0) {
+        dest = malloc(data_length);
+        if (dest) {
             *out = dest;
             *out_length = data_length;
             memcpy(dest, data, data_length);
+        } else {
+            logprintf(STDOUT_FILENO,
+                      "Could not allocated %u bytes.\n", data_length);
+            rc = TPM_FAIL;
         }
     }
 
@@ -861,7 +869,7 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
             default:
                 rc = TPM_FAIL;
             }
-            TPM_Free(tmp_data);
+            free(tmp_data);
         }
     }
 
@@ -879,10 +887,14 @@ SWTPM_NVRAM_GetPlainData(unsigned char **plain, uint32_t *plain_length,
 
     switch (hdrversion) {
     case 1:
-        rc = TPM_Malloc(plain, length);
-        if (rc == 0) {
+        *plain = malloc(length);
+        if (*plain) {
             memcpy(*plain, data, length);
             *plain_length = length;
+        } else {
+            logprintf(STDERR_FILENO,
+                      "Could not allocate %u bytes.\n", length);
+            rc = TPM_FAIL;
         }
     break;
 
@@ -893,10 +905,14 @@ SWTPM_NVRAM_GetPlainData(unsigned char **plain, uint32_t *plain_length,
             rc = TPM_FAIL;
             break;
         }
-        rc = TPM_Malloc(plain, td->tlv.length);
-        if (rc == 0) {
+        *plain = malloc(td->tlv.length);
+        if (*plain) {
             memcpy(*plain, td->u.const_ptr, td->tlv.length);
             *plain_length = td->tlv.length;
+        } else {
+            logprintf(STDERR_FILENO,
+                      "Could not allocate %u bytes.\n", td->tlv.length);
+            rc = TPM_FAIL;
         }
     break;
     }
@@ -959,22 +975,26 @@ SWTPM_NVRAM_PrependHeader(unsigned char **data, uint32_t *length,
     };
     TPM_RESULT res;
 
-    res = TPM_Malloc(&out, out_len);
-    if (res != TPM_SUCCESS)
+    out = malloc(out_len);
+    if (!out) {
+        logprintf(STDERR_FILENO,
+                  "Could not allocate %u bytes.\n", out_len);
+        res = TPM_FAIL;
         goto error;
+    }
 
     memcpy(out, &bh, sizeof(bh));
     memcpy(&out[sizeof(bh)], *data, *length);
 
-    TPM_Free(*data);
+    free(*data);
 
     *data = out;
     *length = out_len;
 
-    return res;
+    return TPM_SUCCESS;
 
  error:
-    TPM_Free(*data);
+    free(*data);
     *data = NULL;
     *length = 0;
 
@@ -1102,8 +1122,8 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
 
 err_exit:
     tlv_data_free(td, td_len);
-    TPM_Free(buffer);
-    TPM_Free(plain);
+    free(buffer);
+    free(plain);
 
     return res;
 }
@@ -1215,10 +1235,10 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
     /* SetState will make a copy of the buffer */
     res = TPMLIB_SetState(st, plain, plain_len);
 
-    TPM_Free(plain);
+    free(plain);
 
 cleanup:
-    TPM_Free(mig_decrypt);
+    free(mig_decrypt);
 
     return res;
 }

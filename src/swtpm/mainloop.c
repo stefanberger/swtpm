@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 #include <poll.h>
 #include <sys/stat.h>
@@ -108,11 +109,11 @@ int mainLoop(struct mainLoopParams *mlp,
 
     max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX);
 
-    rc = TPM_Malloc(&command, max_command_length);
-    if (rc != TPM_SUCCESS) {
+    command = malloc(max_command_length);
+    if (!command) {
         logprintf(STDERR_FILENO, "Could not allocate %u bytes for buffer.\n",
                   max_command_length);
-        return rc;
+        return TPM_FAIL;
     }
 
     connection_fd.fd = -1;
@@ -261,8 +262,8 @@ skip_process:
             break;
     }
 
-    TPM_Free(rbuffer);
-    TPM_Free(command);
+    free(rbuffer);
+    free(command);
 
     if (ctrlclntfd >= 0)
         close(ctrlclntfd);

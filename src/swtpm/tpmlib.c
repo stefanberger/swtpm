@@ -40,6 +40,7 @@
 #include <assert.h>
 #include <endian.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
@@ -170,7 +171,7 @@ TPM_RESULT tpmlib_TpmEstablished_Reset(TPM_MODIFIER_INDICATOR *g_locality,
         res = be32toh(tpmrh->errcode);
     }
     *g_locality = orig_locality;
-    TPM_Free(rbuffer);
+    free(rbuffer);
 
     return res;
 }
@@ -188,7 +189,9 @@ static void tpmlib_write_error_response(unsigned char **rbuffer,
 
     if (*rbuffer == NULL ||
         *rTotal < sizeof(errresp)) {
-        TPM_Realloc(rbuffer, sizeof(errresp));
+        free(*rbuffer);
+
+        *rbuffer = malloc(sizeof(errresp));
         if (*rbuffer)
             *rTotal = sizeof(errresp);
         else

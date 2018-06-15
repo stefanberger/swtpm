@@ -191,7 +191,7 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
         fd = -1;
     }
 
-    TPM_Free(blob);
+    free(blob);
 
     return fd;
 }
@@ -207,9 +207,13 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
     uint32_t flags = be32toh(pss->u.req.state_flags);
     TPM_BOOL is_encrypted = (flags & PTM_STATE_FLAG_ENCRYPTED) != 0;
 
-    res = TPM_Malloc(&blob, blob_length);
-    if (res)
+    blob = malloc(blob_length);
+    if (!blob) {
+        logprintf(STDERR_FILENO,
+                  "Could not allocated %u bytes.\n", blob_length);
+        res = TPM_FAIL;
         goto err_send_resp;
+    }
 
     n -= offsetof(ptm_setstate, u.req.data);
     /* n holds the number of available data bytes */
@@ -253,7 +257,7 @@ err_send_resp:
 
 err_fd_broken:
 
-    TPM_Free(blob);
+    free(blob);
 
     return fd;
 }

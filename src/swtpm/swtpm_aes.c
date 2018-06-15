@@ -50,6 +50,7 @@
 #include <libtpms/tpm_memory.h>
 
 #include "swtpm_aes.h"
+#include "logging.h"
 
 #define printf(X ...)
 
@@ -85,11 +86,21 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
         printf("  TPM_SymmetricKeyData_Encrypt: Padded length %u pad length %u\n",
                *encrypt_length, pad_length);
         /* allocate memory for the encrypted response */
-        rc = TPM_Malloc(encrypt_data, *encrypt_length);
+        *encrypt_data = malloc(*encrypt_length);
+        if (!*encrypt_data) {
+            logprintf(STDERR_FILENO,
+                      "Could not allocated %u bytes.\n", *encrypt_length);
+            rc = TPM_SIZE;
+        }
     }
     /* allocate memory for the padded decrypted data */
     if (rc == 0) {
-        rc = TPM_Malloc(&decrypt_data_pad, *encrypt_length);
+        decrypt_data_pad = malloc(*encrypt_length);
+        if (!decrypt_data_pad) {
+            logprintf(STDERR_FILENO,
+                      "Could not allocated %u bytes.\n", *encrypt_length);
+            rc = TPM_SIZE;
+        }
     }
 
     if (rc == 0) {
@@ -156,7 +167,12 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
     }
     /* allocate memory for the padded decrypted data */
     if (rc == 0) {
-        rc = TPM_Malloc(decrypt_data, encrypt_length);
+        *decrypt_data = malloc(encrypt_length);
+        if (!*decrypt_data) {
+            logprintf(STDERR_FILENO,
+                      "Could not allocated %u bytes.\n", encrypt_length);
+            rc = TPM_SIZE;
+        }
     }
 
     if (rc == 0) {

@@ -38,11 +38,13 @@
 #include "config.h"
 
 #include "tlv.h"
+#include "logging.h"
 
 #include <string.h>
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_memory.h>
+#include <libtpms/tpm_error.h>
 
 void
 tlv_data_free(tlv_data *td, size_t td_len)
@@ -51,7 +53,7 @@ tlv_data_free(tlv_data *td, size_t td_len)
 
     for (i = 0; i < td_len; i++) {
         if (!td[i].is_const_ptr)
-            TPM_Free(td[i].u.ptr);
+            free(td[i].u.ptr);
         memset(&td[i], 0, sizeof(*td));
     }
 }
@@ -67,12 +69,12 @@ TPM_RESULT
 tlv_data_append(unsigned char **buffer, uint32_t *buffer_len,
                 tlv_data *td, size_t td_len)
 {
-    TPM_RESULT res;
     size_t i;
     tlv_header tlv;
     uint32_t totlen;
     size_t addlen = 0;
     unsigned char *ptr;
+    unsigned char *tmp;
 
     for (i = 0; i < td_len; i++)
         addlen += sizeof(tlv) + td[i].tlv.length;
@@ -82,9 +84,12 @@ tlv_data_append(unsigned char **buffer, uint32_t *buffer_len,
     else
         totlen = addlen;
 
-    res = TPM_Realloc(buffer, totlen);
-    if (res)
-         return res;
+    tmp = realloc(*buffer, totlen);
+    if (!tmp) {
+         logprintf(STDERR_FILENO, "Could not allocate %u bytes.\n", totlen);
+         return TPM_FAIL;
+    }
+    *buffer = tmp;
 
     ptr = *buffer + *buffer_len;
     *buffer_len = totlen;
