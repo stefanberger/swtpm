@@ -50,20 +50,9 @@ libswtpm_libtpms_la_CFLAGS = \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS)
 
-if SWTPM_USE_FREEBL
-libswtpm_libtpms_la_CFLAGS += \
-	$(NSS_CFLAGS) \
-	$(NSPR_CFLAGS)
-endif
-
 libswtpm_libtpms_la_LIBADD = \
 	$(LIBTPMS_LIBS) \
 	$(GLIB_LIBS)
-
-if SWTPM_USE_FREEBL
-libswtpm_libtpms_la_LIBADD += \
-	$(NSS_LIBS)
-endif
 
 bin_PROGRAMS = swtpm
 if WITH_CUSE
@@ -88,23 +77,12 @@ swtpm_CFLAGS = \
 	$(LIBFUSE_CFLAGS) \
 	-DHAVE_SWTPM_CUSE_MAIN
 
-if SWTPM_USE_FREEBL
-swtpm_CFLAGS += \
-	$(NSS_CFLAGS)
-	$(NSPR_CFLAGS)
-endif
-
 swtpm_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
 	$(GTHREAD_LIBS) \
 	$(LIBTPMS_LIBS)
-
-if SWTPM_USE_FREEBL
-swtpm_LDADD += \
-	$(NSS_LIBS)
-endif
 
 swtpm_cuse_DEPENDENCIES = $(lib_LTLIBRARIES)
 

@@ -4,11 +4,6 @@
 %define version   @VERSION@
 %define release   1
 
-# Valid crypto subsystems are 'freebl' and 'openssl'
-%if "%{crypto_subsystem}" == ""
-%define crypto_subsystem freebl
-%endif
-
 Summary: TPM Emulator
 Name:           %{name}
 Version:        %{version}
@@ -141,9 +136,6 @@ Tools for the TPM emulator from the swtpm package
         --prefix=/usr \
 %if %{with_gnutls}
         --with-gnutls \
-%endif
-%if "%{crypto_subsystem}" == "openssl"
-	--with-openssl
 %endif
 
 make %{?_smp_mflags}

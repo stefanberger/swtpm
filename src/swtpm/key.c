@@ -37,15 +37,7 @@
 
 #include "config.h"
 
-#ifdef USE_FREEBL_CRYPTO_LIBRARY
-# include <blapi.h>
-#else
-# ifdef USE_OPENSSL_CRYPTO_LIBRARY
-#  include <openssl/sha.h>
-# else
-#  error "Unsupported crypto library."
-# endif
-#endif
+#include <openssl/sha.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -247,11 +239,7 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
     unsigned char filebuffer[32];
     int fd;
     ssize_t len;
-#ifdef USE_FREEBL_CRYPTO_LIBRARY
-    unsigned char hashbuf[SHA512_BLOCK_LENGTH];
-#else
     unsigned char hashbuf[SHA512_DIGEST_LENGTH];
-#endif
 
     if (maxkeylen > sizeof(hashbuf)) {
         logprintf(STDERR_FILENO,
@@ -277,14 +265,7 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
         return -1;
     }
 
-#ifdef USE_FREEBL_CRYPTO_LIBRARY
-    if (SHA512_HashBuf(hashbuf, filebuffer, len) != SECSuccess) {
-        logprintf(STDERR_FILENO, "Could not hash the passphrase");
-        return -1;
-    }
-#else
     SHA512(filebuffer, len, hashbuf);
-#endif
 
     *keylen = maxkeylen;
     memcpy(key, hashbuf, *keylen);

@@ -132,77 +132,24 @@ if test $? -ne 0; then
 fi
 AC_SUBST([GTHREAD_LIBS])
 
-cryptolib=freebl
+cryptolib=openssl
 
 AC_ARG_WITH([openssl],
-            AC_HELP_STRING([--with-openssl],
-                           [build with openssl library]),
-              [AC_CHECK_LIB(crypto,
-                            [AES_set_encrypt_key],
-                            [],
-                            AC_MSG_ERROR(Faulty openssl crypto library))
-               AC_CHECK_HEADERS([openssl/aes.h],[],
-                            AC_MSG_ERROR(Is openssl-devel/libssl-dev installed?))
-               AC_MSG_RESULT([Building with openssl crypto library])
-               cryptolib=openssl
-              ]
-)
+            [AS_HELP_STRING([--with-openssl],
+                           [build with openssl library])],
+            [],
+            [])
 
 case "$cryptolib" in
-freebl)
-    AM_CONDITIONAL(SWTPM_USE_FREEBL, true)
-    AM_CONDITIONAL(SWTPM_USE_OPENSSL, false)
-    AC_DEFINE([USE_FREEBL_CRYPTO_LIBRARY],
-              [1],
-              [use freebl crypto library])
-
-    NSPR_CFLAGS=$(nspr-config --cflags)
-    if test $? -ne 0; then
-        AC_MSG_ERROR("Could not find nspr-config. Is nspr-devel/libnspr4-dev installed?")
-    fi
-    AC_SUBST([NSPR_CFLAGS])
-
-    NSS_CFLAGS=$(nss-config --cflags)
-    if test $? -ne 0; then
-        AC_MSG_ERROR("Could not find nss-config. Is nss-devel/libnss3-dev installed?")
-    fi
-    AC_SUBST([NSS_CFLAGS])
-
-    NSS_LIBS=$(nss-config --libs)
-    if test $? -ne 0; then
-        AC_MSG_ERROR("Is nss-devel/libnss3-dev installed? -- could not get libs for nss")
-    fi
-    dnl On RHEL 7 ppc64 we need an explicit -lfreebl
-    NSS_LIBS="$NSS_LIBS -lfreebl"
-    AC_SUBST([NSS_LIBS])
-
-    CPPFLAGS="$NSS_CFLAGS $NSPR_CFLAGS"
-    AC_CHECK_HEADERS([sslerr.h],[],
-                     AC_MSG_ERROR(nss-devel/libnss3-dev is bad))
-
-    # Check for missing headers
-    CFLAGS_save="$CFLAGS"
-    CFLAGS="$NSS_CFLAGS $NSPR_CFLAGS"
-    AC_CHECK_HEADERS([blapi.h],[],
-                     AC_MSG_ERROR(nss-softokn-freebl-devel/libnss3-dev is missing blapi.h))
-    # Check for missing freebl library or missing library functions
-    LIBS_save="$LIBS"
-    LIBS="$(nss-config --libs) $(nspr-config --libs)"
-    AC_SEARCH_LIBS([AES_CreateContext], [freebl],[],
-                   AC_MSG_ERROR("Could not find AES_CreateContext(). Is nss-softokn-freebl-devel/libnss3-dev installed?"),
-                   [])
-    LIBS="$LIBS_save"
-    CPPFLAGS=""
-    CFLAGS="$CFLAGS_save"
-
-    ;;
 openssl)
-    AM_CONDITIONAL(SWTPM_USE_FREEBL, false)
-    AM_CONDITIONAL(SWTPM_USE_OPENSSL, true)
-    AC_DEFINE([USE_OPENSSL_CRYPTO_LIBRARY],
-              [1],
-              [use openssl crypto library])
-    ;;
+	AC_CHECK_LIB(crypto,
+		      [AES_set_encrypt_key],
+		      [],
+		      AC_MSG_ERROR(Faulty openssl crypto library))
+	AC_CHECK_HEADERS([openssl/aes.h],[],
+			 AC_MSG_ERROR(Is openssl-devel/libssl-dev installed?))
+	AC_MSG_RESULT([Building with openssl crypto library])
+	;;
 esac
 
 LIBTASN1_LIBS=$(pkg-config --libs libtasn1)

@@ -65,15 +65,7 @@
 #include <libtpms/tpm_nvfilename.h>
 #include <libtpms/tpm_library.h>
 
-#ifdef USE_FREEBL_CRYPTO_LIBRARY
-# include <blapi.h>
-#else
-# ifdef USE_OPENSSL_CRYPTO_LIBRARY
-#  include <openssl/sha.h>
-# else
-#  error "Unsupported crypto library."
-# endif
-#endif
+#include <openssl/sha.h>
 
 #include "swtpm_aes.h"
 #include "swtpm_debug.h"
@@ -617,21 +609,10 @@ SWTPM_PrependHash(const unsigned char *in, uint32_t in_length,
 {
     TPM_RESULT rc = 0;
     unsigned char *dest;
-#ifdef USE_FREEBL_CRYPTO_LIBRARY
-    unsigned char hashbuf[SHA256_LENGTH];
-#else
     unsigned char hashbuf[SHA256_DIGEST_LENGTH];
-#endif
 
     /* hash the data */
-#ifdef USE_FREEBL_CRYPTO_LIBRARY
-    if (SHA256_HashBuf(hashbuf, in, in_length) != SECSuccess) {
-        logprintf(STDOUT_FILENO, "SHA256_HashBuff failed.\n");
-        rc = TPM_FAIL;
-    }
-#else
     SHA256(in, in_length, hashbuf);
-#endif
 
     *out_length = sizeof(hashbuf) + in_length;
     rc = TPM_Malloc(out, *out_length);
@@ -651,23 +632,12 @@ SWTPM_CheckHash(const unsigned char *in, uint32_t in_length,
 {
     TPM_RESULT rc = 0;
     unsigned char *dest = NULL;
-#ifdef USE_FREEBL_CRYPTO_LIBRARY
-    unsigned char hashbuf[SHA256_LENGTH];
-#else
     unsigned char hashbuf[SHA256_DIGEST_LENGTH];
-#endif
     const unsigned char *data = &in[sizeof(hashbuf)];
     uint32_t data_length = in_length - sizeof(hashbuf);
 
     /* hash the data */
-#ifdef USE_FREEBL_CRYPTO_LIBRARY
-    if (SHA256_HashBuf(hashbuf, data, data_length) != SECSuccess) {
-        logprintf(STDOUT_FILENO, "SHA256_HashBuff failed.\n");
-        rc = TPM_FAIL;
-    }
-#else
     SHA256(data, data_length, hashbuf);
-#endif
 
     if (memcmp(in, hashbuf, sizeof(hashbuf))) {
         logprintf(STDOUT_FILENO, "Verification of hash failed. "
