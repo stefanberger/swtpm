@@ -90,6 +90,9 @@ DEFAULT_SRK_PASSWORD=sss
 # default configuration file
 DEFAULT_CONFIG_FILE="${XDG_CONFIG_HOME:-/etc}/swtpm_setup.conf"
 
+#default PCR banks to activate for TPM 2
+DEFAULT_PCR_BANKS="sha1,sha256"
+
 # TPM constants
 TPM_NV_INDEX_D_BIT=$((0x10000000))
 TPM_NV_INDEX_EKCert=$((0xF000))
@@ -1432,6 +1435,130 @@ tpm2_nv_writelock()
 	return 0
 }
 
+# Get the list of all PCR banks
+function tpm2_get_all_pcr_banks()
+{
+	local all_pcr_banks=""
+	local req rsp exp o l count c bank banks
+
+	req='\x80\x01\x00\x00\x00\x16\x00\x00\x01\x7a'
+	req+='\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x40'
+
+	rsp="$(tpm_transfer "$req")"
+	exp=' 80 01 00 00 00 .. 00 00 00 00'
+	if ! [[ "${rsp:0:30}" =~ $exp ]]; then
+		logerr "TPM2_Get_Capability() failed for getting PCR bank info"
+		logerr "      expected: $exp [pattern]"
+		logerr "      received: $rsp"
+		return 1
+	fi
+
+	# read the count byte's lower nibble
+	count=${rsp:56:1}
+	o=57
+	for ((c=0; c<count;c++)); do
+		bank=${rsp:o:6}
+		case "$bank" in
+		" 00 04") banks="$banks,sha1";;
+		" 00 0b") banks="$banks,sha256";;
+		" 00 0c") banks="$banks,sha384";;
+		" 00 0d") banks="$banks,sha512";;
+		" 00 12") banks="$banks,sm3-256";;
+		*)
+			logerr "Unsupported hash algorithm id ${bank}"
+			return 1
+		esac
+		o=$((o + 6))
+		l=$((0x${rsp:o+1:2}))
+		o=$((o + 3 + l * 3))
+	done
+
+	echo "$banks" | sed 's/^,//'
+	return 0
+}
+
+# Set the intial active set of PCR banks of a TPM 2
+#
+# @param1: Comma-separated list of PCR banks to activate
+# @param2: List of all PCR banks supported by the TPM 2
+function tpm2_set_active_pcr_banks()
+{
+	local pcr_banks="$1"
+	local all_pcr_banks="$2"
+
+	local req rsp exp pcr_bank totlen count
+	local OIFS="$IFS" active=""
+
+	req='\x80\x02@TOTLEN-4@\x00\x00\x01\x2b'
+	req+='\x40\x00\00\x0c'
+	req+='\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00'
+	req+='@COUNT-4@'
+
+	totlen=31
+	count=0
+
+	# enable the ones the user wants
+	for pcr_bank in $(echo ${pcr_banks} | tr "," "\n"); do
+		# skip if not even available
+		! [[ ",${all_pcr_banks}," =~ ",${pcr_bank}," ]] && continue
+		case "${pcr_bank}" in
+		sha1)    active="sha1,$active";    req+='\x00\x04\x03\xff\xff\xff';;
+		sha256)  active="sha256,$active";  req+='\x00\x0b\x03\xff\xff\xff';;
+		sha384)  active="sha384,$active";  req+='\x00\x0c\x03\xff\xff\xff';;
+		sha512)  active="sha512,$active";  req+='\x00\x0d\x03\xff\xff\xff';;
+		sm3-256) active="sm3-256,$active"; req+='\x00\x12\x03\xff\xff\xff';;
+		*)
+			logerr "Unsupported PCR bank ${pcr_bank}."
+			return 1
+		esac
+		count=$((count + 1))
+	done
+
+	if [ -z "$active" ]; then
+		logerr "No PCR banks could be allocated." \
+		       "None of the selected algorithms are supported."
+		return 1
+	fi
+
+	# disable the rest
+	for pcr_bank in $(echo ${all_pcr_banks} | tr "," "\n"); do
+		# skip over those to activate
+		[[ ",${pcr_banks}," =~ ",${pcr_bank}," ]] && continue
+
+		case "$pcr_bank" in
+		sha1) req+='\x00\x04\x03\x00\x00\x00';;
+		sha256) req+='\x00\x0b\x03\x00\x00\x00';;
+		sha384) req+='\x00\x0c\x03\x00\x00\x00';;
+		sha512) req+='\x00\x0d\x03\x00\x00\x00';;
+		sm3-256) req+='\x00\x12\x03\x00\x00\x00';;
+		*)
+			logerr "Unsupported PCR bank ${pcr_bank}."
+			return 1
+		esac
+		count=$((count + 1))
+	done
+
+	totlen=$((totlen + count * 6))
+
+	req=$(echo $req | \
+	      sed -e "s/@TOTLEN-4@/$(_format "$totlen" 4)/" \
+	          -e "s/@COUNT-4@/$(_format "$count" 4)/")
+
+	rsp="$(tpm_transfer "$req")"
+
+	exp=' 80 02 00 00 00 20 00 00 00 00 00 00 00 0d 01'
+	if [ "${rsp:0:45}" != "$exp" ]; then
+		logerr "TPM2_PCR_Allocate() failed"
+		logerr "        expected: $exp [first few bytes]"
+		logerr "        received: $rsp"
+		return 1
+	fi
+
+	echo "$active" | sed 's/,$//'
+
+	return 0
+}
+
 # Initialize the TPM 2
 #
 # @param1: the flags
@@ -1440,6 +1567,7 @@ tpm2_nv_writelock()
 # @param4: the TPM owner password to use
 # @param5: The SRK password to use
 # @param6: The ID of the VM
+# @param7: The set of PCR banks to activate
 init_tpm2()
 {
 	local flags="$1"
@@ -1448,10 +1576,12 @@ init_tpm2()
 	local ownerpass="$4"
 	local srkpass="$5"
 	local vmid="$6"
+	local pcr_banks="$7"
 
 	# where external app writes certs into
 	local certsdir="$tpm2_state_path"
 	local ek tmp output nvindex nxindex_str
+	local all_pcr_banks active_pcr_banks
 
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
@@ -1624,6 +1754,14 @@ init_tpm2()
 		rm -f ${PLATFORM_CERT_FILE}
 	fi
 
+	if [ "$pcr_banks" != "-" ]; then
+		all_pcr_banks="$(tpm2_get_all_pcr_banks)"
+		[ $? -ne 0 ] && return 1
+		active_pcr_banks="$(tpm2_set_active_pcr_banks "$pcr_banks" "$all_pcr_banks")"
+		[ $? -ne 0 ] && return 1
+		logit "Successfully activated PCR banks $active_pcr_banks among $all_pcr_banks."
+	fi
+
 	# FIXME: From here on missing functions...
 
 	if [ $((flags & SETUP_DISPLAY_RESULTS_F)) -ne 0 ]; then
@@ -1764,6 +1902,11 @@ The following options are supported:
 
 --not-overwrite  : Do not overwrite existing TPM state but silently end
 
+--pcr-banks <banks>
+                 : Set of PCR banks to activate. Provide a comma separated list
+                   like 'sha1,sha256'. '-' to skip and leave all banks active.
+                   Default: $DEFAULT_PCR_BANKS
+
 --version        : Display version and exit
 
 --help,-h,-?     : Display this help screen
@@ -1779,6 +1922,7 @@ main()
 	local ret
 	local keyfile pwdfile
 	local got_ownerpass=0 got_srkpass=0
+	local pcr_banks=""
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
@@ -1811,6 +1955,7 @@ main()
 		--not-overwrite) flags=$((flags | SETUP_STATE_NOT_OVERWRITE_F));;
 		--allow-signing) flags=$((flags | SETUP_ALLOW_SIGNING_F));;
 		--decryption) flags=$((flags | SETUP_DECRYPTION_F));;
+		--pcr-banks) shift; pcr_banks="${pcr_banks},$1";;
 		--version) versioninfo $0; exit 0;;
 		--help|-h|-?) usage $0; exit 0;;
 		*) logerr "Unknown option $1"; usage $0; exit 1;;
@@ -1820,6 +1965,12 @@ main()
 
 	[ $got_ownerpass -eq 0 ] && flags=$((flags | SETUP_OWNERPASS_ZEROS_F))
 	[ $got_srkpass -eq 0 ] && flags=$((flags | SETUP_SRKPASS_ZEROS_F))
+
+	pcr_banks="$(echo $pcr_banks |
+	             tr -s ',' |
+	             sed -e 's/^,//' -e 's/,$//' |
+	             tr '[:upper:]' '[:lower:]')"
+	[ -z "$pcr_banks" ] && pcr_banks="$DEFAULT_PCR_BANKS"
 
         # set owner password to default if user didn't provide any password wish
         # and wants to take ownership
@@ -1959,7 +2110,7 @@ main()
 	else
 		SWTPM="$SWTPM --tpm2"
 		init_tpm2 $flags "$config_file" "$tpm_state_path" \
-		        "$ownerpass" "$srkpass" "$vmid"
+		        "$ownerpass" "$srkpass" "$vmid" "$pcr_banks"
 	fi
 	ret=$?
 	if [ $ret -eq 0 ]; then
