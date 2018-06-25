@@ -65,6 +65,7 @@ const char *one_arg_params[] = {
     "--keyfile",
     "--pwdfile",
     "--swtpm_ioctl",
+    "--pcr-banks",
     NULL
 };
 

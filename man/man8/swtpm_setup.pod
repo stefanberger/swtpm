@@ -140,6 +140,12 @@ Optional VM ID that can be used to keep track of certificates issued
 for VMs (or containers). This parameter will be passed through to the tool
 used for creating the certificates and may be required by that tool.
 
+=item B<--pcr-banks <PCR banks>>
+
+Optional comma-separated list of PCR banks to activate. Providing '-'
+allows to skip the selection and activates all PCR banks. By default
+the sha1 and sha256 banks are activated.
+
 =item B<--swtpm_ioctl <executable>>
 
 Pass the path to the swtpm_ioctl executable. By default the swtpm_ioctl
