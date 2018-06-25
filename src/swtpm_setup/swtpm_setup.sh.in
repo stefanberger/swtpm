@@ -1559,6 +1559,26 @@ function tpm2_set_active_pcr_banks()
 	return 0
 }
 
+# Shut down the TPM 2 with SU_CLEAR
+function tpm2_shutdown
+{
+	local req rsp exp
+
+	req='\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x45\x00\x00'
+
+	rsp="$(tpm_transfer "$req")"
+
+	exp=' 80 01 00 00 00 0a 00 00 00 00'
+	if [ "$rsp" != "$exp" ]; then
+		logerr "TPM2_Shutdown(SU_CLEAR) failed"
+		logerr "        expected: $exp"
+		logerr "        received: $rsp"
+		return 1
+	fi
+
+	return 0
+}
+
 # Initialize the TPM 2
 #
 # @param1: the flags
@@ -1767,6 +1787,9 @@ init_tpm2()
 	if [ $((flags & SETUP_DISPLAY_RESULTS_F)) -ne 0 ]; then
 		echo "Display of results not supported yet."
 	fi
+
+	tpm2_shutdown
+	[ $? -ne 0 ] && return 1
 
 	return 0
 }
