@@ -140,7 +140,8 @@ static TPM_RESULT SWTPM_NVRAM_GetDecryptedData(const encryptionkey *key,
                                                uint32_t encrypt_length,
                                                uint16_t tag_decryped_data,
                                                uint16_t tag_data,
-                                               uint8_t hdrversion);
+                                               uint8_t hdrversion,
+                                               uint16_t tag_ivec);
 
 static TPM_RESULT SWTPM_NVRAM_PrependHeader(unsigned char **data,
                                             uint32_t *length,
@@ -356,7 +357,8 @@ SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
                                           *data + dataoffset,
                                           *length - dataoffset,
                                           TAG_ENCRYPTED_DATA, TAG_DATA,
-                                          hdrversion);
+                                          hdrversion,
+                                          TAG_IVEC_ENCRYPTED_DATA);
         TPM_DEBUG(" SWTPM_NVRAM_LoadData: SWTPM_NVRAM_DecryptData rc = %d\n",
                   rc);
         if (rc != 0)
@@ -696,6 +698,25 @@ err:
 }
 
 /*
+ * SWTPM_GetIvec: Get the encryption IV from the data stream. If none is
+ *                found a NULL pointer is set in *ivec, otherwise a pointer
+ *                to the beginning of the IV and its length are returned.
+ */
+static void SWTPM_GetIvec(const unsigned char *data, uint32_t length,
+                          const unsigned char **ivec, uint32_t *ivec_length,
+                          uint16_t tag)
+{
+    tlv_data td;
+
+    if (!tlv_data_find_tag(data, length, tag, &td)) {
+        *ivec = NULL;
+    } else {
+        *ivec = td.u.const_ptr;
+        *ivec_length = td.tlv.length;
+    }
+}
+
+/*
  * SWTPM_CalcHMAC
  *
  * @in: input buffer to calculate HMAC on
@@ -883,12 +904,15 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                         unsigned char **decrypt_data, uint32_t *decrypt_length,
                         const unsigned char *data, uint32_t length,
                         uint16_t tag_encrypted_data,
-                        uint8_t hdrversion)
+                        uint8_t hdrversion,
+                        uint16_t tag_ivec)
 {
     TPM_RESULT rc = 0;
     unsigned char *tmp_data = NULL;
     uint32_t tmp_length = 0;
     tlv_data td[2];
+    const unsigned char *ivec = NULL;
+    uint32_t ivec_length = 0;
 
     if (key->symkey.valid) {
         switch (key->data_encmode) {
@@ -918,14 +942,18 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                     rc = TPM_FAIL;
                     break;
                 }
-                rc = SWTPM_CheckHMAC(&td[0], &td[1], &key->symkey, NULL, 0);
+                /* get the IV, if there is one */
+                SWTPM_GetIvec(data, length, &ivec, &ivec_length, tag_ivec);
+
+                rc = SWTPM_CheckHMAC(&td[0], &td[1], &key->symkey,
+                                     ivec, ivec_length);
                 if (rc == 0) {
                     rc = TPM_SymmetricKeyData_Decrypt(decrypt_data,
                                                       decrypt_length,
                                                       td[1].u.const_ptr,
                                                       td[1].tlv.length,
                                                       &key->symkey,
-                                                      NULL, 0);
+                                                      ivec, ivec_length);
                 }
             break;
             default:
@@ -998,6 +1026,7 @@ SWTPM_NVRAM_GetPlainData(unsigned char **plain, uint32_t *plain_length,
  * @hdrversion: the version found in the header that determines in what
  *              format the data is stored; tag-length-value is the format
  *              in v2
+ * @tag_ivec: the tag for finding the IV
  */
 static TPM_RESULT
 SWTPM_NVRAM_GetDecryptedData(const encryptionkey *key,
@@ -1007,13 +1036,14 @@ SWTPM_NVRAM_GetDecryptedData(const encryptionkey *key,
                              uint32_t length,
                              uint16_t tag_encrypted_data,
                              uint16_t tag_data,
-                             uint8_t hdrversion)
+                             uint8_t hdrversion,
+                             uint16_t tag_ivec)
 {
     if (key && key->symkey.valid) {
         /* we assume the data are encrypted when there's a key given */
         return SWTPM_NVRAM_DecryptData(key, decrypt_data, decrypt_length,
                                        data, length, tag_encrypted_data,
-                                       hdrversion);
+                                       hdrversion, tag_ivec);
     }
     return SWTPM_NVRAM_GetPlainData(decrypt_data, decrypt_length,
                                     data, length, tag_data, hdrversion);
@@ -1247,7 +1277,8 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                       &mig_decrypt, &mig_decrypt_len,
                                       &data[dataoffset], length - dataoffset,
                                       TAG_ENCRYPTED_MIGRATION_DATA,
-                                      hdrversion);
+                                      hdrversion,
+                                      TAG_IVEC_ENCRYPTED_MIGRATION_DATA);
         if (res) {
             logprintf(STDERR_FILENO,
                       "Decrypting the %s blob with the migration key failed; "
@@ -1278,7 +1309,7 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
         res = SWTPM_NVRAM_DecryptData(&filekey, &plain, &plain_len,
                                       mig_decrypt, mig_decrypt_len,
                                       TAG_ENCRYPTED_DATA,
-                                      hdrversion);
+                                      hdrversion, TAG_IVEC_ENCRYPTED_DATA);
         if (res) {
             logprintf(STDERR_FILENO,
                       "Decrypting the %s blob with the state key "

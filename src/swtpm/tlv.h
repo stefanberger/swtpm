@@ -55,6 +55,8 @@ typedef struct tlv_header {
 #define TAG_HMAC                     3
 #define TAG_MIGRATION_DATA           4
 #define TAG_ENCRYPTED_MIGRATION_DATA 5
+#define TAG_IVEC_ENCRYPTED_DATA      6
+#define TAG_IVEC_ENCRYPTED_MIGRATION_DATA  7
 
 typedef struct tlv_data {
     struct tlv_header tlv;
