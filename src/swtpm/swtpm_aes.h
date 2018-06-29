@@ -55,14 +55,18 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,
                                         const unsigned char *decrypt_data,
                                         uint32_t decrypt_length,
                                         const TPM_SYMMETRIC_KEY_DATA
-					*tpm_symmetric_key_token);
+					    *tpm_symmetric_key_token,
+					const unsigned char *ivec,
+					uint32_t ivec_length);
 
 TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,
                                         uint32_t *decrypt_length,
                                         const unsigned char *encrypt_data,
                                         uint32_t encrypt_length,
                                         const TPM_SYMMETRIC_KEY_DATA
-					*tpm_symmetric_key_token);
+					    *tpm_symmetric_key_token,
+                                        const unsigned char *ivec,
+                                        uint32_t ivec_length);
 
 #endif /* _SWTPM_AES_H_ */
 

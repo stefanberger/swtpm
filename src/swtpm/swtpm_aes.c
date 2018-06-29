@@ -67,7 +67,9 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
                                         const unsigned char *decrypt_data,	/* input */
                                         uint32_t decrypt_length,		/* input */
                                         const TPM_SYMMETRIC_KEY_DATA
-					*tpm_symmetric_key_token) 		/* input */
+					    *tpm_symmetric_key_token,		/* input */
+                                        const unsigned char *u_ivec,		/* input */
+                                        uint32_t u_ivec_length)			/* input */
 {
     TPM_RESULT          rc = 0;
     uint32_t              pad_length;
@@ -79,6 +81,22 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
 
     printf(" TPM_SymmetricKeyData_Encrypt: Length %u\n", decrypt_length);
     decrypt_data_pad = NULL;    /* freed @1 */
+
+    if (rc == 0) {
+        if (u_ivec != NULL && u_ivec_length != TPM_AES_BLOCK_SIZE) {
+            printf("TPM_SymmetricKeyData_Encrypt: IV is %u bytes, "
+                   "but expected %u bytes\n", ivec_length, TPM_AES_BLOCK_SIZE);
+            rc = TPM_ENCRYPT_ERROR;
+        } else {
+            if (u_ivec) {
+                /* copy user-provided IV */
+                memcpy(ivec, u_ivec, sizeof(ivec));
+            } else {
+                memset(ivec, 0, sizeof(ivec));
+            }
+        }
+    }
+
     if (rc == 0) {
         /* calculate the pad length and padded data length */
         pad_length = TPM_AES_BLOCK_SIZE - (decrypt_length % TPM_AES_BLOCK_SIZE);
@@ -117,8 +135,6 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
         memcpy(decrypt_data_pad, decrypt_data, decrypt_length);
         /* last gets pad = pad length */
         memset(decrypt_data_pad + decrypt_length, pad_length, pad_length);
-        /* set the IV */
-        memset(ivec, 0, sizeof(ivec));
         /* encrypt the padded input to the output */
         //TPM_PrintFour("  TPM_SymmetricKeyData_Encrypt: Input", decrypt_data_pad);
         AES_cbc_encrypt(decrypt_data_pad,
@@ -146,7 +162,9 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
                                         const unsigned char *encrypt_data,	/* input */
                                         uint32_t encrypt_length,		/* input */
                                         const TPM_SYMMETRIC_KEY_DATA
-					*tpm_symmetric_key_token) 		/* input */
+					     *tpm_symmetric_key_token,		/* input */
+					const unsigned char *u_ivec,		/* input */
+                                        uint32_t u_ivec_length)			/* input */
 {
     TPM_RESULT          rc = 0;
     uint32_t		pad_length;
@@ -163,6 +181,20 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
         if (encrypt_length < TPM_AES_BLOCK_SIZE) {
             printf("TPM_SymmetricKeyData_Decrypt: Error, bad length\n");
             rc = TPM_DECRYPT_ERROR;
+        }
+    }
+    if (rc == 0) {
+        if (u_ivec != NULL && u_ivec_length != TPM_AES_BLOCK_SIZE) {
+            printf("TPM_SymmetricKeyData_Decrypt: IV is %u bytes, "
+                   "but expected %u bytes\n", ivec_length, TPM_AES_BLOCK_SIZE);
+            rc = TPM_DECRYPT_ERROR;
+        } else {
+            if (u_ivec) {
+                /* copy user-provided IV */
+                memcpy(ivec, u_ivec, sizeof(ivec));
+            } else {
+                memset(ivec, 0, sizeof(ivec));
+            }
         }
     }
     /* allocate memory for the padded decrypted data */
@@ -185,8 +217,6 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
 
     /* decrypt the input to the padded output */
     if (rc == 0) {
-        /* set the IV */
-        memset(ivec, 0, sizeof(ivec));
         /* decrypt the padded input to the output */
         //TPM_PrintFour("  TPM_SymmetricKeyData_Decrypt: Input", encrypt_data);
         AES_cbc_encrypt(encrypt_data,

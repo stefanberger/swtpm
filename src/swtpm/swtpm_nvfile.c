@@ -854,7 +854,8 @@ SWTPM_NVRAM_EncryptData(const encryptionkey *key,
             break;
         case ENCRYPTION_MODE_AES_CBC:
             rc = TPM_SymmetricKeyData_Encrypt(&tmp_data, &tmp_length,
-                                              data, length, &key->symkey);
+                                              data, length, &key->symkey,
+                                              NULL, 0);
             if (rc)
                  break;
 
@@ -900,7 +901,8 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                 rc = TPM_SymmetricKeyData_Decrypt(&tmp_data,
                                                   &tmp_length,
                                                   data, length,
-                                                  &key->symkey);
+                                                  &key->symkey,
+                                                  NULL, 0);
                 if (rc == 0) {
                     rc = SWTPM_CheckHash(tmp_data, tmp_length,
                                          decrypt_data, decrypt_length);
@@ -922,7 +924,8 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                                                       decrypt_length,
                                                       td[1].u.const_ptr,
                                                       td[1].tlv.length,
-                                                      &key->symkey);
+                                                      &key->symkey,
+                                                      NULL, 0);
                 }
             break;
             default:
