@@ -420,7 +420,7 @@ fi
 #                                                      cmd  |     flags     |     type      |    offset     |
 vstate="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00')"
 #      result    |   flags   | totlength |   length  |
-exp=" 00 00 00 00 00 00 00 02 00 00 05 0c 00 00 05 0c"
+exp=" 00 00 00 00 00 00 00 02 00 00 05 22 00 00 05 22"
 if [ "${vstate:0:48}" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_STATEBLOB:"
 	echo "       actual  : ${vstate:0:48}"

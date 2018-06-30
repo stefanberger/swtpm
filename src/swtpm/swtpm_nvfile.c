@@ -67,6 +67,7 @@
 
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
+#include <openssl/rand.h>
 
 #if defined(__OpenBSD__)
  # define OPENSSL_OLD_API
@@ -118,6 +119,8 @@ static encryptionkey migrationkey = {
     },
 };
 
+static uint32_t g_ivec_length;
+static unsigned char *g_ivec;
 
 /* local prototypes */
 
@@ -131,7 +134,8 @@ static TPM_RESULT SWTPM_NVRAM_EncryptData(const encryptionkey *key,
                                           size_t *td_len,
                                           uint16_t tag_encrypted_data,
                                           const unsigned char *decrypt_data,
-                                          uint32_t decrypt_length);
+                                          uint32_t decrypt_length,
+                                          uint16_t tag_ivec);
 
 static TPM_RESULT SWTPM_NVRAM_GetDecryptedData(const encryptionkey *key,
                                                unsigned char **decrypt_data,
@@ -405,7 +409,7 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
     char          filename[FILENAME_MAX]; /* rooted file name from name */
     unsigned char *filedata = NULL;
     uint32_t      filedata_length = 0;
-    tlv_data      td[2];
+    tlv_data      td[3];
     size_t        td_len = 0;
     uint16_t      flags = 0;
 
@@ -438,9 +442,10 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
 
     if (rc == 0) {
         if (encrypt && filekey.symkey.valid) {
-            td_len = 2;
+            td_len = 3;
             rc = SWTPM_NVRAM_EncryptData(&filekey, &td[0], &td_len,
-                                         TAG_ENCRYPTED_DATA, data, length);
+                                         TAG_ENCRYPTED_DATA, data, length,
+                                         TAG_IVEC_ENCRYPTED_DATA);
             if (rc) {
                 logprintf(STDERR_FILENO,
                           "SWTPM_NVRAM_EncryptData failed: 0x%02x\n", rc);
@@ -698,6 +703,51 @@ err:
 }
 
 /*
+ * SWTPM_RollAndSetGlobalIvec: Create an IV for the AES CBC algorithm to use
+ *                             Create it with a random number every time.
+ *                             and leave the pointer to the data in @td.
+ *
+ * @td: pointer to tlv_data to get pointer to the random data
+ * @tag_ivec: tag for the IV tlv header
+ * @ivec_length: number of bytes needed for the ivec
+ */
+static TPM_RESULT SWTPM_RollAndSetGlobalIvec(tlv_data *td,
+                                             uint16_t tag_ivec,
+                                             uint32_t ivec_length)
+{
+    unsigned char data[16]; /* do not initialize */
+    unsigned char hashbuf[SHA256_DIGEST_LENGTH];
+    void *p;
+
+    if (g_ivec_length < ivec_length) {
+        p = realloc(g_ivec, ivec_length);
+        if (!p) {
+            *td = TLV_DATA_CONST(tag_ivec, 0, NULL);
+
+            logprintf(STDOUT_FILENO,
+                      "Could not allocate %u bytes.\n", ivec_length);
+            return TPM_FAIL;
+        }
+        g_ivec = p;
+        g_ivec_length = ivec_length;
+    }
+
+    if (RAND_bytes(g_ivec, g_ivec_length) != 1) {
+        /* random data from stack to the rescue */
+        SHA256(g_ivec, g_ivec_length, hashbuf);
+        SHA256(data, sizeof(data), hashbuf);
+        memcpy(g_ivec, hashbuf,
+               g_ivec_length < sizeof(hashbuf)
+                   ? g_ivec_length
+                   : sizeof(hashbuf));
+    }
+
+    *td = TLV_DATA_CONST(tag_ivec, g_ivec_length, g_ivec);
+
+    return 0;
+}
+
+/*
  * SWTPM_GetIvec: Get the encryption IV from the data stream. If none is
  *                found a NULL pointer is set in *ivec, otherwise a pointer
  *                to the beginning of the IV and its length are returned.
@@ -859,10 +909,11 @@ SWTPM_NVRAM_EncryptData(const encryptionkey *key,
                         struct tlv_data *td, /* must provide 2 array members */
                         size_t *td_len,
                         uint16_t tag_encrypted_data,
-                        const unsigned char *data,
-                        uint32_t length)
+                        const unsigned char *data, uint32_t length,
+                        uint16_t tag_ivec)
 {
     TPM_RESULT rc = 0;
+    TPM_RESULT irc;
     unsigned char *tmp_data = NULL;
     uint32_t tmp_length = 0;
 
@@ -874,17 +925,21 @@ SWTPM_NVRAM_EncryptData(const encryptionkey *key,
             rc = TPM_BAD_MODE;
             break;
         case ENCRYPTION_MODE_AES_CBC:
+            irc = SWTPM_RollAndSetGlobalIvec(&td[2], tag_ivec,
+                                             sizeof(key->symkey.userKey));
             rc = TPM_SymmetricKeyData_Encrypt(&tmp_data, &tmp_length,
                                               data, length, &key->symkey,
-                                              NULL, 0);
+                                              td[2].u.const_ptr,
+                                              td[2].tlv.length);
             if (rc)
                  break;
 
             rc = SWTPM_CalcHMAC(tmp_data, tmp_length, &td[1], &key->symkey,
-                                NULL, 0);
+                                td[2].u.const_ptr, td[2].tlv.length);
             if (rc == 0) {
                 td[0] = TLV_DATA(tag_encrypted_data, tmp_length, tmp_data);
-                *td_len = 2;
+                /* in case we couldn't get an IV */
+                *td_len = (irc == 0) ? 3 : 2;
                 tmp_data = NULL;
             }
             break;
@@ -1146,7 +1201,7 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
 {
     TPM_RESULT res;
     uint16_t flags = 0;
-    tlv_data td[2];
+    tlv_data td[3];
     size_t td_len;
     unsigned char *plain = NULL, *buffer = NULL;
     uint32_t plain_len, buffer_len = 0;
@@ -1163,9 +1218,10 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
     /* if the user doesn't want decryption and there's a file key, we need to
        encrypt the data */
     if (!decrypt && filekey.symkey.valid) {
-        td_len = 2;
+        td_len = 3;
         res = SWTPM_NVRAM_EncryptData(&filekey, &td[0], &td_len,
-                                      TAG_ENCRYPTED_DATA, plain, plain_len);
+                                      TAG_ENCRYPTED_DATA, plain, plain_len,
+                                      TAG_IVEC_ENCRYPTED_DATA);
         if (res)
             goto err_exit;
 
@@ -1189,10 +1245,11 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
         /* we have to encrypt it now with the migration key */
         flags |= BLOB_FLAG_MIGRATION_ENCRYPTED;
 
-        td_len = 2;
+        td_len = 3;
         res = SWTPM_NVRAM_EncryptData(&migrationkey, &td[0], &td_len,
                                       TAG_ENCRYPTED_MIGRATION_DATA,
-                                      buffer, buffer_len);
+                                      buffer, buffer_len,
+                                      TAG_IVEC_ENCRYPTED_MIGRATION_DATA);
         if (res)
             goto err_exit;
     } else {
