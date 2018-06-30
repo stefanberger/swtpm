@@ -68,6 +68,14 @@
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
 
+#if defined(__OpenBSD__)
+ # define OPENSSL_OLD_API
+#else
+ #if OPENSSL_VERSION_NUMBER < 0x10100000
+  #define OPENSSL_OLD_API
+ #endif
+#endif
+
 #include "swtpm_aes.h"
 #include "swtpm_debug.h"
 #include "swtpm_nvfile.h"
@@ -645,6 +653,48 @@ TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,
     return rc;
 }
 
+static int SWTPM_HMAC(unsigned char *md, unsigned int *md_len,
+                      const void *key, int key_len,
+                      const unsigned char *in, uint32_t in_length,
+                      const unsigned char *ivec, uint32_t ivec_length)
+{
+    int ret = 0;
+
+#if defined OPENSSL_OLD_API
+    HMAC_CTX sctx, *ctx = &sctx;
+
+    HMAC_CTX_init(ctx);
+#else
+    HMAC_CTX *ctx = HMAC_CTX_new();
+
+    if (!ctx)
+        return 0;
+#endif
+
+
+    if (!HMAC_Init_ex(ctx, key, key_len, EVP_sha256(), NULL) ||
+        !HMAC_Update(ctx, in, in_length))
+        goto err;
+
+    if (ivec &&
+        !HMAC_Update(ctx, ivec, ivec_length))
+        goto err;
+
+    if (!HMAC_Final(ctx, md, md_len))
+        goto err;
+
+    ret = 1;
+
+err:
+#if defined OPENSSL_OLD_API
+    HMAC_CTX_cleanup(ctx);
+#else
+    HMAC_CTX_free(ctx);
+#endif
+
+    return ret;
+}
+
 /*
  * SWTPM_CalcHMAC
  *
@@ -653,6 +703,8 @@ TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,
  * @td: pointer to a tlv_data structure to receive the result with the
  *      tag, length, and pointer to an allocated buffer holding the HMAC
  * @tpm_symmetric_key_token: symmetric key
+ * @ivec: the IV for AES CBC
+ * @ivec_length: the length of the IV
  *
  * Calculate an HMAC on the input buffer with payload and create an output
  * buffer with the HMAC
@@ -660,16 +712,18 @@ TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,
 static TPM_RESULT
 SWTPM_CalcHMAC(const unsigned char *in, uint32_t in_length,
                tlv_data *td,
-               const TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_token)
+               const TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_token,
+               const unsigned char *ivec, uint32_t ivec_length)
 {
     TPM_RESULT rc = 0;
     unsigned int md_len;
     unsigned char md[EVP_MAX_MD_SIZE];
     unsigned char *buffer = NULL;
 
-    if (!HMAC(EVP_sha256(), tpm_symmetric_key_token->userKey,
-              TPM_AES_BLOCK_SIZE, in, in_length, md, &md_len)) {
-        logprintf(STDOUT_FILENO, "HMAC() call failed.\n");
+    if (!SWTPM_HMAC(md, &md_len,
+                    tpm_symmetric_key_token->userKey, TPM_AES_BLOCK_SIZE,
+                    in, in_length, ivec, ivec_length)) {
+        logprintf(STDOUT_FILENO, "HMAC calculation failed.\n");
         return TPM_FAIL;
     }
 
@@ -693,13 +747,16 @@ SWTPM_CalcHMAC(const unsigned char *in, uint32_t in_length,
  * @hmac: tlv_data with pointer to hmac bytes
  * @encrypted_data: tlv_data with pointer to encrypted data bytes
  * @tpm_symmetric_key_token: symmetric key
+ * @ivec: the IV for AES CBC
+ * @ivec_length: the length of the IV
  *
  * Verify the HMAC given the expected @hmac and the @tpm_symmetric_key_token
  * to calculate the HMAC over the @encrypted_data.
  */
 static TPM_RESULT
 SWTPM_CheckHMAC(tlv_data *hmac, tlv_data *encrypted_data,
-                const TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_token)
+                const TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_token,
+                const unsigned char *ivec, uint32_t ivec_length)
 {
     const unsigned char *data;
     uint32_t data_length;
@@ -715,8 +772,9 @@ SWTPM_CheckHMAC(tlv_data *hmac, tlv_data *encrypted_data,
     data = encrypted_data->u.ptr;
     data_length = encrypted_data->tlv.length;
 
-    if (!HMAC(EVP_sha256(), tpm_symmetric_key_token->userKey,
-              TPM_AES_BLOCK_SIZE, data, data_length, md, &md_len)) {
+    if (!SWTPM_HMAC(md, &md_len,
+                    tpm_symmetric_key_token->userKey, TPM_AES_BLOCK_SIZE,
+                    data, data_length, ivec, ivec_length)) {
         logprintf(STDOUT_FILENO, "HMAC() call failed.\n");
         return TPM_FAIL;
     }
@@ -800,7 +858,8 @@ SWTPM_NVRAM_EncryptData(const encryptionkey *key,
             if (rc)
                  break;
 
-            rc = SWTPM_CalcHMAC(tmp_data, tmp_length, &td[1], &key->symkey);
+            rc = SWTPM_CalcHMAC(tmp_data, tmp_length, &td[1], &key->symkey,
+                                NULL, 0);
             if (rc == 0) {
                 td[0] = TLV_DATA(tag_encrypted_data, tmp_length, tmp_data);
                 *td_len = 2;
@@ -857,7 +916,7 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                     rc = TPM_FAIL;
                     break;
                 }
-                rc = SWTPM_CheckHMAC(&td[0], &td[1], &key->symkey);
+                rc = SWTPM_CheckHMAC(&td[0], &td[1], &key->symkey, NULL, 0);
                 if (rc == 0) {
                     rc = TPM_SymmetricKeyData_Decrypt(decrypt_data,
                                                       decrypt_length,
