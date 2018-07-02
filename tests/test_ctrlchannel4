@@ -118,8 +118,7 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-kill -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
+if wait_process_gone $PID 1; then
 	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
