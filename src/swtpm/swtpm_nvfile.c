@@ -52,6 +52,7 @@
 
 #include "config.h"
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -59,6 +60,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_memory.h>
@@ -171,7 +173,50 @@ static TPM_RESULT SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
   One root path is used for all virtual TPM's, so it can be a static variable.
 */
 
+static int lockfile_fd = -1;
+
 char state_directory[FILENAME_MAX];
+
+static TPM_RESULT SWTPM_NVRAM_Lock_Lockfile(const char *directory,
+                                            int *fd)
+{
+    TPM_RESULT rc = 0;
+    char *lockfile = NULL;
+    struct flock flock = {
+        .l_type = F_WRLCK,
+        .l_whence = SEEK_SET,
+        .l_start = 0,
+        .l_len = 0,
+    };
+
+    if (asprintf(&lockfile, "%s/.lock", directory) < 0) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_Lock_Lockfile: Could not asprintf lock filename\n");
+        return TPM_FAIL;
+    }
+
+    *fd = open(lockfile, O_WRONLY|O_CREAT|O_TRUNC, 0660);
+    if (*fd < 0) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_Lock_Lockfile: Could not open lockfile: %s\n",
+                  strerror(errno));
+        rc = TPM_FAIL;
+        goto exit;
+    }
+
+    if (fcntl(*fd, F_SETLK, &flock) < 0) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_Lock_Lockfile: Could not lock access to lockfile: %s\n",
+                  strerror(errno));
+        rc = TPM_FAIL;
+        close(*fd);
+        *fd = -1;
+    }
+exit:
+    free(lockfile);
+
+    return rc;
+}
 
 /* TPM_NVRAM_Init() is called once at startup.  It does any NVRAM required initialization.
 
@@ -211,6 +256,10 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
         strcpy(state_directory, tpm_state_path);
         TPM_DEBUG("TPM_NVRAM_Init: Rooted state path %s\n", state_directory);
     }
+
+    if (rc == 0 && lockfile_fd < 0)
+        rc = SWTPM_NVRAM_Lock_Lockfile(state_directory, &lockfile_fd);
+
     return rc;
 }
 
