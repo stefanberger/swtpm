@@ -48,6 +48,7 @@ TESTS += \
 	test_tpm2_savestate \
 	test_tpm2_save_load_encrypted_state \
 	test_tpm2_save_load_state_3 \
+	test_tpm2_save_load_state_da_timeout \
 	test_tpm2_setbuffersize \
 	test_tpm2_volatilestate \
 	test_tpm2_wrongorder \
