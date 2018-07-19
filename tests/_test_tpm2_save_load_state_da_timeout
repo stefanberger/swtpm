@@ -1,0 +1,327 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+
+DIR=$(dirname "$0")
+ROOT=${DIR}/..
+VTPM_NAME="${VTPM_NAME:-vtpm-tpm2-test-save-load-state-da-timeout}"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH=$(mktemp -d)
+STATE_FILE=$TPM_PATH/tpm2-00.permall
+VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
+MY_VOLATILE_STATE_FILE=$TPM_PATH/my.volatilestate
+MY_PERMANENT_STATE_FILE=$TPM_PATH/my.permanent
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+
+logfile=$(mktemp)
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill -9 $pid
+	fi
+	rm -f $logfile
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
+source ${DIR}/common
+
+rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+
+run_swtpm ${SWTPM_INTERFACE} \
+	--log file=$logfile,level=20 \
+	--tpm2
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Startup the TPM
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+exp=' 80 01 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_Startup(ST_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Create an NVRAM location: nvdefinespace -hi o -ha 01000000 -pwdn nnn  -sz 16 -at da
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x02\x00\x00\x00\x30\x00\x00\x01\x2a\x40\x00\x00\x01\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x03\x6e\x6e\x6e\x00\x0e\x01\x00\x00\x00\x00\x0b\x00\x04\x00\x04\x00\x00\x00\x10')
+exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_NV_DefineSpace()"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+sleep 1
+
+# TPM2_NV_Write with good password 'nnn' and bad password 'nn'
+NVWRITE_GOOD='\x80\x02\x00\x00\x00\x2a\x00\x00\x01\x37\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x0c\x40\x00\x00\x09\x00\x00\x00\x00\x03\x6e\x6e\x6e\x00\x04\x74\x65\x73\x74\x00\x00'
+NVWRITE_BAD='\x80\x02\x00\x00\x00\x29\x00\x00\x01\x37\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x0b\x40\x00\x00\x09\x00\x00\x00\x00\x02\x6e\x6e\x00\x04\x74\x65\x73\x74\x00\x00'
+
+# Write some data into the NVRAM area: nvwrite -ha 01000000 -ic test -pwdn nnn
+# Due to -at da being used on TPM2_NV_DefineSpace, the first time the command will request a retry
+for ((i = 0; i < 2; i++)); do
+	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
+	exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+	if [ $i -eq 1 ] && [ "$RES" != "$exp" ]; then
+		echo "Error: Did not get expected result from TPM2_NV_Write()"
+		echo "expected: $exp"
+		echo "received: $RES"
+		exit 1
+	fi
+done
+
+# Set the dictionary attack parameters: dictionaryattackparameters -lr 6 -nrt 6
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x02\x00\x00\x00\x27\x00\x00\x01\x3a\x40\x00\x00\x0a\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x06\x00\x00\x00\x06')
+exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result fron TPM2_DictionaryAttackParameters()"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Send TPM2_NV_Write with wrong password
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_BAD})
+exp=' 80 01 00 00 00 0a 00 00 09 8e'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_NV_Write() with bad password"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+timeout=$(date +%s)
+timeout=$((timeout + 6))
+
+# TPM2_NV_Write with good password must now fail until $timeout
+while [ $(date +%s) -lt $timeout ]; do
+	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
+	exp=' 80 01 00 00 00 0a 00 00 09 21'
+	if [ "$RES" != "$exp" ]; then
+		echo "Error: Did not get expected failure from TPM2_NV_Write() with good password. Lockout should be enabled."
+		echo "expected: $exp"
+		echo "received: $RES"
+		exit 1
+	fi
+	echo "Writing with good password failed due to lockout until $timeout - now is $(date +%s)."
+	sleep 1
+done
+
+sleep 1
+echo "Time is now $(date +%s) -- trying with good password should work now."
+# Now writing with the good password must work again
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
+exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_NV_Write() with good password"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Againg cause lockout: Send TPM2_NV_Write with wrong password
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_BAD})
+exp=' 80 01 00 00 00 0a 00 00 09 8e'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_NV_Write() with bad password"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+timeout=$(date +%s)
+timeout=$((timeout + 6))
+
+# Save the state and restore it and then try to poll again
+run_swtpm_ioctl ${SWTPM_INTERFACE} --save permanent $MY_PERMANENT_STATE_FILE
+if [ $? -ne 0 ]; then
+	echo "Error: Could not write permanent state file $MY_PERMANENT_STATE_FILE."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+if [ ! -r $MY_PERMANENT_STATE_FILE ]; then
+	echo "Error: Permanent state file $MY_PERMANENT_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+echo "Saved permanent state."
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} --save volatile $MY_VOLATILE_STATE_FILE
+if [ $? -ne 0 ]; then
+	echo "Error: Could not write volatile state file $MY_VOLATILE_STATE_FILE."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+if [ ! -r $MY_VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $MY_VOLATILE_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+echo "Saved volatile state."
+
+# we will use our own volatile state
+rm -f $VOLATILE_STATE_FILE $STATE_FILE
+
+# Stop the TPM; this will not shut it down
+exec 100>&-
+run_swtpm_ioctl ${SWTPM_INTERFACE} --stop
+if [ $? -ne 0 ]; then
+	echo "Error: Could not stop the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error (2): ${SWTPM_INTERFACE} TPM is not running anymore."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# load state into the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} --load permanent $MY_PERMANENT_STATE_FILE
+if [ $? -ne 0 ]; then
+	echo "Could not load permanent state into vTPM"
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+echo "Loaded permanent state."
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} --load volatile $MY_VOLATILE_STATE_FILE
+if [ $? -ne 0 ]; then
+	echo "Could not load volatile state into vTPM"
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+echo "Loaded volatile state."
+
+#ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
+#sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "TPM Init failed."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Volatile state must have been removed by TPM now
+if [ -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+
+# TPM2_NV_Write with good password must now fail until $timeout
+while [ $(date +%s) -lt $timeout ]; do
+	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
+	exp=' 80 01 00 00 00 0a 00 00 09 21'
+	if [ "$RES" != "$exp" ]; then
+		echo "Error: Did not get expected failure from TPM2_NV_Write() with good password. Lockout should be enabled."
+		echo "expected: $exp"
+		echo "received: $RES"
+		exit 1
+	fi
+	echo "Writing with good password failed due to lockout until $timeout - now is $(date +%s)."
+	sleep 1
+done
+
+sleep 1
+echo "Time is now $(date +%s) -- trying with good password should work now."
+# Now writing with the good password must work again
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
+exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_NV_Write() with good password"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+
+# Final shut down
+exec 100>&-
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+sleep 0.5
+
+kill -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -eq 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+echo "OK"
+
+exit 0
