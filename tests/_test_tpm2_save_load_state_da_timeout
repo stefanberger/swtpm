@@ -134,17 +134,19 @@ timeout=$(date +%s)
 timeout=$((timeout + 6))
 
 # TPM2_NV_Write with good password must now fail until $timeout
-while [ $(date +%s) -lt $timeout ]; do
+while :; do
+	echo "Writing with good password failed due to lockout until $timeout - now is $(date +%s)."
 	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 01 00 00 00 0a 00 00 09 21'
-	if [ "$RES" != "$exp" ]; then
+	# busy systems may run the above at >= $timeout and get an unexpected result; check time again
+	if [ "$RES" != "$exp" ] && [ $(date +%s) -lt $timeout ]; then
 		echo "Error: Did not get expected failure from TPM2_NV_Write() with good password. Lockout should be enabled."
 		echo "expected: $exp"
 		echo "received: $RES"
 		exit 1
 	fi
-	echo "Writing with good password failed due to lockout until $timeout - now is $(date +%s)."
+	[ $(date +%s) -ge $timeout ] && break
 	sleep 1
 done
 
@@ -267,17 +269,19 @@ fi
 
 
 # TPM2_NV_Write with good password must now fail until $timeout
-while [ $(date +%s) -lt $timeout ]; do
+while :; do
+	echo "Writing with good password failed due to lockout until $timeout - now is $(date +%s)."
 	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 01 00 00 00 0a 00 00 09 21'
-	if [ "$RES" != "$exp" ]; then
+	# busy systems may run the above at >= $timeout and get an unexpected result; check time again
+	if [ "$RES" != "$exp" ] && [ $(date +%s) -lt $timeout ]; then
 		echo "Error: Did not get expected failure from TPM2_NV_Write() with good password. Lockout should be enabled."
 		echo "expected: $exp"
 		echo "received: $RES"
 		exit 1
 	fi
-	echo "Writing with good password failed due to lockout until $timeout - now is $(date +%s)."
+	[ $(date +%s) -ge $timeout ] && break
 	sleep 1
 done
 
