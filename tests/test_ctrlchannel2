@@ -2,8 +2,9 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
 SWTPM_IOCTL=${SWTPM_IOCTL:-$ROOT/src/swtpm_ioctl/swtpm_ioctl}
@@ -14,7 +15,7 @@ CMD_PATH=$TPMDIR/cmd
 RESP_PATH=$TPMDIR/resp
 VOLATILESTATE=$TPMDIR/volatile
 
-source ${DIR}/common
+source ${TESTDIR}/common
 
 trap "cleanup" SIGTERM EXIT
 
@@ -300,14 +301,14 @@ echo "OK"
 # Test 3: test the control channel on the socket tpm: resume encrypted state
 
 # copy all the state files
-cp ${PWD}/${DIR}/data/tpmstate2/* ${TPMDIR}
+cp ${TESTDIR}/data/tpmstate2/* ${TPMDIR}
 
 $SWTPM_EXE socket \
 	--server port=65431,disconnect=true \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt \
+	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt \
 	--flags not-need-init &
 
 if wait_for_file $PID_FILE 3; then
@@ -363,7 +364,7 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt \
+	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt \
 	--flags not-need-init &
 
 if wait_for_file $PID_FILE 3; then

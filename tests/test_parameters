@@ -2,8 +2,8 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 
 PARAMETERS=(
 	""
@@ -21,9 +21,9 @@ PARAMETERS=(
 	"--take-ownership --srk-well-known"
 	"--take-ownership --owner-well-known"
 	"--take-ownership --srk-well-known --owner-well-known"
-	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${DIR}/swtpm_setup.conf --vmid test --display"
-	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
-	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${TESTDIR}/swtpm_setup.conf --vmid test --display"
+	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt"
+	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
 )
 
 FILESIZES=(
@@ -60,10 +60,9 @@ TPMDIR=`mktemp -d`
 SWTPM_SETUP_CONF=$ROOT/etc/swtpm_setup.conf
 # filesystem privileges require to run swtpm_setup as root during test
 TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --config ${SWTPM_SETUP_CONF} --runas root"
-PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
-PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
+PATH=${ROOT}/src/swtpm_bios:$PATH
 
-source ${DIR}/test_config
+source ${TESTDIR}/test_config
 
 trap "cleanup" SIGTERM EXIT
 

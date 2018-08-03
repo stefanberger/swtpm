@@ -7,8 +7,9 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 77
 fi
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
 SWTPM=${ROOT}/src/swtpm/swtpm
@@ -20,7 +21,7 @@ SIGNINGKEY=${workdir}/signingkey.pem
 ISSUERCERT=${workdir}/issuercert.pem
 CERTSERIAL=${workdir}/certserial
 
-PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
+PATH=${ROOT}/src/swtpm_bios:$PATH
 
 trap "cleanup" SIGTERM EXIT
 

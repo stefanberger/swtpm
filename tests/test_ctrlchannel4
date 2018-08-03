@@ -2,14 +2,15 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 TPMDIR=`mktemp -d`
 SWTPM_CTRL_UNIX_PATH=$TPMDIR/sock
 PID_FILE=$TPMDIR/swtpm.pid
 LOG_FILE=$TPMDIR/swtpm.log
 
-source ${DIR}/test_common
+source ${TESTDIR}/test_common
 
 trap "cleanup" SIGTERM EXIT
 
@@ -22,7 +23,7 @@ function cleanup()
 }
 
 SWTPM_INTERFACE=socket+unix
-source ${DIR}/common
+source ${TESTDIR}/common
 
 # Test 1: test the control channel on the chardev tpm
 

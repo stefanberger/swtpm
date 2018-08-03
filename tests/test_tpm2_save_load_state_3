@@ -14,8 +14,9 @@ if [ $? -ne 0 ]; then
 fi
 TOOLSPATH=$(dirname $(type -P ${PREFIX}startup))
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
 SWTPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
@@ -33,11 +34,11 @@ SIGFILE2=$TPMDIR/sigfile2
 TMP2FILE=$TPMDIR/tmpfile2
 
 
-HKEYPRIV=${DIR}/data/tpm2state3/hkey.priv
-HKEYPUB=${DIR}/data/tpm2state3/hkey.pub
+HKEYPRIV=${TESTDIR}/data/tpm2state3/hkey.priv
+HKEYPUB=${TESTDIR}/data/tpm2state3/hkey.pub
 
-source ${DIR}/test_common
-source ${DIR}/common
+source ${TESTDIR}/test_common
+source ${TESTDIR}/common
 
 trap "cleanup" SIGTERM EXIT
 
@@ -222,7 +223,7 @@ function test_primary()
 				-if ${BINFILE} > $TMPFILE
 		else
 			${TOOLSPATH}/${PREFIX}verifysignature -hk 81000000 \
-				-is ${DIR}/data/tpm2state3/signature.bin \
+				-is ${TESTDIR}/data/tpm2state3/signature.bin \
 				-if ${BINFILE} > $TMPFILE
 		fi
 		if [ $? -ne 0 ]; then
@@ -621,7 +622,7 @@ function test_primary_volatile_load()
 		local sigfile=${SIGFILE} hash1 hash2
 
 		if [ $previousstate -ne 0 ]; then
-			sigfile=${DIR}/data/tpm2state3d/signature2.bin
+			sigfile=${TESTDIR}/data/tpm2state3d/signature2.bin
 		fi
 
 		printf "Checking availability of key with handle 0x80000000\n"
@@ -715,8 +716,8 @@ echo "============================" >> $LOGFILE
 echo "TPM was shut down"
 
 # Store this state for later usage
-# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3;
-# cp $SIGFILE ${DIR}/data/tpm2state3/signature.bin
+# cp $TPMDIR/tpm2-00.permall ${TESTDIR}/data/tpm2state3;
+# cp $SIGFILE ${TESTDIR}/data/tpm2state3/signature.bin
 
 #################################################################
 # Run TPM2 with the created state and verify it's the same
@@ -779,7 +780,7 @@ echo "TPM was shut down"
 # Run TPM2 with previously saved state and verify it's the same
 
 rm -f $TPMDIR/*
-cp -f ${DIR}/data/tpm2state3/tpm2-00.permall $TPMDIR/tpm2-00.permall
+cp -f ${TESTDIR}/data/tpm2state3/tpm2-00.permall $TPMDIR/tpm2-00.permall
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
@@ -897,10 +898,10 @@ fi
 # Run TPM2 with the saved volatile state
 
 # create a backup for running the next test...
-# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3b/tpm2-00.permall
-# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3b/tpm2-00.volatilestate
-# cp $TPMDIR/h02000000.bin ${DIR}/data/tpm2state3b/h02000000.bin
-# cp $TPMDIR/h81000000.bin ${DIR}/data/tpm2state3b/h81000000.bin
+# cp $TPMDIR/tpm2-00.permall ${TESTDIR}/data/tpm2state3b/tpm2-00.permall
+# cp $TPMDIR/tpm2-00.volatilestate ${TESTDIR}/data/tpm2state3b/tpm2-00.volatilestate
+# cp $TPMDIR/h02000000.bin ${TESTDIR}/data/tpm2state3b/h02000000.bin
+# cp $TPMDIR/h81000000.bin ${TESTDIR}/data/tpm2state3b/h81000000.bin
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
@@ -946,10 +947,10 @@ fi
 # Run TPM2 with previously saved (volatile) state and verify it's
 # working as well
 
-cp -f ${DIR}/data/tpm2state3b/tpm2-00.permall $TPMDIR/tpm2-00.permall
-cp -f ${DIR}/data/tpm2state3b/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
-cp -f ${DIR}/data/tpm2state3b/h02000000.bin $TPMDIR/h02000000.bin
-cp -f ${DIR}/data/tpm2state3b/h81000000.bin $TPMDIR/h81000000.bin
+cp -f ${TESTDIR}/data/tpm2state3b/tpm2-00.permall $TPMDIR/tpm2-00.permall
+cp -f ${TESTDIR}/data/tpm2state3b/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
+cp -f ${TESTDIR}/data/tpm2state3b/h02000000.bin $TPMDIR/h02000000.bin
+cp -f ${TESTDIR}/data/tpm2state3b/h81000000.bin $TPMDIR/h81000000.bin
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
@@ -1052,8 +1053,8 @@ fi
 # Run TPM2 with the saved volatile state
 
 # create a backup for running the next test...
-# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3c/tpm2-00.permall
-# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3c/tpm2-00.volatilestate
+# cp $TPMDIR/tpm2-00.permall ${TESTDIR}/data/tpm2state3c/tpm2-00.permall
+# cp $TPMDIR/tpm2-00.volatilestate ${TESTDIR}/data/tpm2state3c/tpm2-00.volatilestate
 
 #echo $TPMDIR
 #ls -l $TPMDIR
@@ -1103,8 +1104,8 @@ fi
 # Run TPM2 with previously saved (volatile) state and verify it's
 # working as well
 
-cp -f ${DIR}/data/tpm2state3c/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
-cp -f ${DIR}/data/tpm2state3c/tpm2-00.permall $TPMDIR/tpm2-00.permall
+cp -f ${TESTDIR}/data/tpm2state3c/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
+cp -f ${TESTDIR}/data/tpm2state3c/tpm2-00.permall $TPMDIR/tpm2-00.permall
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
@@ -1205,9 +1206,9 @@ fi
 # Run TPM2 with the saved volatile state
 
 # create a backup for running the next test...
-# cp $TPMDIR/tpm2-00.volatilestate ${DIR}/data/tpm2state3d/tpm2-00.volatilestate
-# cp $TPMDIR/tpm2-00.permall ${DIR}/data/tpm2state3d/tpm2-00.permall
-# cp $SIGFILE ${DIR}/data/tpm2state3d/signature2.bin
+# cp $TPMDIR/tpm2-00.volatilestate ${TESTDIR}/data/tpm2state3d/tpm2-00.volatilestate
+# cp $TPMDIR/tpm2-00.permall ${TESTDIR}/data/tpm2state3d/tpm2-00.permall
+# cp $SIGFILE ${TESTDIR}/data/tpm2state3d/signature2.bin
 
 #echo $TPMDIR
 #ls -l $TPMDIR
@@ -1254,8 +1255,8 @@ fi
 # Run TPM2 with previously saved (volatile) state and verify it's
 # working as well
 
-cp -f ${DIR}/data/tpm2state3d/tpm2-00.permall $TPMDIR/tpm2-00.permall
-cp -f ${DIR}/data/tpm2state3d/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
+cp -f ${TESTDIR}/data/tpm2state3d/tpm2-00.permall $TPMDIR/tpm2-00.permall
+cp -f ${TESTDIR}/data/tpm2state3d/tpm2-00.volatilestate $TPMDIR/tpm2-00.volatilestate
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \

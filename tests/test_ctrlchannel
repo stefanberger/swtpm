@@ -2,8 +2,9 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 TPMDIR=`mktemp -d`
 SWTPM_CTRL_UNIX_PATH=$TPMDIR/sock
 PID_FILE=$TPMDIR/swtpm.pid
@@ -11,7 +12,7 @@ LOG_FILE=$TPMDIR/swtpm.log
 CMD_PATH=$TPMDIR/cmd
 RESP_PATH=$TPMDIR/resp
 
-source ${DIR}/test_common
+source ${TESTDIR}/test_common
 
 trap "cleanup" SIGTERM EXIT
 
@@ -26,7 +27,7 @@ function cleanup()
 SWTPM_INTERFACE=socket+unix
 SWTPM_SERVER_PORT=65430
 SWTPM_SERVER_NAME=localhost
-source ${DIR}/common
+source ${TESTDIR}/common
 
 # Test 1: test the control channel on the socket tpm
 
@@ -387,12 +388,12 @@ echo "OK"
 # Test 3: test the control channel on the socket tpm: resume encrypted state
 
 # copy all the state files
-cp ${PWD}/${DIR}/data/tpmstate2/* ${TPMDIR}
+cp ${TESTDIR}/data/tpmstate2/* ${TPMDIR}
 
 run_swtpm ${SWTPM_INTERFACE} \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
-	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt \
+	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt \
 	--log file=$LOG_FILE,level=20 \
 	--flags not-need-init
 
@@ -457,7 +458,7 @@ rm -f $TPMDIR/*.volatilestate
 run_swtpm ${SWTPM_INTERFACE} \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
-	--key pwdfile=${PWD}/${DIR}/data/tpmstate2/pwdfile.txt \
+	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt \
 	--log file=$LOG_FILE \
 	--flags not-need-init
 

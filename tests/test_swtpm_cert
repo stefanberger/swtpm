@@ -2,8 +2,9 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:=$(dirname "$0")}
+
 SWTPM_CERT=${ROOT}/src/swtpm_cert/swtpm_cert
 
 cert=$(mktemp)
@@ -33,8 +34,8 @@ function check_cert_size()
 }
 
 ${SWTPM_CERT} \
-	--signkey ${DIR}/data/signkey.pem \
-	--issuercert ${DIR}/data/issuercert.pem \
+	--signkey ${TESTDIR}/data/signkey.pem \
+	--issuercert ${TESTDIR}/data/issuercert.pem \
 	--out-cert ${cert} \
 	--modulus 'b9dda830729de58f9f5bed2b3b9394ad4ec5afb9c390b89a3337250cbc575cfc8f31f7ffd3f05f4155076f7d1605381cd281b7f147b801154e4f89ee529fe36eae50f79561850e5b63037edaacbb390ea3fcd037e674fb179e3c5afe31214d78a756ca44cc6cf25421b51420ede548310c92b08a513ccc62fd0ef45dcf6546f6e865be6a661d045d1c47b60b428d11dc97cb9f35ee7c385bb20320934b015f8014e8fb19851c2af307e1e64648c142175e40b60615dc494fdb09ea5d5a6f3273b65a241e3cf30cc449b9fb3f900d1ed4be967b32b16f95a1d732dbfa143eaa1c2017556117f70faee5d77f836705d05405361ad5871a32161fa5a1234cfab497' \
 	--days 3650 \
@@ -55,8 +56,8 @@ echo -n > ${cert}
 echo "Test 1: OK"
 
 ${SWTPM_CERT} \
-	--signkey ${DIR}/data/signkey.pem \
-	--issuercert ${DIR}/data/issuercert.pem \
+	--signkey ${TESTDIR}/data/signkey.pem \
+	--issuercert ${TESTDIR}/data/issuercert.pem \
 	--out-cert ${cert} \
 	--modulus 'b9dda830729de58f9f5bed2b3b9394ad4ec5afb9c390b89a3337250cbc575cfc8f31f7ffd3f05f4155076f7d1605381cd281b7f147b801154e4f89ee529fe36eae50f79561850e5b63037edaacbb390ea3fcd037e674fb179e3c5afe31214d78a756ca44cc6cf25421b51420ede548310c92b08a513ccc62fd0ef45dcf6546f6e865be6a661d045d1c47b60b428d11dc97cb9f35ee7c385bb20320934b015f8014e8fb19851c2af307e1e64648c142175e40b60615dc494fdb09ea5d5a6f3273b65a241e3cf30cc449b9fb3f900d1ed4be967b32b16f95a1d732dbfa143eaa1c2017556117f70faee5d77f836705d05405361ad5871a32161fa5a1234cfab497' \
 	--days 3650 \
@@ -78,10 +79,10 @@ echo -n > ${cert}
 echo "Test 2: OK"
 
 ${SWTPM_CERT} \
-	--signkey ${DIR}/data/signkey.pem \
-	--issuercert ${DIR}/data/issuercert.pem \
+	--signkey ${TESTDIR}/data/signkey.pem \
+	--issuercert ${TESTDIR}/data/issuercert.pem \
 	--out-cert ${cert} \
-	--pubkey ${DIR}/data/pubek.pem \
+	--pubkey ${TESTDIR}/data/pubek.pem \
 	--days 3650 \
 	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
 	--pem \
@@ -106,9 +107,9 @@ echo "Test 3: OK"
 
 ${SWTPM_CERT} \
         --type platform \
-	--signkey ${DIR}/data/signkey.pem \
-	--issuercert ${DIR}/data/issuercert.pem \
-	--pubkey ${DIR}/data/pubek.pem \
+	--signkey ${TESTDIR}/data/signkey.pem \
+	--issuercert ${TESTDIR}/data/issuercert.pem \
+	--pubkey ${TESTDIR}/data/pubek.pem \
 	--out-cert ${cert} \
 	--days 3650 \
 	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
