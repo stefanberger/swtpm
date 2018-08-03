@@ -166,6 +166,32 @@ logerr()
 	fi
 }
 
+# Check that a tool we need is installed and at least understands
+# the given parameters
+# @1: name of executable
+# @2...: some parameters to run the tool with
+check_tool()
+{
+	local exe="$1"
+	local tmp
+	shift
+
+	if [ -z "$(type -p $exe)" ]; then
+		logerr "$exe is not installed."
+		return 1
+	fi
+	while [ -n "$1" ]; do
+		tmp="$($exe $1 2>&1)"
+		if [ $? -ne 0 ]; then
+			logerr "'$exe $1' did not work: $tmp"
+			return 1
+		fi
+		shift
+	done
+
+	return 0
+}
+
 # Get the TPM specification parameters from the TPM using swtpm_ioctl
 get_tpm_parameters()
 {
@@ -550,6 +576,9 @@ init_tpm()
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
 	local nvramauth="OWNERREAD|OWNERWRITE"
+
+	check_tool "netstat" "-naptl"
+	[ $? -ne 0 ] && return 1
 
 	start_tpm "$SWTPM" "$tpm_state_path"
 	if [ $? -ne 0 ]; then
