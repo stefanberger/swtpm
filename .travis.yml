@@ -26,5 +26,5 @@ addons:
     build_command_prepend: "./bootstrap.sh; ./configure --with-openssl; make clean"
     build_command: make -j4
     branch_pattern: coverity_scan
-script: "./bootstrap.sh && ./configure --with-openssl --prefix=/usr && make -j4 check
+script: "./autogen.sh && ./configure --with-openssl --prefix=/usr && make -j4 check
   && sudo make -j4 check"

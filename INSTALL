@@ -45,7 +45,7 @@ On Ubuntu use the following command:
 
 Use the following sequence to build and install the Software TPM.
 
-./bootstrap.sh
+./autogen.sh
 ./configure --prefix=/usr
 make
 make check
@@ -54,7 +54,7 @@ make install
 
 To build an rpm on a Fedora or RHEL host do:
 
-./bootstrap.sh
+./autogen.sh
 ./configure
 make dist
 mkdir -p ~/rpmbuild/SOURCES
