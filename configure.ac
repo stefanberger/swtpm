@@ -343,40 +343,8 @@ CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
 
-dnl We have to make sure libtpms is using the same crypto library
-dnl to avoid problems
-AC_MSG_CHECKING([the crypto library libtpms is using])
-dirs=$($CC $CFLAGS -Xlinker --verbose 2>/dev/null | \
-       sed -n '/SEARCH_DIR/p' | \
-       sed 's/SEARCH_DIR("\(@<:@^"@:>@*\)"); */\1 /g' | \
-       sed 's|=/|/|g')
-for dir in $dirs $LIBRARY_PATH; do
-  if test -r $dir/libtpms.so; then
-    if test -n "`ldd $dir/libtpms.so | grep libcrypto.so`"; then
-      libtpms_cryptolib="openssl"
-      break
-    fi
-    if test -n "`ldd $dir/libtpms.so | grep libnss3.so`"; then
-      libtpms_cryptolib="freebl"
-      break
-    fi
-  fi
-  case $host_os in
-  cygwin|openbsd*)
-    if test -r $dir/libtpms.a; then
-      if test -n "$(nm $dir/libtpms.a | grep "U AES_encrypt")"; then
-        libtpms_cryptolib="openssl"
-      fi
-    fi
-    ;;
-  esac
-done
-
-if test -z "$libtpms_cryptolib"; then
-  AC_MSG_ERROR([Could not determine libtpms crypto library.])
-fi
-
-AC_MSG_RESULT([$libtpms_cryptolib])
+PKG_CHECK_VAR([libtpms_cryptolib], [libtpms], [cryptolib],
+  [], AC_MSG_ERROR([Could not determine libtpms crypto library.]))
 
 if test "$libtpms_cryptolib" != "$cryptolib"; then
   echo "libtpms is using $libtpms_cryptolib; we have to use the same"
