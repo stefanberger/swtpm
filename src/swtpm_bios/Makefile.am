@@ -11,10 +11,9 @@ bin_PROGRAMS = \
 	swtpm_bios
 
 swtpm_bios_CFLAGS = \
-	-I$(top_srcdir)/include
+	-I$(top_builddir)/include
 
 swtpm_bios_SOURCES = tpm_bios.c
-
 
 EXTRA_DIST = \
 	README

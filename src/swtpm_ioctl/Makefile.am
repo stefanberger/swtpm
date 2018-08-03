@@ -12,8 +12,7 @@ bin_PROGRAMS = \
 swtpm_ioctl_SOURCES = tpm_ioctl.c
 
 swtpm_ioctl_CFLAGS = \
-	-I$(top_srcdir)/include
-
+	-I$(top_builddir)/include
 
 EXTRA_DIST = \
 	README

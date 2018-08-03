@@ -48,7 +48,7 @@ libswtpm_libtpms_la_SOURCES = \
 	utils.c
 
 libswtpm_libtpms_la_CFLAGS = \
-	-I$(top_srcdir)/include \
+	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS)
@@ -73,7 +73,7 @@ swtpm_SOURCES += cuse_tpm.c
 endif
 
 swtpm_CFLAGS = \
-	-I$(top_srcdir)/include \
+	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
@@ -93,7 +93,7 @@ swtpm_cuse_SOURCES = \
 	cuse_tpm.c
 
 swtpm_cuse_CFLAGS = \
-	-I$(top_srcdir)/include \
+	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(GLIB_CFLAGS) \
 	$(LIBFUSE_CFLAGS) \
