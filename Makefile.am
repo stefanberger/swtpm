@@ -19,5 +19,4 @@ EXTRA_DIST = \
 	INSTALL \
 	LICENSE \
 	COPYING \
-	README \
-	bootstrap.sh
+	README
