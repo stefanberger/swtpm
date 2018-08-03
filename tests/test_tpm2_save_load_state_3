@@ -242,6 +242,11 @@ function test_pcr_allocation()
 
 	local i res rc ha
 
+	if [ -z "$($TOOLSPATH/${PREFIX}pcrallocate | grep sha512)" ]; then
+		echo " Skipping PCR Allocate test since it does not support sha512"
+		return 0
+	fi
+
 	if [ $create -eq 1 ]; then
 		echo "Allocating SHA256 PCR bank"
 		${TOOLSPATH}/${PREFIX}pcrallocate -sha512 +sha256
