@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -42,7 +42,11 @@ def spawn_swtpm():
     cmd += " --pid file=" + pidfile + " --tpmstate dir=" + tpmpath
     print("Running child cmd: %s" % cmd)
     try:
-        child = subprocess.Popen(cmd.split())
+        if sys.version_info[0] >= 3:
+            child = subprocess.Popen(cmd.split(),
+                                     pass_fds=[_fd.fileno(), _ctrlfd.fileno()])
+        else:
+            child = subprocess.Popen(cmd.split())
     except OSError as err:
         print("OS error: %d" % err.errno)
         return False
@@ -94,7 +98,7 @@ if __name__ == "__main__":
         else:
             res = 0
     except:
-        print "__Exception: ", sys.exc_info()
+        print("__Exception: ", sys.exc_info())
         res = -1
 
     if child:

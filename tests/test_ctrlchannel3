@@ -45,7 +45,7 @@ if wait_for_file $PID_FILE 3; then
 	exit 1
 fi
 
-LOG=$(SOCK_PATH=$SWTPM_CTRL_UNIX_PATH exec python $TESTDIR/test_setdatafd.py)
+LOG=$(SOCK_PATH=$SWTPM_CTRL_UNIX_PATH exec $TESTDIR/test_setdatafd.py)
 res=$?
 
 if [ $res -ne 0 ]; then
