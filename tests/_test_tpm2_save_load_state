@@ -3,9 +3,9 @@
 # For the license, see the LICENSE file in the root directory.
 #set -x
 
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
 VTPM_NAME="${VTPM_NAME:-vtpm-tpm2-test-save-load-state}"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
 export TPM_PATH=$(mktemp -d)
@@ -31,8 +31,8 @@ function cleanup()
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
-source ${DIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
+source ${TESTDIR}/common
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 

@@ -2,19 +2,17 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
-SWTPM=swtpm
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:=$(dirname "$0")}
+
+# need SWTPM to be set
+source ${TESTDIR}/common
+
 TPMDIR=`mktemp -d`
-TPMAUTHORING=$ROOT/src/swtpm_setup/swtpm_setup
 PID_FILE=$TPMDIR/${SWTPM}.pid
 LOG_FILE=$TPMDIR/${SWTPM}.log
-PATH=${PWD}/${ROOT}/src/swtpm:$PATH
-PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
-PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
 
-source ${DIR}/test_common
+source ${TESTDIR}/test_common
 
 trap "cleanup" SIGTERM EXIT
 
@@ -96,8 +94,7 @@ if [ "$PIDF" != "$PID" ]; then
 	exit 1
 fi
 
-
-swtpm_bios &>/dev/null
+${SWTPM_BIOS} &>/dev/null
 
 if [ $? -ne 0 ]; then
 	echo "Test 1 failed: tpm_bios did not work"
@@ -171,7 +168,7 @@ echo "Test 2 passed"
 # Test 3: test --fd= and --ctrl type=unxio,clientfd=
 #         The python script execs swtpm with client sockets
 exec 20<&1-; exec 21<&2-
-LOG=$(PID_FILE=$TPMDIR/swtpm.pid SWTPM_EXE=$SWTPM_EXE TPMDIR=$TPMDIR exec $DIR/test_clientfds.py)
+LOG=$(PID_FILE=$TPMDIR/swtpm.pid SWTPM_EXE=$SWTPM_EXE TPMDIR=$TPMDIR exec $TESTDIR/test_clientfds.py)
 RES=$?
 exec 1<&20-; exec 2<&21-
 

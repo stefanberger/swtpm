@@ -8,8 +8,9 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 77
 fi
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
 TPM_PATH=$(mktemp -d)
@@ -32,7 +33,7 @@ function cleanup()
 
 trap "cleanup" EXIT
 
-source ${DIR}/load_vtpm_proxy
+source ${TESTDIR}/load_vtpm_proxy
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 

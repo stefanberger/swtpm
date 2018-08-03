@@ -3,8 +3,9 @@
 # For the license, see the LICENSE file in the root directory.
 #set -x
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
 
 workdir=$(mktemp -d)

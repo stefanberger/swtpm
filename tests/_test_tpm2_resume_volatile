@@ -3,8 +3,9 @@
 # For the license, see the LICENSE file in the root directory.
 #set -x
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 VTPM_NAME=${vtpm-test-tpm2-resume-volatile:-VTPM_NAME}
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
@@ -29,13 +30,13 @@ function cleanup()
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
-source ${DIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
+source ${TESTDIR}/common
 
 export TPM_PATH=$tpmstatedir
 
 # copy all the state files
-cp ${PWD}/${DIR}/data/tpm2state1/* ${TPM_PATH}
+cp ${TESTDIR}/data/tpm2state1/* ${TPM_PATH}
 
 run_swtpm ${SWTPM_INTERFACE} --tpm2
 
@@ -91,11 +92,11 @@ echo "Test 1: Ok"
 
 # 2nd test: with encrypted state
 # copy all the state files
-cp ${PWD}/${DIR}/data/tpm2state2/* ${TPM_PATH}
+cp ${TESTDIR}/data/tpm2state2/* ${TPM_PATH}
 
 run_swtpm ${SWTPM_INTERFACE} \
 	--tpm2 \
-	--key pwdfile=${PWD}/${DIR}/data/tpm2state2/pwdfile.txt
+	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt
 
 ps aux | grep $SWTPM | grep -v grep
 

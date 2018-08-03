@@ -3,12 +3,13 @@
 # For the license, see the LICENSE file in the root directory.
 # set -x
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 VTPM_NAME="${VTPM_NAME:-vtpm-test-tpm2-migration-key}"
 SWTPM_DEV_NAME=/dev/${VTPM_NAME}
 MIGRATION_PASSWORD="migration"
-VOLATILESTATE=${PWD}/${DIR}/data/migkey1/tpm2-volatilestate.bin
+VOLATILESTATE=${TESTDIR}/data/migkey1/tpm2-volatilestate.bin
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
 
 function cleanup()
@@ -45,12 +46,12 @@ logfile=$(mktemp)
 SWTPM_CMD_UNIX_PATH=${tpmstatedir}/unix-cmd.sock
 SWTPM_CTRL_UNIX_PATH=${tpmstatedir}/unix-ctrl.sock
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${DIR}/test_cuse
-source ${DIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
+source ${TESTDIR}/common
 
 # make a backup of the volatile state
 export TPM_PATH=$tpmstatedir
-cp ${PWD}/${DIR}/data/tpm2state1/* $TPM_PATH
+cp ${TESTDIR}/data/tpm2state1/* $TPM_PATH
 
 rm -f ${logfile}
 run_swtpm ${SWTPM_INTERFACE} \

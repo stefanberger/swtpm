@@ -2,27 +2,27 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 PARAMETERS=(
 	""
 	"--createek"
-	"--createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
-	"--createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
-	"--createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
 	"--createek --allow-signing"
-	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
-	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
-	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
 	"--ecc --createek"
-	"--ecc --createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
-	"--ecc --createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
-	"--ecc --createek --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+	"--ecc --createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display"
+	"--ecc --createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt"
+	"--ecc --createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
 	"--ecc --createek --allow-signing"
-	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display"
-	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --keyfile ${DIR}/data/keyfile.txt"
-	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${DIR}/swtpm_setup.conf --vmid test --display --pwdfile ${DIR}/data/pwdfile.txt"
+	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display"
+	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt"
+	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
 )
 
 # produced file size is always the same with TPM2
@@ -39,10 +39,9 @@ SWTPM_SETUP_CONF=$ROOT/etc/swtpm_setup.conf
 SWTPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
 # filesystem privileges require to run swtpm_setup as root during test
 TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --tpm2 --config ${SWTPM_SETUP_CONF} --runas root"
-PATH=${PWD}/${ROOT}/src/swtpm_bios:$PATH
-PATH=${PWD}/${ROOT}/src/swtpm_setup:$PATH
+PATH=${ROOT}/src/swtpm_bios:$PATH
 
-source ${DIR}/test_config
+source ${TESTDIR}/test_config
 
 trap "cleanup" SIGTERM EXIT
 
@@ -63,7 +62,7 @@ fi
 # swtpm_setup.conf points to the local create_certs.sh
 # For create_certs.sh to be found (with out full path)
 # add this directory to the PATH
-PATH=$PATH:$DIR
+PATH=$PATH:$TESTDIR
 
 for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 	rm -rf $TPMDIR/*

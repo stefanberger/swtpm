@@ -6,6 +6,10 @@
 
 check_PROGRAMS =
 
+TESTS_ENVIRONMENT = \
+  abs_top_testdir=`cd '$(top_srcdir)'/tests; pwd` \
+  abs_top_builddir=`cd '$(top_builddir)'; pwd`
+
 TESTS = \
 	test_vtpm_proxy \
 	test_tpm2_vtpm_proxy
@@ -148,6 +152,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm2_resume_volatile \
 	_test_tpm2_savestate \
 	_test_tpm2_save_load_encrypted_state \
+	_test_tpm2_save_load_state_da_timeout \
 	_test_tpm2_setbuffersize \
 	_test_tpm2_swtpm_bios \
 	_test_tpm2_volatilestate \

@@ -2,14 +2,15 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-DIR=$(dirname "$0")
-ROOT=${DIR}/..
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
 TPMDIR=`mktemp -d`
 SWTPM_CTRL_UNIX_PATH=$TPMDIR/sock
 PID_FILE=$TPMDIR/swtpm.pid
 LOG_FILE=$TPMDIR/swtpm.log
 
-source ${DIR}/test_common
+source ${TESTDIR}/test_common
 
 trap "cleanup" SIGTERM EXIT
 
@@ -21,7 +22,7 @@ function cleanup()
 	fi
 }
 
-source ${DIR}/common
+source ${TESTDIR}/common
 
 if ! [[ "$(uname -o)" =~ Linux ]]; then
 	echo "Need Linux to run UnixIO test for CMD_SET_DATAFD."
@@ -29,7 +30,7 @@ if ! [[ "$(uname -o)" =~ Linux ]]; then
 fi
 
 # Test CMD_SET_DATAFD
-cp ${PWD}/${DIR}/data/tpmstate1/* ${TPMDIR}
+cp ${TESTDIR}/data/tpmstate1/* ${TPMDIR}
 $SWTPM_EXE socket \
 	--flags not-need-init \
 	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH \
@@ -44,7 +45,7 @@ if wait_for_file $PID_FILE 3; then
 	exit 1
 fi
 
-LOG=$(SOCK_PATH=$SWTPM_CTRL_UNIX_PATH exec python $DIR/test_setdatafd.py)
+LOG=$(SOCK_PATH=$SWTPM_CTRL_UNIX_PATH exec python $TESTDIR/test_setdatafd.py)
 res=$?
 
 if [ $res -ne 0 ]; then
