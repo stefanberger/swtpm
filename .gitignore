@@ -12,6 +12,7 @@ Makefile.in
 Makefile
 /aclocal.m4
 /autom4te.cache
+/compile
 /config.guess
 /config.h
 /config.h.in
