@@ -7,6 +7,18 @@ ECHO=$(type -P echo)
 
 # Note: Do not use file descriptors above 127 due to OpenBSD.
 
+# Kill a process quietly
+# @1: signal, e.g. -9
+# @2: pid
+function kill_quiet()
+{
+  local sig="$1"
+  local pid="$2"
+
+  bash -c "kill $sig $pid &>/dev/null"
+  return $?
+}
+
 # Wait for a regular file to appear
 #
 # @1: filename
@@ -55,7 +67,7 @@ function wait_process_gone()
   local loops=$((timeout * 10)) loop
 
   for ((loop=0; loop<loops; loop++)); do
-    kill -0 ${pid} || return 1
+    kill_quiet -0 ${pid} || return 1
     sleep 0.1
   done
   return 0

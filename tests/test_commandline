@@ -20,7 +20,7 @@ function cleanup()
 {
 	rm -rf $TPMDIR
 	if [ -n "$PID" ]; then
-		kill -SIGTERM $PID 2>/dev/null
+		kill_quiet -SIGTERM $PID 2>/dev/null
 	fi
 }
 
@@ -77,7 +77,7 @@ PID=$!
 
 wait_port_open $PORT $PID
 
-kill -0 $PID
+kill_quiet -0 $PID
 if [ $? -ne 0 ]; then
 	echo "Test 1 failed: TPM process not running"
 	exit 1
@@ -104,16 +104,16 @@ fi
 check_logfile_patterns_level_20 $LOG_FILE
 rm -f $LOG_FILE
 
-kill -SIGTERM $PID &>/dev/null
+kill_quiet -SIGTERM $PID &>/dev/null
 sleep 1
 
 exec 20<&1-; exec 21<&2-
-kill -0 $PID &>/dev/null
+kill_quiet -0 $PID &>/dev/null
 RES=$?
 exec 1<&20-; exec 2<&21-
 
 if [ $RES -eq 0 ]; then
-	kill -SIGKILL $PID
+	kill_quiet -SIGKILL $PID
 	echo "Test 1 failed: TPM process did not terminate on SIGTERM"
 	exit 1
 fi
@@ -131,7 +131,7 @@ PID=$!
 wait_port_open $PORT $PID
 
 exec 20<&1-; exec 21<&2-
-kill -0 $PID
+kill_quiet -0 $PID
 RES=$?
 exec 1<&20-; exec 2<&21-
 
@@ -153,12 +153,12 @@ wait_port_closed $PORT $PID
 sleep 1
 
 exec 20<&1-; exec 21<&2-
-kill -0 $PID
+kill_quiet -0 $PID
 RES=$?
 exec 1<&20-; exec 2<&21-
 
 if [ $RES -eq 0 ]; then
-	kill -SIGKILL $PID
+	kill_quiet -SIGKILL $PID
 	echo "Test 2 failed: TPM process did not terminate on connection loss"
 	exit 1
 fi

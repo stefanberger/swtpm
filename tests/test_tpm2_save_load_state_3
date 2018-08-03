@@ -48,7 +48,7 @@ function cleanup()
 	# remove files from tss tools
 	rm -f h01*.bin nvp*.bin
 	if [ -n "$PID" ]; then
-		kill -SIGTERM $PID 2>/dev/null
+		kill_quiet -SIGTERM $PID 2>/dev/null
 	fi
 }
 

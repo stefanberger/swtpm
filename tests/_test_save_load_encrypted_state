@@ -26,7 +26,7 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill -9 $pid
+		kill_quiet -9 $pid
 	fi
 	rm -f $keyfile $logfile
 	rm -rf $TPM_PATH
@@ -45,7 +45,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 
 ps aux | grep $SWTPM | grep -v grep
 
-kill -0 ${SWTPM_PID}
+kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	echo "TPM Logfile:"
@@ -62,7 +62,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-kill -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 ${SWTPM_PID} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	echo "TPM Logfile:"
@@ -175,7 +175,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-kill -0 ${SWTPM_PID}
+kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
 	echo "Error (2): ${SWTPM_INTERFACE} TPM is not running anymore."
 	echo "TPM Logfile:"
@@ -308,7 +308,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 
 ps aux | grep $SWTPM | grep -v grep
 
-kill -0 ${SWTPM_PID}
+kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	echo "TPM Logfile:"
@@ -325,7 +325,7 @@ if [ $? -eq 0 ]; then
 	exit 1
 fi
 
-kill -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 ${SWTPM_PID} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after failed INIT."
 	echo "TPM Logfile:"

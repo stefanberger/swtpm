@@ -19,7 +19,7 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill -9 $pid
+		kill_quiet -9 $pid
 	fi
 	rm -rf $TPM_PATH
 }

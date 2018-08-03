@@ -20,7 +20,7 @@ function cleanup()
 {
 	rm -rf $TPMDIR
 	if [ -n "$PID" ]; then
-		kill -SIGTERM $PID 2>/dev/null
+		kill_quiet -SIGTERM $PID 2>/dev/null
 	fi
 }
 

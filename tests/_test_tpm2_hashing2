@@ -19,7 +19,7 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill -9 $pid
+		kill_quiet -9 $pid
 	fi
 	rm -rf $TPM_PATH
 }
@@ -35,7 +35,7 @@ run_swtpm ${SWTPM_INTERFACE} --tpm2
 
 ps aux | grep $SWTPM | grep -v grep
 
-kill -0 ${SWTPM_PID}
+kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
@@ -48,7 +48,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-kill -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 ${SWTPM_PID} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
@@ -177,7 +177,7 @@ fi
 
 sleep 0.5
 
-kill -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 ${SWTPM_PID} 2>/dev/null
 if [ $? -eq 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
