@@ -1636,6 +1636,9 @@ init_tpm2()
 	local EK_CERT_FILE="$certsdir/ek.cert"
 	local EK_TEMP_FILE="$certsdir/ektemplate"
 
+	check_tool "netstat" "-naptl"
+	[ $? -ne 0 ] && return 1
+
 	start_tpm "$SWTPM" "$tpm2_state_path"
 	if [ $? -ne 0 ]; then
 		logerr "Could not start the TPM 2."
