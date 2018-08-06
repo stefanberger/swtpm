@@ -25,6 +25,12 @@ function cleanup()
 	rm -rf ${workdir}
 }
 
+# Quirk for Cygwin
+if [[ "$(uname -s)" =~ ^CYGWIN ]]; then
+	# quirk for CYGWIN where the swtpm_setup executable in is .libs/
+	cp ${SWTPM_SETUP}.sh $(dirname ${SWTPM_SETUP})/.libs
+fi
+
 # We want swtpm_cert to use the local CA and see that the
 # local CA script automatically creates a signingkey and
 # self-signed certificate
