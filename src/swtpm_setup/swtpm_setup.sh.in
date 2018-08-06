@@ -61,11 +61,6 @@ if [ -z "$ECHO" ]; then
     echo "Error: external echo program not found."
     exit 1
 fi
-ECHO=`which echo`
-if [ -z "$ECHO" ]; then
-    echo "Error: external echo program not found."
-    exit 1
-fi
 
 SETUP_CREATE_EK_F=1
 SETUP_TAKEOWN_F=2
