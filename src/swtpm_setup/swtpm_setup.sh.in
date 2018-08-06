@@ -49,11 +49,6 @@ SWTPM=`type -P swtpm`
 if [ -n "$SWTPM" ]; then
     SWTPM="$SWTPM socket"
 fi
-TCSD=`type -P tcsd`
-if [ -z "$TCSD" ]; then
-    echo "Error: tcsd program not found. (PATH=$PATH)"
-    exit 1
-fi
 SWTPM_IOCTL=`type -P swtpm_ioctl`
 
 ECHO=`which echo`
@@ -2107,9 +2102,16 @@ main()
 		exit 1
 	fi
 
-	if [ ! -x "$TCSD" ]; then
-		logerr "TSS at $TCSD is not an executable."
-		exit 1
+	if [ $((flags & SETUP_TPM2_F)) -eq 0 ]; then
+		TCSD=`type -P tcsd`
+		if [ -z "$TCSD" ]; then
+			logerr "tcsd program not found. (PATH=$PATH)"
+			exit 1
+		fi
+		if [ ! -x "$TCSD" ]; then
+			logerr "TSS at $TCSD is not an executable."
+			exit 1
+		fi
 	fi
 
 	if [ -z "$SWTPM_IOCTL" ]; then
