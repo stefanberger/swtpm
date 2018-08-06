@@ -156,32 +156,6 @@ logerr()
 	fi
 }
 
-# Check that a tool we need is installed and at least understands
-# the given parameters
-# @1: name of executable
-# @2...: some parameters to run the tool with
-check_tool()
-{
-	local exe="$1"
-	local tmp
-	shift
-
-	if [ -z "$(type -p $exe)" ]; then
-		logerr "$exe is not installed."
-		return 1
-	fi
-	while [ -n "$1" ]; do
-		tmp="$($exe $1 2>&1)"
-		if [ $? -ne 0 ]; then
-			logerr "'$exe $1' did not work: $tmp"
-			return 1
-		fi
-		shift
-	done
-
-	return 0
-}
-
 # Get the TPM specification parameters from the TPM using swtpm_ioctl
 get_tpm_parameters()
 {
@@ -330,29 +304,26 @@ start_tpm()
 {
 	local swtpm="$1"
 	local swtpm_state="$2"
-	local ctr=0
+
+	local ctr=0 ctr2 ctr3
+	local pidfile="${swtpm_state}/.swtpm_setup.pidfile"
 
 	while [ $ctr -lt 100 ]; do
 		TPM_PORT=$(shuf -i 30000-65535 -n 1)
 
-		# skip used ports
-		if [ -n "$(netstat -lnpt 2>/dev/null |
-		         gawk '{print $4}' |
-		         grep -E ":(${TPM_PORT}|$((TPM_PORT+1))) ")" ]; then
-			let ctr=$ctr+1
-			continue
-		fi
-
+		rm -f $pidfile &>/dev/null
 		$swtpm \
 			--flags not-need-init \
 			-p $TPM_PORT \
 			--tpmstate dir=$swtpm_state \
 			--ctrl type=tcp,port=$((TPM_PORT+1)) \
+			--pid file=$pidfile \
 			2>&1 1>/dev/null &
 		SWTPM_PID=$!
 
 		# poll for open port (good) or the process to have
 		# disappeared (bad); whatever happens first
+		ctr3=0
 		while :; do
 			kill -0 $SWTPM_PID 2>/dev/null
 			if [ $? -ne 0 ]; then
@@ -360,22 +331,34 @@ start_tpm()
 				break
 			fi
 
-			# Did swtpm open the TCP port yet?
-			if [ -n "$(netstat -napt 2>/dev/null |
-			           grep " $SWTPM_PID/" |
-			           grep ":$TPM_PORT ")" ]; then
-			        # in rare occasions tcsd refuses connections
-			        # test the connection
+			# pidfile needs to be there for us to know we are
+			# testing swtpm's port rather than some other
+			# process's
+			ctr2=0
+			while [ -f ${pidfile} ]; do
+			        # test the connection to swtpm
 				(exec 100<>/dev/tcp/localhost/$TPM_PORT) 2>/dev/null
 				if [ $? -ne 0 ]; then
-					stop_tpm
-					break
+					if [ $ctr2 -eq 40 ]; then
+						stop_tpm
+						break
+					fi
+					sleep 0.05
+					let ctr2=ctr2+1
+					continue
 				fi
 				exec 100>&-
 				echo "TPM is listening on TCP port $TPM_PORT."
 				return 0
+			done
+			sleep 0.05
+
+			let ctr3=ctr3+1
+			# at some point the pid file must appear...
+			if [ $ctr3 -eq 40 ] && [ ! -f ${pidfile} ]; then
+				stop_tpm
+				break
 			fi
-			sleep 0.1
 		done
 
 		let ctr=$ctr+1
@@ -397,7 +380,7 @@ start_tcsd()
 	local TCSD=$1
 	local user=$(id -u -n)
 	local group=$(id -g -n)
-	local ctr=0
+	local ctr=0 ctr2
 
 	export TSS_TCSD_PORT
 
@@ -413,14 +396,6 @@ start_tcsd()
 
 	while [ $ctr -lt 100 ]; do
 		TSS_TCSD_PORT=$(shuf -i 30000-65535 -n 1)
-
-		# skip used ports
-		if [ -n "$(netstat -lnpt 2>/dev/null |
-		         gawk '{print $4}' |
-		         grep ":${TSS_TCSD_PORT} ")" ]; then
-			let ctr=$ctr+1
-			continue
-		fi
 
 		cat << EOF >$TCSD_CONFIG
 port = $TSS_TCSD_PORT
@@ -455,33 +430,30 @@ EOF
 			;;
 		esac
 
-		# TSS still alive?
 		# poll for open port (good) or the process to have
 		# disappeared (bad); whatever happens first
-		while :; do
-			kill -0 $TCSD_PID 2>/dev/null
+	        ctr2=0
+	        while :; do
+			(exec 100<>/dev/tcp/localhost/$TSS_TCSD_PORT) 2>/dev/null
 			if [ $? -ne 0 ]; then
-				# process dead; try next socket
-				break
-			fi
-
-			# Did tcsd open the TCP port yet?
-			if [ -n "$(netstat -naptl 2>/dev/null |
-			           grep "LISTEN" |
-			           grep " $TCSD_PID/" |
-			           grep ":$TSS_TCSD_PORT ")" ]; then
-			        # in rare occasions tcsd refuses connections
-			        # test the connection
-				(exec 100<>/dev/tcp/localhost/$TSS_TCSD_PORT) 2>/dev/null
-				if [ $? -ne 0 ]; then
+				if [ $ctr2 -eq 40 ]; then
 					stop_tcsd
 					break
 				fi
-				exec 100>&-
-				echo "TSS is listening on TCP port $TSS_TCSD_PORT."
-				return 0
+				# check TCSD is still alive and we haven't
+				# successfully test some other process's port
+				kill -0 $TCSD_PID 2>/dev/null
+				if [ $? -ne 0 ]; then
+					break
+				fi
+				# process still alive
+				let ctr2=ctr2+1
+				sleep 0.05
+				continue
 			fi
-			sleep 0.1
+			exec 100>&-
+			echo "TSS is listening on TCP port $TSS_TCSD_PORT."
+			return 0
 		done
 
 		let ctr=$ctr+1
@@ -566,9 +538,6 @@ init_tpm()
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
 	local nvramauth="OWNERREAD|OWNERWRITE"
-
-	check_tool "netstat" "-naptl"
-	[ $? -ne 0 ] && return 1
 
 	start_tpm "$SWTPM" "$tpm_state_path"
 	if [ $? -ne 0 ]; then
@@ -1625,9 +1594,6 @@ init_tpm2()
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
 	local EK_TEMP_FILE="$certsdir/ektemplate"
-
-	check_tool "netstat" "-naptl"
-	[ $? -ne 0 ] && return 1
 
 	start_tpm "$SWTPM" "$tpm2_state_path"
 	if [ $? -ne 0 ]; then
