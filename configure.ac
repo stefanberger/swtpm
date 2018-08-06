@@ -182,6 +182,16 @@ esac
 with_swtpm_setup=$with_tcsd
 AM_CONDITIONAL([WITH_SWTPM_SETUP], test "$with_swtpm_setup" != "no")
 
+dnl If we have the tcsd package, we can build swtpm_setup, but need netstat also
+AC_PATH_PROG([NETSTAT], [netstat])
+case $host_os in
+linux-*)
+    if test "x$NETSTAT" == "x" && test "$with_swtpm_setup" != "no"; then
+        AC_MSG_ERROR([netstat tool is missing: net-tools package])
+    fi
+    ;;
+esac
+
 AC_MSG_CHECKING([for whether to build with CUSE interface])
 AC_ARG_WITH([cuse],
             AC_HELP_STRING([--with-cuse],
