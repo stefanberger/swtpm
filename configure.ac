@@ -311,6 +311,11 @@ if test "x$SOCAT" == "x"; then
 	AC_MSG_ERROR([socat is required: socat package])
 fi
 
+AC_PATH_PROG([PYTHON], python)
+if test "x$PYTHON" == "x"; then
+	AC_MSG_ERROR([python is required: python2 or python3 package])
+fi
+
 TMP="$($CC -fstack-protector-strong 2>&1)"
 if echo $TMP | $GREP 'unrecognized command line option' >/dev/null; then
   HARDENING_CFLAGS="-fstack-protector -Wstack-protector "
