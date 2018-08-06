@@ -174,20 +174,20 @@ linux-*)
     if test "x$TPM_NVDEFINE" == "x"; then
 	AC_MSG_ERROR([NVRAM area tools are needed: tpm-tools package])
     fi
-    with_tcsd=yes
+    have_tcsd=yes
     ;;
 *)
-    with_tcsd=no
+    have_tcsd=no
 esac
-with_swtpm_setup=$with_tcsd
-AM_CONDITIONAL([WITH_SWTPM_SETUP], test "$with_swtpm_setup" != "no")
+with_swtpm_setup=yes
+AM_CONDITIONAL([HAVE_TCSD], test "$have_tcsd" != "no")
 
 dnl If we have the tcsd package, we can build swtpm_setup, but need netstat also
 AC_PATH_PROG([NETSTAT], [netstat])
 case $host_os in
 linux-*)
-    if test "x$NETSTAT" == "x" && test "$with_swtpm_setup" != "no"; then
-        AC_MSG_ERROR([netstat tool is missing: net-tools package])
+    if test "x$NETSTAT" == "x" && test "have_tcsd" != "no"; then
+        AC_MSG_ERROR([netstat tool is missing for tests: net-tools package])
     fi
     ;;
 esac

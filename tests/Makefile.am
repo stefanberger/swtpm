@@ -62,7 +62,7 @@ TESTS += \
 	\
 	test_tpm2_samples_swtpm_localca
 
-if WITH_SWTPM_SETUP
+if HAVE_TCSD
 TESTS += \
 	test_commandline \
 	test_parameters
@@ -75,7 +75,7 @@ TESTS += \
 	test_tpm2_swtpm_cert \
 	test_tpm2_swtpm_cert_ecc \
 	test_tpm2_swtpm_setup_create_cert
-if WITH_SWTPM_SETUP
+if HAVE_TCSD
 TESTS += \
 	test_swtpm_setup_create_cert
 endif
