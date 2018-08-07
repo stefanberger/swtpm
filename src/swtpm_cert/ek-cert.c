@@ -722,6 +722,8 @@ main(int argc, char *argv[])
     uint32_t ser_number;
     long int exponent = 0x10001;
     bool write_pem = false;
+    uint8_t id[512];
+    size_t id_size = sizeof(id);
     enum cert_type_t certtype = CERT_TYPE_EK;
     const char *oid;
     unsigned int key_usage;
@@ -1189,7 +1191,16 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     gnutls_free(datum.data);
     datum.data = NULL;
 
-    /* 3.5.12 Authority Key Id -- automatically set */
+    /* 3.5.12 Authority Key Id */
+    err = gnutls_x509_crt_get_key_id(sigcert, 0, id, &id_size);
+    if (err == GNUTLS_E_SUCCESS && id_size > 0) {
+        err = gnutls_x509_crt_set_authority_key_id(crt, id, id_size);
+        CHECK_GNUTLS_ERROR(err, "Could not set the authority key id: %s\n",
+                           gnutls_strerror(err))
+    } else {
+        CHECK_GNUTLS_ERROR(err, "Could not get the authority key id from the cert: %s\n",
+                           gnutls_strerror(err))
+    }
     /* 3.5.13 Authority Info Access -- may be omitted */
     /* 3.5.14 CRL Distribution -- missing  */
 
