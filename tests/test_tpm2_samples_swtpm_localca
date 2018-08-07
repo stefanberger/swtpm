@@ -38,7 +38,7 @@ _EOF_
 cat <<_EOF_ > ${workdir}/swtpm-localca.options
 --tpm-manufacturer IBM
 --tpm-model swtpm-libtpms
---tpm-version 1.2
+--tpm-version 2
 --platform-manufacturer Fedora
 --platform-version 2.1
 --platform-model QEMU
@@ -63,6 +63,7 @@ do
     --tpm2 \
     --configfile ${workdir}/swtpm-localca.conf \
     --optsfile ${workdir}/swtpm-localca.options \
+    --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
     ${params}
   if [ $? -ne 0 ]; then
     echo "Error: Test with parameters '$params' failed."
@@ -100,8 +101,7 @@ do
   certtool \
     --verify \
     --load-ca-certificate ${ISSUERCERT} \
-    --infile ${workdir}/ek.pem \
-    --inder
+    --infile ${workdir}/ek.pem
   if [ $? -ne 0 ]; then
     echo "Error: Could not verify certificate chain."
     exit 1

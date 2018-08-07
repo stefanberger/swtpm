@@ -58,7 +58,7 @@ TESTS += \
 	test_tpm2_wrongorder \
 	test_tpm2_probe \
 	\
-	test_tpm2_swtpm_bios
+	test_tpm2_swtpm_bios \
 	\
 	test_tpm2_samples_swtpm_localca
 

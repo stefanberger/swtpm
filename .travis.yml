@@ -16,7 +16,7 @@ before_install:
   sudo make install"
 - cd ..
 - sudo apt-get -y install libfuse-dev libglib2.0-dev libgmp-dev expect libtasn1-dev
-  socat findutils tpm-tools
+  socat findutils tpm-tools gnutls-dev gnutls-bin
 addons:
   coverity_scan:
     project:
