@@ -694,6 +694,62 @@ create_cert_extended_key_usage(const char *oid, gnutls_datum_t *asn1)
     return err;
 }
 
+/*
+ * prepend_san_asn1_header -- prepend a SAN ASN.1 header on the data
+ *
+ * This function with prepend something like this:
+ *  0x30 <subsequent length> 0xa4 <subsequent length>
+ */
+static int prepend_san_asn1_header(gnutls_datum_t *datum)
+{
+    int err = GNUTLS_E_SUCCESS;
+    unsigned char buffer[2 * (1 + 1 + sizeof(unsigned int))];
+    unsigned i = sizeof(buffer);
+    unsigned int size;
+    unsigned char intlen;
+    unsigned char *data = datum->data;
+
+    /* write backwards */
+    intlen = 0;
+    size = datum->size;
+    while (size) {
+        buffer[--i] = (size & 0xff);
+        size >>= 8;
+        intlen++;
+    }
+    if (intlen > 1 || buffer[i] & 0x80)
+        buffer[--i] = intlen | 0x80;
+    /* write equivalent of 0xa4 */
+    buffer[--i] = ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CLASS_STRUCTURED |
+                  ASN1_TAG_OCTET_STRING;
+
+    size = datum->size + sizeof(buffer) - i;
+    intlen = 0;
+    while (size) {
+        buffer[--i] = (size & 0xff);
+        size >>= 8;
+        intlen++;
+    }
+    if (intlen > 1 || buffer[i] & 0x80)
+        buffer[--i] = intlen | 0x80;
+    /* write equivalent of 0x30 */
+    buffer[--i] = ASN1_CLASS_STRUCTURED | ASN1_TAG_SEQUENCE;
+
+    datum->data = gnutls_malloc(datum->size + sizeof(buffer) - i);
+    if (datum->data == NULL) {
+        err = GNUTLS_E_MEMORY_ERROR;
+        goto exit;
+    }
+
+    memcpy(datum->data, &buffer[i], sizeof(buffer) - i);
+    memcpy(&datum->data[sizeof(buffer) - i], data, datum->size);
+    datum->size = sizeof(buffer) - i + datum->size;
+
+exit:
+    gnutls_free(data);
+    return err;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1147,6 +1203,10 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     }
 
     if (datum.size > 0) {
+        err = prepend_san_asn1_header(&datum);
+        CHECK_GNUTLS_ERROR(err, "Could not prepend SAN ASN.1 header: %s\n",
+                           gnutls_strerror(err))
+
         err = gnutls_x509_crt_set_extension_by_oid(crt, GNUTLS_X509EXT_OID_SAN,
                                                    datum.data, datum.size,
                                                    1);
