@@ -3,10 +3,11 @@
 # For the license, see the LICENSE file in the root directory.
 #set -x
 
-ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
+TOPSRC=${abs_top_srcdir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
+SWTPM_LOCALCA=${TOPSRC}/samples/swtpm-localca
 
 workdir=$(mktemp -d)
 
@@ -19,7 +20,7 @@ SIGNINGKEY=${workdir}/signingkey.pem
 ISSUERCERT=${workdir}/issuercert.pem
 CERTSERIAL=${workdir}/certserial
 
-PATH=${ROOT}/src/swtpm_cert:$PATH
+PATH=${TOPBUILD}/src/swtpm_cert:$PATH
 
 trap "cleanup" SIGTERM EXIT
 
