@@ -19,4 +19,5 @@ EXTRA_DIST = \
 	INSTALL \
 	LICENSE \
 	COPYING \
-	README
+	README \
+	autogen.sh

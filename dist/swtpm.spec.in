@@ -131,11 +131,10 @@ Tools for the TPM emulator from the swtpm package
 
 %build
 
-./bootstrap.sh
+NOCONFIGURE=1 ./autogen.sh
 %configure \
-        --prefix=/usr \
 %if %{with_gnutls}
-        --with-gnutls \
+        --with-gnutls
 %endif
 
 make %{?_smp_mflags}
