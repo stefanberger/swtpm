@@ -1,31 +1,47 @@
 # --- swtpm rpm-spec ---
 
-%define name      @PACKAGE@
-%define version   @VERSION@
-%define release   1
+%bcond_with gnutls
+
+%global name      @PACKAGE@
+%global version   @VERSION@
+%global release   1
 
 Summary: TPM Emulator
 Name:           %{name}
 Version:        %{version}
 Release:        %{release}.dev2%{?dist}
 License:        BSD
-Group:          Applications/Emulators
 Source:         %{name}-%{version}.tar.gz
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 
 # due to gnutls backlevel API:
-%if 0%{?rhel} >= 7 || 0%{?fedora} >= 19
-    %define with_gnutls    1
-%else
-    %define with_gnutls    0
+%if 0%{?rhel} < 7 || 0%{?fedora} < 19
+    %bcond_without gnutls
 %endif
 
-BuildRequires:  automake autoconf bash coreutils libtool sed
-BuildRequires:  libtpms-devel >= 0.6.0 fuse-devel glib2-devel gmp-devel
-BuildRequires:  expect bash net-tools nss-devel socat python-twisted
-%if %{with_gnutls}
-BuildRequires:  gnutls >= 3.1.0 gnutls-devel gnutls-utils
-BuildRequires:  libtasn1-devel libtasn1
+BuildRequires:  automake
+BuildRequires:  autoconf
+BuildRequires:  bash
+BuildRequires:  coreutils
+BuildRequires:  libtool
+BuildRequires:  sed
+BuildRequires:  libtpms-devel >= 0.6.0
+BuildRequires:  fuse-devel
+BuildRequires:  glib2-devel
+BuildRequires:  gmp-devel
+BuildRequires:  expect
+BuildRequires:  net-tools
+BuildRequires:  openssl-devel
+BuildRequires:  socat
+BuildRequires:  python
+BuildRequires:  python-twisted
+BuildRequires:  trousers >= 0.3.9
+BuildRequires:  tpm-tools >= 1.3.8-6
+%if %{with gnutls}
+BuildRequires:  gnutls >= 3.1.0
+BuildRequires:  gnutls-devel
+BuildRequires:  gnutls-utils
+BuildRequires:  libtasn1-devel
+BuildRequires:  libtasn1
 %if 0%{?fedora}
 BuildRequires:  libtasn1-tools
 %endif
@@ -34,7 +50,8 @@ BuildRequires:  libtasn1-tools
 BuildRequires:  kernel-modules-extra
 %endif
 
-Requires:       fuse libtpms >= 0.6.0
+Requires:       fuse
+Requires:       libtpms >= 0.6.0
 %if 0%{?fedora} > 16
 Requires:       kernel-modules-extra
 %endif
@@ -78,38 +95,35 @@ Requires:       trousers >= 0.3.9 tpm-tools >= 1.3.8-6 expect bash net-tools gnu
 Tools for the TPM emulator from the swtpm package
 
 %files
-%defattr(-,root,root,-)
-%attr( 755, root, root) %{_bindir}/swtpm
+%{_bindir}/swtpm
 %{_mandir}/man8/swtpm.8*
-%attr( 755, root, root) %{_datadir}/swtpm/swtpm.pp
-%attr( 755, root, root) %{_datadir}/swtpm/swtpm_svirt.pp
+%{_datadir}/swtpm/swtpm.pp
+%{_datadir}/swtpm/swtpm_svirt.pp
 
 %files cuse
-%defattr(-,root,root,-)
-%attr( 755, root, root) %{_bindir}/swtpm_cuse
+%{_bindir}/swtpm_cuse
 %{_mandir}/man8/swtpm_cuse.8*
-%attr( 755, root, root) %{_datadir}/swtpm/swtpmcuse.pp
+%{_datadir}/swtpm/swtpmcuse.pp
 
 %files libs
-%{_libdir}/libswtpm_libtpms.so.*
+%{_libdir}/libswtpm_libtpms.so.0
+%{_libdir}/libswtpm_libtpms.so.0.0.0
 
 %files devel
-%defattr(-, root, root, -)
 %{_libdir}/libswtpm_libtpms.so
 
 %dir %{_includedir}/%{name}
-%attr(644, root, root) %{_includedir}/%{name}/*.h
+%{_includedir}/%{name}/*.h
 %{_mandir}/man3/swtpm_ioctls.3*
 
 %files tools
-%defattr(-,root,root,-)
-%attr( 755, root, root) %{_bindir}/swtpm_bios
-%if %{with_gnutls}
-%attr( 755, root, root) %{_bindir}/swtpm_cert
+%{_bindir}/swtpm_bios
+%if %{with gnutls}
+%{_bindir}/swtpm_cert
 %endif
-%attr( 755, root, root) %{_bindir}/swtpm_setup
+%{_bindir}/swtpm_setup
 %attr( 755, @TSS_USER@ , @TSS_GROUP@)  %{_bindir}/swtpm_setup.sh
-%attr( 755, root, root) %{_bindir}/swtpm_ioctl
+%{_bindir}/swtpm_ioctl
 %{_mandir}/man8/swtpm_bios.8*
 %{_mandir}/man8/swtpm_cert.8*
 %{_mandir}/man8/swtpm_ioctl.8*
@@ -122,9 +136,8 @@ Tools for the TPM emulator from the swtpm package
 %config(noreplace) %{_sysconfdir}/swtpm_setup.conf
 %config(noreplace) %{_sysconfdir}/swtpm-localca.options
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf
-%attr( 755, root, root) %{_datadir}/@PACKAGE@/swtpm-localca
+%{_datadir}/@PACKAGE@/swtpm-localca
 %attr( 755, @TSS_USER@, @TSS_GROUP@) %{_localstatedir}/lib/swtpm-localca
-
 
 %prep
 %setup -q
@@ -133,19 +146,19 @@ Tools for the TPM emulator from the swtpm package
 
 NOCONFIGURE=1 ./autogen.sh
 %configure \
-%if %{with_gnutls}
+%if %{with gnutls}
         --with-gnutls
 %endif
 
-make %{?_smp_mflags}
+%make_build
 
 %check
 make %{?_smp_mflags} check
 
 %install
 
-make %{?_smp_mflags} install DESTDIR=${RPM_BUILD_ROOT}
-rm -f ${RPM_BUILD_ROOT}%{_libdir}/*.a ${RPM_BUILD_ROOT}%{_libdir}/*.la
+%make_install
+rm -f $RPM_BUILD_ROOT%{_libdir}/*.{a,la}
 
 %post
 if [ -n "$(type -p semodule)" ]; then
@@ -191,7 +204,7 @@ if [ $1 -eq  0 ]; then
   fi
 fi
 
-%post libs -p /sbin/ldconfig
-%postun libs -p /sbin/ldconfig
+%ldconfig_post libs
+%ldconfig_postun libs
 
 %changelog
