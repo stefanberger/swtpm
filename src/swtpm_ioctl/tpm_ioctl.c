@@ -857,6 +857,7 @@ int main(int argc, char *argv[])
     bool is_chardev;
     unsigned long int info_flags = 0;
     char *endptr = NULL;
+    int ret = EXIT_FAILURE;
 
     while ((opt = getopt_long_only(argc, argv, "", long_options,
                                    &option_index)) != -1) {
@@ -891,11 +892,11 @@ int main(int argc, char *argv[])
             if (sscanf(argv[optind - 1], "%u", &locality) != 1) {
                 fprintf(stderr, "Could not get locality number from %s.\n",
                         argv[optind - 1]);
-                return EXIT_FAILURE;
+                goto exit;
             }
             if (locality > 4) {
                 fprintf(stderr, "Locality outside valid range of [0..4].\n");
-                return EXIT_FAILURE;
+                goto exit;
             }
             break;
         case 'S':
@@ -903,7 +904,7 @@ int main(int argc, char *argv[])
                 !strncmp(argv[optind], "-", 1) ||
                 !strncmp(argv[optind], "--", 2)) {
                 fprintf(stderr, "Missing filename argument for --save option\n");
-                return EXIT_FAILURE;
+                goto exit;
             }
             command = argv[optind - 2];
             blobtype = argv[optind - 1];
@@ -915,7 +916,7 @@ int main(int argc, char *argv[])
                 !strncmp(argv[optind], "-", 1) ||
                 !strncmp(argv[optind], "--", 2)) {
                 fprintf(stderr, "Missing filename argument for --load option\n");
-                return EXIT_FAILURE;
+                goto exit;
             }
             command = argv[optind - 2];
             blobtype = argv[optind - 1];
@@ -927,7 +928,7 @@ int main(int argc, char *argv[])
             if (sscanf(argv[optind - 1], "%u", &tpmbuffersize) != 1) {
                 fprintf(stderr, "Could not get buffersize from %s.\n",
                         argv[optind - 1]);
-                return EXIT_FAILURE;
+                goto exit;
             }
             break;
         case 'I':
@@ -936,35 +937,37 @@ int main(int argc, char *argv[])
             info_flags = strtoul(argv[optind - 1], &endptr, 0);
             if (errno || endptr[0] != '\0') {
                 fprintf(stderr, "Cannot parse info flags.\n");
-                return EXIT_FAILURE;
+                goto exit;
             }
             break;
         case 'V':
             versioninfo(argv[0]);
-            return EXIT_SUCCESS;
+            ret = EXIT_SUCCESS;
+            goto exit;
         case 'H':
             usage(argv[0]);
-            return EXIT_SUCCESS;
+            ret = EXIT_SUCCESS;
+            goto exit;
         }
         if (!pcommand) {
             pcommand = command;
         } else {
             if (command != pcommand) {
                 fprintf(stderr, "Only one command may be given.\n");
-                return EXIT_FAILURE;
+                goto exit;
             }
         }
     }
 
     if (!command) {
         fprintf(stderr, "No valid command.\n");
-        return EXIT_FAILURE;
+        goto exit;
     }
 
     if (!tpm_device && !tcp_hostname && !unix_path) {
         if (optind == argc) {
             fprintf(stderr, "Error: Missing device name.\n");
-            return EXIT_FAILURE;
+            goto exit;
         }
 
         if (!tpm_device) {
@@ -983,7 +986,7 @@ int main(int argc, char *argv[])
 
     fd = open_connection(tpm_device, tcp_hostname, tcp_port, unix_path);
     if (fd < 0) {
-        return EXIT_FAILURE;
+        goto exit;
     }
 
     if (!strcmp(command, "-c")) {
@@ -992,7 +995,7 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_GET_CAPABILITY: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         /* no tpm_result here */
         printf("ptm capability is 0x%" PRIx64 "\n",
@@ -1005,13 +1008,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_INIT: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         res = devtoh32(is_chardev, init.u.resp.tpm_result);
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_INIT: 0x%x\n", res);
-            return EXIT_FAILURE;
+            goto exit;
         }
 
     } else if (!strcmp(command, "-e")) {
@@ -1020,13 +1023,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_GET_ESTABLISHED: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         res = devtoh32(is_chardev, est.u.resp.tpm_result);
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_GET_TPMESTABLISHED: 0x%x\n", res);
-            return EXIT_FAILURE;
+            goto exit;
         }
         printf("tpmEstablished is %d\n", est.u.resp.bit);
 
@@ -1038,13 +1041,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_RESET_ESTABLISHED: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         res = devtoh32(is_chardev, reset_est.u.resp.tpm_result);
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_RESET_TPMESTABLISHED: 0x%x\n", res);
-            return EXIT_FAILURE;
+            goto exit;
         }
 
     } else if (!strcmp(command, "-s")) {
@@ -1053,13 +1056,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_SHUTDOWN: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         if (devtoh32(is_chardev, res) != 0) {
             fprintf(stderr,
                     "TPM result from PTM_SHUTDOWN: 0x%x\n",
                     devtoh32(is_chardev, res));
-            return EXIT_FAILURE;
+            goto exit;
         }
 
     } else if (!strcmp(command, "--stop")) {
@@ -1068,13 +1071,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_STOP: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         if (devtoh32(is_chardev, res) != 0) {
             fprintf(stderr,
                     "TPM result from PTM_STOP: 0x%x\n",
                     devtoh32(is_chardev, res));
-            return EXIT_FAILURE;
+            goto exit;
         }
 
     } else if (!strcmp(command, "-l")) {
@@ -1084,18 +1087,18 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_SET_LOCALITY: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         res = devtoh32(is_chardev, loc.u.resp.tpm_result);
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_SET_LOCALITY: 0x%x\n", res);
-            return EXIT_FAILURE;
+            goto exit;
         }
 
     } else if (!strcmp(command, "-h")) {
         if (do_hash_start_data_end(fd, is_chardev, hashdata)) {
-            return EXIT_FAILURE;
+            goto exit;
         }
 
     } else if (!strcmp(command, "-C")) {
@@ -1104,13 +1107,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_CANCEL_TPM_CMD: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         if (devtoh32(is_chardev, res) != 0) {
             fprintf(stderr,
                     "TPM result from PTM_CANCEL_TPM_CMD: 0x%x\n",
                     devtoh32(is_chardev, res));
-            return EXIT_FAILURE;
+            goto exit;
         }
 
     } else if (!strcmp(command, "-v")) {
@@ -1119,22 +1122,22 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_STORE_VOLATILE: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         if (devtoh32(is_chardev, res) != 0) {
             fprintf(stderr,
                     "TPM result from PTM_STORE_VOLATILE: 0x%x\n",
                     devtoh32(is_chardev, res));
-            return EXIT_FAILURE;
+            goto exit;
         }
 
     } else if (!strcmp(command, "--save")) {
         if (do_save_state_blob(fd, is_chardev, blobtype, blobfile, buffersize))
-            return EXIT_FAILURE;
+            goto exit;
 
     } else if (!strcmp(command, "--load")) {
         if (do_load_state_blob(fd, is_chardev, blobtype, blobfile, buffersize))
-            return EXIT_FAILURE;
+            goto exit;
 
     } else if (!strcmp(command, "-g")) {
         n = ctrlcmd(fd, PTM_GET_CONFIG, &cfg, 0, sizeof(cfg));
@@ -1142,13 +1145,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_GET_CONFIG: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         res = devtoh32(is_chardev, cfg.u.resp.tpm_result);
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_GET_CONFIG: 0x%x\n", res);
-            return EXIT_FAILURE;
+            goto exit;
         }
         printf("ptm configuration flags: 0x%x\n",
                devtoh32(is_chardev, cfg.u.resp.flags));
@@ -1160,13 +1163,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_SET_BUFFERSIZE: "
                     "%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         res = devtoh32(is_chardev, psbs.u.resp.tpm_result);
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_SET_BUFFERSIZE: 0x%x\n", res);
-            return EXIT_FAILURE;
+            goto exit;
         }
         printf("TPM buffersize: %u\n"
                "minimum size  : %u\n"
@@ -1183,18 +1186,23 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "Could not execute PTM_GET_INFO: %s\n",
                     strerror(errno));
-            return EXIT_FAILURE;
+            goto exit;
         }
         res = devtoh32(is_chardev, pgi.u.resp.tpm_result);
         if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_GET_INFO: 0x%x\n", res);
-            return EXIT_FAILURE;
+            goto exit;
         }
         printf("%s\n", pgi.u.resp.buffer);
     } else {
         usage(argv[0]);
-        return EXIT_FAILURE;
+        goto exit;
     }
-    return EXIT_SUCCESS;
+
+    ret = EXIT_SUCCESS;
+
+exit:
+    free(tcp_hostname);
+    return ret;
 }
