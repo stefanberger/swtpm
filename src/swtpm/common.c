@@ -921,6 +921,8 @@ static int parse_server_options(char *options, struct server **c)
     uid_t uid;
     gid_t gid;
 
+    *c = NULL;
+
     ovs = options_parse(options, server_opt_desc, &error);
     if (!ovs) {
         logprintf(STDERR_FILENO, "Error parsing server options: %s\n", error);
@@ -1011,6 +1013,10 @@ static int parse_server_options(char *options, struct server **c)
     return 0;
 
 error:
+    if (*c) {
+        server_free(*c);
+        *c = NULL;
+    }
     option_values_free(ovs);
 
     return -1;

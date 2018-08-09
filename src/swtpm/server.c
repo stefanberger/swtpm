@@ -99,8 +99,10 @@ void server_free(struct server *c)
     if (c->fd >= 0)
         close(c->fd);
 
-    if (c->sockpath)
+    if (c->sockpath) {
         unlink(c->sockpath);
+        free(c->sockpath);
+    }
 
     free(c);
 }
