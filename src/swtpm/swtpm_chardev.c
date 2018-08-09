@@ -194,6 +194,13 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     prgname, iface);
 }
 
+static void swtpm_cleanup(struct ctrlchannel *cc)
+{
+    pidfile_remove();
+    ctrlchannel_free(cc);
+    log_global_free();
+}
+
 int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *iface)
 {
     TPM_RESULT rc = 0;
@@ -494,14 +501,12 @@ error_no_sighandlers:
     TPMLIB_Terminate();
 
 error_no_tpm:
-    pidfile_remove();
-
     close(notify_fd[0]);
     notify_fd[0] = -1;
     close(notify_fd[1]);
     notify_fd[1] = -1;
 
-    ctrlchannel_free(mlp.cc);
+    swtpm_cleanup(mlp.cc);
 
     /* Fatal initialization errors cause the program to abort */
     if (rc == 0) {
@@ -513,7 +518,7 @@ error_no_tpm:
     }
 
 exit_failure:
-    ctrlchannel_free(mlp.cc);
+    swtpm_cleanup(mlp.cc);
 
     return EXIT_FAILURE;
 }

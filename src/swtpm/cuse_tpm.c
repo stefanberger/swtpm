@@ -1297,6 +1297,7 @@ static void ptm_init_done(void *userdata)
 static void ptm_cleanup(void)
 {
     pidfile_remove();
+    log_global_free();
 }
 
 static const struct cuse_lowlevel_ops clops = {
@@ -1361,24 +1362,28 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case 'M': /* major */
             if (sscanf(optarg, "%u", &num) != 1) {
                 logprintf(STDERR_FILENO, "Could not parse major number\n");
-                return -1;
+                ret = -1;
+                goto exit;
             }
             if (num > 65535) {
                 logprintf(STDERR_FILENO,
                           "Major number outside valid range [0 - 65535]\n");
-                return -1;
+                ret = -1;
+                goto exit;
             }
             cinfo.dev_major = num;
             break;
         case 'm': /* minor */
             if (sscanf(optarg, "%u", &num) != 1) {
                 logprintf(STDERR_FILENO, "Could not parse major number\n");
-                return -1;
+                ret = -1;
+                goto exit;
             }
             if (num > 65535) {
                 logprintf(STDERR_FILENO,
                           "Major number outside valid range [0 - 65535]\n");
-                return -1;
+                ret = -1;
+                goto exit;
             }
             cinfo.dev_minor = num;
             break;
@@ -1387,7 +1392,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
                 cinfo_argv[0] = calloc(1, strlen("DEVNAME=") + strlen(optarg) + 1);
                 if (!cinfo_argv[0]) {
                     logprintf(STDERR_FILENO, "Out of memory\n");
-                    return -1;
+                    ret = -1;
+                    goto exit;
                 }
                 devname = optarg;
 
@@ -1424,21 +1430,22 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
             break;
         case 'h': /* help */
             fprintf(stdout, usage, prgname, iface);
-            return 0;
+            goto exit;
         case 'v': /* version */
             fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
                     "Copyright (c) 2014-2015 IBM Corp.\n",
                     SWTPM_VER_MAJOR,
                     SWTPM_VER_MINOR,
                     SWTPM_VER_MICRO);
-            return 0;
+            goto exit;
         }
     }
 
     if (optind < argc) {
         logprintf(STDERR_FILENO,
                   "Unknown parameter '%s'\n", argv[optind]);
-        return EXIT_FAILURE;
+        ret = EXIT_FAILURE;
+        goto exit;
     }
 
     /*
@@ -1448,14 +1455,16 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     if (TPMLIB_ChooseTPMVersion(tpmversion) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,
                   "Error: Could not choose TPM version.\n");
-        return EXIT_FAILURE;
+        ret = EXIT_FAILURE;
+        goto exit;
     }
 
     SWTPM_NVRAM_Set_TPMVersion(tpmversion);
 
     if (!cinfo.dev_info_argv) {
         logprintf(STDERR_FILENO, "Error: device name missing\n");
-        return -2;
+        ret = -2;
+        goto exit;
     }
 
     if (handle_log_options(param.logging) < 0 ||
@@ -1463,20 +1472,24 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_migration_key_options(param.migkeydata) < 0 ||
         handle_pid_options(param.piddata) < 0 ||
         handle_tpmstate_options(param.tpmstatedata) < 0 ||
-        handle_locality_options(param.localitydata, &locality_flags) < 0)
-        return -3;
+        handle_locality_options(param.localitydata, &locality_flags) < 0) {
+        ret = -3;
+        goto exit;
+    }
 
     if (setuid(0)) {
         logprintf(STDERR_FILENO, "Error: Unable to setuid root. uid = %d, "
                   "euid = %d, gid = %d\n", getuid(), geteuid(), getgid());
-        return -4;
+        ret = -4;
+        goto exit;
     }
 
     if (param.runas) {
         if (!(passwd = getpwnam(param.runas))) {
             logprintf(STDERR_FILENO, "User '%s' does not exist\n",
                       param.runas);
-            return -5;
+            ret = -5;
+            goto exit;
         }
     }
 
@@ -1485,19 +1498,22 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         logprintf(STDERR_FILENO,
                   "Error: No TPM state directory is defined; "
                   "TPM_PATH is not set\n");
-        return -1;
+        ret = -1;
+        goto exit;
     }
 
     n = snprintf(path, sizeof(path), "/dev/%s", devname);
     if (n < 0) {
         logprintf(STDERR_FILENO,
                   "Error: Could not create device file name\n");
-        return -1;
+        ret = -1;
+        goto exit;
     }
     if (n >= (int)sizeof(path)) {
         logprintf(STDERR_FILENO,
                   "Error: Buffer too small to create device file name\n");
-        return -1;
+        ret = -1;
+        goto exit;
     }
 
     tpmfd = open(path, O_RDWR);
@@ -1506,11 +1522,14 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         logprintf(STDERR_FILENO,
                   "Error: A device '%s' already exists.\n",
                   path);
-        return -1;
+        ret = -1;
+        goto exit;
     }
 
-    if (tpmlib_register_callbacks(&cbs) != TPM_SUCCESS)
-        return -1;
+    if (tpmlib_register_callbacks(&cbs) != TPM_SUCCESS) {
+        ret = -1;
+        goto exit;
+    }
 
     worker_thread_init();
 
@@ -1522,6 +1541,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 
     ret = cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
 
+exit:
     ptm_cleanup();
 
     return ret;

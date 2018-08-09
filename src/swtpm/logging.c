@@ -212,6 +212,16 @@ int log_check_string(const char *string)
 }
 
 /*
+ * log_global_free: free memory allocated for global variables
+ */
+void log_global_free(void)
+{
+    free(log_prefix);
+    log_prefix = NULL;
+    TPMLIB_SetDebugPrefix(NULL);
+}
+
+/*
  * _logprintf:
  * Format a log line and output it to the given file descriptor.
  * @fd: file descriptor to log to

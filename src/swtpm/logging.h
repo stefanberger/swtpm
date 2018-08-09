@@ -48,6 +48,7 @@ int logprintf(int fd, const char *format, ...);
 int logprintfA(int fd, unsigned int indent, const char *format, ...);
 int log_check_string(const char *);
 int log_set_prefix(const char *);
+void log_global_free(void);
 
 #endif /* _SWTPM_LOGGING_H */
 
