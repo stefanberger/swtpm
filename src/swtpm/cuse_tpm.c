@@ -236,6 +236,9 @@ static struct libtpms_callbacks cbs = {
 /* the current state the transfer interface is in */
 static transfer_state tx_state;
 
+/* function prototypes */
+static void ptm_cleanup(void);
+
 /************************* cached stateblob *********************************/
 
 static stateblob_desc cached_stateblob;
@@ -1245,8 +1248,7 @@ cleanup:
 
     if (exit_prg) {
         logprintf(STDOUT_FILENO, "CUSE TPM is shutting down.\n");
-        pidfile_remove();
-
+        ptm_cleanup();
         exit(0);
     }
 
@@ -1279,14 +1281,22 @@ static void ptm_init_done(void *userdata)
 
     /* at this point the entry in /dev/ is available */
     if (pidfile_write(getpid()) < 0) {
+        ptm_cleanup();
         exit(-13);
     }
 
     if (param->runas) {
         ret = change_process_owner(param->runas);
-        if (ret)
+        if (ret) {
+            ptm_cleanup();
             exit(ret);
+        }
     }
+}
+
+static void ptm_cleanup(void)
+{
+    pidfile_remove();
 }
 
 static const struct cuse_lowlevel_ops clops = {
@@ -1332,6 +1342,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     const char *tpmdir;
     int n, tpmfd;
     char path[PATH_MAX];
+    int ret = 0;
 
     memset(&cinfo, 0, sizeof(cinfo));
     memset(&param, 0, sizeof(param));
@@ -1509,5 +1520,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     FILE_OPS_LOCK = g_mutex_new();
 #endif
 
-    return cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
+    ret = cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
+
+    ptm_cleanup();
+
+    return ret;
 }
