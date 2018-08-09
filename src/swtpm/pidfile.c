@@ -124,4 +124,7 @@ void pidfile_remove(void)
         return;
 
     unlink(g_pidfile);
+
+    free(g_pidfile);
+    g_pidfile = NULL;
 }
