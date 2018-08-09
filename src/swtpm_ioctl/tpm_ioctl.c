@@ -191,7 +191,7 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
 
             n = ctrlcmd(fd, PTM_HASH_DATA, &hdata,
                         offsetof(ptm_hdata, u.req.data) + idx,
-                        sizeof(hdata));
+                        sizeof(hdata.u.resp));
 
             res = devtoh32(is_chardev, hdata.u.resp.tpm_result);
             if (n < 0 || res != 0 || c == EOF)
@@ -211,7 +211,7 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
 
             n = ctrlcmd(fd, PTM_HASH_DATA, &hdata,
                         offsetof(ptm_hdata, u.req.data) + tocopy,
-                        sizeof(hdata));
+                        sizeof(hdata.u.resp));
 
             res = devtoh32(is_chardev, hdata.u.resp.tpm_result);
             if (n < 0 || res != 0)
@@ -309,7 +309,8 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
         pgs.u.req.type = htodev32(is_chardev, bt);
         pgs.u.req.offset = htodev32(is_chardev, offset);
 
-        n = ctrlcmd(fd, PTM_GET_STATEBLOB, &pgs, sizeof(pgs.u.req), sizeof(pgs));
+        n = ctrlcmd(fd, PTM_GET_STATEBLOB, &pgs, sizeof(pgs.u.req),
+                    sizeof(pgs.u.resp));
         if (n < 0) {
             fprintf(stderr,
                     "Could not execute ioctl PTM_GET_STATEBLOB: "
@@ -607,7 +608,7 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
 
                 n = ctrlcmd(fd, PTM_SET_STATEBLOB, &pss,
                             offsetof(ptm_setstate, u.req.data) + 0,
-                            sizeof(pss));
+                            sizeof(pss.u.resp));
                 if (n < 0) {
                     fprintf(stderr,
                             "Could not execute ioctl PTM_SET_STATEBLOB: "
@@ -1002,8 +1003,10 @@ int main(int argc, char *argv[])
                (uint64_t)devtoh64(is_chardev, cap));
 
     } else if (!strcmp(command, "-i")) {
-        init.u.req.init_flags = htodev32(is_chardev, PTM_INIT_FLAG_DELETE_VOLATILE);
-        n = ctrlcmd(fd, PTM_INIT, &init, sizeof(init), sizeof(init));
+        init.u.req.init_flags = htodev32(is_chardev,
+                                         PTM_INIT_FLAG_DELETE_VOLATILE);
+        n = ctrlcmd(fd, PTM_INIT, &init, sizeof(init.u.req),
+                    sizeof(init.u.resp));
         if (n < 0) {
             fprintf(stderr,
                     "Could not execute PTM_INIT: "
@@ -1018,7 +1021,7 @@ int main(int argc, char *argv[])
         }
 
     } else if (!strcmp(command, "-e")) {
-        n = ctrlcmd(fd, PTM_GET_TPMESTABLISHED, &est, 0, sizeof(est));
+        n = ctrlcmd(fd, PTM_GET_TPMESTABLISHED, &est, 0, sizeof(est.u.resp));
         if (n < 0) {
             fprintf(stderr,
                     "Could not execute PTM_GET_ESTABLISHED: "
@@ -1036,7 +1039,8 @@ int main(int argc, char *argv[])
     } else if (!strcmp(command, "-r")) {
         reset_est.u.req.loc = locality;
         n = ctrlcmd(fd, PTM_RESET_TPMESTABLISHED,
-                    &reset_est, sizeof(reset_est), sizeof(reset_est));
+                    &reset_est, sizeof(reset_est.u.req),
+                    sizeof(reset_est.u.resp));
         if (n < 0) {
             fprintf(stderr,
                     "Could not execute PTM_RESET_ESTABLISHED: "
@@ -1082,7 +1086,8 @@ int main(int argc, char *argv[])
 
     } else if (!strcmp(command, "-l")) {
         loc.u.req.loc = locality;
-        n = ctrlcmd(fd, PTM_SET_LOCALITY, &loc, sizeof(loc), sizeof(loc));
+        n = ctrlcmd(fd, PTM_SET_LOCALITY, &loc, sizeof(loc.u.req),
+                    sizeof(loc.u.resp));
         if (n < 0) {
             fprintf(stderr,
                     "Could not execute PTM_SET_LOCALITY: "
@@ -1157,8 +1162,8 @@ int main(int argc, char *argv[])
                devtoh32(is_chardev, cfg.u.resp.flags));
     } else if (!strcmp(command, "-b")) {
         psbs.u.req.buffersize = htodev32(is_chardev, tpmbuffersize);
-        n = ctrlcmd(fd, PTM_SET_BUFFERSIZE, &psbs,
-                    sizeof(psbs.u.req), sizeof(psbs.u.resp));
+        n = ctrlcmd(fd, PTM_SET_BUFFERSIZE, &psbs, sizeof(psbs.u.req),
+                    sizeof(psbs.u.resp));
         if (n < 0) {
             fprintf(stderr,
                     "Could not execute PTM_SET_BUFFERSIZE: "
