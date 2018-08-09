@@ -60,6 +60,12 @@ int tpmstate_set_dir(char *tpmstatedir)
    return 0;
 }
 
+void tpmstate_global_free(void)
+{
+    free(g_tpmstatedir);
+    g_tpmstatedir = NULL;
+}
+
 const char *tpmstate_get_dir(void)
 {
     if (g_tpmstatedir)

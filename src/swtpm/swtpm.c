@@ -66,6 +66,7 @@
 #include "utils.h"
 #include "mainloop.h"
 #include "ctrlchannel.h"
+#include "tpmstate.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -178,6 +179,7 @@ static void swtpm_cleanup(struct ctrlchannel *cc, struct server *server)
     ctrlchannel_free(cc);
     server_free(server);
     log_global_free();
+    tpmstate_global_free();
 }
 
 int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)

@@ -44,5 +44,6 @@ int tpmstate_set_dir(char *tpmstatdir);
 const char *tpmstate_get_dir(void);
 int tpmstate_set_mode(mode_t mode);
 mode_t tpmstate_get_mode(void);
+void tpmstate_global_free(void);
 
 #endif /* _SWTPM_TPMSTATE_H_ */

@@ -69,6 +69,7 @@
 #ifdef WITH_VTPM_PROXY
 #include "vtpm_proxy.h"
 #endif
+#include "tpmstate.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -199,6 +200,7 @@ static void swtpm_cleanup(struct ctrlchannel *cc)
     pidfile_remove();
     ctrlchannel_free(cc);
     log_global_free();
+    tpmstate_global_free();
 }
 
 int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *iface)
