@@ -17,7 +17,8 @@ TESTS = \
 if WITH_CHARDEV
 TESTS += \
 	test_ctrlchannel2 \
-	test_ctrlchannel4
+	test_ctrlchannel4 \
+	test_tpm2_ctrlchannel2
 endif
 
 TESTS += \

@@ -6,8 +6,8 @@ ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 SWTPM=swtpm
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-SWTPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
+SWTPM_IOCTL=${SWTPM_IOCTL:-$ROOT/src/swtpm_ioctl/swtpm_ioctl}
 TPMDIR=`mktemp -d`
 PID_FILE=$TPMDIR/${SWTPM}.pid
 SOCK_PATH=$TPMDIR/sock
@@ -16,6 +16,7 @@ RESP_PATH=$TPMDIR/resp
 LOGFILE=$TPMDIR/logfile
 VOLATILESTATE=$TPMDIR/volatile
 
+source ${TESTDIR}/common
 source ${TESTDIR}/test_common
 
 trap "cleanup" SIGTERM EXIT
@@ -45,7 +46,6 @@ if wait_for_file $PID_FILE 3; then
 fi
 
 PID="$(cat $PID_FILE)"
-
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
@@ -106,15 +106,13 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sleep 0.2
-kill_quiet -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
-	echo "Error: TPM should not be running anymore."
+if wait_file_gone $PID_FILE 2; then
+	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if [ -f $PID_FILE ]; then
-	echo "Error: TPM should have removed the PID file."
+if wait_process_gone $PID 1; then
+	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
 
@@ -247,7 +245,7 @@ exec 100<>/dev/tcp/localhost/65532
 #                         length         CC            count       hashalg         sz
 echo -en '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 e5 17 e3 9b 10 a3 5b 3b b7 29 95 79 4b c6 4a 07 f8 bc b0 bd e6 bb 31 ad 35 27 fb 6f 64 f8 4c b9'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 19 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 e5 17 e3 9b 10 a3 5b 3b b7 29 95 79 4b c6 4a 07 f8 bc b0 bd e6 bb 31 ad 35 27 fb 6f 64 f8 4c b9'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"
@@ -274,7 +272,7 @@ exec 100<>/dev/tcp/localhost/65532
 #                         length         CC            count       hashalg         sz
 echo -en '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
-exp=' 00 c4 00 00 00 0a 00 00 00 09'
+exp=' 80 01 00 00 00 0a 00 00 01 01'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"
@@ -302,35 +300,31 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sleep 0.2
-kill_quiet -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
-	echo "Error: Socket TPM should not be running anymore."
+if wait_file_gone $PID_FILE 2; then
+	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if [ -f $PID_FILE ]; then
-	echo "Error: Socket TPM should have removed the PID file."
+if wait_process_gone $PID 1; then
+	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
 
 echo "OK"
 
-echo "FIXME: Preliminary test end; no encrypted state for TPM2 available, yet"
-exit 0
-
 # Test 3: test the control channel on the socket tpm: resume encrypted state
 
 # copy all the state files
-cp ${TESTDIR}/data/tpmstate2/* ${TPMDIR}
+cp ${TESTDIR}/data/tpm2state2/* ${TPMDIR}
 
 $SWTPM_EXE socket \
 	--server port=65532,disconnect=true \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt \
-	--tpm2 &
+	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt \
+	--tpm2 \
+	--flags not-need-init &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -344,10 +338,9 @@ exec 100<>/dev/tcp/localhost/65532
 #                         length         CC            count       hashalg         sz
 echo -en '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
-# FIXME: need to fix from here on...
-exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
 if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "Error: (1) Did not get expected result from TPM2_PCRRead(10)"
 	echo "expected: $exp"
 	echo "received: $RES"
 	exit 1
@@ -368,10 +361,8 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sleep 0.2
-kill_quiet -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
-	echo "Error: Socket TPM should not be running anymore."
+if wait_process_gone $PID 1; then
+	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
 
@@ -388,7 +379,9 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt &
+	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt \
+	--tpm2 \
+	--flags not-need-init &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -397,14 +390,14 @@ fi
 
 PID="$(cat $PID_FILE)"
 
-
 # Read PCR 10 -- this should fail now
 exec 100<>/dev/tcp/localhost/65532
-echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
+#                         length         CC            count       hashalg         sz
+echo -en '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 0a 00 00 00 26'
+exp=' 80 01 00 00 00 0a 00 00 01 00'
 if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "Error: (1) Did not get expected result from TPM2_PCRRead(10)"
 	echo "expected: $exp"
 	echo "received: $RES"
 	exit 1
@@ -418,8 +411,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Send the volatile state to the TPM (while it is stopped)
-$SWTPM_IOCTL --unix $SOCK_PATH --load volatile $VOLATILESTATE
-#act=$($SWTPM_IOCTL --unix $SOCK_PATH --load volatile $VOLATILESTATE 2>&1)
+act=$($SWTPM_IOCTL --unix $SOCK_PATH --load volatile $VOLATILESTATE 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_SET_STATEBLOB failed: $act"
 	exit 1
@@ -434,22 +426,22 @@ fi
 
 # Read PCR 10 -- has to return same result as before
 exec 100<>/dev/tcp/localhost/65532
-echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a' >&100
+#                         length         CC            count       hashalg         sz
+echo -en '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00' >&100
 RES=$(cat <&100 | od -t x1 -A n -w128)
-exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
 if [ "$RES" != "$exp" ]; then
-	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "Error: (1) Did not get expected result from TPM2_PCRRead(10)"
 	echo "expected: $exp"
 	echo "received: $RES"
 	exit 1
 fi
 
-
 # Reset PCR 20 while in locality 0 -- should not work
 exec 100<>/dev/tcp/localhost/65532
-echo -en '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10' >&100
+echo -en '\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x3d\x00\x00\x00\x14\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00' >&100
 RES=$(cat <&100 | od -t x1 -A n)
-exp=' 00 c4 00 00 00 0a 00 00 00 33'
+exp=' 80 01 00 00 00 0a 00 00 09 07'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Trying to reset PCR 20 in locality 0 returned unexpected result"
 	echo "expected: $exp"
@@ -467,9 +459,9 @@ fi
 
 # Reset PCR 20 while in locality 2 -- has to work
 exec 100<>/dev/tcp/localhost/65532
-echo -en '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10' >&100
-RES=$(cat <&100 | od -t x1 -A n)
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
+echo -en '\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x3d\x00\x00\x00\x14\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00' >&100
+RES=$(cat <&100 | od -t x1 -A n -w512)
+exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Could not reset PCR 20 in locality 2"
 	echo "expected: $exp"
@@ -484,15 +476,13 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sleep 0.2
-kill_quiet -0 $PID 2>/dev/null
-if [ $? -eq 0 ]; then
-	echo "Error: Socket TPM should not be running anymore."
+if wait_file_gone $PID_FILE 2; then
+	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if [ -f $PID_FILE ]; then
-	echo "Error: Socket TPM should have removed the PID file."
+if wait_process_gone $PID 1; then
+	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
 
