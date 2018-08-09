@@ -1337,7 +1337,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     struct cuse_info cinfo;
     struct cuse_param param;
     const char *devname = NULL;
-    char *cinfo_argv[1];
+    char *cinfo_argv[1] = { 0 };
     unsigned int num;
     struct passwd *passwd;
     const char *tpmdir;
@@ -1543,6 +1543,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 
 exit:
     ptm_cleanup();
+    free(cinfo_argv[0]);
 
     return ret;
 }
