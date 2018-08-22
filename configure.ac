@@ -358,8 +358,17 @@ CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
 
-PKG_CHECK_VAR([libtpms_cryptolib], [libtpms], [cryptolib],
-  [], AC_MSG_ERROR([Could not determine libtpms crypto library.]))
+dnl Simulate the following for systems with pkg-config < 0.28:
+dnl PKG_CHECK_VAR([libtpms_cryptolib], [libtpms], [cryptolib],
+dnl  [], AC_MSG_ERROR([Could not determine libtpms crypto library.]))
+PKG_PROG_PKG_CONFIG
+
+AC_MSG_CHECKING([Checking the crypto library libtpms is linked to])
+libtpms_cryptolib=`$PKG_CONFIG --variable cryptolib libtpms`
+if test "x$libtpms_cryptolib" == "x"; then
+  AC_MSG_ERROR([Could not determine the crypto library libtpms is using])
+fi
+AC_MSG_RESULT($libtpms_cryptolib)
 
 if test "$libtpms_cryptolib" != "$cryptolib"; then
   echo "libtpms is using $libtpms_cryptolib; we have to use the same"
