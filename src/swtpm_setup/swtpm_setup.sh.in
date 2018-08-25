@@ -156,6 +156,18 @@ logerr()
 	fi
 }
 
+# Get a random number given a lower and upper bound
+#
+# @param1: lower bound
+# @param2: upper bound
+get_random()
+{
+	local lower=$1
+	local upper=$2
+
+	echo $(( (RANDOM % (upper - lower)) + lower))
+}
+
 # Get the TPM specification parameters from the TPM using swtpm_ioctl
 get_tpm_parameters()
 {
@@ -309,7 +321,7 @@ start_tpm()
 	local pidfile="${swtpm_state}/.swtpm_setup.pidfile"
 
 	while [ $ctr -lt 100 ]; do
-		TPM_PORT=$(shuf -i 30000-65535 -n 1)
+		TPM_PORT=$(get_random 30000 65535)
 
 		rm -f $pidfile &>/dev/null
 		$swtpm \
@@ -395,7 +407,7 @@ start_tcsd()
 	fi
 
 	while [ $ctr -lt 100 ]; do
-		TSS_TCSD_PORT=$(shuf -i 30000-65535 -n 1)
+		TSS_TCSD_PORT=$(get_random 30000 65535)
 
 		cat << EOF >$TCSD_CONFIG
 port = $TSS_TCSD_PORT
