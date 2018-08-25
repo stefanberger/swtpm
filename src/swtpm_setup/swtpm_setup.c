@@ -150,8 +150,12 @@ int main(int argc, char *argv[])
         }
         i++;
     }
-    
+
+#ifdef __OpenBSD__
+    if (!realpath(getenv("_"), resolved_path)) {
+#else
     if (!realpath("/proc/self/exe", resolved_path)) {
+#endif
         fprintf(stderr, "Could not resolve path to executable : %s\n",
                 strerror(errno));
         return EXIT_FAILURE;
