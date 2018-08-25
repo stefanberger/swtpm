@@ -157,6 +157,21 @@ logerr()
 	fi
 }
 
+# Get the size of a file
+#
+# @param1: filename
+get_filesize()
+{
+	case "${UNAME_S}" in
+	OpenBSD)
+		stat -f%z $1
+		;;
+	*)
+		stat -c%s $1
+		;;
+	esac
+}
+
 # Get a random number given a lower and upper bound
 #
 # @param1: lower bound
@@ -693,7 +708,7 @@ init_tpm()
 		output="$(tpm_nvdefine \
 			-i $((TPM_NV_INDEX_EKCert|TPM_NV_INDEX_D_BIT)) \
 			-p "${nvramauth}" \
-			-s $(stat -c%s "${EK_CERT_FILE}") 2>&1)"
+			-s $(get_filesize "${EK_CERT_FILE}") 2>&1)"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area for EK certificate."
 			return 1
@@ -713,7 +728,7 @@ init_tpm()
 		output="$(tpm_nvdefine \
 			-i $((TPM_NV_INDEX_PlatformCert|TPM_NV_INDEX_D_BIT)) \
 			-p "${nvramauth}" \
-			-s $(stat -c%s "${PLATFORM_CERT_FILE}") 2>&1)"
+			-s $(get_filesize "${PLATFORM_CERT_FILE}") 2>&1)"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area for platform" \
 			       "certificate."
@@ -1689,7 +1704,7 @@ init_tpm2()
 				   TPMA_NV_PPWRITE | \
 				   TPMA_NV_NO_DA | \
 				   TPMA_NV_WRITEDEFINE)) \
-				$(stat -c%s "${EK_TEMP_FILE}")
+				$(get_filesize "${EK_TEMP_FILE}")
 			if [ $? -ne 0 ]; then
 				logerr "Could not create NVRAM area ${nvindex_str}" \
 				       "for EK template."
@@ -1738,7 +1753,7 @@ init_tpm2()
 			   TPMA_NV_PPWRITE | \
 			   TPMA_NV_NO_DA | \
 			   TPMA_NV_WRITEDEFINE)) \
-			$(stat -c%s "${EK_CERT_FILE}")
+			$(get_filesize "${EK_CERT_FILE}")
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area ${nvindex_str}" \
 			       "for EK certificate."
@@ -1780,7 +1795,7 @@ init_tpm2()
 			   TPMA_NV_PPWRITE | \
 			   TPMA_NV_NO_DA | \
 			   TPMA_NV_WRITEDEFINE)) \
-			$(stat -c%s "${PLATFORM_CERT_FILE}")
+			$(get_filesize "${PLATFORM_CERT_FILE}")
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area ${nvindex_str}" \
 			       "for platform certificate."
