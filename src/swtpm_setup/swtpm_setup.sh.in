@@ -56,6 +56,7 @@ if [ -z "$ECHO" ]; then
     echo "Error: external echo program not found."
     exit 1
 fi
+UNAME_S="$(uname -s)"
 
 SETUP_CREATE_EK_F=1
 SETUP_TAKEOWN_F=2
@@ -489,15 +490,48 @@ cleanup()
 	rm -rf "$TCSD_CONFIG" "$TCSD_DATA_FILE" "$TCSD_DATA_DIR"
 }
 
+# Read hex data passed to this function via a pipe and convert them to a
+# string using od -t x1. The specifics require the use oif a different
+# implementation on OpenBSD than on Linux/Cygwin. On the latter systems it
+# can be executed more efficiently using only 'od'.
+read_hex_data()
+{
+	case "${UNAME_S}" in
+	OpenBSD)
+		od -t x1 -A n | tr -s ' ' | tr -d '\n' | sed 's/ $//'
+		;;
+	*)
+		od -t x1 -A n -w2048
+		;;
+	esac
+}
+
+# Send hex data written in a string with each hex number
+# written in the form \x<2 hex digits>
+# We have to use bash's echo on OpenBSD 6.2.
+#
+# @param1: The string with hex numbers
+send_hex_data()
+{
+	case "${UNAME_S}" in
+	OpenBSD)
+		echo -en "$1"
+		;;
+	*)
+		$ECHO -en "$1"
+		;;
+	esac
+}
+
 # Transfer a request to the TPM and receive the response
 #
 # @param1: The request to send
 tpm_transfer()
 {
 	exec 100<>/dev/tcp/127.0.0.1/${TPM_PORT}
-	$ECHO -en "$1" >&100
+	send_hex_data "$1" >&100
 
-	od -t x1 -A n -w512 <&100
+	read_hex_data <&100
 	exec 100>&-
 }
 
@@ -784,7 +818,7 @@ tpm2_stirrandom()
 	# just the header, expecting 0x18 bytes of random data
 	req='\x80\x01\x00\x00\x00\x24\x00\x00\x01\x46\x00\x18'
 	r=$(dd if=/dev/urandom count=24 bs=1 2>/dev/null | \
-	    od -An -tx1 -w64 | sed 's/ /\\x/g')
+	    read_hex_data | sed 's/ /\\x/g')
 
 	rsp="$(tpm_transfer "${req}${r}")"
 
@@ -1371,7 +1405,7 @@ tpm2_nv_write()
 		# read data from file
 		data=$(dd bs=1 skip=${offset} count=${step} if=$fil \
 		          2>/dev/null| \
-	               od -t x1 -A n -w2048 | \
+	               read_hex_data | \
 	               sed -n 's/ /\\\\x/pg')
 	        if [ ${#data} -eq 0 ]; then
 			# no data -> done
