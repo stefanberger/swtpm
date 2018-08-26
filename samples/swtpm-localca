@@ -456,7 +456,7 @@ main() {
 	fi
 	STATEDIR="$tmp"
 	make_dir "$STATEDIR"
-	LOCK="${STATEDIR}/.lock"
+	LOCK="${STATEDIR}/.lock.swtpm-localca"
 	if [ ! -w ${LOCK} ]; then
 		touch $LOCK
 		if [ ! -w ${LOCK} ]; then
