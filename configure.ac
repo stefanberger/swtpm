@@ -114,6 +114,13 @@ if test "$with_selinux" != "no"; then
 fi
 AM_CONDITIONAL([WITH_SELINUX], [test "x$with_selinux" == "xyes"])
 
+if test "$prefix" = "/usr" && test "$sysconfdir" = '${prefix}/etc'; then
+	sysconfdir="/etc"
+fi
+if test "$prefix" = "" && test "$datarootdir" = '${prefix}/share'; then
+	datarootdir="/usr/share"
+fi
+
 GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is glib-2.0 installed? -- could not get cflags")
