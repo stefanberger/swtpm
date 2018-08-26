@@ -270,7 +270,9 @@ if test "x$with_gnutls" != "xno"; then
 fi
 
 if test "x$with_gnutls" != "xno"; then
+    ORIG_CFLAGS="$CFLAGS"
     GNUTLS_CFLAGS=$(pkg-config gnutls --cflags)
+    CFLAGS="$CFLAGS $GNUTLS_CFLAGS $GNUTLS_LDFLAGS"
     AC_CHECK_LIB([gnutls], [gnutls_load_file], [
                  GNUTLS_LIBS=-lgnutls
              ],
@@ -279,15 +281,19 @@ if test "x$with_gnutls" != "xno"; then
               else
                  with_gnutls="no"
               fi])
+    CFLAGS="$ORIG_CFLAGS"
 fi
 
 if test "x$with_gnutls" != "xno"; then
+    ORIG_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS $GNUTLS_CFLAGS"
     AC_CHECK_HEADER(gnutls/abstract.h, [], \
              [if test "x$with_gnutls" == "xyes"; then
                  AC_MSG_ERROR([GNUTLS >= 3.1.0 library header not found: gnutls/abstract.h])
               else
                  with_gnutls="no"
               fi])
+    CFLAGS="$ORIG_CFLAGS"
 fi
 
 if test "x$with_gnutls" != "xno"; then
@@ -357,6 +363,7 @@ AC_SUBST([TSS_GROUP])
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
+CFLAGS="$CFLAGS $GNUTLS_CFLAGS"
 
 dnl Simulate the following for systems with pkg-config < 0.28:
 dnl PKG_CHECK_VAR([libtpms_cryptolib], [libtpms], [cryptolib],
