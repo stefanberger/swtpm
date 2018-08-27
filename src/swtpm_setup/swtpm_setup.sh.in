@@ -107,6 +107,10 @@ TPMA_NV_WRITEDEFINE=$((0x2000))
 # Table 2
 TPM2_NV_INDEX_RSA_EKCert=$((0x01c00002))
 TPM2_NV_INDEX_RSA_EKTemplate=$((0x01c00004))
+# For ECC follow "TCG EK Credential Profile For TPM Family 2.0; Level 0"
+# Specification Version 2.1; Revision 12; 17 August 2018 (Draft)
+TPM2_NV_INDEX_ECC_EKCert=$((0x01c0000a))
+TPM2_NV_INDEX_ECC_EKTemplate=$((0x01c0000c))
 TPM2_NV_INDEX_PlatformCert=$((0x01c08000))
 
 TPM2_EK_HANDLE=$((0x81010001))
@@ -1691,7 +1695,11 @@ init_tpm2()
 		logit "Successfully created EK with handle" \
 		      "$(printf "0x%08x" ${TPM2_EK_HANDLE})."
 
-		nvindex=${TPM2_NV_INDEX_RSA_EKTemplate}
+		if [ $((flags & SETUP_TPM2_ECC_F)) -eq 0 ]; then
+			nvindex=${TPM2_NV_INDEX_RSA_EKTemplate}
+		else
+			nvindex=${TPM2_NV_INDEX_ECC_EKTemplate}
+		fi
 		nvindex_str="$(printf "0x%08x" ${nvindex})"
 
 		if [ $((flags & $SETUP_ALLOW_SIGNING_F )) -ne 0 ]; then
@@ -1741,7 +1749,11 @@ init_tpm2()
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] && \
 	   [ -r "${EK_CERT_FILE}" ]; then
 
-		nvindex=${TPM2_NV_INDEX_RSA_EKCert}
+		if [ $((flags & SETUP_TPM2_ECC_F)) -eq 0 ]; then
+			nvindex=${TPM2_NV_INDEX_RSA_EKCert}
+		else
+			nvindex=${TPM2_NV_INDEX_ECC_EKCert}
+		fi
 		nvindex_str="$(printf "0x%08x" ${nvindex})"
 
 		tpm2_nv_define \
