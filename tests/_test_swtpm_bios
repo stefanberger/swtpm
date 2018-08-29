@@ -77,7 +77,7 @@ if [ $? -ne 0 ] || [ -n "$res" ]; then
 fi
 
 #  must work
-res=$(run_swtpm_bios ${SWTPM_INTERFACE} -n -cs 2>&1)
+res=$(run_swtpm_bios ${SWTPM_INTERFACE} -n --cs 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not self-test the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -126,7 +126,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # must work
-res=$(run_swtpm_bios ${SWTPM_INTERFACE} -cs -u 2>&1)
+res=$(run_swtpm_bios ${SWTPM_INTERFACE} --cs -u 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not startup the ${SWTPM_INTERFACE} TPM."
 	exit 1
