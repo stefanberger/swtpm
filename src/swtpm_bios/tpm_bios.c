@@ -46,7 +46,7 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <sys/un.h>
-#if defined __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
 # include <sys/endian.h>
 # include <netinet/in.h>
 #else
@@ -695,8 +695,13 @@ int main(int argc, char *argv[])
 	};
 	int opt, option_index = 0;
 
+#ifdef __NetBSD__
+	while ((opt = getopt_long(argc, argv, "D:T:U:cdhvnsoCEu2", long_options,
+				&option_index)) != -1) {
+#else
 	while ((opt = getopt_long_only(argc, argv, "", long_options,
 				&option_index)) != -1) {
+#endif
 		switch (opt) {
 		case 'D':
 			tpm_device = strdup(optarg);

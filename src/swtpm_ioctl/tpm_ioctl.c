@@ -867,8 +867,13 @@ int main(int argc, char *argv[])
     char *endptr = NULL;
     int ret = EXIT_FAILURE;
 
+#if defined __NetBSD__
+    while ((opt = getopt_long(argc, argv, "D:T:U:citser:vCl:h:gb:S:L:VI:H",
+                              long_options, &option_index)) != -1) {
+#else
     while ((opt = getopt_long_only(argc, argv, "", long_options,
                                    &option_index)) != -1) {
+#endif
         switch (opt) {
         case 'D':
             tpm_device = optarg;
