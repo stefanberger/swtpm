@@ -63,12 +63,12 @@ AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [create a debug build]),
 # If the user has not set CFLAGS, do something appropriate
 test_CFLAGS=${CFLAGS+set}
 if test "$test_CFLAGS" != set; then
-	if test "$DEBUG" == "yes"; then
+	if test "$DEBUG" = "yes"; then
 		CFLAGS="-O0 -g -DDEBUG"
 	else
 		CFLAGS="-g -O2"
 	fi
-elif test "$DEBUG" == "yes"; then
+elif test "$DEBUG" = "yes"; then
 	CFLAGS="$CFLAGS -O0 -g -DDEBUG"
 fi
 
@@ -100,7 +100,7 @@ if test "$with_selinux" != "no"; then
             fi
         fi
         AC_PATH_PROG([SEMODULE], semodule)
-        if test "x$SEMODULE" == "x"; then
+        if test "x$SEMODULE" = "x"; then
             if test "$with_selinux" = "yes"; then
 	        AC_MSG_ERROR("Is selinux-policy-devel installed?")
 	    else
@@ -112,7 +112,7 @@ if test "$with_selinux" != "no"; then
         fi
     fi
 fi
-AM_CONDITIONAL([WITH_SELINUX], [test "x$with_selinux" == "xyes"])
+AM_CONDITIONAL([WITH_SELINUX], [test "x$with_selinux" = "xyes"])
 
 if test "$prefix" = "/usr" && test "$sysconfdir" = '${prefix}/etc'; then
 	sysconfdir="/etc"
@@ -178,7 +178,7 @@ AC_SUBST([LIBTPMS_LIBS])
 AC_PATH_PROG([TPM_NVDEFINE], tpm_nvdefine)
 case $host_os in
 linux-*)
-    if test "x$TPM_NVDEFINE" == "x"; then
+    if test "x$TPM_NVDEFINE" = "x"; then
 	AC_MSG_ERROR([NVRAM area tools are needed: tpm-tools package])
     fi
     have_tcsd=yes
@@ -193,7 +193,7 @@ dnl If we have the tcsd package, we can build swtpm_setup, but need netstat also
 AC_PATH_PROG([NETSTAT], [netstat])
 case $host_os in
 linux-*)
-    if test "x$NETSTAT" == "x" && test "have_tcsd" != "no"; then
+    if test "x$NETSTAT" = "x" && test "have_tcsd" != "no"; then
         AC_MSG_ERROR([netstat tool is missing for tests: net-tools package])
     fi
     ;;
@@ -257,7 +257,7 @@ AC_ARG_WITH([gnutls],
 if test "x$with_gnutls" != "xno"; then
     GNUTLS_LDFLAGS=$(pkg-config --libs gnutls)
     if test $? -ne 0; then
-        if test "x$with_gnutls" == "xyes"; then
+        if test "x$with_gnutls" = "xyes"; then
             AC_MSG_ERROR("Is gnutls installed? -- could not get libs for gnutls")
         else
             with_gnutls=no
@@ -267,8 +267,8 @@ fi
 
 if test "x$with_gnutls" != "xno"; then
      AC_PATH_PROG([GNUTLS_CERTTOOL], certtool)
-     if test "x$GNUTLS_CERTTOOL" == "x"; then
-         if test "x$with_gnutls" == "xyes"; then
+     if test "x$GNUTLS_CERTTOOL" = "x"; then
+         if test "x$with_gnutls" = "xyes"; then
              AC_MSG_ERROR("Could not find certtool. Is gnutls-utils/gnutls-bin installed?")
          else
              with_gnutls=no
@@ -283,7 +283,7 @@ if test "x$with_gnutls" != "xno"; then
     AC_CHECK_LIB([gnutls], [gnutls_load_file], [
                  GNUTLS_LIBS=-lgnutls
              ],
-             [if test "x$with_gnutls" == "xyes"; then
+             [if test "x$with_gnutls" = "xyes"; then
                  AC_MSG_ERROR([GNUTLS >= 3.1.0 library not found: libgnutls.so])
               else
                  with_gnutls="no"
@@ -295,7 +295,7 @@ if test "x$with_gnutls" != "xno"; then
     ORIG_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS $GNUTLS_CFLAGS"
     AC_CHECK_HEADER(gnutls/abstract.h, [], \
-             [if test "x$with_gnutls" == "xyes"; then
+             [if test "x$with_gnutls" = "xyes"; then
                  AC_MSG_ERROR([GNUTLS >= 3.1.0 library header not found: gnutls/abstract.h])
               else
                  with_gnutls="no"
@@ -306,26 +306,26 @@ fi
 if test "x$with_gnutls" != "xno"; then
     with_gnutls="yes"
 fi
-AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" == "xyes"])
+AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" = "xyes"])
 AC_SUBST([GNUTLS_LIBS])
 
 AC_PATH_PROG([EXPECT], expect)
-if test "x$EXPECT" == "x"; then
+if test "x$EXPECT" = "x"; then
 	AC_MSG_ERROR([expect is required: expect package])
 fi
 
 AC_PATH_PROG([GAWK], gawk)
-if test "x$GAWK" == "x"; then
+if test "x$GAWK" = "x"; then
 	AC_MSG_ERROR([gawk is required: gawk package])
 fi
 
 AC_PATH_PROG([SOCAT], socat)
-if test "x$SOCAT" == "x"; then
+if test "x$SOCAT" = "x"; then
 	AC_MSG_ERROR([socat is required: socat package])
 fi
 
 AC_PATH_PROG([PYTHON], python)
-if test "x$PYTHON" == "x"; then
+if test "x$PYTHON" = "x"; then
 	AC_MSG_ERROR([python is required: python2 or python3 package])
 fi
 
@@ -379,14 +379,14 @@ PKG_PROG_PKG_CONFIG
 
 AC_MSG_CHECKING([Checking the crypto library libtpms is linked to])
 libtpms_cryptolib=`$PKG_CONFIG --variable cryptolib libtpms`
-if test "x$libtpms_cryptolib" == "x"; then
+if test "x$libtpms_cryptolib" = "x"; then
   AC_MSG_ERROR([Could not determine the crypto library libtpms is using])
 fi
 AC_MSG_RESULT($libtpms_cryptolib)
 
 if test "$libtpms_cryptolib" != "$cryptolib"; then
   echo "libtpms is using $libtpms_cryptolib; we have to use the same"
-  if test "$cryptolib" == "openssl"; then
+  if test "$cryptolib" = "openssl"; then
     AC_MSG_ERROR([do not use --with-openssl])
   else
     AC_MSG_ERROR([use --with-openssl])
