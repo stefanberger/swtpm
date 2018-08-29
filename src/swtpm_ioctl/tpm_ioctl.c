@@ -68,6 +68,13 @@
 #include <netdb.h>
 #include <sys/param.h>
 
+#if defined __FreeBSD__
+# include <sys/endian.h>
+# include <netinet/in.h>
+#else
+# include <endian.h>
+#endif
+
 #include <swtpm/tpm_ioctl.h>
 
 #include <libtpms/tpm_error.h>

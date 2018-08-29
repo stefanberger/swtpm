@@ -39,6 +39,9 @@
 #define _SWTPM_OPTIONS_H
 
 #include <stdbool.h>
+#if defined __FreeBSD__
+# include <sys/stat.h>
+#endif
 
 enum OptionType {
     OPT_TYPE_STRING,

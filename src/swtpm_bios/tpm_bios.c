@@ -46,7 +46,12 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <sys/un.h>
-#include <endian.h>
+#if defined __FreeBSD__
+# include <sys/endian.h>
+# include <netinet/in.h>
+#else
+# include <endian.h>
+#endif
 #include <getopt.h>
 
 #include "swtpm.h"

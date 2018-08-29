@@ -37,7 +37,7 @@
  
 #include "config.h"
 
-#ifndef __OpenBSD__
+#if !defined __OpenBSD__ && !defined __FreeBSD__
  #define _GNU_SOURCE
  #include <features.h>
 #endif

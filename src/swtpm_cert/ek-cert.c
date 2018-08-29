@@ -52,6 +52,12 @@
 
 #include <arpa/inet.h>
 
+#if defined __FreeBSD__
+# include <sys/endian.h>
+#else
+# include <endian.h>
+#endif
+
 #include <gnutls/abstract.h>
 #include <gnutls/gnutls.h>
 
