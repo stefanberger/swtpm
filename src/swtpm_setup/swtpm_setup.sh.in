@@ -167,7 +167,7 @@ logerr()
 get_filesize()
 {
 	case "${UNAME_S}" in
-	OpenBSD)
+	OpenBSD|FreeBSD)
 		stat -f%z $1
 		;;
 	*)
@@ -516,7 +516,7 @@ cleanup()
 read_hex_data()
 {
 	case "${UNAME_S}" in
-	OpenBSD)
+	OpenBSD|FreeBSD)
 		od -t x1 -A n | tr -s ' ' | tr -d '\n' | sed 's/ $//'
 		;;
 	*)
@@ -528,15 +528,18 @@ read_hex_data()
 # Send hex data written in a string with each hex number
 # written in the form \x<2 hex digits>
 # We have to use bash's echo on OpenBSD 6.2.
+# We have to use | cat since some versions of echo otherwise
+# stop writing data into a socket after the first \x0a.
 #
 # @param1: The string with hex numbers
 send_hex_data()
 {
 	case "${UNAME_S}" in
-	OpenBSD)
-		echo -en "$1"
+	OpenBSD|FreeBSD|CYGWIN*)
+		echo -en "$1" | cat
 		;;
 	*)
+		# Some Ubuntu Xenial version still needs this
 		$ECHO -en "$1"
 		;;
 	esac
