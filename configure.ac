@@ -340,14 +340,14 @@ dnl Must not have -O0 but must have a -O for -D_FORTIFY_SOURCE=2
 TMP1="$(echo $CFLAGS | sed -n 's/.*\(-O0\).*/\1/p')"
 TMP2="$(echo $CFLAGS | sed -n 's/.*\(-O\).*/\1/p')"
 if test -z "$TMP1" && test -n "$TPM2"; then
-    HARDENING_CFLAGS+="-D_FORTIFY_SOURCE=2 "
+    HARDENING_CFLAGS="$HARDENING_CFLAGS -D_FORTIFY_SOURCE=2 "
 fi
 dnl Check ld for 'relro' and 'now'
 if $LD --help 2>&1 | $GREP '\-z relro ' > /dev/null; then
-  HARDENING_CFLAGS+="-Wl,-z,relro "
+  HARDENING_CFLAGS="$HARDENING_CFLAGS -Wl,-z,relro "
 fi
 if $LD --help 2>&1 | $GREP '\-z now ' > /dev/null; then
-  HARDENING_CFLAGS+="-Wl,-z,now "
+  HARDENING_CFLAGS="$HARDENING_CFLAGS -Wl,-z,now "
 fi
 AC_SUBST([HARDENING_CFLAGS])
 
