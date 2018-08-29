@@ -123,7 +123,7 @@ get_next_cert_serial() {
 	touch ${LOCK}
 	(
 		# Avoid concurrent creation of next serial
-		flock -e 100
+		flock -x 100
 		if [ $? -ne 0 ]; then
 			logerr "Could not get lock ${LOCK}"
 			return 1
@@ -264,7 +264,7 @@ create_localca_cert() {
 	touch ${LOCK}
 	(
 		# Avoid concurrent creation of keys and certs
-		flock -e 100
+		flock -x 100
 		if [ $? -ne 0 ]; then
 			logerr "Could not get lock ${LOCK}"
 			return 1
