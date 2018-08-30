@@ -465,6 +465,8 @@ function swtpm_open_cmddev()
 			echo "SWTPM_SERVER_PORT not defined"
 			exit 1
 		}
+		# Must first close on OS/X
+		exec 100>&-
 		exec 100<>/dev/tcp/${SWTPM_SERVER_NAME}/${SWTPM_SERVER_PORT}
 		return $?
 		;;
@@ -610,10 +612,15 @@ function get_filesize()
 # @1: filename
 function get_sha1_file()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+	case "$(uname -s)" in
+	Linux|CYGWIN*)
 		sha1sum $1 | cut -f1 -d" "
-	else
+		;;
+	Darwin)
+		shasum $1 | cut -f1 -d" "
+		;;
+	*)
 		# OpenBSD
 		sha1 $1 | cut -d "=" -f2 | tr -d " "
-	fi
+	esac
 }
