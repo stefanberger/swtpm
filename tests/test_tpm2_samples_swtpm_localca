@@ -29,6 +29,13 @@ function cleanup()
 	rm -rf ${workdir}
 }
 
+case "$(uname -s)" in
+Darwin)
+	CERTTOOL=gnutls-certtool;;
+*)
+	CERTTOOL=certtool;;
+esac
+
 cat <<_EOF_ > ${workdir}/swtpm-localca.conf
 statedir=${workdir}
 signingkey = ${SIGNINGKEY}
@@ -81,7 +88,7 @@ do
 
   for u in $usage; do
     echo $u
-    if [ -z "$(certtool -i \
+    if [ -z "$(${CERTTOOL} -i \
                  --inder --infile ${workdir}/ek.cert | \
                 grep "Key Usage" -A2 | \
                 grep "$u")" ]; then
@@ -94,12 +101,12 @@ do
 
   IFS="$OIFS"
 
-  certtool \
+  ${CERTTOOL} \
     -i \
     --inder --infile ${workdir}/ek.cert \
     --outfile ${workdir}/ek.pem
 
-  certtool \
+  ${CERTTOOL} \
     --verify \
     --load-ca-certificate ${ISSUERCERT} \
     --infile ${workdir}/ek.pem
