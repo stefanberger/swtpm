@@ -295,7 +295,7 @@ create_localca_cert() {
 			local msg
 
 			# create a CA first
-			msg=$(certtool \
+			msg=$(${CERTTOOL} \
 				--generate-privkey \
 				--outfile ${cakey} \
 				2>&1)
@@ -312,7 +312,7 @@ create_localca_cert() {
 			echo "cert_signing_key" >> ${tmp}
 			echo "expiration_days = 3650" >> ${tmp}
 
-			msg=$(certtool \
+			msg=$(${CERTTOOL} \
 				--generate-self-signed \
 				--template ${tmp} \
 				--outfile ${cacert} \
@@ -330,7 +330,7 @@ create_localca_cert() {
 				export GNUTLS_PIN=${SIGNKEY_PASSWORD}
 			fi
 
-			msg=$(certtool \
+			msg=$(${CERTTOOL} \
 				--generate-privkey \
 				--outfile ${SIGNKEY} \
 				2>&1)
@@ -347,7 +347,7 @@ create_localca_cert() {
 			echo "cert_signing_key" >> ${tmp}
 			echo "expiration_days = 3650" >> ${tmp}
 
-			msg=$(certtool \
+			msg=$(${CERTTOOL} \
 				--generate-certificate \
 				--template ${tmp} \
 				--outfile ${ISSUERCERT} \
@@ -493,6 +493,14 @@ main() {
 		exit 1
 	fi
 	make_dir $(dirname "$ISSUERCERT")
+
+	# set global CERTTOOL to gnutls's certtool
+	case "${UNAME_S}" in
+	Darwin)
+		CERTTOOL="gnutls-certtool";;
+	*)
+		CERTTOOL="certtool";;
+	esac
 
 	if [ ! -r "$SIGNKEY" ]; then
 		if [ -f "$SIGNKEY" ]; then
