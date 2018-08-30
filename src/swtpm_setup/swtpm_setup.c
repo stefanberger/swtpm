@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
         i++;
     }
 
-#if defined __OpenBSD__ || defined __FreeBSD__
+#if defined __OpenBSD__ || defined __FreeBSD__ || defined __APPLE__
     if (!realpath(getenv("_"), resolved_path)) {
 #else
     if (!realpath("/proc/self/exe", resolved_path)) {
