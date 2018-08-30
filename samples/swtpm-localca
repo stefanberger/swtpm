@@ -49,6 +49,8 @@ LOCALCA_CONFIG=${XDG_CONFIG_HOME:-/etc}/swtpm-localca.conf
 # Default logging goes to stderr
 LOGFILE=""
 
+UNAME_S=$(uname -s)
+
 logit()
 {
 	if [ -z "$LOGFILE" ]; then
@@ -65,6 +67,18 @@ logerr()
 	else
 		echo "Error: $@" >> $LOGFILE
 	fi
+}
+
+flock_fd()
+{
+	local fd=$1
+
+	case "${UNAME_S}" in
+	Darwin)
+		flock $fd;;
+	*)
+		flock -x $fd;;
+	esac
 }
 
 # Get an configuration value from an configurations file
@@ -123,7 +137,7 @@ get_next_cert_serial() {
 	touch ${LOCK}
 	(
 		# Avoid concurrent creation of next serial
-		flock -x 100
+		flock_fd 100
 		if [ $? -ne 0 ]; then
 			logerr "Could not get lock ${LOCK}"
 			return 1
@@ -264,7 +278,7 @@ create_localca_cert() {
 	touch ${LOCK}
 	(
 		# Avoid concurrent creation of keys and certs
-		flock -x 100
+		flock_fd 100
 		if [ $? -ne 0 ]; then
 			logerr "Could not get lock ${LOCK}"
 			return 1
