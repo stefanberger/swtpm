@@ -99,7 +99,6 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
                          unsigned char *buffer,   /* output: command stream */
                          uint32_t *bufferLength,  /* output: command stream length */
                          size_t bufferSize,       /* input: max size of output buffer */
-                         void *mainLoopArgs,
                          bool readall)
 {
     TPM_RESULT          rc = 0;
@@ -133,7 +132,6 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
     }
     /* read the command through the paramSize from the socket stream */
     if (rc == 0) {
-        mainLoopArgs = mainLoopArgs;            /* not used */
         rc = SWTPM_IO_ReadBytes(connection_fd, buffer, headerSize);
     }
     if (rc == 0) {
@@ -197,8 +195,7 @@ TPM_RESULT SWTPM_IO_Init(void)
 */
 
 TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write file descriptor */
-                            int notify_fd,
-                            void *mainLoopArgs)
+                            int notify_fd)
 {
     TPM_RESULT          rc = 0;
     socklen_t           cli_len;
@@ -206,8 +203,6 @@ TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write 
     int                 max_fd = -1;
     fd_set              readfds;
     int                 n;
-
-    mainLoopArgs = mainLoopArgs;        /* not used */
 
     while (rc == 0) {
         FD_ZERO(&readfds);

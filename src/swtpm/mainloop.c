@@ -206,7 +206,7 @@ int mainLoop(struct mainLoopParams *mlp,
             if (rc == 0) {
                 readall = (mlp->flags & MAIN_LOOP_FLAG_READALL);
                 rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
-                                   max_command_length, mlp, readall);
+                                   max_command_length, readall);
                 if (rc != 0) {
                     /* connection broke */
                     SWTPM_IO_Disconnect(&connection_fd);

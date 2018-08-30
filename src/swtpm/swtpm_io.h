@@ -46,13 +46,11 @@ typedef struct TPM_CONNECTION_FD {
 
 TPM_RESULT SWTPM_IO_Init(void);
 TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,
-                            int notify_fd,
-                            void *mainLoopArgs);
+                            int notify_fd);
 TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,
                          unsigned char *buffer,
                          uint32_t *paramSize,
                          size_t buffer_size,
-                         void *mainLoopArgs,
                          bool readall);
 TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,
                           const unsigned char *buffer,
