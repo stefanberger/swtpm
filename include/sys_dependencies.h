@@ -1,7 +1,7 @@
 /*
- * options.h -- Option parsing
+ * sys_dependencies.h -- system specific includes and #defines
  *
- * (c) Copyright IBM Corporation 2014.
+ * (c) Copyright IBM Corporation 2018.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -35,62 +35,31 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SWTPM_OPTIONS_H
-#define _SWTPM_OPTIONS_H
+#ifndef SWTPM_SYS_DEPENDENCIES_H
+#define SWTPM_SYS_DEPENDENCIES_H
 
+#if !defined __OpenBSD__ && !defined __FreeBSD__ && !defined __NetBSD__ \
+ && !defined __APPLE__
+ #define _GNU_SOURCE
+ #include <features.h>
+#endif
 
-#include <stdbool.h>
-#include <sys/stat.h> /* FreeBSD for mode_t */
+#if defined __FreeBSD__ || defined __NetBSD__
+# include <sys/endian.h>
+# include <netinet/in.h>
+#elif defined __APPLE__
+# include <libkern/OSByteOrder.h>
 
-enum OptionType {
-    OPT_TYPE_STRING,
-    OPT_TYPE_INT,
-    OPT_TYPE_UINT,
-    OPT_TYPE_BOOLEAN,
-    OPT_TYPE_MODE_T,
-    OPT_TYPE_UID_T,
-    OPT_TYPE_GID_T,
-};
+# define be16toh(x) OSSwapBigToHostInt16(x)
+# define be32toh(x) OSSwapBigToHostInt32(x)
+# define be64toh(x) OSSwapBigToHostInt64(x)
 
-typedef struct {
-    enum OptionType type;
-    const char *name;
-    union {
-        char *string;
-        int integer;
-        unsigned int uinteger;
-        bool boolean;
-        mode_t mode;
-        uid_t uid;
-        gid_t gid;
-    }u;
-} OptionValue;
+# define htobe16(x) OSSwapHostToBigInt16(x)
+# define htobe32(x) OSSwapHostToBigInt32(x)
+# define htobe64(x) OSSwapHostToBigInt64(x)
 
-typedef struct {
-    size_t n_options;
-    OptionValue *options;
-} OptionValues;
+#else
+# include <endian.h>
+#endif
 
-typedef struct {
-   const char *name;
-   enum OptionType type;
-} OptionDesc;
-
-#define END_OPTION_DESC \
-    { \
-        .name = NULL, \
-    }
-
-OptionValues *options_parse(char *opts, const OptionDesc optdesc[],
-                            char **error);
-void option_values_free(OptionValues *ov);
-const char *option_get_string(OptionValues *ovs, const char *name,
-                              const char *def);
-int option_get_int(OptionValues *ovs, const char *name, int def);
-unsigned int option_get_uint(OptionValues *ovs, const char *name, unsigned int def);
-bool option_get_bool(OptionValues *ovs, const char *name, bool def);
-mode_t option_get_mode_t(OptionValues *ovs, const char *name, mode_t def);
-uid_t option_get_uid_t(OptionValues *ovs, const char *name, uid_t def);
-gid_t option_get_gid_t(OptionValues *ovs, const char *name, gid_t def);
-
-#endif /* _SWTPM_OPTIONS_H */
+#endif /* SWTPM_SYS_DEPENDENCIES_H */

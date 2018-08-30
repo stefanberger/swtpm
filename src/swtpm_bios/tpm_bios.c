@@ -46,14 +46,9 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <sys/un.h>
-#if defined __FreeBSD__ || defined __NetBSD__
-# include <sys/endian.h>
-# include <netinet/in.h>
-#else
-# include <endian.h>
-#endif
 #include <getopt.h>
 
+#include "sys_dependencies.h"
 #include "swtpm.h"
 #include "tpm_bios.h"
 

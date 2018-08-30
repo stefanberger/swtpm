@@ -42,11 +42,6 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <stdint.h>
-#if defined __FreeBSD__
-# include <sys/endian.h>
-#else
-# include <endian.h>
-#endif
 #include <stddef.h>
 #include <time.h>
 #include <poll.h>
@@ -56,6 +51,7 @@
 #include <libtpms/tpm_tis.h>
 #include <libtpms/tpm_memory.h>
 
+#include "sys_dependencies.h"
 #include "ctrlchannel.h"
 #include "logging.h"
 #include "tpm_ioctl.h"

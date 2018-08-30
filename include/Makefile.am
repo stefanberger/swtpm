@@ -5,3 +5,6 @@
 #
 
 SUBDIRS = swtpm
+
+noinst_HEADERS = \
+	sys_dependencies.h

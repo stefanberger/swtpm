@@ -39,11 +39,9 @@
 
 #include "tlv.h"
 #include "logging.h"
+#include "sys_dependencies.h"
 
 #include <string.h>
-#if defined __FreeBSD__
-# include <sys/endian.h>
-#endif
 
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_memory.h>

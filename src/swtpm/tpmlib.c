@@ -37,12 +37,9 @@
 
 #include "config.h"
 
+#include "sys_dependencies.h"
+
 #include <assert.h>
-#if defined __FreeBSD__
-# include <sys/endian.h>
-#else
-# include <endian.h>
-#endif
 #include <string.h>
 #include <stdlib.h>
 

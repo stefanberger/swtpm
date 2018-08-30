@@ -68,17 +68,11 @@
 #include <netdb.h>
 #include <sys/param.h>
 
-#if defined __FreeBSD__
-# include <sys/endian.h>
-# include <netinet/in.h>
-#else
-# include <endian.h>
-#endif
-
 #include <swtpm/tpm_ioctl.h>
 
 #include <libtpms/tpm_error.h>
 
+#include "sys_dependencies.h"
 #include "swtpm.h"
 
 #define DEFAULT_TCP_PORT 6546
