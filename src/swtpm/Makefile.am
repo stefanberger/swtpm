@@ -13,6 +13,7 @@ noinst_HEADERS = \
 	main.h \
 	mainloop.h \
 	options.h \
+	osx.h \
 	pidfile.h \
 	server.h \
 	swtpm_aes.h \
@@ -66,6 +67,7 @@ swtpm_DEPENDENCIES = $(lib_LTLIBRARIES)
 
 swtpm_SOURCES = \
 		main.c \
+		osx.c \
 		swtpm.c \
 		swtpm_chardev.c
 if WITH_CUSE

@@ -67,6 +67,8 @@
 #include "mainloop.h"
 #include "ctrlchannel.h"
 #include "tpmstate.h"
+#include "sys_dependencies.h"
+#include "osx.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -429,7 +431,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     }
 
     if (daemonize) {
+#ifdef __APPLE__
+        if (0 != osx_daemon(0, 0)) {
+#else
         if (0 != daemon(0, 0)) {
+#endif
             logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
             goto exit_failure;
         }
