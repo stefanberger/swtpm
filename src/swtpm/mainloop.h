@@ -41,7 +41,7 @@
 */
 
 #ifndef _SWTPM_MAINLOOP_H_
-#define _SWPTM_MAINLOOP_H_
+#define _SWTPM_MAINLOOP_H_
 
 #include <libtpms/tpm_library.h>
 

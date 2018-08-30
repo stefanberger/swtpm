@@ -35,7 +35,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SWPTM_MAIN_H
+#ifndef _SWTPM_MAIN_H
 #define _SWTPM_MAIN_H
 
 int swtpm_main(int argc, char **argv, const char *prgname, const char *iface);
