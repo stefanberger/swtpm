@@ -19,15 +19,19 @@ all: $(POLICIES)
 clean:
 	$(RM) -r tmp $(POLICIES)
 
-%.pp : %.te
-	bash $(PWD)/adapt_policy.sh
-	$(RM) -r tmp
-	make -f /usr/share/selinux/devel/Makefile $@
+.SECONDEXPANSION:
+%.pp : $(top_srcdir)/src/selinux/%.te $$(wildcard $$(top_srcdir)/src/selinux/%.if $$(top_srcdir)/src/selinux/%.fc)
+	$(RM) -r $(top_srcdir)/src/selinux/tmp/
+	cp $^ ./ 2>/dev/null || true
+	+make -f /usr/share/selinux/devel/Makefile $@ || make -f /usr/share/selinux/devel/Makefile $@
+	$(RM) -r ./tmp/
+	if test $(shell pwd) != $(abspath $(top_srcdir)/src/selinux); then \
+		$(RM) *.te *.fc *.if; \
+	fi
 
 .NOTPARALLEL: %.te
 
 EXTRA_DIST = \
-	adapt_policy.sh \
 	swtpm.fc \
 	swtpm.if \
 	swtpm.te \
@@ -35,3 +39,5 @@ EXTRA_DIST = \
 	swtpmcuse.fc \
 	swtpmcuse.if \
 	swtpmcuse.te
+
+CLEANFILES = *.pp
