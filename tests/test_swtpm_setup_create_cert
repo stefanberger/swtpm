@@ -9,9 +9,10 @@ fi
 
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:=$(dirname "$0")}
+SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
-SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
+SWTPM_LOCALCA=${SRCDIR}/samples/swtpm-localca
 SWTPM=${ROOT}/src/swtpm/swtpm
 SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
 

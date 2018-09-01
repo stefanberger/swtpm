@@ -8,7 +8,8 @@ check_PROGRAMS =
 
 TESTS_ENVIRONMENT = \
   abs_top_testdir=`cd '$(top_srcdir)'/tests; pwd` \
-  abs_top_builddir=`cd '$(top_builddir)'; pwd`
+  abs_top_builddir=`cd '$(top_builddir)'; pwd` \
+  abs_top_srcdir=`cd '$(top_srcdir)'; pwd`
 
 TESTS = \
 	test_vtpm_proxy \
