@@ -50,6 +50,7 @@ libswtpm_libtpms_la_SOURCES = \
 
 libswtpm_libtpms_la_CFLAGS = \
 	-I$(top_builddir)/include \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS)
@@ -76,6 +77,7 @@ endif
 
 swtpm_CFLAGS = \
 	-I$(top_builddir)/include \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \

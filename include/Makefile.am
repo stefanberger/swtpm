@@ -8,3 +8,6 @@ SUBDIRS = swtpm
 
 noinst_HEADERS = \
 	sys_dependencies.h
+
+EXTRA_DIST = \
+	sys_dependencies.h

@@ -17,7 +17,8 @@ swtpm_cert_SOURCES = \
 	ek-cert.c
 
 swtpm_cert_CFLAGS = \
-	-I$(top_builddir)/include
+	-I$(top_builddir)/include \
+	-I$(top_srcdir)/include
 
 ek-cert.o : tpm_asn1.h
 
