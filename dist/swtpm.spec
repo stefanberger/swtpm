@@ -1,39 +1,34 @@
-# --- swtpm rpm-spec ---
-
 %bcond_without gnutls
 
-%global name      swtpm
-%global version   0.1.0
-%global release   1
+%global gitdate     20180918
+%global gitcommit   da71c2a1ebec56d81a2b2a09b3e42fa372a791a9
+%global gitshortcommit  %(c=%{gitcommit}; echo ${c:0:7})
+
+# Macros needed by SELinux
+%global selinuxtype targeted
+%global moduletype  contrib
+%global modulename  swtpm
 
 Summary: TPM Emulator
-Name:           %{name}
-Version:        %{version}
-Release:        %{release}.dev2%{?dist}
+Name:           swtpm
+Version:        0.1.0
+Release:        0.%{gitdate}git%{gitshortcommit}%{?dist}
 License:        BSD
-Source:         http://github.com/stefanberger/swtpm/archive/v%{version}.tar.gz
-
-# due to gnutls backlevel API:
-%if 0%{?rhel} < 7 || 0%{?fedora} < 19
-    %bcond_with gnutls
-%endif
+Url:            http://github.com/stefanberger/swtpm
+Source0:        %{url}/archive/%{gitcommit}/%{name}-%{gitshortcommit}.tar.gz
 
 BuildRequires:  automake
 BuildRequires:  autoconf
-BuildRequires:  bash
-BuildRequires:  coreutils
 BuildRequires:  libtool
-BuildRequires:  sed
 BuildRequires:  libtpms-devel >= 0.6.0
-BuildRequires:  fuse-devel
 BuildRequires:  glib2-devel
 BuildRequires:  gmp-devel
 BuildRequires:  expect
 BuildRequires:  net-tools
 BuildRequires:  openssl-devel
 BuildRequires:  socat
-BuildRequires:  python
-BuildRequires:  python-twisted
+BuildRequires:  python3
+BuildRequires:  python3-twisted
 BuildRequires:  trousers >= 0.3.9
 BuildRequires:  tpm-tools >= 1.3.8-6
 %if %{with gnutls}
@@ -42,44 +37,28 @@ BuildRequires:  gnutls-devel
 BuildRequires:  gnutls-utils
 BuildRequires:  libtasn1-devel
 BuildRequires:  libtasn1
-%if 0%{?fedora}
-BuildRequires:  libtasn1-tools
 %endif
-%endif
-%if 0%{?fedora} > 16
-BuildRequires:  kernel-modules-extra
-%endif
+BuildRequires:  selinux-policy-devel
+BuildRequires:  gcc
 
-Requires:       fuse
+Requires:       %{name}-libs = %{version}-%{release}
 Requires:       libtpms >= 0.6.0
-%if 0%{?fedora} > 16
-Requires:       kernel-modules-extra
-%endif
+%{?selinux_requires}
 
 %description
 TPM emulator built on libtpms providing TPM functionality for QEMU VMs
 
 %package        libs
-Summary:        Common libraries for TPM emulators
-Group:          System Environment/Libraries
+Summary:        Private libraries for swtpm TPM emulators
 License:        BSD
 
 %description    libs
-A library with callback functions for libtpms based TPM emulator
-
-%package        cuse
-Summary:        TPM emulator with CUSE interface
-Group:          Applications/Emulators
-License:        BSD
-BuildRequires:  selinux-policy-devel
-
-%description    cuse
-TPM Emulator with CUSE interface
+A private library with callback functions for libtpms based swtpm TPM emulator
 
 %package        devel
 Summary:        Include files for the TPM emulator's CUSE interface for usage by clients
-Group:          Development/Libraries
-Requires:       %{name}%{?_isa} = %{version}-%{release}
+License:        BSD
+Requires:       %{name}-libs%{?_isa} = %{version}-%{release}
 
 %description    devel
 Include files for the TPM emulator's CUSE interface.
@@ -87,36 +66,76 @@ Include files for the TPM emulator's CUSE interface.
 %package        tools
 Summary:        Tools for the TPM emulator
 License:        BSD
-Group:          Applications/Emulators
-Requires:       swtpm = %{version}-%{release} fuse
+Requires:       swtpm = %{version}-%{release}
 Requires:       trousers >= 0.3.9 tpm-tools >= 1.3.8-6 expect bash net-tools gnutls-utils
 
 %description    tools
 Tools for the TPM emulator from the swtpm package
 
+%prep
+%autosetup -n %{name}-%{gitcommit}
+
+%build
+
+NOCONFIGURE=1 ./autogen.sh
+%configure \
+%if %{with gnutls}
+        --with-gnutls \
+%endif
+        --without-cuse
+
+%make_build
+
+%check
+make %{?_smp_mflags} check
+
+%install
+
+%make_install
+rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la,so}
+
+%post
+for pp in /usr/share/selinux/packages/swtpm.pp \
+          /usr/share/selinux/packages/swtpm_svirt.pp; do
+  %selinux_modules_install -s %{selinuxtype} ${pp}
+done
+
+%postun
+if [ $1 -eq  0 ]; then
+  for p in swtpm swtpm_svirt; do
+    %selinux_modules_uninstall -s %{selinuxtype} $p
+  done
+fi
+
+%posttrans
+%selinux_relabel_post -s %{selinuxtype}
+
+%ldconfig_post libs
+%ldconfig_postun libs
+
 %files
+%license LICENSE
+%doc README
 %{_bindir}/swtpm
 %{_mandir}/man8/swtpm.8*
 %{_datadir}/selinux/packages/swtpm.pp
 %{_datadir}/selinux/packages/swtpm_svirt.pp
 
-%files cuse
-%{_bindir}/swtpm_cuse
-%{_mandir}/man8/swtpm_cuse.8*
-%{_datadir}/selinux/packages/swtpmcuse.pp
-
 %files libs
+%license LICENSE
+%doc README
+
+%dir %{_libdir}/%{name}
 %{_libdir}/%{name}/libswtpm_libtpms.so.0
 %{_libdir}/%{name}/libswtpm_libtpms.so.0.0.0
 
 %files devel
-%{_libdir}/%{name}/libswtpm_libtpms.so
-
 %dir %{_includedir}/%{name}
 %{_includedir}/%{name}/*.h
 %{_mandir}/man3/swtpm_ioctls.3*
 
 %files tools
+%doc README
 %{_bindir}/swtpm_bios
 %if %{with gnutls}
 %{_bindir}/swtpm_cert
@@ -136,78 +155,12 @@ Tools for the TPM emulator from the swtpm package
 %config(noreplace) %{_sysconfdir}/swtpm_setup.conf
 %config(noreplace) %{_sysconfdir}/swtpm-localca.options
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf
+%dir %{_datadir}/swtpm
 %{_datadir}/swtpm/swtpm-localca
 %attr( 755, tss, tss) %{_localstatedir}/lib/swtpm-localca
 
-%prep
-%setup -q
-
-%build
-
-NOCONFIGURE=1 ./autogen.sh
-%configure \
-%if %{with gnutls}
-        --with-gnutls
-%endif
-
-%make_build
-
-%check
-make %{?_smp_mflags} check
-
-%install
-
-%make_install
-rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la}
-
-%post
-if [ -n "$(type -p semodule)" ]; then
-  for pp in /usr/share/selinux/packages/swtpm.pp /usr/share/selinux/packages/swtpm_svirt.pp ; do
-    echo "Activating SELinux policy $pp"
-    semodule -i $pp
-  done
-fi
-
-if [ -n "$(type -p restorecon)" ]; then
-  restorecon /usr/bin/swtpm
-fi
-
-%postun
-if [ $1 -eq  0 ]; then
-  if [ -n "$(type -p semodule)" ]; then
-    for p in swtpm swtpm_svirt ; do
-      echo "Removing SELinux policy $p"
-      semodule -r $p
-    done
-  fi
-fi
-
-%post cuse
-if [ -n "$(type -p semodule)" ]; then
-  for pp in /usr/share/selinux/packages/swtpmcuse.pp ; do
-    echo "Activating SELinux policy $pp"
-    semodule -i $pp
-  done
-fi
-
-if [ -n "$(type -p restorecon)" ]; then
-  restorecon /usr/bin/swtpm_cuse
-fi
-
-%postun cuse
-if [ $1 -eq  0 ]; then
-  if [ -n "$(type -p semodule)" ]; then
-    for p in swtpmcuse ; do
-      echo "Removing SELinux policy $p"
-      semodule -r $p
-    done
-  fi
-fi
-
-%ldconfig_post libs
-%ldconfig_postun libs
-
 %changelog
-* Mon Sep 17 2018 Stefan Berger - 0.1.0-0.20180917gitfd755d731e
+* Mon Sep 17 2018 Stefan Berger <stefanb@linux.vnet.ibm.com> - 0.1.0-0.20180918git67d7ea3
 - Created initial version of rpm spec files
 - Version is now 0.1.0
+- Bugzilla for this spec: https://bugzilla.redhat.com/show_bug.cgi?id=1611829
