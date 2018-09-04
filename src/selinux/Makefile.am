@@ -14,13 +14,26 @@ POLICIES = \
 policiesconf_DATA = \
 	$(POLICIES)
 
+swtpm.pp_FILES = \
+	$(addprefix $(top_srcdir)/src/selinux/,\
+	  swtpm.fc swtpm.if swtpm.te)
+
+swtpm_svirt.pp_FILES = \
+	$(addprefix $(top_srcdir)/src/selinux/,\
+	  swtpm_svirt.te)
+
+swtpmcuse.pp_FILES = \
+	$(addprefix $(top_srcdir)/src/selinux/,\
+	  swtpmcuse.te swtpmcuse.fc swtpmcuse.if)
+
 all: $(POLICIES)
 
 clean:
 	$(RM) -r tmp $(POLICIES)
 
 .SECONDEXPANSION:
-%.pp : $(top_srcdir)/src/selinux/%.te $$(wildcard $$(top_srcdir)/src/selinux/%.if $$(top_srcdir)/src/selinux/%.fc)
+%.pp : $$($$@_FILES)
+	echo "Creating $@ from $^"
 	$(RM) -r $(top_srcdir)/src/selinux/tmp/
 	cp $^ ./ 2>/dev/null || true
 	+make -f /usr/share/selinux/devel/Makefile $@ || make -f /usr/share/selinux/devel/Makefile $@
