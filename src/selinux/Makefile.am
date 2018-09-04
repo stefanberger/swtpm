@@ -4,7 +4,7 @@
 # For the license, see the COPYING file in the root directory.
 #
 
-policiesconfdir = $(datadir)/@PACKAGE@
+policiesconfdir = $(datadir)/selinux/packages
 
 POLICIES = \
 	swtpm.pp \

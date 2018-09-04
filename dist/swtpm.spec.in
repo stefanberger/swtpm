@@ -97,13 +97,13 @@ Tools for the TPM emulator from the swtpm package
 %files
 %{_bindir}/swtpm
 %{_mandir}/man8/swtpm.8*
-%{_datadir}/swtpm/swtpm.pp
-%{_datadir}/swtpm/swtpm_svirt.pp
+%{_datadir}/selinux/packages/swtpm.pp
+%{_datadir}/selinux/packages/swtpm_svirt.pp
 
 %files cuse
 %{_bindir}/swtpm_cuse
 %{_mandir}/man8/swtpm_cuse.8*
-%{_datadir}/swtpm/swtpmcuse.pp
+%{_datadir}/selinux/packages/swtpmcuse.pp
 
 %files libs
 %{_libdir}/libswtpm_libtpms.so.0
@@ -162,7 +162,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.{a,la}
 
 %post
 if [ -n "$(type -p semodule)" ]; then
-  for pp in /usr/share/swtpm/swtpm.pp /usr/share/swtpm/swtpm_svirt.pp ; do
+  for pp in /usr/share/selinux/packages/swtpm.pp /usr/share/selinux/packages/swtpm_svirt.pp ; do
     echo "Activating SELinux policy $pp"
     semodule -i $pp
   done
@@ -184,7 +184,7 @@ fi
 
 %post cuse
 if [ -n "$(type -p semodule)" ]; then
-  for pp in /usr/share/swtpm/swtpmcuse.pp ; do
+  for pp in /usr/share/selinux/packages/swtpmcuse.pp ; do
     echo "Activating SELinux policy $pp"
     semodule -i $pp
   done
