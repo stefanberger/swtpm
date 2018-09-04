@@ -2,14 +2,17 @@ module swtpm_svirt 1.0;
 
 require {
 	type svirt_t;
+	type svirt_tcg_t;
 	type swtpm_exec_t;
 	type virtd_t;
 	type user_tmp_t;
+	type virt_var_run_t;
 
-	class file { entrypoint map execute read };
+	class file { create entrypoint map execute open read write };
 	class process sigchld;
 	class fifo_file write;
-	class sock_file { create setattr };
+	class sock_file { create setattr remove_name };
+	class dir { write add_name remove_name };
 }
 
 #============= svirt_t ==============
@@ -17,3 +20,8 @@ allow svirt_t virtd_t:fifo_file write;
 allow svirt_t virtd_t:process sigchld;
 allow svirt_t user_tmp_t:sock_file { create setattr };
 allow svirt_t swtpm_exec_t:file { entrypoint map execute read };
+allow svirt_tcg_t virtd_t:fifo_file write;
+allow svirt_tcg_t virt_var_run_t:sock_file { create setattr remove_name };
+allow svirt_tcg_t virt_var_run_t:file { create open read write };
+allow svirt_tcg_t virt_var_run_t:dir { write add_name remove_name };
+allow svirt_tcg_t swtpm_exec_t:file { entrypoint map execute read };
