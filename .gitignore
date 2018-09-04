@@ -32,6 +32,7 @@ Makefile
 /.pc/*
 /patches/*
 /include/swtpm.h
+/src/selinux/*.pp.bz2
 /src/selinux/swtpm.pp
 /src/selinux/swtpm_svirt.fc
 /src/selinux/swtpm_svirt.if

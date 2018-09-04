@@ -11,6 +11,9 @@ POLICIES = \
 	swtpm_svirt.pp \
 	swtpmcuse.pp
 
+POLICIES_BZ2 = \
+	$(addsuffix .bz2,$(POLICIES))
+
 policiesconf_DATA = \
 	$(POLICIES)
 
@@ -26,10 +29,14 @@ swtpmcuse.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
 	  swtpmcuse.te swtpmcuse.fc swtpmcuse.if)
 
-all: $(POLICIES)
+all: $(POLICIES_BZ2)
 
 clean:
-	$(RM) -r tmp $(POLICIES)
+	$(RM) -r tmp $(POLICIES) $(POLICIES_BZ2)
+
+%.pp.bz2: %.pp
+	@echo Compressing $^ -\> $@
+	bzip2 -f -9 $^
 
 .SECONDEXPANSION:
 %.pp : $$($$@_FILES)
@@ -53,4 +60,4 @@ EXTRA_DIST = \
 	swtpmcuse.if \
 	swtpmcuse.te
 
-CLEANFILES = *.pp
+CLEANFILES = *.pp *.pp.bz2
