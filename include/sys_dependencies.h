@@ -39,12 +39,12 @@
 #define SWTPM_SYS_DEPENDENCIES_H
 
 #if !defined __OpenBSD__ && !defined __FreeBSD__ && !defined __NetBSD__ \
- && !defined __APPLE__
+ && !defined __APPLE__ && !defined __DragonFly__
  #define _GNU_SOURCE
  #include <features.h>
 #endif
 
-#if defined __FreeBSD__ || defined __NetBSD__
+#if defined __FreeBSD__ || defined __NetBSD__ || defined __DragonFly__
 # include <sys/endian.h>
 # include <netinet/in.h>
 #elif defined __APPLE__
