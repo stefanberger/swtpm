@@ -167,7 +167,7 @@ logerr()
 get_filesize()
 {
 	case "${UNAME_S}" in
-	OpenBSD|FreeBSD|NetBSD|Darwin)
+	OpenBSD|FreeBSD|NetBSD|Darwin|DragonFly)
 		stat -f%z $1
 		;;
 	*)
@@ -516,7 +516,7 @@ cleanup()
 read_hex_data()
 {
 	case "${UNAME_S}" in
-	OpenBSD|FreeBSD|NetBSD|Darwin)
+	OpenBSD|FreeBSD|NetBSD|Darwin|DragonFly)
 		od -t x1 -A n | tr -s ' ' | tr -d '\n' | sed 's/ $//'
 		;;
 	*)
@@ -535,7 +535,7 @@ read_hex_data()
 send_hex_data()
 {
 	case "${UNAME_S}" in
-	OpenBSD|FreeBSD|NetBSD|Darwin|CYGWIN*)
+	OpenBSD|FreeBSD|NetBSD|Darwin|DragonFly|CYGWIN*)
 		echo -en "$1" | cat
 		;;
 	*)
