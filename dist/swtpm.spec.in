@@ -11,7 +11,7 @@ Name:           %{name}
 Version:        %{version}
 Release:        %{release}.dev2%{?dist}
 License:        BSD
-Source:         %{name}-%{version}.tar.gz
+Source:         http://github.com/stefanberger/swtpm/archive/v%{version}.tar.gz
 
 # due to gnutls backlevel API:
 %if 0%{?rhel} < 7 || 0%{?fedora} < 19
