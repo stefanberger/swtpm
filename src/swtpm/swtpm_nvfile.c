@@ -672,7 +672,7 @@ SWTPM_NVRAM_KeyParamCheck(uint32_t keylen,
 {
     TPM_RESULT rc = 0;
 
-    if (keylen != TPM_AES_BLOCK_SIZE) {
+    if (keylen != SWTPM_AES128_BLOCK_SIZE) {
         rc = TPM_BAD_KEY_PROPERTY;
     }
     switch (encmode) {
@@ -700,6 +700,7 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
     if (rc == 0) {
         filekey.symkey.valid = TRUE;
         memcpy(filekey.symkey.userKey, key, keylen);
+        filekey.symkey.userKeyLength = keylen;
         filekey.data_encmode = encmode;
     }
 
@@ -722,6 +723,7 @@ TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,
     if (rc == 0) {
         migrationkey.symkey.valid = TRUE;
         memcpy(migrationkey.symkey.userKey, key, keylen);
+        migrationkey.symkey.userKeyLength = keylen;
         migrationkey.data_encmode = encmode;
     }
 
@@ -860,7 +862,8 @@ SWTPM_CalcHMAC(const unsigned char *in, uint32_t in_length,
     unsigned char *buffer = NULL;
 
     if (!SWTPM_HMAC(md, &md_len,
-                    tpm_symmetric_key_token->userKey, TPM_AES_BLOCK_SIZE,
+                    tpm_symmetric_key_token->userKey,
+                    tpm_symmetric_key_token->userKeyLength,
                     in, in_length, ivec, ivec_length)) {
         logprintf(STDOUT_FILENO, "HMAC calculation failed.\n");
         return TPM_FAIL;
@@ -912,7 +915,8 @@ SWTPM_CheckHMAC(tlv_data *hmac, tlv_data *encrypted_data,
     data_length = encrypted_data->tlv.length;
 
     if (!SWTPM_HMAC(md, &md_len,
-                    tpm_symmetric_key_token->userKey, TPM_AES_BLOCK_SIZE,
+                    tpm_symmetric_key_token->userKey,
+                    tpm_symmetric_key_token->userKeyLength,
                     data, data_length, ivec, ivec_length)) {
         logprintf(STDOUT_FILENO, "HMAC() call failed.\n");
         return TPM_FAIL;
@@ -994,7 +998,7 @@ SWTPM_NVRAM_EncryptData(const encryptionkey *key,
             break;
         case ENCRYPTION_MODE_AES_CBC:
             irc = SWTPM_RollAndSetGlobalIvec(&td[2], tag_ivec,
-                                             sizeof(key->symkey.userKey));
+                                             key->symkey.userKeyLength);
             rc = TPM_SymmetricKeyData_Encrypt(&tmp_data, &tmp_length,
                                               data, length, &key->symkey,
                                               td[2].u.const_ptr,

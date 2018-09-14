@@ -74,18 +74,20 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
     TPM_RESULT          rc = 0;
     uint32_t              pad_length;
     unsigned char       *decrypt_data_pad;
-    unsigned char       ivec[TPM_AES_BLOCK_SIZE];       /* initial chaining vector */
+    unsigned char       ivec[SWTPM_AES128_BLOCK_SIZE];       /* initial chaining vector */
     TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_data =
 	(TPM_SYMMETRIC_KEY_DATA *)tpm_symmetric_key_token;
     AES_KEY key;
+    size_t userKeyLength = tpm_symmetric_key_token->userKeyLength;
 
     printf(" TPM_SymmetricKeyData_Encrypt: Length %u\n", decrypt_length);
     decrypt_data_pad = NULL;    /* freed @1 */
 
     if (rc == 0) {
-        if (u_ivec != NULL && u_ivec_length != TPM_AES_BLOCK_SIZE) {
+        if (u_ivec != NULL && u_ivec_length != userKeyLength) {
             printf("TPM_SymmetricKeyData_Encrypt: IV is %u bytes, "
-                   "but expected %u bytes\n", ivec_length, TPM_AES_BLOCK_SIZE);
+                   "but expected %u bytes\n", ivec_length,
+                   tpm_symmetric_key_token->userKeyLength);
             rc = TPM_ENCRYPT_ERROR;
         } else {
             if (u_ivec) {
@@ -99,7 +101,7 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
 
     if (rc == 0) {
         /* calculate the pad length and padded data length */
-        pad_length = TPM_AES_BLOCK_SIZE - (decrypt_length % TPM_AES_BLOCK_SIZE);
+        pad_length = userKeyLength - (decrypt_length % userKeyLength);
         *encrypt_length = decrypt_length + pad_length;
         printf("  TPM_SymmetricKeyData_Encrypt: Padded length %u pad length %u\n",
                *encrypt_length, pad_length);
@@ -123,7 +125,7 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
 
     if (rc == 0) {
         if (AES_set_encrypt_key(tpm_symmetric_key_data->userKey,
-                                sizeof(tpm_symmetric_key_data->userKey) * 8,
+                                userKeyLength * 8,
                                 &key) < 0) {
             rc = TPM_FAIL;
         }
@@ -170,23 +172,24 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
     uint32_t		pad_length;
     uint32_t		i;
     unsigned char       *pad_data;
-    unsigned char       ivec[TPM_AES_BLOCK_SIZE];       /* initial chaining vector */
+    unsigned char       ivec[SWTPM_AES128_BLOCK_SIZE];       /* initial chaining vector */
     TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_data =
 	(TPM_SYMMETRIC_KEY_DATA *)tpm_symmetric_key_token;
     AES_KEY             key;
+    size_t userKeyLength = tpm_symmetric_key_token->userKeyLength;
 
     printf(" TPM_SymmetricKeyData_Decrypt: Length %u\n", encrypt_length);
     /* sanity check encrypted length */
     if (rc == 0) {
-        if (encrypt_length < TPM_AES_BLOCK_SIZE) {
+        if (encrypt_length < userKeyLength) {
             printf("TPM_SymmetricKeyData_Decrypt: Error, bad length\n");
             rc = TPM_DECRYPT_ERROR;
         }
     }
     if (rc == 0) {
-        if (u_ivec != NULL && u_ivec_length != TPM_AES_BLOCK_SIZE) {
+        if (u_ivec != NULL && u_ivec_length != userKeyLength) {
             printf("TPM_SymmetricKeyData_Decrypt: IV is %u bytes, "
-                   "but expected %u bytes\n", ivec_length, TPM_AES_BLOCK_SIZE);
+                   "but expected %u bytes\n", ivec_length, userKeyLength);
             rc = TPM_DECRYPT_ERROR;
         } else {
             if (u_ivec) {
@@ -209,7 +212,7 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
 
     if (rc == 0) {
         if (AES_set_decrypt_key(tpm_symmetric_key_data->userKey,
-                                sizeof(tpm_symmetric_key_data->userKey) * 8,
+                                userKeyLength * 8,
                                 &key) < 0) {
             rc = TPM_FAIL;
         }
@@ -234,7 +237,7 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
         /* sanity check the pad length */
         printf(" TPM_SymmetricKeyData_Decrypt: Pad length %u\n", pad_length);
         if ((pad_length == 0) ||
-            (pad_length > TPM_AES_BLOCK_SIZE)) {
+            (pad_length > userKeyLength)) {
             printf("TPM_SymmetricKeyData_Decrypt: Error, illegal pad length\n");
             rc = TPM_DECRYPT_ERROR;
         }
