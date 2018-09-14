@@ -170,10 +170,18 @@ key_parse_as_hexkey(const char *rawkey,
         return -1;
     } else if (digits == 128/4) {
         *keylen = 128/8;
+    } else if (digits == 256/4) {
+        *keylen = 256/8;
     } else {
         logprintf(STDERR_FILENO,
                   "Unsupported key length with %zu digits.\n",
                   digits);
+        return -1;
+    }
+    if (*keylen < maxkeylen) {
+        logprintf(STDERR_FILENO,
+                  "The provided key is too short. Got %zu bytes, need %zu.\n",
+                  *keylen, maxkeylen);
         return -1;
     }
 
@@ -198,7 +206,7 @@ key_load_key(const char *filename, enum key_format keyformat,
 {
     int ret = -1;
     int fd;
-    char filebuffer[2 + 128/4 + 1 + 1];
+    char filebuffer[2 + 256/4 + 1 + 1];
     ssize_t len;
 
     fd = open(filename, O_RDONLY);
@@ -247,7 +255,6 @@ key_load_key(const char *filename, enum key_format keyformat,
  * of the hash as the key.
  * @filename: name of the file holding the password
  * @key: the buffer for holding the key
- * @keylen: the actual number of bytes used in the buffer
  * @keylen: the actual key len of the converted key returned by this
  *          function
  * @maxkeylen: the max. size of the key; corresponds to the size of the
@@ -309,6 +316,12 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
 
     switch (kdfid) {
     case KDF_IDENTIFIER_SHA512:
+        if (sizeof(hashbuf) < *keylen) {
+            logprintf(STDERR_FILENO,
+                      "Requested %zu bytes for key, only got %zu.\n",
+                      *keylen, sizeof(hashbuf));
+            goto exit_close;
+        }
         SHA512(filebuffer, filelen, hashbuf);
         memcpy(key, hashbuf, *keylen);
         break;
