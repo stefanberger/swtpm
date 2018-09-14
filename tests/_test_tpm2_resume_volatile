@@ -96,7 +96,7 @@ cp ${TESTDIR}/data/tpm2state2/* ${TPM_PATH}
 
 run_swtpm ${SWTPM_INTERFACE} \
 	--tpm2 \
-	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt
+	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512
 
 ps aux | grep $SWTPM | grep -v grep
 

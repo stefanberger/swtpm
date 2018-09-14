@@ -52,7 +52,8 @@ source ${TESTDIR}/common
 export TPM_PATH=$tpmstatedir
 cp ${TESTDIR}/data/tpmstate1/* $TPM_PATH
 
-run_swtpm ${SWTPM_INTERFACE} --migration-key pwdfile=$migpwdfile,remove=false
+run_swtpm ${SWTPM_INTERFACE} \
+	--migration-key pwdfile=$migpwdfile,remove=false,kdf=sha512
 
 ps aux | grep $SWTPM | grep -v grep
 
@@ -153,7 +154,8 @@ run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 echo "Test 1: Ok"
 
 # Start the vTPM again and load the encrypted volatile state into it
-run_swtpm ${SWTPM_INTERFACE} --migration-key pwdfile=$migpwdfile,remove=false
+run_swtpm ${SWTPM_INTERFACE} \
+	--migration-key pwdfile=$migpwdfile,remove=false,kdf=sha512
 
 ps aux | grep $SWTPM | grep -v grep
 
@@ -235,7 +237,8 @@ echo "Test 3: Ok"
 # In this test we now feed it an encrypted volatile state
 
 # Start the vTPM again and load the encrypted volatile state into it
-run_swtpm ${SWTPM_INTERFACE} --migration-key pwdfile=$migpwdfile,remove=true
+run_swtpm ${SWTPM_INTERFACE} \
+	--migration-key pwdfile=$migpwdfile,remove=true,kdf=sha512
 
 ps aux | grep $SWTPM | grep -v grep
 

@@ -57,7 +57,7 @@ rm -f ${logfile}
 run_swtpm ${SWTPM_INTERFACE} \
 	--log file=${logfile} \
 	--tpm2 \
-	--migration-key pwdfile=$migpwdfile,remove=false
+	--migration-key pwdfile=$migpwdfile,remove=false,kdf=sha512
 
 kill_quiet -0 $SWTPM_PID
 if [ $? -ne 0 ]; then
@@ -137,7 +137,7 @@ rm -f ${logfile}
 run_swtpm ${SWTPM_INTERFACE} \
 	--log file=${logfile} \
 	--tpm2 \
-	--migration-key pwdfile=$migpwdfile,remove=false
+	--migration-key pwdfile=$migpwdfile,remove=false,kdf=sha512
 
 ps aux | grep $SWTPM | grep -v grep
 
@@ -244,7 +244,7 @@ rm -f ${logfile}
 run_swtpm ${SWTPM_INTERFACE} \
 	--log file=${logfile} \
 	--tpm2 \
-	--migration-key pwdfile=$migpwdfile,remove=true
+	--migration-key pwdfile=$migpwdfile,remove=true,kdf=sha512
 
 ps aux | grep $SWTPM | grep -v grep
 

@@ -399,7 +399,7 @@ cp ${TESTDIR}/data/tpmstate2/* ${TPMDIR}
 run_swtpm ${SWTPM_INTERFACE} \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
-	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt \
+	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512 \
 	--log file=$LOG_FILE,level=20 \
 	--flags not-need-init
 
@@ -464,7 +464,7 @@ rm -f $TPMDIR/*.volatilestate
 run_swtpm ${SWTPM_INTERFACE} \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
-	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt \
+	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512 \
 	--log file=$LOG_FILE \
 	--flags not-need-init
 

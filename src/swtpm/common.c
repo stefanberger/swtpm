@@ -102,6 +102,9 @@ static const OptionDesc key_opt_desc[] = {
     }, {
         .name = "pwdfile",
         .type = OPT_TYPE_STRING,
+    }, {
+        .name = "kdf",
+        .type = OPT_TYPE_STRING,
     },
     END_OPTION_DESC
 };
@@ -310,6 +313,7 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     const char *pwdfile = NULL;
     const char *tmp;
     enum key_format keyformat;
+    enum kdf_identifier kdfid;
 
     ovs = options_parse(options, key_opt_desc, &error);
 
@@ -341,9 +345,15 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
                          key, keylen, maxkeylen) < 0)
             goto error;
     } else {
+        tmp = option_get_string(ovs, "kdf", "pbkdf2");
+        kdfid = kdf_identifier_from_string(tmp);
+        if (kdfid == KDF_IDENTIFIER_UNKNOWN) {
+            logprintf(STDERR_FILENO, "Unknown kdf '%s'.\n", tmp);
+            goto error;
+        }
         /* no key file, so must be pwdfile */
         if (key_from_pwdfile(pwdfile, key, keylen,
-                             maxkeylen) < 0)
+                             maxkeylen, kdfid) < 0)
             goto error;
     }
 

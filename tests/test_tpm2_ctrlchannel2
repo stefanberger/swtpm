@@ -322,7 +322,7 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt \
+	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512 \
 	--tpm2 \
 	--flags not-need-init &
 
@@ -379,7 +379,7 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt \
+	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512 \
 	--tpm2 \
 	--flags not-need-init &
 

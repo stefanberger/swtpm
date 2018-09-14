@@ -49,12 +49,19 @@ enum encryption_mode {
     ENCRYPTION_MODE_AES_CBC = 1,
 };
 
+enum kdf_identifier {
+    KDF_IDENTIFIER_UNKNOWN = 0,
+    KDF_IDENTIFIER_SHA512 = 1,
+    KDF_IDENTIFIER_PBKDF2 = 2,
+};
+
 enum key_format key_format_from_string(const char *format);
 enum encryption_mode encryption_mode_from_string(const char *mode);
+enum kdf_identifier kdf_identifier_from_string(const char *kdf);
 int key_load_key(const char *filename, enum key_format keyformat,
                  unsigned char *key, size_t *keylen, size_t maxkeylen);
 int key_from_pwdfile(const char *pwdfile, unsigned char *key, size_t *keylen,
-                     size_t maxkeylen);
+                     size_t maxkeylen, enum kdf_identifier kdfid);
 
 #endif /* _SWTPM_KEY_H */
 

@@ -76,7 +76,7 @@ This option is implied by the I<--vtpm-proxy> option and therefore need not
 be explicity set if this option is passed. In all other cases care should be
 taken as to who can send the TPM/TPM2_SetLocality command.
 
-=item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
+=item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc][,remove[=true|false]]>
 
 Enable encryption of the state files of the TPM. The keyfile must contain
 an AES key of supported size; currently only 128 bit (16 bytes) keys are
@@ -92,13 +92,15 @@ Currently only aes-cbc is supported.
 The I<remove> parameter will attempt to remove the given keyfile once the key
 has been read.
 
-=item B<--key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc],[remove[=true|false]]>
+=item B<--key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]>
 
 This variant of the key parameter allows to provide a passphrase in a file.
-A maximum of 32 bytes are read from the file and a key is derived from it using a
-SHA512 hash. Currently only 128 bit keys are supported.
+The file is read and a key is derived from it using either a SHA512 hash
+or PBKDF2. By default PBKDF2 is used.
 
-=item B<--migration-key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc],[remove[=true|false]]>
+Currently only 128 bit keys are supported.
+
+=item B<--migration-key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc][,remove[=true|false]]>
 
 The availability of a migration key ensures that the state of the TPM
 will not be revealed in unencrypted form by the swtpm_cuse program when
@@ -130,11 +132,13 @@ Currently only aes-cbc is supported.
 The I<remove> parameter will attempt to remove the given keyfile once the key
 has been read.
 
-=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc],[remove[=true|false]]>
+=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]>
 
-This variant of the migration key parameter allows to provide a passphrase in a file.
-A maximum of 32 bytes are read from the file and a key is derived from it using a
-SHA512 hash. Currently only 128 bit keys are supported.
+This variant of the key parameter allows to provide a passphrase in a file.
+The file is read and a key is derived from it using either a SHA512 hash
+or PBKDF2. By default PBKDF2 is used.
+
+Currently only 128 bit keys are supported.
 
 =item B<--pid file=E<lt>pidfileE<gt>>|fd=E<lt>filedescriptorE<gt>>
 

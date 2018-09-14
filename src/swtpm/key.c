@@ -38,12 +38,14 @@
 #include "config.h"
 
 #include <openssl/sha.h>
+#include <openssl/evp.h>
 
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -86,6 +88,25 @@ encryption_mode_from_string(const char *mode)
     }
 
     return ENCRYPTION_MODE_UNKNOWN;
+}
+
+/*
+ * kdf_identifier_from_string:
+ * Convert the string in a kdf identifier
+ * @mode: string describing the kdf
+ *
+ * Return a kdf identifier
+ */
+enum kdf_identifier
+kdf_identifier_from_string(const char *kdf)
+{
+    if (!strcmp(kdf, "sha512")) {
+        return KDF_IDENTIFIER_SHA512;
+    } else if (!strcmp(kdf, "pbkdf2")) {
+        return KDF_IDENTIFIER_PBKDF2;
+    }
+
+    return KDF_IDENTIFIER_UNKNOWN;
 }
 
 /*
@@ -231,15 +252,20 @@ key_load_key(const char *filename, enum key_format keyformat,
  *          function
  * @maxkeylen: the max. size of the key; corresponds to the size of the
  *             key buffer
+ * @kdfid: the kdf to invoke to create the key
  */
 int
 key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
-                 size_t maxkeylen)
+                 size_t maxkeylen, enum kdf_identifier kdfid)
 {
-    unsigned char filebuffer[32];
-    int fd;
+    unsigned char *filebuffer = NULL;
+    size_t filelen;
+    int fd = -1;
     ssize_t len;
     unsigned char hashbuf[SHA512_DIGEST_LENGTH];
+    struct stat statbuf;
+    int ret = -1;
+    const unsigned char salt[] = {'s','w','t','p','m'};
 
     if (maxkeylen > sizeof(hashbuf)) {
         logprintf(STDERR_FILENO,
@@ -255,20 +281,59 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
                   filename, strerror(errno));
         return -1;
     }
-    len = read(fd, filebuffer, sizeof(filebuffer));
-    close(fd);
+    if (fstat(fd, &statbuf) < 0) {
+        logprintf(STDERR_FILENO,
+                  "Unable to stat file %s : %s\n",
+                  filename, strerror(errno));
+        goto exit_close;
+    }
+    filelen = statbuf.st_size;
 
+    filebuffer = malloc(filelen);
+    if (!filebuffer) {
+        logprintf(STDERR_FILENO,
+                  "Could not allocate %zu bytes for filebuffer\n",
+                  filebuffer);
+        goto exit_close;
+    }
+
+    len = read(fd, filebuffer, filelen);
     if (len < 0) {
         logprintf(STDERR_FILENO,
                   "Unable to read passphrase: %s\n",
                   strerror(errno));
-        return -1;
+        goto exit_close;
     }
 
-    SHA512(filebuffer, len, hashbuf);
-
     *keylen = maxkeylen;
-    memcpy(key, hashbuf, *keylen);
 
-    return 0;
+    switch (kdfid) {
+    case KDF_IDENTIFIER_SHA512:
+        SHA512(filebuffer, filelen, hashbuf);
+        memcpy(key, hashbuf, *keylen);
+        break;
+    case KDF_IDENTIFIER_PBKDF2:
+        if (PKCS5_PBKDF2_HMAC((const char *)filebuffer, len,
+                              salt, sizeof(salt), 1000,
+                              EVP_sha512(), *keylen, key) != 1) {
+            logprintf(STDERR_FILENO,
+                      "PKCS5_PBKDF2_HMAC with SHA512 failed\n");
+            goto exit_close;
+        }
+        break;
+    case KDF_IDENTIFIER_UNKNOWN:
+        logprintf(STDERR_FILENO,
+                  "Unknown KDF\n");
+        goto exit_close;
+    }
+
+    ret =  0;
+
+exit_close:
+    if (fd >= 0)
+        close(fd);
+
+    free(filebuffer);
+
+    return ret;
 }
