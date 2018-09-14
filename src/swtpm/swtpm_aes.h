@@ -42,9 +42,10 @@
 #include <libtpms/tpm_types.h>
 
 #define SWTPM_AES128_BLOCK_SIZE 16
+#define SWTPM_AES256_BLOCK_SIZE 32
 
 typedef struct tdTPM_SYMMETRIC_KEY_DATA {
-    unsigned char userKey[SWTPM_AES128_BLOCK_SIZE];
+    unsigned char userKey[SWTPM_AES256_BLOCK_SIZE];
     size_t userKeyLength;
 } TPM_SYMMETRIC_KEY_DATA;
 

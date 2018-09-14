@@ -95,8 +95,17 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                     uint32_t tpm_number,
                                     uint32_t blobtype);
 
-TPM_BOOL SWTPM_NVRAM_Has_FileKey(void);
-TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void);
+size_t SWTPM_NVRAM_FileKey_Size(void);
+static inline TPM_BOOL SWTPM_NVRAM_Has_FileKey(void)
+{
+    return SWTPM_NVRAM_FileKey_Size() > 0;
+}
+
+size_t SWTPM_NVRAM_MigrationKey_Size(void);
+static inline TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void)
+{
+    return SWTPM_NVRAM_MigrationKey_Size() > 0;
+}
 
 #endif /* _SWTPM_NVFILE_H */
 

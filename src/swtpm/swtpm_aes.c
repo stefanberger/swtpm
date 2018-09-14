@@ -74,7 +74,7 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
     TPM_RESULT          rc = 0;
     uint32_t              pad_length;
     unsigned char       *decrypt_data_pad;
-    unsigned char       ivec[SWTPM_AES128_BLOCK_SIZE];       /* initial chaining vector */
+    unsigned char       ivec[SWTPM_AES256_BLOCK_SIZE];       /* initial chaining vector */
     TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_data =
 	(TPM_SYMMETRIC_KEY_DATA *)tpm_symmetric_key_token;
     AES_KEY key;
@@ -172,7 +172,7 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
     uint32_t		pad_length;
     uint32_t		i;
     unsigned char       *pad_data;
-    unsigned char       ivec[SWTPM_AES128_BLOCK_SIZE];       /* initial chaining vector */
+    unsigned char       ivec[SWTPM_AES256_BLOCK_SIZE];       /* initial chaining vector */
     TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_data =
 	(TPM_SYMMETRIC_KEY_DATA *)tpm_symmetric_key_token;
     AES_KEY             key;

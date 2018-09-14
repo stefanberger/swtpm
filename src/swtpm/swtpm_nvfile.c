@@ -101,9 +101,11 @@ typedef struct {
 #define BLOB_HEADER_VERSION 2
 
 /* flags for blobheader */
-#define BLOB_FLAG_ENCRYPTED              0x1
-#define BLOB_FLAG_MIGRATION_ENCRYPTED    0x2 /* encrypted with migration key */
-#define BLOB_FLAG_MIGRATION_DATA         0x4 /* migration data are available */
+#define BLOB_FLAG_ENCRYPTED              0x01
+#define BLOB_FLAG_MIGRATION_ENCRYPTED    0x02  /* encrypted with migration key */
+#define BLOB_FLAG_MIGRATION_DATA         0x04  /* migration data are available */
+#define BLOB_FLAG_ENCRYPTED_256BIT_KEY   0x08  /* 256 bit file key was used */
+#define BLOB_FLAG_MIGRATION_256BIT_KEY   0x10  /* 256 bit migration key was used */
 
 typedef struct {
     enum encryption_mode data_encmode;
@@ -514,6 +516,8 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
                           td[0].tlv.length);
             }
             flags |= BLOB_FLAG_ENCRYPTED;
+            if (SWTPM_NVRAM_FileKey_Size() == SWTPM_AES256_BLOCK_SIZE)
+                flags |= BLOB_FLAG_ENCRYPTED_256BIT_KEY;
         } else {
             td_len = 1;
             td[0] = TLV_DATA_CONST(TAG_DATA, length, data);
@@ -672,7 +676,8 @@ SWTPM_NVRAM_KeyParamCheck(uint32_t keylen,
 {
     TPM_RESULT rc = 0;
 
-    if (keylen != SWTPM_AES128_BLOCK_SIZE) {
+    if (keylen != SWTPM_AES128_BLOCK_SIZE &&
+        keylen != SWTPM_AES256_BLOCK_SIZE) {
         rc = TPM_BAD_KEY_PROPERTY;
     }
     switch (encmode) {
@@ -685,9 +690,9 @@ SWTPM_NVRAM_KeyParamCheck(uint32_t keylen,
     return rc;
 }
 
-TPM_BOOL SWTPM_NVRAM_Has_FileKey(void)
+size_t SWTPM_NVRAM_FileKey_Size(void)
 {
-    return filekey.symkey.userKeyLength > 0;
+    return filekey.symkey.userKeyLength;
 }
 
 TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
@@ -706,9 +711,9 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
     return rc;
 }
 
-TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void)
+size_t SWTPM_NVRAM_MigrationKey_Size(void)
 {
-    return migrationkey.symkey.userKeyLength > 0;
+    return migrationkey.symkey.userKeyLength;
 }
 
 TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,
@@ -1296,6 +1301,8 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
             goto err_exit;
 
         *is_encrypted = TRUE;
+        if (SWTPM_NVRAM_FileKey_Size() == SWTPM_AES256_BLOCK_SIZE)
+            flags |= BLOB_FLAG_ENCRYPTED_256BIT_KEY;
     } else {
         *is_encrypted = FALSE;
         td[0] = TLV_DATA(TAG_DATA, plain_len, plain);
@@ -1314,6 +1321,8 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
     if (SWTPM_NVRAM_Has_MigrationKey()) {
         /* we have to encrypt it now with the migration key */
         flags |= BLOB_FLAG_MIGRATION_ENCRYPTED;
+        if (SWTPM_NVRAM_MigrationKey_Size() == SWTPM_AES256_BLOCK_SIZE)
+             flags |= BLOB_FLAG_MIGRATION_256BIT_KEY;
 
         td_len = 3;
         res = SWTPM_NVRAM_EncryptData(&migrationkey, &td[0], &td_len,
