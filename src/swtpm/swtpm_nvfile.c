@@ -112,13 +112,13 @@ typedef struct {
 
 static encryptionkey filekey = {
     .symkey = {
-        .valid = FALSE,
+        .userKeyLength = 0,
     },
 };
 
 static encryptionkey migrationkey = {
     .symkey = {
-        .valid = FALSE,
+        .userKeyLength = 0,
     },
 };
 
@@ -500,7 +500,7 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
     }
 
     if (rc == 0) {
-        if (encrypt && filekey.symkey.valid) {
+        if (encrypt && SWTPM_NVRAM_Has_FileKey()) {
             td_len = 3;
             rc = SWTPM_NVRAM_EncryptData(&filekey, &td[0], &td_len,
                                          TAG_ENCRYPTED_DATA, data, length,
@@ -687,7 +687,7 @@ SWTPM_NVRAM_KeyParamCheck(uint32_t keylen,
 
 TPM_BOOL SWTPM_NVRAM_Has_FileKey(void)
 {
-    return filekey.symkey.valid;
+    return filekey.symkey.userKeyLength > 0;
 }
 
 TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
@@ -698,7 +698,6 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
     rc = SWTPM_NVRAM_KeyParamCheck(keylen, encmode);
 
     if (rc == 0) {
-        filekey.symkey.valid = TRUE;
         memcpy(filekey.symkey.userKey, key, keylen);
         filekey.symkey.userKeyLength = keylen;
         filekey.data_encmode = encmode;
@@ -709,7 +708,7 @@ TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *key, uint32_t keylen,
 
 TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void)
 {
-    return migrationkey.symkey.valid;
+    return migrationkey.symkey.userKeyLength > 0;
 }
 
 TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,
@@ -721,7 +720,6 @@ TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *key,
     rc = SWTPM_NVRAM_KeyParamCheck(keylen, encmode);
 
     if (rc == 0) {
-        migrationkey.symkey.valid = TRUE;
         memcpy(migrationkey.symkey.userKey, key, keylen);
         migrationkey.symkey.userKeyLength = keylen;
         migrationkey.data_encmode = encmode;
@@ -991,7 +989,7 @@ SWTPM_NVRAM_EncryptData(const encryptionkey *key,
 
     *td_len = 0;
 
-    if (key->symkey.valid) {
+    if (key->symkey.userKeyLength > 0) {
         switch (key->data_encmode) {
         case ENCRYPTION_MODE_UNKNOWN:
             rc = TPM_BAD_MODE;
@@ -1041,7 +1039,7 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
     const unsigned char *ivec = NULL;
     uint32_t ivec_length = 0;
 
-    if (key->symkey.valid) {
+    if (key->symkey.userKeyLength > 0) {
         switch (key->data_encmode) {
         case ENCRYPTION_MODE_UNKNOWN:
             rc = TPM_BAD_MODE;
@@ -1166,7 +1164,7 @@ SWTPM_NVRAM_GetDecryptedData(const encryptionkey *key,
                              uint8_t hdrversion,
                              uint16_t tag_ivec)
 {
-    if (key && key->symkey.valid) {
+    if (key && key->symkey.userKeyLength > 0) {
         /* we assume the data are encrypted when there's a key given */
         return SWTPM_NVRAM_DecryptData(key, decrypt_data, decrypt_length,
                                        data, length, tag_encrypted_data,
@@ -1289,7 +1287,7 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
 
     /* if the user doesn't want decryption and there's a file key, we need to
        encrypt the data */
-    if (!decrypt && filekey.symkey.valid) {
+    if (!decrypt && SWTPM_NVRAM_Has_FileKey()) {
         td_len = 3;
         res = SWTPM_NVRAM_EncryptData(&filekey, &td[0], &td_len,
                                       TAG_ENCRYPTED_DATA, plain, plain_len,
@@ -1313,7 +1311,7 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
 
     /* @buffer contains tlv data */
 
-    if (migrationkey.symkey.valid) {
+    if (SWTPM_NVRAM_Has_MigrationKey()) {
         /* we have to encrypt it now with the migration key */
         flags |= BLOB_FLAG_MIGRATION_ENCRYPTED;
 

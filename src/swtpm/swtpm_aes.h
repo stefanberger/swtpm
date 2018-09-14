@@ -44,9 +44,6 @@
 #define SWTPM_AES128_BLOCK_SIZE 16
 
 typedef struct tdTPM_SYMMETRIC_KEY_DATA {
-    TPM_TAG tag;
-    TPM_BOOL valid;
-    TPM_BOOL fill;
     unsigned char userKey[SWTPM_AES128_BLOCK_SIZE];
     size_t userKeyLength;
 } TPM_SYMMETRIC_KEY_DATA;
