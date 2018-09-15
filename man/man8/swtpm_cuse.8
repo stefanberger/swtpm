@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_cuse 8"
-.TH swtpm_cuse 8 "2018-09-14" "swtpm" ""
+.TH swtpm_cuse 8 "2018-09-15" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -197,30 +197,29 @@ TPM/TPM2_SetLocality commands. This is parameter is useful if the Linux
 This option is implied by the \fI\-\-vtpm\-proxy\fR option and therefore need not
 be explicity set if this option is passed. In all other cases care should be
 taken as to who can send the TPM/TPM2_SetLocality command.
-.IP "\fB\-\-key file=<keyfile>[,format=<hex|binary>][,mode=aes\-cbc][,remove[=true|false]]\fR" 4
-.IX Item "--key file=<keyfile>[,format=<hex|binary>][,mode=aes-cbc][,remove[=true|false]]"
+.IP "\fB\-\-key file=<keyfile>[,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]]\fR" 4
+.IX Item "--key file=<keyfile>[,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]"
 Enable encryption of the state files of the \s-1TPM.\s0 The keyfile must contain
-an \s-1AES\s0 key of supported size; currently only 128 bit (16 bytes) keys are
+an \s-1AES\s0 key of supported size; 128 bit (16 bytes) and 256 bit (32 bytes) keys are
 supported.
 .Sp
-The key may be in binary format, in which case the file size must be 16 bytes.
-If the key is in hex format (default), the key may consist of 32 hex digits
-starting with an optional '0x'.
+The key may be in binary format, in which case the file size must be 16 or
+32 bytes. If the key is in hex format (default), the key may consist of 32
+or 64 hex digits starting with an optional '0x'.
 .Sp
 The \fImode\fR parameter indicates which block chaining mode is to be used.
-Currently only aes-cbc is supported.
+Currently aes-cbc (aes\-128\-cbc) and aes\-256\-cbc are supported.
+The encrypted data is integrity protected using encrypt-then-mac.
 .Sp
 The \fIremove\fR parameter will attempt to remove the given keyfile once the key
 has been read.
-.IP "\fB\-\-key pwdfile=<passphrase file>[,mode=aes\-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]\fR" 4
-.IX Item "--key pwdfile=<passphrase file>[,mode=aes-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]"
+.IP "\fB\-\-key pwdfile=<passphrase file>[,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]\fR" 4
+.IX Item "--key pwdfile=<passphrase file>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]"
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a \s-1SHA512\s0 hash
 or \s-1PBKDF2.\s0 By default \s-1PBKDF2\s0 is used.
-.Sp
-Currently only 128 bit keys are supported.
-.IP "\fB\-\-migration\-key file=<keyfile>[,format=<hex|binary>][,mode=aes\-cbc][,remove[=true|false]]\fR" 4
-.IX Item "--migration-key file=<keyfile>[,format=<hex|binary>][,mode=aes-cbc][,remove[=true|false]]"
+.IP "\fB\-\-migration\-key file=<keyfile>[,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]]\fR" 4
+.IX Item "--migration-key file=<keyfile>[,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]"
 The availability of a migration key ensures that the state of the \s-1TPM\s0
 will not be revealed in unencrypted form by the swtpm_cuse program when
 the \s-1TPM\s0 state blobs are retreived through the ioctl interface.
@@ -237,26 +236,25 @@ all machines in the datacenter. In contrast to that, the key used for encrypting
 \&\s-1TPM\s0 state <B>files<B> can be different for each \s-1TPM\s0 and need only be available
 on the host where the \s-1TPM\s0 state resides.
 .Sp
-The migration key enables the encryption of the \s-1TPM\s0 state blobs of the \s-1TPM.\s0
-The keyfile must contain an \s-1AES\s0 key of supported size; currently only 128 bit (16 bytes)
-keys are supported.
+The migration key enables the encryption of the \s-1TPM\s0 state blobs.
+The keyfile must contain an \s-1AES\s0 key of supported size; 128 bit (16 bytes)
+and 256 bit (32 bytes) keys are supported.
 .Sp
-The key may be in binary format, in which case the file size must be 16 bytes.
-If the key is in hex format (default), the key may consist of 32 hex digits
-starting with an optional '0x'.
+The key may be in binary format, in which case the file size must be 16 or
+32 bytes. If the key is in hex format (default), the key may consist of 32
+or 64 hex digits starting with an optional '0x'.
 .Sp
 The \fImode\fR parameter indicates which block chaining mode is to be used.
-Currently only aes-cbc is supported.
+Currently aes-cbc (aes\-128\-cbc) and aes\-256\-cbc are supported.
+The encrypted data is integrity protected using encrypt-then-mac.
 .Sp
 The \fIremove\fR parameter will attempt to remove the given keyfile once the key
 has been read.
-.IP "\fB\-\-migration\-key pwdfile=<passphrase file>[,mode=aes\-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]\fR" 4
-.IX Item "--migration-key pwdfile=<passphrase file>[,mode=aes-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]"
+.IP "\fB\-\-migration\-key pwdfile=<passphrase file>[,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]\fR" 4
+.IX Item "--migration-key pwdfile=<passphrase file>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]"
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a \s-1SHA512\s0 hash
 or \s-1PBKDF2.\s0 By default \s-1PBKDF2\s0 is used.
-.Sp
-Currently only 128 bit keys are supported.
 .IP "\fB\-\-pid file=<pidfile>\fR|fd=<filedescriptor>>" 4
 .IX Item "--pid file=<pidfile>|fd=<filedescriptor>>"
 This options allows to set the name of file where the process \s-1ID\s0 (pid) of the \s-1CUSE TPM\s0

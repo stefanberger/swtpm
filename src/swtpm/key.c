@@ -77,13 +77,18 @@ key_format_from_string(const char *format)
  * encryption_mode_from_string:
  * Convert the string into a encryption mode identifier
  * @mode: string describing encryption mode
+ * @keylen: the length of the key in bytes
  *
  * Returns an encryption mode identifier
  */
 enum encryption_mode
-encryption_mode_from_string(const char *mode)
+encryption_mode_from_string(const char *mode, size_t *keylen)
 {
-    if (!strcmp(mode, "aes-cbc")) {
+    if (!strcmp(mode, "aes-cbc") || !strcmp(mode, "aes-128-cbc")) {
+        *keylen = 128/8;
+        return ENCRYPTION_MODE_AES_CBC;
+    } else if (!strcmp(mode, "aes-256-cbc")) {
+        *keylen = 256/8;
         return ENCRYPTION_MODE_AES_CBC;
     }
 

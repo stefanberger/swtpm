@@ -314,6 +314,7 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     const char *tmp;
     enum key_format keyformat;
     enum kdf_identifier kdfid;
+    size_t mode_keylength;
 
     ovs = options_parse(options, key_opt_desc, &error);
 
@@ -336,13 +337,24 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
         goto error;
 
     tmp = option_get_string(ovs, "mode", NULL);
-    *encmode = encryption_mode_from_string(tmp ? tmp : "aes-cbc");
-    if (*encmode == ENCRYPTION_MODE_UNKNOWN)
+    *encmode = encryption_mode_from_string(tmp ? tmp : "aes-128-cbc",
+                                           &mode_keylength);
+    if (*encmode == ENCRYPTION_MODE_UNKNOWN) {
+        logprintf(STDERR_FILENO, "Unknown encryption mode '%s'.\n", tmp);
         goto error;
+    }
+
+    if (mode_keylength > maxkeylen) {
+        /* program error ... */
+        logprintf(STDERR_FILENO,
+                  "Requested key size %zu larger than supported size %zu.\n",
+                  mode_keylength, maxkeylen);
+        goto error;
+    }
 
     if (keyfile != NULL) {
         if (key_load_key(keyfile, keyformat,
-                         key, keylen, maxkeylen) < 0)
+                         key, keylen, mode_keylength) < 0)
             goto error;
     } else {
         tmp = option_get_string(ovs, "kdf", "pbkdf2");
@@ -353,7 +365,7 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
         }
         /* no key file, so must be pwdfile */
         if (key_from_pwdfile(pwdfile, key, keylen,
-                             maxkeylen, kdfid) < 0)
+                             mode_keylength, kdfid) < 0)
             goto error;
     }
 
@@ -386,7 +398,7 @@ int
 handle_key_options(char *options)
 {
     enum encryption_mode encmode = ENCRYPTION_MODE_UNKNOWN;
-    unsigned char key[128/8];
+    unsigned char key[256/8];
     size_t maxkeylen = sizeof(key);
     size_t keylen;
 
@@ -414,7 +426,7 @@ int
 handle_migration_key_options(char *options)
 {
     enum encryption_mode encmode = ENCRYPTION_MODE_UNKNOWN;
-    unsigned char key[128/8];
+    unsigned char key[256/8];
     size_t maxkeylen = sizeof(key);
     size_t keylen;
 

@@ -76,31 +76,30 @@ This option is implied by the I<--vtpm-proxy> option and therefore need not
 be explicity set if this option is passed. In all other cases care should be
 taken as to who can send the TPM/TPM2_SetLocality command.
 
-=item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc][,remove[=true|false]]>
+=item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]>
 
 Enable encryption of the state files of the TPM. The keyfile must contain
-an AES key of supported size; currently only 128 bit (16 bytes) keys are
+an AES key of supported size; 128 bit (16 bytes) and 256 bit (32 bytes) keys are
 supported.
 
-The key may be in binary format, in which case the file size must be 16 bytes.
-If the key is in hex format (default), the key may consist of 32 hex digits
-starting with an optional '0x'.
+The key may be in binary format, in which case the file size must be 16 or
+32 bytes. If the key is in hex format (default), the key may consist of 32
+or 64 hex digits starting with an optional '0x'.
 
 The I<mode> parameter indicates which block chaining mode is to be used.
-Currently only aes-cbc is supported.
+Currently aes-cbc (aes-128-cbc) and aes-256-cbc are supported.
+The encrypted data is integrity protected using encrypt-then-mac.
 
 The I<remove> parameter will attempt to remove the given keyfile once the key
 has been read.
 
-=item B<--key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]>
+=item B<--key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]>
 
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash
 or PBKDF2. By default PBKDF2 is used.
 
-Currently only 128 bit keys are supported.
-
-=item B<--migration-key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc][,remove[=true|false]]>
+=item B<--migration-key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]>
 
 The availability of a migration key ensures that the state of the TPM
 will not be revealed in unencrypted form by the swtpm_cuse program when
@@ -118,27 +117,26 @@ all machines in the datacenter. In contrast to that, the key used for encrypting
 TPM state <B>files<B> can be different for each TPM and need only be available
 on the host where the TPM state resides.
 
-The migration key enables the encryption of the TPM state blobs of the TPM.
-The keyfile must contain an AES key of supported size; currently only 128 bit (16 bytes)
-keys are supported.
+The migration key enables the encryption of the TPM state blobs.
+The keyfile must contain an AES key of supported size; 128 bit (16 bytes)
+and 256 bit (32 bytes) keys are supported.
 
-The key may be in binary format, in which case the file size must be 16 bytes.
-If the key is in hex format (default), the key may consist of 32 hex digits
-starting with an optional '0x'.
+The key may be in binary format, in which case the file size must be 16 or
+32 bytes. If the key is in hex format (default), the key may consist of 32
+or 64 hex digits starting with an optional '0x'.
 
 The I<mode> parameter indicates which block chaining mode is to be used.
-Currently only aes-cbc is supported.
+Currently aes-cbc (aes-128-cbc) and aes-256-cbc are supported.
+The encrypted data is integrity protected using encrypt-then-mac.
 
 The I<remove> parameter will attempt to remove the given keyfile once the key
 has been read.
 
-=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]>
+=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,kdf=sha512|pbkdf2]>
 
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash
 or PBKDF2. By default PBKDF2 is used.
-
-Currently only 128 bit keys are supported.
 
 =item B<--pid file=E<lt>pidfileE<gt>>|fd=E<lt>filedescriptorE<gt>>
 
