@@ -150,7 +150,9 @@ static TPM_RESULT SWTPM_NVRAM_GetDecryptedData(const encryptionkey *key,
                                                uint16_t tag_decryped_data,
                                                uint16_t tag_data,
                                                uint8_t hdrversion,
-                                               uint16_t tag_ivec);
+                                               uint16_t tag_ivec,
+                                               uint16_t hdrflags,
+                                               uint16_t flag_256bitkey);
 
 static TPM_RESULT SWTPM_NVRAM_PrependHeader(unsigned char **data,
                                             uint32_t *length,
@@ -423,13 +425,15 @@ SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
                                           *length - dataoffset,
                                           TAG_ENCRYPTED_DATA, TAG_DATA,
                                           hdrversion,
-                                          TAG_IVEC_ENCRYPTED_DATA);
-        TPM_DEBUG(" SWTPM_NVRAM_LoadData: SWTPM_NVRAM_DecryptData rc = %d\n",
+                                          TAG_IVEC_ENCRYPTED_DATA,
+                                          hdrflags,
+                                          BLOB_FLAG_ENCRYPTED_256BIT_KEY);
+        TPM_DEBUG(" SWTPM_NVRAM_LoadData: SWTPM_NVRAM_GetDecryptedData rc = %d\n",
                   rc);
         if (rc != 0)
             logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_LoadData: Decrypting the NVRAM data "
-                      "failed rc = %d\n", rc);
+                      "SWTPM_NVRAM_LoadData: Error from SWTPM_NVRAM_GetDecryptedData "
+                      "rc = %d\n", rc);
 
         if (rc == 0) {
             TPM_DEBUG(" SWTPM_NVRAM_LoadData: Decrypted %u bytes of "
@@ -1035,7 +1039,8 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                         const unsigned char *data, uint32_t length,
                         uint16_t tag_encrypted_data,
                         uint8_t hdrversion,
-                        uint16_t tag_ivec)
+                        uint16_t tag_ivec, uint16_t hdrflags,
+                        uint16_t flag_256bitkey)
 {
     TPM_RESULT rc = 0;
     unsigned char *tmp_data = NULL;
@@ -1043,6 +1048,7 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
     tlv_data td[2];
     const unsigned char *ivec = NULL;
     uint32_t ivec_length = 0;
+    size_t keylen;
 
     if (key->symkey.userKeyLength > 0) {
         switch (key->data_encmode) {
@@ -1063,6 +1069,16 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                 }
             break;
             case 2:
+                keylen = (hdrflags & flag_256bitkey)
+                          ? SWTPM_AES256_BLOCK_SIZE : SWTPM_AES128_BLOCK_SIZE;
+                if (keylen != key->symkey.userKeyLength) {
+                    logprintf(STDERR_FILENO,
+                              "Wrong decryption key. Need %zu bit key.\n",
+                              keylen * 8);
+                    rc = TPM_BAD_KEY_PROPERTY;
+                    break;
+                }
+
                 if (!tlv_data_find_tag(data, length, TAG_HMAC, &td[0]) ||
                     !tlv_data_find_tag(data, length, tag_encrypted_data,
                                        &td[1])) {
@@ -1157,6 +1173,9 @@ SWTPM_NVRAM_GetPlainData(unsigned char **plain, uint32_t *plain_length,
  *              format the data is stored; tag-length-value is the format
  *              in v2
  * @tag_ivec: the tag for finding the IV
+ * @hdrflags: the flags from the header
+ * @flag_256bitkey: the flag in the header to check whether we expect a
+ *                  256 bit key; different flag for migration and state key
  */
 static TPM_RESULT
 SWTPM_NVRAM_GetDecryptedData(const encryptionkey *key,
@@ -1167,13 +1186,16 @@ SWTPM_NVRAM_GetDecryptedData(const encryptionkey *key,
                              uint16_t tag_encrypted_data,
                              uint16_t tag_data,
                              uint8_t hdrversion,
-                             uint16_t tag_ivec)
+                             uint16_t tag_ivec,
+                             uint16_t hdrflags,
+                             uint16_t flag_256bitkey)
 {
     if (key && key->symkey.userKeyLength > 0) {
         /* we assume the data are encrypted when there's a key given */
         return SWTPM_NVRAM_DecryptData(key, decrypt_data, decrypt_length,
                                        data, length, tag_encrypted_data,
-                                       hdrversion, tag_ivec);
+                                       hdrversion, tag_ivec, hdrflags,
+                                       flag_256bitkey);
     }
     return SWTPM_NVRAM_GetPlainData(decrypt_data, decrypt_length,
                                     data, length, tag_data, hdrversion);
@@ -1414,7 +1436,8 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                       &data[dataoffset], length - dataoffset,
                                       TAG_ENCRYPTED_MIGRATION_DATA,
                                       hdrversion,
-                                      TAG_IVEC_ENCRYPTED_MIGRATION_DATA);
+                                      TAG_IVEC_ENCRYPTED_MIGRATION_DATA,
+                                      hdrflags, BLOB_FLAG_MIGRATION_256BIT_KEY);
         if (res) {
             logprintf(STDERR_FILENO,
                       "Decrypting the %s blob with the migration key failed; "
@@ -1442,10 +1465,12 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
             res = TPM_KEYNOTFOUND;
             goto cleanup;
         }
+
         res = SWTPM_NVRAM_DecryptData(&filekey, &plain, &plain_len,
                                       mig_decrypt, mig_decrypt_len,
                                       TAG_ENCRYPTED_DATA,
-                                      hdrversion, TAG_IVEC_ENCRYPTED_DATA);
+                                      hdrversion, TAG_IVEC_ENCRYPTED_DATA,
+                                      hdrflags, BLOB_FLAG_ENCRYPTED_256BIT_KEY);
         if (res) {
             logprintf(STDERR_FILENO,
                       "Decrypting the %s blob with the state key "
