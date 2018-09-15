@@ -123,6 +123,12 @@ The passpharse file contains a passphrase from which the TPM emulator
 will derive the encyrption key from and use the key for encrypting the TPM
 state.
 
+=item B<--ciper <cipher>>
+
+The cipher may be either aes-cbc or aes-128-cbc for 128 bit AES encryption,
+or aes-256-cbc for 256 bit AES encryption. The same cipher must be used
+on the I<swtpm> command line later on.
+
 =item B<--overwrite>
 
 Overwrite existing TPM state. All previous state will be erased.

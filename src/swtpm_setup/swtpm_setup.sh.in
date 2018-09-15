@@ -1983,6 +1983,10 @@ The following options are supported:
                    This parameter will be passed to the TPM using
                    '--key pwdfile=<file>'.
 
+--cipher <cipher>: The cipher to use; either aes-128-cbc or aes-256-cbc;
+                   the default is aes-128-cbc; the same cipher must be
+                   used on the swtpm command line
+
 --overwrite      : Overwrite existing TPM state be re-initializing it; if this
                    option is not given, this program will return an error if
                    existing state is detected
@@ -2007,7 +2011,7 @@ main()
 	local config_file="$DEFAULT_CONFIG_FILE"
 	local vmid=""
 	local ret
-	local keyfile pwdfile
+	local keyfile pwdfile cipher="aes-128-cbc"
 	local got_ownerpass=0 got_srkpass=0
 	local pcr_banks=""
 
@@ -2036,6 +2040,7 @@ main()
 		--vmid) shift; vmid="$1";;
 		--keyfile) shift; keyfile="$1";;
 		--pwdfile) shift; pwdfile="$1";;
+		--cipher) shift; cipher="$1";;
 		--runas) shift;; # ignore here
 		--logfile) shift; LOGFILE="$1";;
 		--overwrite) flags=$((flags | SETUP_STATE_OVERWRITE_F));;
@@ -2171,19 +2176,28 @@ main()
 		exit 1
 	fi
 
+	if [ -n "$cipher" ]; then
+		if ! [[ "$cipher" =~ ^(aes-128-cbc|aes-cbc|aes-256-cbc)$ ]];
+		then
+			logerr "Unsupported cipher $cipher."
+			exit 1
+		fi
+		cipher=",mode=$cipher"
+	fi
+
 	if [ -n "$keyfile" ]; then
 		if [ ! -r "$keyfile" ]; then
 			logerr "Cannot access keyfile $keyfile."
 			exit 1
 		fi
-		SWTPM="$SWTPM --key file=$keyfile"
+		SWTPM="$SWTPM --key file=${keyfile}${cipher}"
 		logit "  The TPM's state will be encrypted with a provided key."
 	elif [ -n "$pwdfile" ]; then
 		if [ ! -r "$pwdfile" ]; then
 			logerr "Cannot access passphrase file $pwdfile."
 			exit 1
 		fi
-		SWTPM="$SWTPM --key pwdfile=$pwdfile"
+		SWTPM="$SWTPM --key pwdfile=${pwdfile}${cipher}"
 		logit "  The TPM's state will be encrypted using a key derived from a passphrase."
 	fi
 

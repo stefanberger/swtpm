@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_setup 8"
-.TH swtpm_setup 8 "2018-06-25" "swtpm" ""
+.TH swtpm_setup 8 "2018-09-15" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -232,6 +232,11 @@ for encrypting the state of the \s-1TPM.\s0
 The passpharse file contains a passphrase from which the \s-1TPM\s0 emulator
 will derive the encyrption key from and use the key for encrypting the \s-1TPM\s0
 state.
+.IP "\fB\-\-ciper <cipher\fR>" 4
+.IX Item "--ciper <cipher>"
+The cipher may be either aes-cbc or aes\-128\-cbc for 128 bit \s-1AES\s0 encryption,
+or aes\-256\-cbc for 256 bit \s-1AES\s0 encryption. The same cipher must be used
+on the \fIswtpm\fR command line later on.
 .IP "\fB\-\-overwrite\fR" 4
 .IX Item "--overwrite"
 Overwrite existing \s-1TPM\s0 state. All previous state will be erased.
