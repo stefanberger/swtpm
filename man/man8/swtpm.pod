@@ -45,7 +45,7 @@ Use the given port rather than using the environment variable TPM_PORT.
 
 Terminate the TPM after the client has closed the connection.
 
-=item B<--server [type=tcp][,port=E<lt>portE<gt>[,bindaddress=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>fdE<gt>][,disconnect]>
+=item B<--server [type=tcp][,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>fdE<gt>][,disconnect]>
 
 Expect TCP connections on the given port; if a port is not provided a file descriptor
 must be passed with the fd parameter and the commands are read from this file
@@ -125,7 +125,7 @@ For the socket interface, this option automatically assumes -t.
 
 Daemonize the process.
 
-=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>[,bindaddress=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>filedescriptorE<gt>|clientfd=E<lt>filedescriptorE<gt>][,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>] >
+=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>filedescriptorE<gt>|clientfd=E<lt>filedescriptorE<gt>][,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>] >
 
 This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
 a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.

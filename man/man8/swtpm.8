@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2018-09-15" "swtpm" ""
+.TH swtpm 8 "2018-09-17" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -172,8 +172,8 @@ Use the given port rather than using the environment variable \s-1TPM_PORT.\s0
 .IP "\fB\-t|\-\-terminate\fR" 4
 .IX Item "-t|--terminate"
 Terminate the \s-1TPM\s0 after the client has closed the connection.
-.IP "\fB\-\-server [type=tcp][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<fd>][,disconnect]\fR" 4
-.IX Item "--server [type=tcp][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<fd>][,disconnect]"
+.IP "\fB\-\-server [type=tcp][,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]][,fd=<fd>][,disconnect]\fR" 4
+.IX Item "--server [type=tcp][,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]][,fd=<fd>][,disconnect]"
 Expect \s-1TCP\s0 connections on the given port; if a port is not provided a file descriptor
 must be passed with the fd parameter and the commands are read from this file
 descriptor then.
@@ -225,8 +225,8 @@ For the socket interface, this option automatically assumes \-t.
 .IP "\fB\-d|\-\-daemon\fR" 4
 .IX Item "-d|--daemon"
 Daemonize the process.
-.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>][,mode=<0...>][,uid=<uid>][,gid=<gid>] \fR" 4
-.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddress=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>][,mode=<0...>][,uid=<uid>][,gid=<gid>] "
+.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>][,mode=<0...>][,uid=<uid>][,gid=<gid>] \fR" 4
+.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>][,mode=<0...>][,uid=<uid>][,gid=<gid>] "
 This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
 a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
 If a port is provided the \fIbind address\fR on which to listen for \s-1TCP\s0 connections
