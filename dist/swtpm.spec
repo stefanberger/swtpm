@@ -208,3 +208,6 @@ fi
 %ldconfig_postun libs
 
 %changelog
+* Mon Sep 17 2018 Stefan Berger - 0.1.0-0.20180917gitfd755d731e
+- Created initial version of rpm spec files
+- Version is now 0.1.0
