@@ -88,7 +88,7 @@ Include files for the TPM emulator's CUSE interface.
 Summary:        Tools for the TPM emulator
 License:        BSD
 Group:          Applications/Emulators
-Requires:       swtpm fuse
+Requires:       swtpm = %{version}-%{release} fuse
 Requires:       trousers >= 0.3.9 tpm-tools >= 1.3.8-6 expect bash net-tools gnutls-utils
 
 %description    tools
