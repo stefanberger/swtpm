@@ -93,6 +93,7 @@ EXTRA_DIST=$(TESTS) \
 	data/pubek.pem \
 	data/signkey.pem \
 	data/keyfile.txt \
+	data/keyfile256bit.txt \
 	data/pwdfile.txt \
 	data/migkey1/tpm2-volatilestate.bin \
 	data/migkey1/volatilestate.bin \
@@ -103,10 +104,16 @@ EXTRA_DIST=$(TESTS) \
 	data/tpmstate2/tpm-00.volatilestate \
 	data/tpmstate2/pwdfile.txt \
 	data/tpmstate2/README \
+	data/tpmstate2b/tpm-00.permall \
+	data/tpmstate2b/tpm-00.volatilestate \
+	data/tpmstate2b/pwdfile.txt \
 	data/tpm2state1/tpm2-00.permall \
 	data/tpm2state1/tpm2-00.volatilestate \
 	data/tpm2state2/tpm2-00.permall \
 	data/tpm2state2/tpm2-00.volatilestate \
+	data/tpm2state2b/pwdfile.txt \
+	data/tpm2state2b/tpm2-00.permall \
+	data/tpm2state2b/tpm2-00.volatilestate \
 	data/tpm2state2/pwdfile.txt \
 	data/tpm2state3/hkey.priv \
 	data/tpm2state3/hkey.pub \

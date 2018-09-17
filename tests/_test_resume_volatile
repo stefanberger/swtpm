@@ -61,7 +61,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-# Read PCR 10
+# Read PCR 10 (extend -ix 10 -ic test)
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
@@ -118,7 +118,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-# Read PCR 10
+# Read PCR 10 (extend -ix 10 -ic test)
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
@@ -149,3 +149,63 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Test 2: Ok"
+
+# 3rd test: with encrypted state using aes-256-cbc
+# copy all the state files
+cp ${TESTDIR}/data/tpmstate2b/* ${TPM_PATH}
+
+run_swtpm ${SWTPM_INTERFACE} \
+	--key pwdfile=${TESTDIR}/data/tpmstate2b/pwdfile.txt,mode=aes-256-cbc
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill_quiet -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
+	exit 1
+fi
+
+kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	exit 1
+fi
+
+# Read PCR 10
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')
+exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Save the volatile state again
+run_swtpm_ioctl ${SWTPM_INTERFACE} -v
+if [ $? -ne 0 ]; then
+	echo "Error: Could not have the ${SWTPM_INTERFACE} TPM write the volatile state to a file."
+	exit 1
+fi
+if [ ! -r $VOLATILE_STATE_FILE ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	exit 1
+fi
+
+# Shut the TPM down
+exec 100>&-
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+echo "Test 3: Ok"

@@ -25,6 +25,8 @@ PARAMETERS=(
 	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${TESTDIR}/swtpm_setup.conf --vmid test --display"
 	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt"
 	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
+	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc"
+	"--createek --create-ek-cert --create-platform-cert --lock-nvram --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc"
 )
 
 FILESIZES=(

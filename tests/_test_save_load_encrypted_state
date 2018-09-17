@@ -343,7 +343,78 @@ if [ "${sha1_permanent}" != "$(get_sha1_file "${STATE_FILE}")" ]; then
 	exit 1
 fi
 
+# shut it down
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if wait_process_gone ${SWTPM_PID} 1; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
 echo "Test 2: Ok"
+
+# This time start we start the TPM with a different cipher and try to
+# start it. It has to fail and the state must not have been modified.
+
+# volatile state file does not exist
+sha1_volatile=$(get_sha1_file "${VOLATILE_STATE_FILE}")
+sha1_permanent=$(get_sha1_file "${STATE_FILE}")
+echo "sha1(volatile): $sha1_volatile sha1(permanent): $sha1_permanent"
+
+# we need a 256bit key
+echo "${KEY}${KEY}" > $keyfile
+
+run_swtpm ${SWTPM_INTERFACE} \
+	--key pwdfile=$keyfile,mode=aes-256-cbc \
+	--log file=$logfile
+
+ps aux | grep $SWTPM | grep -v grep
+
+kill_quiet -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -eq 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM initialization should have failed."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+cat $logfile
+
+kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after failed INIT."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if [ "${sha1_volatile}" != "$(get_sha1_file "${VOLATILE_STATE_FILE}")" ]; then
+	echo "Error: Volatile state file was modified during failed init."
+	exit 1
+fi
+
+if [ "${sha1_permanent}" != "$(get_sha1_file "${STATE_FILE}")" ]; then
+	echo "Error: Permanent state file was modified during failed init."
+	exit 1
+fi
+
+echo "Test 3: Ok"
 
 # Final shut down
 exec 100>&-
