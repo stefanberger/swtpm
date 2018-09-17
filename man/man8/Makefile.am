@@ -21,7 +21,6 @@ man8_MANS = \
 	swtpm.8 \
 	swtpm_bios.8 \
 	swtpm_cert.8 \
-	swtpm_cuse.8 \
 	swtpm_ioctl.8 \
 	swtpm_setup.8 \
 	swtpm_setup.conf.8 \
@@ -29,6 +28,11 @@ man8_MANS = \
 	swtpm-localca.8 \
 	swtpm-localca.options.8 \
 	swtpm-localca.conf.8
+
+if WITH_CUSE
+man8_MANS += \
+	swtpm_cuse.8
+endif
 
 %.8 : %.pod
 	@pod2man -r "swtpm" \

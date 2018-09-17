@@ -8,8 +8,12 @@ policiesconfdir = $(datadir)/selinux/packages
 
 POLICIES = \
 	swtpm.pp \
-	swtpm_svirt.pp \
+	swtpm_svirt.pp
+
+if WITH_CUSE
+POLICIES += \
 	swtpmcuse.pp
+endif
 
 POLICIES_BZ2 = \
 	$(addsuffix .bz2,$(POLICIES))
@@ -25,9 +29,11 @@ swtpm_svirt.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
 	  swtpm_svirt.te swtpm.fc swtpm.if swtpm.te)
 
+if WITH_CUSE
 swtpmcuse.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
 	  swtpmcuse.te swtpmcuse.fc swtpmcuse.if)
+endif
 
 all: $(POLICIES_BZ2)
 
