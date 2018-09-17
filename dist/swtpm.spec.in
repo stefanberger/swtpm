@@ -1,6 +1,6 @@
 # --- swtpm rpm-spec ---
 
-%bcond_with gnutls
+%bcond_without gnutls
 
 %global name      @PACKAGE@
 %global version   @VERSION@
@@ -15,7 +15,7 @@ Source:         http://github.com/stefanberger/swtpm/archive/v%{version}.tar.gz
 
 # due to gnutls backlevel API:
 %if 0%{?rhel} < 7 || 0%{?fedora} < 19
-    %bcond_without gnutls
+    %bcond_with gnutls
 %endif
 
 BuildRequires:  automake
