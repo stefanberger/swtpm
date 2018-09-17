@@ -21,6 +21,7 @@ Makefile
 /config.sub
 /depcomp
 /dist
+/install-sh
 /libtool
 /ltmain.sh
 /missing
