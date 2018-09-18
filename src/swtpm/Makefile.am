@@ -27,7 +27,8 @@ noinst_HEADERS = \
 	utils.h \
 	vtpm_proxy.h
 
-lib_LTLIBRARIES = libswtpm_libtpms.la
+privlibdir = $(libdir)/@PACKAGE@
+privlib_LTLIBRARIES = libswtpm_libtpms.la
 
 libswtpm_libtpms_la_SOURCES = \
 	common.c \
@@ -64,7 +65,7 @@ if WITH_CUSE
 bin_PROGRAMS += swtpm_cuse
 endif
 
-swtpm_DEPENDENCIES = $(lib_LTLIBRARIES)
+swtpm_DEPENDENCIES = $(privlib_LTLIBRARIES)
 
 swtpm_SOURCES = \
 		main.c \
@@ -91,7 +92,7 @@ swtpm_LDADD = \
 	$(GTHREAD_LIBS) \
 	$(LIBTPMS_LIBS)
 
-swtpm_cuse_DEPENDENCIES = $(lib_LTLIBRARIES)
+swtpm_cuse_DEPENDENCIES = $(privlib_LTLIBRARIES)
 
 swtpm_cuse_SOURCES = \
 	cuse_tpm.c

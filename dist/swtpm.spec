@@ -106,11 +106,11 @@ Tools for the TPM emulator from the swtpm package
 %{_datadir}/selinux/packages/swtpmcuse.pp
 
 %files libs
-%{_libdir}/libswtpm_libtpms.so.0
-%{_libdir}/libswtpm_libtpms.so.0.0.0
+%{_libdir}/%{name}/libswtpm_libtpms.so.0
+%{_libdir}/%{name}/libswtpm_libtpms.so.0.0.0
 
 %files devel
-%{_libdir}/libswtpm_libtpms.so
+%{_libdir}/%{name}/libswtpm_libtpms.so
 
 %dir %{_includedir}/%{name}
 %{_includedir}/%{name}/*.h
@@ -158,7 +158,7 @@ make %{?_smp_mflags} check
 %install
 
 %make_install
-rm -f $RPM_BUILD_ROOT%{_libdir}/*.{a,la}
+rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la}
 
 %post
 if [ -n "$(type -p semodule)" ]; then

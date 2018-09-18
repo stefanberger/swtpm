@@ -1,2 +1,2 @@
 #! /usr/bin/dh-exec
-/usr/lib/*/*.so.*
+/usr/lib/*/swtpm/*.so.*
