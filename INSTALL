@@ -13,11 +13,12 @@ Building and running the swtpm has dependencies on the following packages:
 - fuse-devel
 - glib2
 - glib2-devel
-- gmp
-- gmp-devel
-- nss-devel
 - net-tools
+- python3
+- python3-twisted
 - selinux-policy-devel
+- trousers
+- tpm-tools
 - gnutls
 - gnutls-devel
 - libtasn1

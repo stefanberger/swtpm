@@ -324,9 +324,9 @@ if test "x$SOCAT" = "x"; then
 	AC_MSG_ERROR([socat is required: socat package])
 fi
 
-AC_PATH_PROG([PYTHON], python)
+AC_PATH_PROG([PYTHON], python3)
 if test "x$PYTHON" = "x"; then
-	AC_MSG_ERROR([python is required: python2 or python3 package])
+	AC_MSG_ERROR([python3 is required])
 fi
 
 TMP="$($CC -fstack-protector-strong 2>&1)"
