@@ -13,8 +13,6 @@ type swtpmcuse_exec_t;
 application_domain(swtpmcuse_t, swtpmcuse_exec_t)
 role swtpmcuse_roles types swtpmcuse_t;
 
-permissive swtpmcuse_t;
-
 ########################################
 #
 # swtpmcuse local policy

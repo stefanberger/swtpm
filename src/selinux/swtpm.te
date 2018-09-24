@@ -13,8 +13,6 @@ type swtpm_exec_t;
 application_domain(swtpm_t, swtpm_exec_t)
 role swtpm_roles types swtpm_t;
 
-permissive swtpm_t;
-
 ########################################
 #
 # swtpm local policy
