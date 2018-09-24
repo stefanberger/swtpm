@@ -788,20 +788,24 @@ create_cert_extended_key_usage(const char *oid, gnutls_datum_t *asn1)
 static int prepend_san_asn1_header(gnutls_datum_t *datum)
 {
     int err = GNUTLS_E_SUCCESS;
-    unsigned char buffer[2 * (1 + 1 + sizeof(unsigned int))];
+    unsigned char buffer[2 * (1 + 1 + sizeof(unsigned long))];
     unsigned i = sizeof(buffer);
-    unsigned int size;
+    unsigned long size;
     unsigned char intlen;
     unsigned char *data = datum->data;
 
     /* write backwards */
     intlen = 0;
     size = datum->size;
-    while (size) {
+    do {
         buffer[--i] = (size & 0xff);
         size >>= 8;
         intlen++;
-    }
+    } while (size);
+    /*
+     * short form for values 0x00 .. 0x7f
+     * long form for anything larger
+     */
     if (intlen > 1 || buffer[i] & 0x80)
         buffer[--i] = intlen | 0x80;
     /* write equivalent of 0xa4 */
@@ -810,11 +814,11 @@ static int prepend_san_asn1_header(gnutls_datum_t *datum)
 
     size = datum->size + sizeof(buffer) - i;
     intlen = 0;
-    while (size) {
+    do {
         buffer[--i] = (size & 0xff);
         size >>= 8;
         intlen++;
-    }
+    } while (size);
     if (intlen > 1 || buffer[i] & 0x80)
         buffer[--i] = intlen | 0x80;
     /* write equivalent of 0x30 */
