@@ -416,8 +416,10 @@ SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
         irc = SWTPM_NVRAM_CheckHeader(*data, *length, &dataoffset,
                                       &hdrflags, &hdrversion, true);
         /* valid header -- this one can only be version 2 or later */
-        if (irc)
+        if (irc) {
             hdrversion = 1; /* no header -- payload was written like vers. 1 */
+            hdrflags = 0;
+        }
 
         rc = SWTPM_NVRAM_GetDecryptedData(&filekey,
                                           &decrypt_data, &decrypt_length,
