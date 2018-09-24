@@ -567,7 +567,10 @@ create_tpm_and_platform_manuf_info(
     ASN1_TYPE tpm_at = ASN1_TYPE_EMPTY;
     ASN1_TYPE platf_at = ASN1_TYPE_EMPTY;
     int err;
-    gnutls_datum_t datum;
+    gnutls_datum_t datum = {
+        .data = NULL,
+        .size = 0,
+    };
 
     err = asn_init();
     if (err != ASN1_SUCCESS) {
