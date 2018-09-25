@@ -23,7 +23,7 @@ swtpm.pp_FILES = \
 
 swtpm_svirt.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
-	  swtpm_svirt.te)
+	  swtpm_svirt.te swtpm.fc swtpm.if swtpm.te)
 
 swtpmcuse.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
