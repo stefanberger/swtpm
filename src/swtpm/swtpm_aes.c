@@ -92,7 +92,7 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
         } else {
             if (u_ivec) {
                 /* copy user-provided IV */
-                memcpy(ivec, u_ivec, sizeof(ivec));
+                memcpy(ivec, u_ivec, u_ivec_length);
             } else {
                 memset(ivec, 0, sizeof(ivec));
             }
@@ -194,7 +194,7 @@ TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* outpu
         } else {
             if (u_ivec) {
                 /* copy user-provided IV */
-                memcpy(ivec, u_ivec, sizeof(ivec));
+                memcpy(ivec, u_ivec, u_ivec_length);
             } else {
                 memset(ivec, 0, sizeof(ivec));
             }
