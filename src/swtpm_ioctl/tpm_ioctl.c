@@ -152,7 +152,9 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
     ptm_res res;
     int n;
     size_t idx;
-    ptm_hdata hdata = { 0 };
+    ptm_hdata hdata;
+
+    memset(&hdata, 0, sizeof(hdata));
 
     if (!input) {
         fprintf(stderr,
@@ -274,7 +276,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
 {
     int file_fd;
     ptm_res res;
-    ptm_getstate pgs = { 0 };
+    ptm_getstate pgs;
     uint16_t offset;
     ssize_t numbytes, remain = -1;
     bool had_error;
@@ -282,6 +284,8 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
     uint32_t bt;
     unsigned char *buffer =  NULL;
     uint32_t recvd_bytes;
+
+    memset(&pgs, 0, sizeof(pgs));
 
     bt = get_blobtype(blobtype);
     if (!bt) {
