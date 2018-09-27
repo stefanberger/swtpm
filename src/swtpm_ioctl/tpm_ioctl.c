@@ -152,7 +152,7 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
     ptm_res res;
     int n;
     size_t idx;
-    ptm_hdata hdata;
+    ptm_hdata hdata = { 0 };
 
     if (!input) {
         fprintf(stderr,
@@ -274,7 +274,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
 {
     int file_fd;
     ptm_res res;
-    ptm_getstate pgs;
+    ptm_getstate pgs = { 0 };
     uint16_t offset;
     ssize_t numbytes, remain = -1;
     bool had_error;
@@ -530,6 +530,7 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
             goto cleanup;
         }
 
+        memset(&pss, 0, sizeof(pss));
         pss.u.req.state_flags = htodev32(is_chardev, 0);
         pss.u.req.type = htodev32(is_chardev, bt);
         /* will use write interface */
@@ -1043,6 +1044,7 @@ int main(int argc, char *argv[])
         printf("tpmEstablished is %d\n", est.u.resp.bit);
 
     } else if (!strcmp(command, "-r")) {
+        memset(&reset_est, 0, sizeof(reset_est));
         reset_est.u.req.loc = locality;
         n = ctrlcmd(fd, PTM_RESET_TPMESTABLISHED,
                     &reset_est, sizeof(reset_est.u.req),
@@ -1167,6 +1169,7 @@ int main(int argc, char *argv[])
         printf("ptm configuration flags: 0x%x\n",
                devtoh32(is_chardev, cfg.u.resp.flags));
     } else if (!strcmp(command, "-b")) {
+        memset(&psbs, 0, sizeof(psbs));
         psbs.u.req.buffersize = htodev32(is_chardev, tpmbuffersize);
         n = ctrlcmd(fd, PTM_SET_BUFFERSIZE, &psbs, sizeof(psbs.u.req),
                     sizeof(psbs.u.resp));
