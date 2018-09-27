@@ -44,7 +44,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--log file=$logfile \
 	--tpm2
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
@@ -273,7 +273,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--log file=$logfile \
 	--tpm2
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
@@ -346,7 +346,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--log file=$logfile \
 	--tpm2
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then

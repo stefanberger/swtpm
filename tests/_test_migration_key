@@ -55,7 +55,7 @@ cp ${TESTDIR}/data/tpmstate1/* $TPM_PATH
 run_swtpm ${SWTPM_INTERFACE} \
 	--migration-key pwdfile=$migpwdfile,remove=false,kdf=sha512
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
@@ -157,7 +157,7 @@ echo "Test 1: Ok"
 run_swtpm ${SWTPM_INTERFACE} \
 	--migration-key pwdfile=$migpwdfile,remove=false,kdf=sha512
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
@@ -207,7 +207,7 @@ echo "Test 2: Ok"
 # This time we make this fail since we don't provide the migration key
 run_swtpm ${SWTPM_INTERFACE}
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
@@ -240,7 +240,7 @@ echo "Test 3: Ok"
 run_swtpm ${SWTPM_INTERFACE} \
 	--migration-key pwdfile=$migpwdfile,remove=true,kdf=sha512
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then

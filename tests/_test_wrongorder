@@ -35,7 +35,7 @@ rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
 run_swtpm ${SWTPM_INTERFACE} --log file=$LOG_FILE,level=20
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then

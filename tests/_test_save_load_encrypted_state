@@ -43,7 +43,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--key file=$keyfile,mode=aes-cbc,format=hex \
 	--log file=$logfile
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
@@ -306,7 +306,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--key pwdfile=$keyfile \
 	--log file=$logfile
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
@@ -376,7 +376,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--key pwdfile=$keyfile,mode=aes-256-cbc \
 	--log file=$logfile
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then

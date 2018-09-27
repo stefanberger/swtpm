@@ -42,7 +42,7 @@ $SWTPM_EXE chardev --vtpm-proxy --tpmstate dir=$TPM_PATH --ctrl type=unixio,path
 sleep 0.5
 PID=$(ps aux | grep $SWTPM | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
 
-ps aux | grep $SWTPM | grep -v grep
+display_processes_by_name "$SWTPM"
 
 kill_quiet -0 $PID
 if [ $? -ne 0 ]; then

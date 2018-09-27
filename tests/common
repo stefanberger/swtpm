@@ -624,3 +624,15 @@ function get_sha1_file()
 		sha1 $1 | cut -d "=" -f2 | tr -d " "
 	esac
 }
+
+# Display process that have the same name
+#
+# @1: process name to match
+function display_processes_by_name()
+{
+	local name="$1"
+
+	if [ 1 -eq 0 ]; then
+		ps aux | grep "${name}" | grep -v grep
+	fi
+}
