@@ -220,10 +220,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sleep 0.5
-
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
-if [ $? -eq 0 ]; then
+if wait_process_gone ${SWTPM_PID} 1; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi
