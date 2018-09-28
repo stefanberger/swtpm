@@ -100,6 +100,9 @@ static bool tpm_running;
 /* flags on how to handle locality */
 static uint32_t locality_flags;
 
+/* the fuse_session that we will signal an exit to to exit the prg. */
+static struct fuse_session *ptm_fuse_session;
+
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
@@ -1309,6 +1312,34 @@ static const struct cuse_lowlevel_ops clops = {
     .init_done = ptm_init_done,
 };
 
+/* ptm_cuse_lowlevel_main is like cuse_lowlevel_main with the difference that
+ * it uses a global ptm_fuse_session so we can call fuse_session_exit() on it
+ * for a graceful exit with cleanups.
+ */
+static int
+ptm_cuse_lowlevel_main(int argc, char *argv[], const struct cuse_info *ci,
+                       const struct cuse_lowlevel_ops *clop, void *userdata)
+{
+    int mt;
+    int ret;
+
+    ptm_fuse_session = cuse_lowlevel_setup(argc, argv, ci, clop, &mt,
+                                           userdata);
+    if (ptm_fuse_session == NULL)
+        return 1;
+
+    if (mt)
+        ret = fuse_session_loop_mt(ptm_fuse_session);
+    else
+        ret = fuse_session_loop(ptm_fuse_session);
+
+    cuse_lowlevel_teardown(ptm_fuse_session);
+    if (ret < 0)
+        ret = 1;
+
+    return ret;
+}
+
 #ifndef HAVE_SWTPM_CUSE_MAIN
 int main(int argc, char **argv)
 {
@@ -1540,7 +1571,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     FILE_OPS_LOCK = g_mutex_new();
 #endif
 
-    ret = cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
+    ret = ptm_cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
 
 exit:
     ptm_cleanup();
