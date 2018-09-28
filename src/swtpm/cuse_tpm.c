@@ -1032,7 +1032,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             struct iovec iov = { arg, sizeof(uint8_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
-            ptm_est te;
+            ptm_est te = { 0 };
             te.u.resp.tpm_result = TPM_IO_TpmEstablished_Get(&te.u.resp.bit);
             fuse_reply_ioctl(req, 0, &te, sizeof(te));
         }
