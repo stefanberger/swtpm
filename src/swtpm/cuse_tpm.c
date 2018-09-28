@@ -1252,7 +1252,7 @@ cleanup:
     if (exit_prg) {
         logprintf(STDOUT_FILENO, "CUSE TPM is shutting down.\n");
         ptm_cleanup();
-        exit(0);
+        fuse_session_exit(ptm_fuse_session);
     }
 
     return;
