@@ -105,7 +105,7 @@ if wait_file_gone $PID_FILE 2; then
 	exit 1
 fi
 
-if wait_process_gone $PID 1; then
+if wait_process_gone ${PID} 4; then
 	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
@@ -291,7 +291,7 @@ if wait_file_gone $PID_FILE 2; then
 	exit 1
 fi
 
-if wait_process_gone $PID 1; then
+if wait_process_gone ${PID} 4; then
 	echo "Error: Socket TPM should not be running anymore."
 	exit 1
 fi
@@ -351,7 +351,7 @@ if wait_file_gone $PID_FILE 2; then
 	exit 1
 fi
 
-if wait_process_gone $PID 1; then
+if wait_process_gone ${PID} 4; then
 	echo "Error: Socket TPM should not be running anymore."
 	exit 1
 fi
@@ -466,7 +466,7 @@ if wait_file_gone $PID_FILE 2; then
 	exit 1
 fi
 
-if wait_process_gone $PID 1; then
+if wait_process_gone ${PID} 4; then
 	echo "Error: Socket TPM should not be running anymore."
 	exit 1
 fi

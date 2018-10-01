@@ -284,7 +284,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 1; then
+if wait_process_gone ${SWTPM_PID} 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	echo "TPM Logfile:"
 	cat $logfile
@@ -352,7 +352,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 1; then
+if wait_process_gone ${SWTPM_PID} 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	echo "TPM Logfile:"
 	cat $logfile
@@ -426,7 +426,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 1; then
+if wait_process_gone ${SWTPM_PID} 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	echo "TPM Logfile:"
 	cat $logfile

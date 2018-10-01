@@ -60,7 +60,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if ! wait_process_gone ${SWTPM_PID} 1; then
+if ! wait_process_gone ${SWTPM_PID} 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
@@ -148,7 +148,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 1; then
+if wait_process_gone ${SWTPM_PID} 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi
