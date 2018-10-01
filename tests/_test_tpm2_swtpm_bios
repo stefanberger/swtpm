@@ -42,7 +42,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if [ ! -r $PID_FILE ]; then
+if wait_for_file ${PID_FILE} 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not write pidfile."
 	exit 1
 fi

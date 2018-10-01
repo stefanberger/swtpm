@@ -166,7 +166,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--pid file=$PID_FILE \
 	--log file=$LOG_FILE
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file ${PID_FILE} 4; then
 	echo "Error: Socket TPM did not write pidfile."
 	cat $LOG_FILE
 	exit 1

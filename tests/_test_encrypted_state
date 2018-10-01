@@ -154,7 +154,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if [ -r $keyfile ]; then
+if wait_file_gone ${keyfile} 4; then
 	echo "Error: Keyfile $keyfile was not removed by swtpm_cuse."
 	echo "TPM Logfile:"
 	cat $logfile
