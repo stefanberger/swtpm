@@ -46,8 +46,12 @@ libswtpm_libtpms_la_SOURCES = \
 	tlv.c \
 	tpmlib.c \
 	tpmstate.c \
-	threadpool.c \
 	utils.c
+
+if WITH_CUSE
+libswtpm_libtpms_la_SOURCES += \
+	threadpool.c
+endif
 
 libswtpm_libtpms_la_CFLAGS = \
 	-I$(top_builddir)/include \

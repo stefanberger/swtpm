@@ -121,24 +121,6 @@ if test "$prefix" = "" && test "$datarootdir" = '${prefix}/share'; then
 	datarootdir="/usr/share"
 fi
 
-GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
-if test $? -ne 0; then
-	AC_MSG_ERROR("Is glib-2.0 installed? -- could not get cflags")
-fi
-AC_SUBST([GLIB_CFLAGS])
-
-GLIB_LIBS=$(pkg-config --libs glib-2.0)
-if test $? -ne 0; then
-	AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs")
-fi
-AC_SUBST([GLIB_LIBS])
-
-GTHREAD_LIBS=$(pkg-config --libs gthread-2.0)
-if test $? -ne 0; then
-	AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs for gthread-2.0")
-fi
-AC_SUBST([GTHREAD_LIBS])
-
 cryptolib=openssl
 
 AC_ARG_WITH([openssl],
@@ -230,6 +212,24 @@ if test "$with_cuse" != "no"; then
     AC_SUBST([LIBFUSE_LIBS])
     AC_DEFINE_UNQUOTED([WITH_CUSE], 1,
                        [whether to build with CUSE interface])
+
+    GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
+    if test $? -ne 0; then
+        AC_MSG_ERROR("Is glib-2.0 installed? -- could not get cflags")
+    fi
+    AC_SUBST([GLIB_CFLAGS])
+
+    GLIB_LIBS=$(pkg-config --libs glib-2.0)
+    if test $? -ne 0; then
+        AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs")
+    fi
+    AC_SUBST([GLIB_LIBS])
+
+    GTHREAD_LIBS=$(pkg-config --libs gthread-2.0)
+    if test $? -ne 0; then
+        AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs for gthread-2.0")
+    fi
+    AC_SUBST([GTHREAD_LIBS])
 fi
 AM_CONDITIONAL([WITH_CUSE],[test "$with_cuse" = "yes"])
 AC_MSG_RESULT($with_cuse)
