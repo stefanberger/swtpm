@@ -420,7 +420,7 @@ static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion)
     pool = g_thread_pool_new(worker_thread,
                              NULL,
                              1,
-                             TRUE,
+                             FALSE,
                              NULL);
     if (!pool) {
         logprintf(STDERR_FILENO,
