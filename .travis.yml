@@ -26,5 +26,6 @@ addons:
     build_command_prepend: "./autogen.sh --with-openssl; make clean"
     build_command: make -j4
     branch_pattern: coverity_scan
-script: "./autogen.sh --with-openssl --prefix=/usr && make -j4 distcheck
+script: "./autogen.sh --with-openssl --prefix=/usr
+  && SWTPM_TEST_EXPENSIVE=1 make -j4 distcheck
   && sudo make -j4 distcheck"

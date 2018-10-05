@@ -241,8 +241,12 @@ function run_swtpm_ioctl()
 function run_swtpm()
 {
 	local iface=$1; shift
+	local swtpm_server_disconnect=""
 
 	echo "==== Starting swtpm with interfaces ${iface} ===="
+	if [ -z "${SWTPM_SERVER_NO_DISCONNECT}" ]; then
+		swtpm_server_disconnect=",disconnect"
+	fi
 
 	case "${iface}" in
 	cuse)
@@ -294,7 +298,7 @@ function run_swtpm()
 		fi
 
 		${SWTPM_EXE} socket $@ \
-			--server type=tcp,port=${SWTPM_SERVER_PORT},disconnect \
+			--server type=tcp,port=${SWTPM_SERVER_PORT}${swtpm_server_disconnect} \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
 		rc=$?
 		if [ $rc -ne 0 ]; then
@@ -334,7 +338,7 @@ function run_swtpm()
 		fi
 
 		${SWTPM_EXE} socket $@ \
-			--server type=tcp,port=${SWTPM_SERVER_PORT},disconnect \
+			--server type=tcp,port=${SWTPM_SERVER_PORT}${swtpm_server_disconnect} \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
 		rc=$?
 		if [ $rc -ne 0 ]; then

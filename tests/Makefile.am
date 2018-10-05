@@ -62,7 +62,9 @@ TESTS += \
 	\
 	test_tpm2_swtpm_bios \
 	\
-	test_tpm2_samples_swtpm_localca
+	test_tpm2_samples_swtpm_localca \
+	\
+	test_tpm2_ibmtss2
 
 if HAVE_TCSD
 TESTS += \

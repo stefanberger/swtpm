@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+if [ ${SWTPM_TEST_EXPENSIVE:-0} -eq 0 ]; then
+	exit 77
+fi
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+SWTPM_SERVER_PORT=65426
+SWTPM_SERVER_NAME=localhost
+SWTPM_CTRL_PORT=65427
+SWTPM_INTERFACE=socket+socket
+
+function cleanup() {
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill_quiet -9 $pid
+	fi
+	if [ -n ${WORKDIR} ]; then
+		rm -rf ${WORKDIR}
+	fi
+}
+
+trap "cleanup" EXIT
+
+source ${TESTDIR}/common
+WORKDIR=$(mktemp -d)
+
+REGLOG=${WORKDIR}/reglog
+
+SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm ${SWTPM_INTERFACE} \
+	--tpm2 \
+	--tpmstate dir=${WORKDIR} \
+	--flags not-need-init
+
+pushd ${WORKDIR} &>/dev/null
+
+git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
+
+pushd ibmtpm20tss-tss/utils &>/dev/null
+
+git checkout 8440ed
+if [ $? -ne 0 ]; then
+	echo "'Git checkout' failed."
+	exit 1
+fi
+
+make -j4
+make
+
+export TPM_SERVER_NAME=localhost
+export TPM_SERVER_TYPE=raw
+export TPM_COMMAND_PORT=${SWTPM_SERVER_PORT}
+export TPM_PLATFORM_PORT=${SWTPM_CTRL_PORT}
+
+export SWTPM_IOCTL
+
+cat <<_EOF_ > powerup
+#!/usr/bin/env bash
+\${SWTPM_IOCTL} -i --tcp \${TPM_SERVER_NAME}:\${TPM_PLATFORM_PORT}
+exit \$?
+_EOF_
+chmod 755 powerup
+
+./startup
+if [ $? -ne 0 ]; then
+	echo "Startup of TPM2 failed"
+	exit 1
+fi
+
+./reg.sh -a 2>&1 | tee ${REGLOG}
+
+ret=0
+
+if [ -n "$(grep -E "^ ERROR:" ${REGLOG})" ]; then
+	echo "There were test failures running the IBM TSS 2 tests"
+	grep -E "^ ERROR:" ${REGLOG} -B2 -A2
+	ret=1
+fi
+
+# Shut down
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	ret=1
+fi
+
+if wait_process_gone ${SWTPM_PID} 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	ret=1
+fi
+
+popd &>/dev/null
+popd &>/dev/null
+
+[ $ret -eq 0 ] && echo "OK"
+
+exit $ret
