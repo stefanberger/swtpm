@@ -1,4 +1,4 @@
-module swtpm_svirt 1.0;
+policy_module(swtpm_svirt,1.0)
 
 require {
 	type svirt_t;
@@ -7,15 +7,6 @@ require {
 	type virtd_t;
 	type user_tmp_t;
 	type virt_var_run_t;
-
-	class file { create entrypoint map execute open read write getattr ioctl execute_no_trans };
-	class process { sigchld transition };
-	class fifo_file { read write ioctl getattr append lock };
-	class sock_file { create setattr remove_name };
-	class dir { write add_name remove_name getattr search open };
-	class lnk_file { getattr read };
-	class fd { use };
-	class unix_stream_socket { read write getopt getattr accept };
 }
 
 swtpm_domtrans(svirt_t)
@@ -30,7 +21,7 @@ allow svirt_t swtpm_exec_t:file { entrypoint map };
 allow svirt_t virtd_t:unix_stream_socket { read write getopt getattr accept };
 
 allow svirt_tcg_t virtd_t:fifo_file write;
-allow svirt_tcg_t virt_var_run_t:sock_file { create setattr remove_name };
+allow svirt_tcg_t virt_var_run_t:sock_file { create setattr };
 allow svirt_tcg_t virt_var_run_t:file { create open read write };
 allow svirt_tcg_t virt_var_run_t:dir { write add_name remove_name };
 allow svirt_tcg_t swtpm_exec_t:file { entrypoint map };
