@@ -62,8 +62,6 @@ TESTS += \
 	\
 	test_tpm2_swtpm_bios \
 	\
-	test_tpm2_samples_swtpm_localca \
-	\
 	test_tpm2_ibmtss2
 
 if HAVE_TCSD
@@ -76,6 +74,7 @@ if WITH_GNUTLS
 TESTS += \
 	test_swtpm_cert \
 	test_tpm2_parameters \
+	test_tpm2_samples_swtpm_localca \
 	test_tpm2_swtpm_cert \
 	test_tpm2_swtpm_cert_ecc \
 	test_tpm2_swtpm_setup_create_cert
