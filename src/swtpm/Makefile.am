@@ -62,7 +62,8 @@ libswtpm_libtpms_la_CFLAGS = \
 
 libswtpm_libtpms_la_LIBADD = \
 	$(LIBTPMS_LIBS) \
-	$(GLIB_LIBS)
+	$(GLIB_LIBS) \
+	$(LIBRT_LIBS)
 
 bin_PROGRAMS = swtpm
 if WITH_CUSE

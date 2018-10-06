@@ -157,6 +157,9 @@ AC_CHECK_LIB(tpms,
 )
 AC_SUBST([LIBTPMS_LIBS])
 
+AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
+AC_SUBST([LIBRT_LIBS])
+
 AC_PATH_PROG([TPM_NVDEFINE], tpm_nvdefine)
 case $host_os in
 linux-*)
