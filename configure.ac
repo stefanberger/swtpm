@@ -329,7 +329,7 @@ if test "x$PYTHON" = "x"; then
 	AC_MSG_ERROR([python3 is required])
 fi
 
-TMP="$($CC -fstack-protector-strong 2>&1)"
+TMP="$($CC -fstack-protector-strong $srcdir/include/swtpm/tpm_ioctl.h 2>&1)"
 if echo $TMP | $GREP 'unrecognized command line option' >/dev/null; then
   HARDENING_CFLAGS="-fstack-protector -Wstack-protector "
 else
