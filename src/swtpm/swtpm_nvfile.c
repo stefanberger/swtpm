@@ -1008,10 +1008,10 @@ SWTPM_NVRAM_EncryptData(const encryptionkey *key,
         case ENCRYPTION_MODE_AES_CBC:
             irc = SWTPM_RollAndSetGlobalIvec(&td[2], tag_ivec,
                                              key->symkey.userKeyLength);
-            rc = TPM_SymmetricKeyData_Encrypt(&tmp_data, &tmp_length,
-                                              data, length, &key->symkey,
-                                              td[2].u.const_ptr,
-                                              td[2].tlv.length);
+            rc = SWTPM_SymmetricKeyData_Encrypt(&tmp_data, &tmp_length,
+                                                data, length, &key->symkey,
+                                                td[2].u.const_ptr,
+                                                td[2].tlv.length);
             if (rc)
                  break;
 
@@ -1060,11 +1060,11 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
         case ENCRYPTION_MODE_AES_CBC:
             switch (hdrversion) {
             case 1:
-                rc = TPM_SymmetricKeyData_Decrypt(&tmp_data,
-                                                  &tmp_length,
-                                                  data, length,
-                                                  &key->symkey,
-                                                  NULL, 0);
+                rc = SWTPM_SymmetricKeyData_Decrypt(&tmp_data,
+                                                    &tmp_length,
+                                                    data, length,
+                                                    &key->symkey,
+                                                    NULL, 0);
                 if (rc == 0) {
                     rc = SWTPM_CheckHash(tmp_data, tmp_length,
                                          decrypt_data, decrypt_length);
@@ -1096,12 +1096,12 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                 rc = SWTPM_CheckHMAC(&td[0], &td[1], &key->symkey,
                                      ivec, ivec_length);
                 if (rc == 0) {
-                    rc = TPM_SymmetricKeyData_Decrypt(decrypt_data,
-                                                      decrypt_length,
-                                                      td[1].u.const_ptr,
-                                                      td[1].tlv.length,
-                                                      &key->symkey,
-                                                      ivec, ivec_length);
+                    rc = SWTPM_SymmetricKeyData_Decrypt(decrypt_data,
+                                                        decrypt_length,
+                                                        td[1].u.const_ptr,
+                                                        td[1].tlv.length,
+                                                        &key->symkey,
+                                                        ivec, ivec_length);
                 }
             break;
             default:

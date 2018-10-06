@@ -49,7 +49,7 @@ typedef struct tdTPM_SYMMETRIC_KEY_DATA {
     size_t userKeyLength;
 } TPM_SYMMETRIC_KEY_DATA;
 
-TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,
+TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,
                                         uint32_t *encrypt_length,
                                         const unsigned char *decrypt_data,
                                         uint32_t decrypt_length,
@@ -58,7 +58,7 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,
 					const unsigned char *ivec,
 					uint32_t ivec_length);
 
-TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,
+TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,
                                         uint32_t *decrypt_length,
                                         const unsigned char *encrypt_data,
                                         uint32_t encrypt_length,
