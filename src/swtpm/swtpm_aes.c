@@ -62,14 +62,14 @@
    'encrypt_data' must be free by the caller
 */
 
-TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* output, caller frees */
-                                        uint32_t *encrypt_length,		/* output */
-                                        const unsigned char *decrypt_data,	/* input */
-                                        uint32_t decrypt_length,		/* input */
-                                        const TPM_SYMMETRIC_KEY_DATA
+TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* output, caller frees */
+                                          uint32_t *encrypt_length,		/* output */
+                                          const unsigned char *decrypt_data,	/* input */
+                                          uint32_t decrypt_length,		/* input */
+                                          const TPM_SYMMETRIC_KEY_DATA
 					    *tpm_symmetric_key_token,		/* input */
-                                        const unsigned char *u_ivec,		/* input */
-                                        uint32_t u_ivec_length)			/* input */
+                                          const unsigned char *u_ivec,		/* input */
+                                          uint32_t u_ivec_length)		/* input */
 {
     TPM_RESULT          rc = 0;
     uint32_t              pad_length;
@@ -159,14 +159,14 @@ TPM_RESULT TPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* outpu
    decrypt_data must be free by the caller
 */
 
-TPM_RESULT TPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* output, caller frees */
-                                        uint32_t *decrypt_length,		/* output */
-                                        const unsigned char *encrypt_data,	/* input */
-                                        uint32_t encrypt_length,		/* input */
-                                        const TPM_SYMMETRIC_KEY_DATA
+TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* output, caller frees */
+                                          uint32_t *decrypt_length,		/* output */
+                                          const unsigned char *encrypt_data,	/* input */
+                                          uint32_t encrypt_length,		/* input */
+                                          const TPM_SYMMETRIC_KEY_DATA
 					     *tpm_symmetric_key_token,		/* input */
-					const unsigned char *u_ivec,		/* input */
-                                        uint32_t u_ivec_length)			/* input */
+					  const unsigned char *u_ivec,		/* input */
+                                          uint32_t u_ivec_length)		/* input */
 {
     TPM_RESULT          rc = 0;
     uint32_t		pad_length;
