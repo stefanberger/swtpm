@@ -159,8 +159,8 @@ if [ ! -r $MY_VOLATILE_STATE_FILE ]; then
 fi
 echo "Saved volatile state."
 
-ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
-sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
+#ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
+#sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
 
 # we will use our own volatile state
 rm -f $VOLATILE_STATE_FILE $STATE_FILE
@@ -300,7 +300,8 @@ echo "Test 1: Ok"
 # volatile state file does not exist
 sha1_volatile=$(get_sha1_file "${VOLATILE_STATE_FILE}")
 sha1_permanent=$(get_sha1_file "${STATE_FILE}")
-echo "sha1(volatile): $sha1_volatile sha1(permanent): $sha1_permanent"
+echo "sha1(volatile) : $sha1_volatile"
+echo "sha1(permanent): $sha1_permanent"
 
 run_swtpm ${SWTPM_INTERFACE} \
 	--key pwdfile=$keyfile \
@@ -317,11 +318,18 @@ if [ $? -ne 0 ]; then
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+ERR="$(run_swtpm_ioctl ${SWTPM_INTERFACE} -i 2>&1)"
 if [ $? -eq 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM initialization should have failed."
 	echo "TPM Logfile:"
 	cat $logfile
+	exit 1
+fi
+exp="TPM result from PTM_INIT: 0x21"
+if [ "$ERR" != "$exp" ]; then
+	echo "Error: Unexpected error message"
+	echo "Received: $ERR"
+	echo "Expected: $exp"
 	exit 1
 fi
 
@@ -367,7 +375,8 @@ echo "Test 2: Ok"
 # volatile state file does not exist
 sha1_volatile=$(get_sha1_file "${VOLATILE_STATE_FILE}")
 sha1_permanent=$(get_sha1_file "${STATE_FILE}")
-echo "sha1(volatile): $sha1_volatile sha1(permanent): $sha1_permanent"
+echo "sha1(volatile) : $sha1_volatile"
+echo "sha1(permanent): $sha1_permanent"
 
 # we need a 256bit key
 echo "${KEY}${KEY}" > $keyfile
@@ -387,14 +396,20 @@ if [ $? -ne 0 ]; then
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+ERR="$(run_swtpm_ioctl ${SWTPM_INTERFACE} -i 2>&1)"
 if [ $? -eq 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM initialization should have failed."
 	echo "TPM Logfile:"
 	cat $logfile
 	exit 1
 fi
-cat $logfile
+exp="TPM result from PTM_INIT: 0x28"
+if [ "$ERR" != "$exp" ]; then
+	echo "Error: Unexpected error message"
+	echo "Received: $ERR"
+	echo "Expected: $exp"
+	exit 1
+fi
 
 kill_quiet -0 ${SWTPM_PID} 2>/dev/null
 if [ $? -ne 0 ]; then

@@ -74,12 +74,18 @@ if [ $? -ne 0 ]; then
 fi
 
 # Set the buffer size -- should fail
-run_swtpm_ioctl ${SWTPM_INTERFACE} -b 4096
+ERR="$(run_swtpm_ioctl ${SWTPM_INTERFACE} -b 4096 2>&1)"
 if [ $? -eq 0 ]; then
 	echo "Error: Could set the buffersize while the ${SWTPM_INTERFACE} TPM is running."
 	exit 1
 fi
-
+exp="TPM result from PTM_SET_BUFFERSIZE: 0xa"
+if [ "$ERR" != "$exp" ]; then
+	echo "Error: Unexpected error message"
+	echo "Received: $ERR"
+	echo "Expected: $exp"
+	exit 1
+fi
 
 kill_quiet -0 ${SWTPM_PID} 2>/dev/null
 if [ $? -ne 0 ]; then

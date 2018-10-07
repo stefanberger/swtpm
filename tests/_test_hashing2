@@ -121,9 +121,16 @@ fi
 
 for ((l = 0; l <= 2; l++)); do
 	# Resetting via locality 2 must fail
-	run_swtpm_ioctl ${SWTPM_INTERFACE} -r $l
+	ERR="$(run_swtpm_ioctl ${SWTPM_INTERFACE} -r $l 2>&1)"
 	if [ $? -eq 0 ]; then
 		echo "Error: Could reset the establishment bit via locality $l"
+		exit 1
+	fi
+	exp="TPM result from PTM_RESET_TPMESTABLISHED: 0x3d"
+	if [ "$ERR" != "$exp" ]; then
+		echo "Error: Unexpected error message"
+		echo "Received: $ERR"
+		echo "Expected: $exp"
 		exit 1
 	fi
 done
