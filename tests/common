@@ -620,6 +620,10 @@ function get_filesize()
 # @1: filename
 function get_sha1_file()
 {
+	if ! [ -r $1 ]; then
+		echo "[file $1 does not exist]"
+		return
+	fi
 	case "$(uname -s)" in
 	Linux|CYGWIN*)
 		sha1sum $1 | cut -f1 -d" "
