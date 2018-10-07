@@ -52,9 +52,16 @@ if [ ${SWTPM_INTERFACE} != "cuse" ]; then
 	fi
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -e
+ERR="$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e 2>&1)"
 if [ $? -eq 0 ]; then
 	echo "Error: Could get established bit from ${SWTPM_INTERFACE} TPM before init."
+	exit 1
+fi
+exp="TPM result from PTM_GET_TPMESTABLISHED: 0xa"
+if [ "$ERR" != "$exp" ]; then
+	echo "Error: Unexpected error message"
+	echo "Received: $ERR"
+	echo "Expected: $exp"
 	exit 1
 fi
 
