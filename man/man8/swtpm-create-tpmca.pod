@@ -1,0 +1,129 @@
+=head1 NAME
+
+swtpm-create-tpmca
+
+=head1 SYNOPSIS
+
+B<swtpm-create-tpmca [OPTIONS]>
+
+=head1 DESCRIPTION
+
+B<swtpm-create-tpmca> is a tool to create a TPM 1.2 based CA that
+can be used by B<swtpm-localca> to sign EK and platform certificates.
+The CA uses a GnuTLS key to sign certificates. To do this,
+GnuTLS talks to the TPM 1.2 using the B<tcsd> (TrouSerS) daemon.
+
+Note: This tool is experimental. See the section on known issues below.
+
+The following options are supported:
+
+=over 4
+
+=item B<--dir dir>
+
+The directory where the keys will be written to. An existing root CA with
+the files I<swtpm-localca-rootca-privkey.pem> and
+I<swtpm-localca-rootca-cert.pem> in this directory will be reused. If
+either one of these files does not exist, a new root CA will be created.
+
+=item B<--overwrite>
+
+Overwrite the contents of the output directory.
+
+=item B<--register>
+
+Register the key with TCSD. For the key to be available for signing,
+the same user that created the TPM CA has to run the swtpm-localca
+later on. If this option is not passed, the private key is written
+into a file and can be used by others as well.
+
+=item B<--key-password s>
+
+The new signing key will get this password.
+
+Note: Due to a bug in GnuTLS certtool it may be necessary to use the
+same password for the signing key as for the SRK.
+
+=item B<--srk-password s>
+
+The TPM SRK password.
+
+Note: Since GnuTLS tpmtool does not support the 'well known' password
+of 20 zero bytes, the SRK password must be set.
+
+=item B<--outfile filename>
+
+The name of a file where to write the swtpm-localca.conf configuration
+to.
+
+=item B<--owner owner>
+
+The name or uid number of the owner who will own the directory and
+outfile file. This option only has an effect if this swtpm-create-tpmca
+is run by the root user.
+
+=item B<--group group>
+
+The name or gid number of the group who will own the directory and
+outfile file. This option only has an effect if this swtpm-create-tpmca
+is run by the root user.
+
+=item B<--tss-tcsd-hostname>
+
+The hostname where tcsd is running on. The default hostname is 'localhost'.
+
+=item B<-tss-tcsd-port>
+
+The TCP port on which tcsd is listening for messages. The default port is
+30003.
+
+=item B<-help, -h, -?>
+
+Display the help screen and exit.
+
+=back
+
+=head1 EXAMPLE
+
+The following example creates an intermediate TPM CA and writes the keys
+into /var/lib/swtpm-localca and the swtpm-localca configuration to
+/etc/swtpm-localca.conf. It can then be used for signing certificates of
+newly created B<swtpm> TPMs.
+
+ #> sudo systemctl start tcsd
+ #> sudo /usr/share/swtpm/swtpm-create-tpmca \
+		--dir /var/lib/swtpm-localca \
+		--overwrite \
+		--outfile /etc/swtpm-localca.conf \
+		--srk-password password \
+		--key-password password \
+		--group tss
+ statedir = /var/lib/swtpm-localca
+ signingkey = tpmkey:file=/var/lib/swtpm-localca/swtpm-localca-tpmca-privkey.pem
+ issuercert = /var/lib/swtpm-localca/swtpm-localca-tpmca-cert.pem
+ certserial = /var/lib/swtpm-localca/certserial
+ TSS_TCSD_HOSTNAME = localhost
+ TSS_TCSD_PORT = 30003
+ signingkey_password = password
+ parentkey_password = password
+
+=head1 KNOWN ISSUES
+
+The interaction of GnuTLS certtool with the TPM TCSD daemon may cause so
+many TPM (key) authentication failures, that the TPM refuses to accept any
+more authenticated commands until the TPM's owner sends it the
+TPM_ORD_ResetLockValue command. The reason for this is that certtool first
+tries to use 20 zero bytes for the SRK password and only then prompts for
+and uses the required SRK password. The GnuTLS tpmtool does not support 20
+zero bytes for the SRK password, so forces the usage of a 'real' password.
+
+The effect of the authentication failues may be that the TPM CA cannot sign
+certificates since the TPM does not accept authenticated commands.
+
+=head1 SEE ALSO
+
+B<swtpm-localca>, B<swtpm-localca.conf>, B<tcsd>
+
+=head1 REPORTING BUGS
+
+Report bugs to Stefan Berger <stefanb@linux.ibm.com>

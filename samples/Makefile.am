@@ -8,6 +8,7 @@ samplesconfdir = $(datadir)/@PACKAGE@
 samplessysconfdir = $(sysconfdir)
 
 samplesconf_SCRIPTS = \
+	swtpm-create-tpmca \
 	swtpm-localca
 
 samplessysconf_DATA = \
@@ -21,6 +22,7 @@ install-data-local:
 	fi
 
 EXTRA_DIST= \
+	swtpm-create-tpmca \
 	swtpm-localca \
 	swtpm-localca.conf \
 	swtpm-localca.options

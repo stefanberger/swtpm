@@ -1,0 +1,371 @@
+#!/usr/bin/env bash
+
+FLAG_OVERWRITE=1
+FLAG_REGISTER_KEY=2
+
+TSS_TCSD_HOSTNAME_DEFAULT=localhost
+TSS_TCSD_PORT_DEFAULT=30003
+
+logit()
+{
+	if [ -z "$LOGFILE" ]; then
+		echo "$@" >&1
+	else
+		echo "$@" >> $LOGFILE
+	fi
+}
+
+logerr()
+{
+	if [ -z "$LOGFILE" ]; then
+		echo "Error: $@" >&2
+	else
+		echo "Error: $@" >> $LOGFILE
+	fi
+}
+
+# Get the size of a file in bytes
+#
+# @1: filename
+function get_filesize()
+{
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+		stat -c%s $1
+	else
+		# OpenBSD
+		stat -f%z $1
+	fi
+}
+
+# Use expect for automating the interaction with the tpmtool
+#
+# @param 1...: parameters to pass to tpmtool command line
+#
+# TPM_SRK_PASSWORD and TPM_KEY_PASSWORD global variables are used
+# for the SRK and key passwords respectively.
+run_tpmtool() {
+	local prg out
+
+	prg="spawn tpmtool $@
+		expect {
+			\"Enter SRK password:\" {
+				send \"${TPM_SRK_PASSWORD}\n\"
+				exp_continue
+			}
+			\"Enter key password:\" {
+				send \"${TPM_KEY_PASSWORD}\n\"
+				exp_continue
+			}
+			\"tpmkey:\" {
+				send_user \"\n\"
+			}
+			eof {
+				exit
+			}
+		}
+		catch wait result
+		exit [lindex \$result 3]
+	"
+	out=$(expect -c "${prg}")
+	echo "${out}"
+} #run_tpmtool
+
+create_localca_cert() {
+	local flags=$1
+	local dir="$2"
+	local outfile="$3"
+	local owner="$4"
+
+	local cakey=${dir}/swtpm-localca-rootca-privkey.pem
+	local cacert=${dir}/swtpm-localca-rootca-cert.pem
+	local tpmkey=${dir}/swtpm-localca-tpmca-privkey.pem
+	local tpmpubkey=${dir}/swtpm-localca-tpmca-pubkey.pem
+	local tpmca=${dir}/swtpm-localca-tpmca-cert.pem
+	local template=${dir}/template
+	local tpmkeyurl
+	local msg output
+
+	if ! [ -r "${cakey}" ] || ! [ -r ${cacert} ]; then
+		msg=$(${CERTTOOL} \
+			--generate-privkey \
+			--outfile ${cakey} \
+			2>&1)
+		[ $? -ne 0 ] && {
+			logerr "Could not create root-CA key ${cakey}."
+			logerr "${msg}"
+			return 1
+		}
+		chmod 640 ${cakey}
+
+		echo "cn=swtpm-localca-rootca" > ${template}
+		echo "ca" >> ${template}
+		echo "cert_signing_key" >> ${template}
+		echo "expiration_days = 3650" >> ${template}
+
+		msd=$(${CERTTOOL} \
+			--generate-self-signed \
+			--template ${template} \
+			--outfile ${cacert} \
+			--load-privkey ${cakey} \
+			2>&1)
+
+		if [ $? -ne 0 ]; then
+			logerr "Could not create root CA."
+			logerr "${msg}"
+			rm -f ${cakey} ${template}
+			return 1
+		fi
+	else
+		logit "Reusing existing root CA"
+	fi
+
+	rm -f ${tpmkey} ${tpmpubkey} ${tpmca}
+
+	if [ $((flags & FLAG_REGISTER_KEY)) -ne 0 ]; then
+		msg="$(run_tpmtool --generate-rsa --signing --register)"
+		if [ $? -ne 0 ]; then
+			logerr "Could not generate registered signing key with tpmtool"
+			logerr "${msg}"
+			return 1
+		fi
+		tpmkeyurl=$(echo "${msg}" | sed -n 's/\(tpmkey:uuid=[^;]*\);.*/\1/p')
+		if [ -z "${tpmkeyurl}" ]; then
+			logerr "Could not parse tpmkey URL"
+			logerr "${msg}"
+			return 1
+		fi
+	else
+		rm -f "${tpmkey}"
+		msg="$(run_tpmtool --generate-rsa --signing --outfile "${tpmkey}")"
+		if [ $? -ne 0 ]; then
+			logerr "Could not create signing key with tpmtool"
+			logerr "${msg}"
+			rm -f "${tpmkey}"
+			return 1
+		fi
+		if [ ! -r "${tpmkey}" ] || [ $(get_filesize "${tpmkey}") -eq 0 ]; then
+			logerr "The TPM key file ${tpmkey} was not written properly"
+			rm -f "${tpmkey}"
+			return 1
+		fi
+		chmod 640 ${tpmkey}
+		tpmkeyurl=tpmkey:file=${tpmkey}
+	fi
+
+	rm -f "${tpmpubkey}"
+	msg=$(run_tpmtool --pubkey=${tpmkeyurl} --outfile "${tpmpubkey}")
+	if [ $? -ne 0 ] || \
+           [ ! -r ${tpmpubkey} ] || [ $(get_filesize "${tpmpubkey}") -eq 0 ]; then
+		logerr "Error: Could not get TPM public key"
+		logerr "${msg}"
+		rm -f "${tpmkey}" "${tpmpubkey}"
+		return 1
+	fi
+
+	echo "cn=swtpm-localca" > ${template}
+	echo "ca" >> ${template}
+	echo "cert_signing_key" >> ${template}
+	echo "expiration_days = 3650" >> ${template}
+
+	msg=$(GNUTLS_PIN=${TPM_SRK_PASSWORD} ${CERTTOOL} \
+		--generate-certificate \
+		--template ${template} \
+		--outfile ${tpmca} \
+		--load-ca-privkey ${cakey} \
+		--load-ca-certificate ${cacert} \
+		--load-privkey ${tpmkeyurl} \
+		--load-pubkey ${tpmpubkey} \
+		2>&1)
+
+	if [ $? -ne 0 ]; then
+		logerr "Could not create TPM CA"
+		logerr "${msg}"
+		rm -f "${template}"
+		return 1
+	fi
+
+	output="statedir = ${dir}
+signingkey = ${tpmkeyurl}
+issuercert = ${tpmca}
+certserial = ${dir}/certserial
+TSS_TCSD_HOSTNAME = ${TSS_TCSD_HOSTNAME}
+TSS_TCSD_PORT = ${TSS_TCSD_PORT}"
+
+	if [ -n "${TPM_KEY_PASSWORD}" ]; then
+		output+="$(echo -e "\nsigningkey_password = ${TPM_KEY_PASSWORD}")"
+	fi
+	if [ -n "${TPM_SRK_PASSWORD}" ]; then
+		output+="$(echo -e "\nparentkey_password = ${TPM_SRK_PASSWORD}")"
+	fi
+
+	if [ -n "${outfile}" ]; then
+		echo "${output}" > "${outfile}"
+		chmod 640 "${outfile}"
+	fi
+	echo "${output}"
+
+	if [ "$(id -u)" -eq 0 ]; then
+		chown "${owner}":"${group}" ${dir}
+
+		pushd ${dir} &>/dev/null
+		if [ $? -eq 0 ]; then
+			chown "${owner}":"${group}" *
+			popd &>/dev/null
+		fi
+
+		if [ -n "${outfile}" ]; then
+			chown "${owner}":"${group}" "${outfile}"
+		fi
+	fi
+
+	rm -f ${template}
+
+	return 0
+} #create_localca_cert
+
+usage() {
+	cat << _EOF_
+Usage: $(basename $1) [options]
+
+THIS SCRIPT IS EXPERIMENTAL
+
+The following options are supported:
+
+--dir directory    Directory where to write the CA files into; must not exist
+                   unless --overwrite is passed
+--overwrite        Overwrite any data in an existing directory; tries to
+                   reuse a root CA if one is found there
+--register         Create a registered TPM 1.2 key rather than a file that
+                   contains the key
+--key-password s   Password for the newly created TPM key; required if
+                   --register is not passed
+                   Note: use the same as the --srk-password (bug in certtool)
+--srk-password s   Password for the TPM's SRK;
+                   Note: the well known password of 20 0x0 is not supported
+                         by tpmtool
+--outfile file     File to write the configuration to; if not passed it will be
+                   written to stdout only
+--owner owner      The owner of the directory and the files; only set if this
+                   script is run as root; recommended to be 'tss'
+--group group      The group owning the directory and the files;
+                   recommended to be 'tss'
+--tss-tcsd-hostname hostname
+                   The name of the host where tcsd (TrouSerS daemon) is running
+                   on; default is '${TSS_TCSD_HOSTNAME_DEFAULT}'
+--tss-tcsd-port p  The TCP port on which tcsd is listening for connections;
+                   default is ${TSS_TCSD_PORT_DEFAULT}
+--help, -h, -?     Display this help screen and exit
+
+
+_EOF_
+} #usage
+
+main() {
+	local flags=0
+	local dir outfile owner group msg
+
+	CERTTOOL=certtool
+	export TSS_TCSD_HOSTNAME=${TSS_TCSD_HOSTNAME_DEFAULT}
+	export TSS_TCSD_PORT=${TSS_TCSD_PORT_DEFAULT}
+
+	while [ $# -ne 0 ]; do
+		case "$1" in
+		--dir)
+			shift
+			dir="$1"
+			;;
+		--overwrite)
+			flags=$((flags | FLAG_OVERWRITE))
+			;;
+		--register)
+			flags=$((flags | FLAG_REGISTER_KEY))
+			;;
+		--srk-password)
+			shift
+			TPM_SRK_PASSWORD="$1"
+			;;
+		--key-password)
+			shift
+			TPM_KEY_PASSWORD="$1"
+			;;
+		--outfile)
+			shift
+			outfile="$1"
+			;;
+		--owner)
+			shift
+			owner="$1"
+			;;
+		--group)
+			shift
+			group="$1"
+			;;
+		--tss-tcsd-hostname)
+			shift
+			TSS_TCSD_HOSTNAME="$1"
+			;;
+		--tss-tcsd-port)
+			shift
+			TSS_TCSD_PORT="$2"
+			;;
+		--help|-h|-?)
+			usage "$0"
+			exit 0
+			;;
+		*)
+			logerr "Unsupported option $1"
+			exit 1
+			;;
+		esac
+		shift
+	done
+	if [ -z "${dir}" ]; then
+		logerr "Missing --dir option."
+		return 1
+	fi
+	# strip trailing '/' from dir
+	dir="$(echo "${dir}" | sed -n 's|[/]*$||p')"
+
+	if [ -d "${dir}" ] && [ $((flags & FLAG_OVERWRITE)) -eq 0 ]; then
+		logerr "Refusing to overwrite existing directory ${dir}."
+		return 1
+	fi
+
+	if [ -z "${TPM_KEY_PASSWORD}" ] && [ $((flags & FLAG_REGISTER_KEY)) -eq 0 ]; then
+		logerr "Key password is required"
+		return 1
+	fi
+
+	if [ "$(id -u)" -eq 0 ]; then
+		if [ -n "${owner}" ]; then
+			msg="$(id -u "${owner}" 2>&1)"
+			if [ $? -ne 0 ]; then
+				logerr "User ${owner} cannot be used: ${msg}"
+				return 1
+			fi
+		else
+			owner="root"
+		fi
+		if [ -n "${group}" ]; then
+			msg="$(id -g "${group}" 2>&1)"
+			if [ $? -ne 0 ]; then
+				logerr "Group ${group} cannot be used: ${msg}"
+				return 1
+			fi
+		else
+			group="root"
+		fi
+	fi
+
+	mkdir -p "${dir}"
+	if [ $? -ne 0 ]; then
+		logerr "Could not create directory ${dir}."
+		return 1
+	fi
+
+	create_localca_cert "${flags}" "${dir}" "${outfile}" "${owner}"
+	return $?
+} #main
+
+main "$@"
+exit $?
