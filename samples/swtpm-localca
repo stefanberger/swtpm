@@ -118,7 +118,7 @@ make_dir() {
 	local dir="$1"
 
 	if [ ! -d "$dir" ]; then
-		logit "Creating swtpm-local dir."
+		logit "Creating swtpm-local dir '${dir}'."
 		mkdir -p "$dir"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create directory '${dir}."
@@ -184,6 +184,10 @@ create_cert() {
 
 	if [ -n "${SIGNKEY_PASSWORD}" ]; then
 		options="$options --signkey-password ${SIGNKEY_PASSWORD}"
+	fi
+
+	if [ -n "${PARENTKEY_PASSWORD}" ]; then
+		options="$options --parentkey-password ${PARENTKEY_PASSWORD}"
 	fi
 
 	if [ -n "$vmid" ]; then
@@ -516,8 +520,12 @@ main() {
 		logerr "Missing signingkey variable in config file $LOCALCA_CONFIG."
 		exit 1
 	fi
-	make_dir $(dirname "$SIGNKEY")
+	# SIGNKEY may be a GNUTLS url like tpmkey:file= or tpmkey:uuid=
+	if ! [[ "${SIGNKEY}" =~ ^tpmkey:(file|uuid)= ]]; then
+		make_dir $(dirname "$SIGNKEY")
+	fi
 	SIGNKEY_PASSWORD=$(get_config_value "$LOCALCA_CONFIG" "signingkey_password")
+	PARENTKEY_PASSWORD=$(get_config_value "$LOCALCA_CONFIG" "parentkey_password")
 
 	ISSUERCERT=$(get_config_value "$LOCALCA_CONFIG" "issuercert")
 	if [ -z "$ISSUERCERT" ]; then
@@ -534,24 +542,34 @@ main() {
 		CERTTOOL="certtool";;
 	esac
 
-	if [ ! -r "$SIGNKEY" ]; then
-		if [ -f "$SIGNKEY" ]; then
-			logerr "Signing key $SIGNKEY exists but cannot access" \
-			       "it as $(id -un):$(id -gn)."
-			exit 1
+	# TPM keys are GNUTLS URLs...
+	if ! [[ "$SIGNKEY" =~ ^tpmkey:(uuid|file)= ]]; then
+		if [ ! -r "$SIGNKEY" ]; then
+			if [ -f "$SIGNKEY" ]; then
+				logerr "Signing key $SIGNKEY exists but cannot access" \
+				       "it as $(id -un):$(id -gn)."
+				exit 1
+			fi
+			# Create the signing key and issuer cert since it will be missing
+			logit "Creating root CA and a local CA's signing key and issuer cert."
+			create_localca_cert
+			if [ $? -ne 0 ]; then
+				logerr "Error creating local CA's signing key and cert"
+				exit 1
+			fi
 		fi
-		# Create the signing key and issuer cert since it will be missing
-		logit "Creating root CA and a local CA's signing key and issuer cert."
-		create_localca_cert
-		if [ $? -ne 0 ]; then
-			logerr "Error creating local CA's signing key and cert"
-			exit 1
-		fi
-	fi
 
-	if [ ! -r "$SIGNKEY" ]; then
-		logerr "Cannot access signing key ${SIGNKEY}."
-		exit 1
+		if [ ! -r "$SIGNKEY" ]; then
+			logerr "Cannot access signing key ${SIGNKEY}."
+			exit 1
+		fi
+	else
+		export TSS_TCSD_HOSTNAME=$(get_config_value "$LOCALCA_CONFIG" \
+			"TSS_TCSD_HOSTNAME" "localhost")
+		export TSS_TCSD_PORT=$(get_config_value "$LOCALCA_CONFIG" \
+			"TSS_TCSD_PORT" "30003")
+		logit "CA uses a GnuTLS TPM key; using TSS_TCSD_HOSTNAME=${TSS_TCSD_HOSTNAME}" \
+			"TSS_TCSD_PORT=${TSS_TCSD_PORT}"
 	fi
 
 	if [ ! -r "$ISSUERCERT" ]; then

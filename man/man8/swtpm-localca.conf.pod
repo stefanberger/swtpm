@@ -34,6 +34,17 @@ in PEM format.
 
 The name of file containing the serial number for the next certificate.
 
+=item B<TSS_TCSD_HOSTNAME>
+
+This variable can be set to the host where B<tcsd> is running on in case
+the signing key is a GnuTLS TPM 1.2 key. By default I<localhost> will be
+used.
+
+=item B<TSS_TCSD_PORT>
+
+This variable can be set to the port on which  B<tcsd> is listening for
+connections. By default port I<30003> will be used.
+
 =back
 
 =head1 EXAMPLE
