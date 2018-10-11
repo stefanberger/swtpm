@@ -109,6 +109,7 @@ usage(const char *prg)
         "--pubkey <filename>       : PEM file for public key (EK)\n"
         "--signkey <filename>      : PEM file for CA signing key\n"
         "--signkey-password <pass> : Password for the CA signing key\n"
+        "--parentkey-password <p>  : Password of parent key; SRK password of TPM\n"
         "--issuercert <filename>   : PEM file with CA cert\n"
         "--out-cert <filename>     : Filename for certificate\n"
         "--modulus <hex string>    : The modulus of the public key\n"
@@ -123,7 +124,7 @@ usage(const char *prg)
         "--tpm-model <model>       : The TPM model (part number)\n"
         "--tpm-version <version>   : The TPM version (firmware version)\n"
         "--platform-manufacturer <name> : The name of the Platform manufacturer\n"
-        "--platfrom-model <model>       : The Platform model (part number)\n"
+        "--platform-model <model>       : The Platform model (part number)\n"
         "--platform-version <version>   : The Platform version (firmware version)\n"
         "--tpm-spec-family <family>     : Specification family (string)\n"
         "--tpm-spec-level <level>       : Specification level (integer)\n"
@@ -851,6 +852,7 @@ main(int argc, char *argv[])
     gnutls_x509_privkey_t sigkey = NULL;
     gnutls_x509_crt_t sigcert = NULL;
     gnutls_x509_crt_t crt = NULL;
+    gnutls_privkey_t tpmkey = NULL;
     const char *pubkey_filename = NULL;
     const char *sigkey_filename = NULL;
     const char *cert_filename = NULL;
@@ -874,6 +876,7 @@ main(int argc, char *argv[])
     const char *error = NULL;
     int days = 365;
     char *sigkeypass = NULL;
+    char *parentkeypass = NULL;
     uint32_t ser_number;
     long int exponent = 0x10001;
     bool write_pem = false;
@@ -963,6 +966,13 @@ main(int argc, char *argv[])
                 goto cleanup;
             }
             sigkeypass = argv[i];
+        } else if (!strcmp(argv[i], "--parentkey-password")) {
+            i++;
+            if (i == argc) {
+                fprintf(stderr, "Missing argument for --parentkey-password.\n");
+                goto cleanup;
+            }
+            parentkeypass = argv[i];
         } else if (!strcmp(argv[i], "--issuercert")) {
             i++;
             if (i == argc) {
@@ -1184,8 +1194,6 @@ main(int argc, char *argv[])
             fprintf(stderr, "gnutls_global_init failed.\n");
             goto cleanup;
     }
-    gnutls_x509_privkey_init(&sigkey);
-
     if (pubkey_filename) {
         gnutls_pubkey_init(&pubkey);
 
@@ -1239,15 +1247,31 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     goto cleanup;                           \
 }
 
-    err = gnutls_load_file(sigkey_filename, &datum);
-    CHECK_GNUTLS_ERROR(err, "Could not read signing key from file %s: %s\n",
-                       sigkey_filename, gnutls_strerror(err));
-
-    if (sigkeypass) {
-        err = gnutls_x509_privkey_import2(sigkey, &datum, GNUTLS_X509_FMT_PEM,
-                                          sigkeypass, 0);
+    if (strstr(sigkey_filename, "tpmkey:uuid=") == sigkey_filename ||
+        strstr(sigkey_filename, "tpmkey:file=") == sigkey_filename) {
+        /* GnuTLS TPM 1.2 key URL */
+        err = gnutls_privkey_init(&tpmkey);
+        CHECK_GNUTLS_ERROR(err, "Could not initialize tpmkey: %s\n",
+                           gnutls_strerror(err));
+        err = gnutls_privkey_import_tpm_url(tpmkey, sigkey_filename,
+                                            parentkeypass, sigkeypass, 0);
+        CHECK_GNUTLS_ERROR(err, "Could not import tpmkey %s: %s\n",
+                           sigkey_filename, gnutls_strerror(err));
     } else {
-        err = gnutls_x509_privkey_import(sigkey, &datum, GNUTLS_X509_FMT_PEM);
+        err = gnutls_x509_privkey_init(&sigkey);
+        CHECK_GNUTLS_ERROR(err, "Could not initialize sigkey: %s\n",
+                           gnutls_strerror(err));
+
+        err = gnutls_load_file(sigkey_filename, &datum);
+        CHECK_GNUTLS_ERROR(err, "Could not read signing key from file %s: %s\n",
+                           sigkey_filename, gnutls_strerror(err));
+
+        if (sigkeypass) {
+            err = gnutls_x509_privkey_import2(sigkey, &datum, GNUTLS_X509_FMT_PEM,
+                                              sigkeypass, 0);
+        } else {
+            err = gnutls_x509_privkey_import(sigkey, &datum, GNUTLS_X509_FMT_PEM);
+        }
     }
     gnutls_free(datum.data);
     datum.data = NULL;
@@ -1515,7 +1539,13 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                        gnutls_strerror(err))
 
     /* sign cert */
-    err = gnutls_x509_crt_sign2(crt, sigcert, sigkey, hashAlgo, 0);
+    if (sigkey) {
+        err = gnutls_x509_crt_sign2(crt, sigcert, sigkey, hashAlgo, 0);
+    } else {
+        /* TPM 1.2 signs cert */
+        err = gnutls_x509_crt_privkey_sign(crt, sigcert, tpmkey,
+                                           GNUTLS_DIG_SHA1, 0);
+    }
     CHECK_GNUTLS_ERROR(err, "Could not sign the CRT: %s\n",
                        gnutls_strerror(err))
 
@@ -1570,6 +1600,7 @@ cleanup:
     gnutls_x509_crt_deinit(sigcert);
     gnutls_x509_privkey_deinit(sigkey);
     gnutls_pubkey_deinit(pubkey);
+    gnutls_privkey_deinit(tpmkey);
 
     gnutls_global_deinit();
 

@@ -52,6 +52,11 @@ The key used for signing the certificate. The file must be in PEM format.
 
 Optional password for the signing key.
 
+=item B<--parent-password <password>>
+
+Optional password for a parent key. In case a TPM key is used for signing
+this would be the password for the TPM's storage root key (SRK).
+
 =item B<--issuercert <filename>>
 
 The X.509 certificate of this signer that takes on the role of a local CA.
