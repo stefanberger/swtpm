@@ -368,6 +368,34 @@ create_localca_cert() {
 	return 0
 }
 
+usage() {
+       cat <<_EOF_
+Usage: $(basename $1) [options]
+
+The following options are supported:
+
+--type type           The type of certificate to create: 'ek' or 'platform'
+--ek key-param        The modulus of an RSA key or x=...,y=,... for an EC key
+--dir directory       The directory to write the resulting certificate into
+--vmid vmid           The ID of the virtual machine
+--optsfile file       A file containing options to pass to swtpm_cert
+--configfile file     A file containing configuration parameters for directory,
+                      signing key and password and certificate to use
+--logfile file        A file to write a log into
+--tpm-spec-family s   The implemented spec family, e.g., '2.0'
+--tpm-spec-revision i The spec revision of the TPM as integer; e.g., 146
+--tpm-spec-level i    The spec level of the TPM; must be an integer; e.g. 00
+--tpm-manufacturer s  The manufacturer of the TPM; e.g., id:00001014
+--tpm-model s         The model of the TPM; e.g., 'swtpm'
+--tpm-version i       The (firmware) version of the TPM; e.g., id:20160511
+--tpm2                Generate a certificate for a TPM 2
+--allow-signing       The TPM 2's EK can be used for signing
+--decryption          The TPM 2's EK can be used for decryption
+--help, -h, -?        Display this help screen and exit
+
+_EOF_
+}
+
 main() {
 	local typ ek dir vmid tmp
 	local tpm_spec_params="" tpm_attr_params=""
@@ -437,6 +465,10 @@ main() {
 		--decryption)
 			flags=$((flags | DECRYPTION_F))
 			;;
+                --help|-h|-?)
+                        usage "$0"
+                        exit 0
+                        ;;
 		*)
 			logerr "Unsupported option $1"
 			exit 1
