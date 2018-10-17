@@ -13,6 +13,14 @@ can be used by B<swtpm-localca> to sign EK and platform certificates.
 The CA uses a GnuTLS key to sign certificates. To do this,
 GnuTLS talks to the TPM 1.2 using the B<tcsd> (TrouSerS) daemon.
 
+Since the TPM CA's certificate must be signed by a CA, a root certificate authority
+will also be created and will sign this certificate. The root CA's
+private key and certificate will be located in the same directory as the
+signing key and have the names swtpm-localca-rootca-privkey.pem and
+swtpm-localca-rootca-cert.pem respectively. The environment variable
+SWTPM_ROOTCA_PASSWORD can be set for the password of the root CA's
+private key.
+
 Note: This tool is experimental. See the section on known issues below.
 
 The following options are supported:

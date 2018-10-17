@@ -296,12 +296,17 @@ create_localca_cert() {
 			local dir=$(dirname ${SIGNKEY})
 			local cakey=${dir}/swtpm-localca-rootca-privkey.pem
 			local cacert=${dir}/swtpm-localca-rootca-cert.pem
-			local msg
+			local msg passparam
+
+			if [ -n "${SWTPM_ROOTCA_PASSWORD}" ]; then
+				passparam="--password ${SWTPM_ROOTCA_PASSWORD}"
+			fi
 
 			# create a CA first
 			msg=$(${CERTTOOL} \
 				--generate-privkey \
 				--outfile ${cakey} \
+				${passparam} \
 				2>&1)
 			[ $? -ne 0 ] && {
 				logerr "Could not create root-CA key ${cakey}."
@@ -316,7 +321,7 @@ create_localca_cert() {
 			echo "cert_signing_key" >> ${tmp}
 			echo "expiration_days = 3650" >> ${tmp}
 
-			msg=$(${CERTTOOL} \
+			msg=$(GNUTLS_PIN=${SWTPM_ROOTCA_PASSWORD} ${CERTTOOL} \
 				--generate-self-signed \
 				--template ${tmp} \
 				--outfile ${cacert} \
@@ -351,7 +356,7 @@ create_localca_cert() {
 			echo "cert_signing_key" >> ${tmp}
 			echo "expiration_days = 3650" >> ${tmp}
 
-			msg=$(${CERTTOOL} \
+			msg=$(GNUTLS_PIN=${SWTPM_ROOTCA_PASSWORD} ${CERTTOOL} \
 				--generate-certificate \
 				--template ${tmp} \
 				--outfile ${ISSUERCERT} \
@@ -396,6 +401,11 @@ The following options are supported:
 --allow-signing       The TPM 2's EK can be used for signing
 --decryption          The TPM 2's EK can be used for decryption
 --help, -h, -?        Display this help screen and exit
+
+
+The following environment variables are supported:
+
+SWTPM_ROOTCA_PASSWORD  The root CA's private key password
 
 _EOF_
 }
