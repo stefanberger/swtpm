@@ -24,7 +24,9 @@ Since this certificate must be signed by a CA, a root certificate authority
 will also be created and will sign this certificate. The root CA's
 private key and certificate will be located in the same directory as the
 signing key and have the names swtpm-localca-rootca-privkey.pem and
-swtpm-localca-rootca-cert.pem respectively.
+swtpm-localca-rootca-cert.pem respectively. The environment variable
+SWTPM_ROOTCA_PASSWORD can be set for the password of the root CA's
+private key.
 
 The following options are supported:
 

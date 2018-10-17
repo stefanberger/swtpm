@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm-create-tpmca 8"
-.TH swtpm-create-tpmca 8 "2018-10-15" "swtpm" ""
+.TH swtpm-create-tpmca 8 "2018-10-17" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -149,6 +149,14 @@ swtpm\-create\-tpmca
 can be used by \fBswtpm-localca\fR to sign \s-1EK\s0 and platform certificates.
 The \s-1CA\s0 uses a GnuTLS key to sign certificates. To do this,
 GnuTLS talks to the \s-1TPM 1.2\s0 using the \fBtcsd\fR (TrouSerS) daemon.
+.PP
+Since the \s-1TPM CA\s0's certificate must be signed by a \s-1CA,\s0 a root certificate authority
+will also be created and will sign this certificate. The root \s-1CA\s0's
+private key and certificate will be located in the same directory as the
+signing key and have the names swtpm\-localca\-rootca\-privkey.pem and
+swtpm\-localca\-rootca\-cert.pem respectively. The environment variable
+\&\s-1SWTPM_ROOTCA_PASSWORD\s0 can be set for the password of the root \s-1CA\s0's
+private key.
 .PP
 Note: This tool is experimental. See the section on known issues below.
 .PP

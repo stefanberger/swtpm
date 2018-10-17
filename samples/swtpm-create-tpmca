@@ -86,9 +86,15 @@ create_localca_cert() {
 	local msg output
 
 	if ! [ -r "${cakey}" ] || ! [ -r ${cacert} ]; then
+		local passparam
+
+		if [ -n "${SWTPM_ROOTCA_PASSWORD}" ]; then
+			passparam="--password ${SWTPM_ROOTCA_PASSWORD}"
+		fi
 		msg=$(${CERTTOOL} \
 			--generate-privkey \
 			--outfile ${cakey} \
+			${passparam} \
 			2>&1)
 		[ $? -ne 0 ] && {
 			logerr "Could not create root-CA key ${cakey}."
@@ -102,7 +108,7 @@ create_localca_cert() {
 		echo "cert_signing_key" >> ${template}
 		echo "expiration_days = 3650" >> ${template}
 
-		msd=$(${CERTTOOL} \
+		msg=$(GNUTLS_PIN=${SWTPM_ROOTCA_PASSWORD} ${CERTTOOL} \
 			--generate-self-signed \
 			--template ${template} \
 			--outfile ${cacert} \
@@ -225,6 +231,8 @@ TSS_TCSD_PORT = ${TSS_TCSD_PORT}"
 
 usage() {
 	cat << _EOF_
+Create a TPM-based CA for signing EK and platform certificates.
+
 Usage: $(basename $1) [options]
 
 THIS SCRIPT IS EXPERIMENTAL
@@ -256,6 +264,10 @@ The following options are supported:
                    default is ${TSS_TCSD_PORT_DEFAULT}
 --help, -h, -?     Display this help screen and exit
 
+
+The following environment variables are supported:
+
+SWTPM_ROOTCA_PASSWORD  The root CA's private key password
 
 _EOF_
 } #usage
