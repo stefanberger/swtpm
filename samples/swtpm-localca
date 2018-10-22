@@ -114,6 +114,12 @@ get_config_value() {
 	return 0
 }
 
+# Escape the GnuTLS PKCS11 URL
+# @param1: The string with the GnuTLS PKCS11 URL
+escape_pkcs11_url() {
+	echo "$1" | sed 's/;/\\;/g'
+}
+
 make_dir() {
 	local dir="$1"
 
@@ -232,7 +238,7 @@ create_cert() {
 			$options \
 			$tpm_spec_params \
 			$tpm_attr_params \
-			--signkey ${SIGNKEY} \
+			--signkey "$(escape_pkcs11_url ${SIGNKEY})" \
 			--issuercert ${ISSUERCERT} \
 			--out-cert ${dir}/ek.cert \
 			$keyparms \
