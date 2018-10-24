@@ -318,7 +318,7 @@ main() {
 			;;
 		--tss-tcsd-port)
 			shift
-			TSS_TCSD_PORT="$2"
+			TSS_TCSD_PORT="$1"
 			;;
 		--help|-h|-?)
 			usage "$0"
