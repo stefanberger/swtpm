@@ -18,3 +18,5 @@ swtpm_bios_SOURCES = tpm_bios.c
 
 EXTRA_DIST = \
 	README
+
+CLEANFILES = *.gcno *.gcda *.gcov

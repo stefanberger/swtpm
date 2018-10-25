@@ -17,3 +17,5 @@ swtpm_ioctl_CFLAGS = \
 
 EXTRA_DIST = \
 	README
+
+CLEANFILES = *.gcno *.gcda *.gcov

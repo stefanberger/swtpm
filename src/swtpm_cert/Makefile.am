@@ -33,3 +33,5 @@ EXTRA_DIST = \
 	tpm.asn \
 	tpm_asn1.h \
 	README
+
+CLEANFILES = *.gcno *.gcda *.gcov

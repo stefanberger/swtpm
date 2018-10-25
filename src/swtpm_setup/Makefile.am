@@ -21,3 +21,5 @@ install-exec-hook:
 
 EXTRA_DIST = \
 	README
+
+CLEANFILES = *.gcno *.gcda *.gcov

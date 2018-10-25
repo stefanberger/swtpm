@@ -118,3 +118,5 @@ swtpm_cuse_LDADD = \
 
 AM_CPPFLAGS   = 
 LDADD         = -ltpms
+
+CLEANFILES = *.gcno *.gcda *.gcov
