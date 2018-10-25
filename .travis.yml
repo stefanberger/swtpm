@@ -17,6 +17,7 @@ before_install:
 - cd ..
 - sudo apt-get -y install libfuse-dev libglib2.0-dev libgmp-dev expect libtasn1-dev
   socat findutils tpm-tools gnutls-dev gnutls-bin
+- sudo pip install cpp-coveralls
 addons:
   coverity_scan:
     project:
@@ -28,4 +29,8 @@ addons:
     branch_pattern: coverity_scan
 script: "./autogen.sh --with-openssl --prefix=/usr
   && SWTPM_TEST_EXPENSIVE=1 make -j4 distcheck
-  && sudo make -j4 distcheck"
+  && ./configure --with-openssl --prefix=/usr --enable-test-coverage
+  && sudo make clean
+  && sudo make -j4 check"
+after_success:
+- sudo coveralls --gcov-options '\-lp'
