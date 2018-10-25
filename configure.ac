@@ -359,6 +359,14 @@ if test "x$enable_hardening" != "xno"; then
 	AC_SUBST([HARDENING_CFLAGS])
 fi
 
+AC_ARG_ENABLE([test-coverage],
+  AS_HELP_STRING([--enable-test-coverage], [Enable test coverage flags]))
+
+if test "x$enable_test_coverage" = "xyes"; then
+	COVERAGE_CFLAGS="-fprofile-arcs -ftest-coverage"
+	COVERAGE_LDFLAGS="-fprofile-arcs"
+fi
+
 AC_ARG_WITH([tss-user],
             AC_HELP_STRING([--with-tss-user=TSS_USER],
                            [The tss user to use]),
@@ -378,7 +386,9 @@ AC_SUBST([TSS_GROUP])
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
-CFLAGS="$CFLAGS $GNUTLS_CFLAGS"
+CFLAGS="$CFLAGS $GNUTLS_CFLAGS $COVERAGE_CFLAGS"
+
+LDFLAGS="$LDFLAGS $COVERAGE_LDFLAGS"
 
 dnl Simulate the following for systems with pkg-config < 0.28:
 dnl PKG_CHECK_VAR([libtpms_cryptolib], [libtpms], [cryptolib],
