@@ -399,11 +399,16 @@ static void worker_thread(gpointer data, gpointer user_data)
  * libtpms and allocate a global TPM request buffer.
  *
  * @flags: libtpms init flags
+ * @l_tpmversion: the version of the TPM
+ * @res: the result from starting the TPM
  */
-static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion)
+static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
+                     TPM_RESULT *res)
 {
     DIR *dir;
     const char *tpmdir = tpmstate_get_dir();
+
+    *res = TPM_FAIL;
 
     dir = opendir(tpmdir);
     if (dir) {
@@ -436,7 +441,8 @@ static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion)
         goto error_del_pool;
     }
 
-    if (tpmlib_start(flags, l_tpmversion) != TPM_SUCCESS)
+    *res = tpmlib_start(flags, l_tpmversion);
+    if (*res != TPM_SUCCESS)
         goto error_del_pool;
 
     logprintf(STDOUT_FILENO,
@@ -982,12 +988,10 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             TPMLIB_Terminate();
 
             tpm_running = false;
-            if (tpm_start(init_p->u.req.init_flags, tpmversion) < 0) {
-                res = TPM_FAIL;
+            if (tpm_start(init_p->u.req.init_flags, tpmversion, &res) < 0) {
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM.\n");
             } else {
-                res = TPM_SUCCESS;
                 tpm_running = true;
             }
             init_p->u.resp.tpm_result = res;
