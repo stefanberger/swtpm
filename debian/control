@@ -16,7 +16,7 @@ Build-Depends: automake,
 	       socat,
 	       findutils,
 	       tpm-tools (>= 1.3.8),
-	       python-twisted,
+	       python3-twisted,
 	       gnutls-dev
 # linux-image-extra
 
