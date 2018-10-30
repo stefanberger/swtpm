@@ -107,7 +107,8 @@ usage(const char *prg)
         "\n"
         "The following options are supported:\n"
         "--pubkey <filename>       : PEM file for public key (EK)\n"
-        "--signkey <filename>      : PEM file for CA signing key\n"
+        "--signkey <filename>      : PEM file for CA signing key or GnuTLS TPM or\n"
+        "                            PKCS11 URL\n"
         "--signkey-password <pass> : Password for the CA signing key\n"
         "--parentkey-password <p>  : Password of parent key; SRK password of TPM\n"
         "--issuercert <filename>   : PEM file with CA cert\n"
@@ -140,6 +141,10 @@ usage(const char *prg)
         "                            encipherment; requires --tpm2\n"
         "--version                 : Display version and exit\n"
         "--help                    : Display this help screen and exit\n"
+        "\n"
+        "The following environment variables are supported:\n"
+        "\n"
+        "SWTPM_PKCS11_PIN          : PKCS11 PIN to use\n"
         "\n",
         prg);
 }
@@ -852,6 +857,22 @@ exit:
     return err;
 }
 
+static int mypinfunc(void *userdata, int attempt, const char *tokenurl,
+                     const char *token_label,
+                     unsigned int flags,
+                     char *pin, size_t pin_max)
+{
+    const char *userpin = getenv("SWTPM_PKCS11_PIN");
+
+    if (!userpin)
+        return -1;
+
+    strncpy(pin, userpin, pin_max - 1);
+    pin[pin_max - 1] = 0;
+
+    return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -861,7 +882,7 @@ main(int argc, char *argv[])
     gnutls_x509_privkey_t sigkey = NULL;
     gnutls_x509_crt_t sigcert = NULL;
     gnutls_x509_crt_t crt = NULL;
-    gnutls_privkey_t tpmkey = NULL;
+    gnutls_privkey_t tpmkey = NULL, pkcs11key = NULL;
     const char *pubkey_filename = NULL;
     const char *sigkey_filename = NULL;
     const char *cert_filename = NULL;
@@ -1266,6 +1287,15 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                                             parentkeypass, sigkeypass, 0);
         CHECK_GNUTLS_ERROR(err, "Could not import tpmkey %s: %s\n",
                            sigkey_filename, gnutls_strerror(err));
+    } else if (strstr(sigkey_filename, "pkcs11:") == sigkey_filename) {
+        gnutls_pkcs11_set_pin_function(mypinfunc, NULL);
+        /* GnuTLS PKCS11 key URI */
+        err = gnutls_privkey_init(&pkcs11key);
+        CHECK_GNUTLS_ERROR(err, "Could not initialize tpmkey: %s\n",
+                           gnutls_strerror(err));
+        err = gnutls_privkey_import_url(pkcs11key, sigkey_filename, 0);
+        CHECK_GNUTLS_ERROR(err, "Could not import pkcs11 key %s: %s\n",
+                           sigkey_filename, gnutls_strerror(err));
     } else {
         err = gnutls_x509_privkey_init(&sigkey);
         CHECK_GNUTLS_ERROR(err, "Could not initialize sigkey: %s\n",
@@ -1550,13 +1580,16 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     /* sign cert */
     if (sigkey) {
         err = gnutls_x509_crt_sign2(crt, sigcert, sigkey, hashAlgo, 0);
+    } else if (pkcs11key) {
+        err = gnutls_x509_crt_privkey_sign(crt, sigcert, pkcs11key,
+                                           hashAlgo, 0);
     } else {
         /* TPM 1.2 signs cert for a TPM 1.2 (SHA1) or TPM 2 (SHA256) */
         err = gnutls_x509_crt_privkey_sign(crt, sigcert, tpmkey,
                                            hashAlgo, 0);
     }
-    CHECK_GNUTLS_ERROR(err, "Could not sign the CRT: %s\n",
-                       gnutls_strerror(err))
+    CHECK_GNUTLS_ERROR(err, "Could not sign the CRT: %s [%s]\n",
+                       gnutls_strerror(err), sigkey_filename)
 
     /* write cert to file; either PEM or DER */
     gnutls_x509_crt_export2(crt,
@@ -1610,6 +1643,7 @@ cleanup:
     gnutls_x509_privkey_deinit(sigkey);
     gnutls_pubkey_deinit(pubkey);
     gnutls_privkey_deinit(tpmkey);
+    gnutls_privkey_deinit(pkcs11key);
 
     gnutls_global_deinit();
 
