@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+#set -x
+
+# For the license, see the LICENSE file in the root directory.
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+# tpm2_ptool may not be packaged everywhere ...
+if [ -z "$(type -P tpm2_ptool)" ]; then
+	echo "Could not find tpmtool in PATH"
+	exit 77
+fi
+
+if [ -z "$(tpm2_ptool | grep ",config,")" ]; then
+	echo "tpm2_ptool does not support the config command"
+	exit 77
+fi
+
+msg=$(systemctl status tpm2-abrmd 2>&1)
+if [ $? -ne 0 ]; then
+	echo "tpm2-abrmd must be running"
+	exit 77
+fi
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:=$(dirname "$0")}
+SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
+
+SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
+SWTPM_CREATE_TPMCA=${SRCDIR}/samples/swtpm-create-tpmca
+SWTPM_LOCALCA=${SRCDIR}/samples/swtpm-localca
+SWTPM=${ROOT}/src/swtpm/swtpm
+SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
+
+SWTPM_INTERFACE=socket+socket
+SWTPM_SERVER_NAME=localhost
+SWTPM_SERVER_PORT=65434
+SWTPM_CTRL_PORT=65435
+
+workdir=$(mktemp -d)
+
+SWTPM_LOCALCA_DIR="${workdir}/my localca"
+SWTPM_LOCALCA_CONF="${workdir}/my localca/swtpm-localca.conf"
+
+PID="" # primary object id returned by tpm2_ptool
+
+function cleanup()
+{
+	if [ -n "${PID}" ]; then
+		echo "y" | tpm2_ptool destroy ${PID} &>/dev/null
+	fi
+	rm -rf "${workdir}"
+}
+
+trap "cleanup" SIGTERM EXIT
+source ${TESTDIR}/common
+
+case "$(uname -s)" in
+Darwin)
+	CERTTOOL=gnutls-certtool;;
+*)
+	CERTTOOL=certtool;;
+esac
+
+PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
+
+# Run the tests
+# @param1: The vTPM for which the certificate is created is a TPM 2
+function run_test() {
+	local vtpm_is_tpm2="$1"
+
+	local tmp params certinfo regex regexs fil i skip
+
+	rm -rf "${workdir}"/*
+
+	cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
+create_certs_tool=${SWTPM_LOCALCA}
+create_certs_tool_config=${workdir}/swtpm-localca.conf
+create_certs_tool_options=/dev/null
+_EOF_
+
+	tmp="$(tpm2_ptool init 2>&1)"
+	if [ $? -ne 0 ]; then
+		echo "tpm2_ptool init failed:"
+		echo "${tmp}"
+		exit 1
+	fi
+	PID="$(echo "${tmp}" | grep -E "^id:" |cut -d ":" -f2 | tr -d " ")"
+	if [ -z "${PID}" ]; then
+		echo "Could not grep the pid from the tpm2_ptool output"
+		echo "${tmp}"
+		exit 1
+	fi
+
+	tmp="$(SWTPM_PKCS11_PIN="mypin 123" SWTPM_PKCS11_SO_PIN="123" ${SWTPM_CREATE_TPMCA} \
+		--dir "${SWTPM_LOCALCA_DIR}" \
+		--overwrite \
+		--outfile "${SWTPM_LOCALCA_CONF}" \
+		--group tss \
+		--tpm2 \
+		--pid "${PID}")"
+
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not create TPM CA"
+		echo "${tmp}"
+		exit 1
+	fi
+
+	for fil in \
+		swtpm-localca-rootca-cert.pem \
+		swtpm-localca-rootca-privkey.pem \
+		swtpm-localca-tpmca-cert.pem \
+		swtpm-localca-tpmca-pubkey.pem; do
+		if [ ! -r "${SWTPM_LOCALCA_DIR}/${fil}" ]; then
+			echo "Error: TPM CA tool did not create file ${fil}."
+			exit 1
+		fi
+	done
+
+	for regex in \
+		"^statedir = " \
+		"^signingkey = " \
+		"^issuercert = " \
+		"^certserial = " \
+		"^SWTPM_PKCS11_PIN = mypin 123"; do
+		if [ -n "${regex}" ] && \
+		   [ -z "$(grep -E "${regex}" "${SWTPM_LOCALCA_CONF}")" ]; then
+			echo "Error: Could not find regex '${line}' in CA config file."
+			cat "${SWTPM_LOCALCA_CONF}"
+			exit 1
+		fi
+	done
+
+	params=""
+	if [ ${vtpm_is_tpm2} -ne 0 ]; then
+		params="--tpm2"
+		skip=0
+	else
+		skip=7 # header in cert
+	fi
+
+	# make sure we can actually sign with this new certificate
+	${SWTPM_LOCALCA} \
+		--type ek \
+		--ek x=739192d8f1004283957a7b1568d610b41c637ccc114aadcac4908c20456468fa,y=59f63ac06f8011f6fdd1460c6bc8e3e0a2d090d4fc188c7e04870e06795ce8ae \
+		--dir "${workdir}" --vmid test \
+		${params} \
+		--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 00 \
+		--tpm-model swtpm --tpm-version 20170101 --tpm-manufacturer IBM \
+		--configfile "${SWTPM_LOCALCA_CONF}" \
+		--optsfile /dev/null
+	if [ $? -ne 0 ]; then
+		echo "Error: The CA could not sign with the new certificate"
+		exit 1
+	fi
+	if [ ! -f "${workdir}/ek.cert" ]; then
+		echo "Error: The CA did not produce a certificate"
+		exit 1
+	fi
+	#  cert was for example 541 bytes long
+	if [ $(get_filesize "${workdir}/ek.cert") -lt 500 ]; then
+		echo "Error: The certificate's size is dubious"
+		ls -l "${workdir}/ek.cert"
+		exit 1
+	fi
+
+	# Check the contents of the certificate
+	certinfo=$(dd "if=${workdir}/ek.cert" bs=1 "skip=$skip" status=none | \
+		   "$CERTTOOL" -i --inder)
+	regexs=('^[[:space:]]+2.23.133.8.1$'
+		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.3=.*'
+		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.2=.*'
+		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.1=.*'
+		'^[[:space:]]+Certificate Authority \(CA\): FALSE$'
+		'^[[:space:]]+Unknown extension 2.5.29.9 \(not critical\):$'
+		'^[[:space:]]+Hexdump: 3019301706056781050210310e300c0c03322e3002010002020092$')
+	if [ ${vtpm_is_tpm2} -ne 0 ]; then
+		# TPM 2.0; due to ecc: Key agreement
+		regexs+=('^[[:space:]]+Key agreement\.$'
+			 '^[[:space:]]+Signature Algorithm: RSA-SHA256$')
+	else
+		regexs+=('^[[:space:]]+Key encipherment\.$'
+			 '^[[:space:]]+Signature Algorithm: RSA-SHA1$')
+	fi
+
+	for ((i=0; i < ${#regexs}; i++)); do \
+		if [ -n "${regexs[$i]}" ] && \
+		   [ -z "$(echo "${certinfo}" | grep -E "${regexs[$i]}")" ]; then
+			echo "Error: Could not match regex '${regexs[$i]}' with certificate info:"
+			echo "${certinfo}"
+			exit 1
+		fi
+	done
+
+} # run_test
+
+run_test 1
+echo "Test 1: OK"
+
+run_test 0
+echo "Test 2: OK"
+
+exit 0
