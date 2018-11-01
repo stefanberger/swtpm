@@ -44,7 +44,7 @@ function get_filesize()
 # TPM_SRK_PASSWORD and TPM_KEY_PASSWORD global variables are used
 # for the SRK and key passwords respectively.
 run_tpmtool() {
-	local prg out
+	local prg out rc
 
 	prg="spawn tpmtool $@
 		expect {
@@ -67,7 +67,9 @@ run_tpmtool() {
 		exit [lindex \$result 3]
 	"
 	out=$(expect -c "${prg}")
+	rc=$?
 	echo "${out}"
+	return $rc
 } #run_tpmtool
 
 create_localca_cert() {
