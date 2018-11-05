@@ -66,6 +66,7 @@ const char *one_arg_params[] = {
     "--pwdfile",
     "--swtpm_ioctl",
     "--pcr-banks",
+    "--tcsd-system-ps-file",
     NULL
 };
 
