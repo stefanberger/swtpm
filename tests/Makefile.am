@@ -80,7 +80,8 @@ TESTS += \
 	test_tpm2_swtpm_setup_create_cert
 if HAVE_TCSD
 TESTS += \
-	test_swtpm_setup_create_cert
+	test_swtpm_setup_create_cert \
+	test_samples_create_tpmca
 endif
 endif
 
