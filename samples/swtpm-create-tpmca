@@ -345,6 +345,11 @@ main() {
 		return 1
 	fi
 
+	if [ -z "${TPM_SRK_PASSWORD}" ]; then
+		logerr "SRK password must be provided"
+		return 1
+	fi
+
 	if [ -z "${TPM_KEY_PASSWORD}" ] && [ $((flags & FLAG_REGISTER_KEY)) -eq 0 ]; then
 		logerr "Key password is required"
 		return 1
