@@ -157,6 +157,14 @@ the sha1 and sha256 banks are activated.
 Pass the path to the swtpm_ioctl executable. By default the swtpm_ioctl
 in the PATH is used.
 
+=item B<--tcsd-system-ps-file <file>>
+
+A file to copy TCSD's system_ps_file to. The system_ps_file contains the
+TPM 1.2 SRK public key after taking ownership of the TPM. The file is
+needed by TCSD for key related functions.
+
+This option is only useful with TPM 1.2 and in if ownership is taken.
+
 =item B<--help, -h>
 
 Display the help screen

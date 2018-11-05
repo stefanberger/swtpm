@@ -590,6 +590,7 @@ tpm_createendorsementkeypair()
 # @param4: the TPM owner password to use
 # @param5: The SRK password to use
 # @param6: The ID of the VM
+# @param7: The filename to copy the TCSD system_ps_file to; optional
 init_tpm()
 {
 	local flags="$1"
@@ -598,6 +599,7 @@ init_tpm()
 	local ownerpass="$4"
 	local srkpass="$5"
 	local vmid="$6"
+	local tcsd_system_ps_file="$7"
 
 	# where external app writes certs into
 	local certsdir="$tpm_state_path"
@@ -630,6 +632,7 @@ init_tpm()
 			return 1
 		fi
 		logit "Successfully created EK."
+		logit "flags=$flags"
 
 		if [ $((flags & ~$SETUP_CREATE_EK_F)) -eq 0 ]; then
 			return 0
@@ -823,6 +826,11 @@ init_tpm()
 			return 1
 		fi
 		logit "Successfully enabled and activated the TPM"
+	fi
+
+	logit "${tcsd_system_ps_file}"
+	if [ -n "${tcsd_system_ps_file}" ]; then
+		cp "${TCSD_DATA_FILE}" "${tcsd_system_ps_file}"
 	fi
 
 	return 0
@@ -1998,6 +2006,9 @@ The following options are supported:
                    like 'sha1,sha256'. '-' to skip and leave all banks active.
                    Default: $DEFAULT_PCR_BANKS
 
+--tcsd-system-ps-file <file>
+                 : File to copy TCSD's system_ps_file to; only for TPM 1.2
+
 --version        : Display version and exit
 
 --help,-h,-?     : Display this help screen
@@ -2014,6 +2025,7 @@ main()
 	local keyfile pwdfile cipher="aes-128-cbc"
 	local got_ownerpass=0 got_srkpass=0
 	local pcr_banks=""
+	local tcsd_system_ps_file=""
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
@@ -2048,6 +2060,7 @@ main()
 		--allow-signing) flags=$((flags | SETUP_ALLOW_SIGNING_F));;
 		--decryption) flags=$((flags | SETUP_DECRYPTION_F));;
 		--pcr-banks) shift; pcr_banks="${pcr_banks},$1";;
+		--tcsd-system-ps-file) shift; tcsd_system_ps_file="$1";;
 		--version) versioninfo $0; exit 0;;
 		--help|-h|-?) usage $0; exit 0;;
 		*) logerr "Unknown option $1"; usage $0; exit 1;;
@@ -2119,6 +2132,14 @@ main()
 		if [ $((flags & SETUP_CREATE_SPK_F)) -ne 0 ]; then
 			logerr "--create-spk requires --tpm2."
 			exit 1
+		fi
+		if [ -n "${tcsd_system_ps_file}" ]; then
+			touch ${tcsd_system_ps_file} &>/dev/null
+			if [ $? -ne 0 ]; then
+				logerr "Cannot write to	${tcsd_system_ps_file}"
+				exit 1
+			fi
+			rm -f ${tcsd_system_ps_file}
 		fi
 	fi
 
@@ -2214,7 +2235,7 @@ main()
 
 	if [ $((flags & SETUP_TPM2_F)) -eq 0 ]; then
 		init_tpm $flags "$config_file" "$tpm_state_path" \
-		        "$ownerpass" "$srkpass" "$vmid"
+		        "$ownerpass" "$srkpass" "$vmid" "$tcsd_system_ps_file"
 	else
 		SWTPM="$SWTPM --tpm2"
 		init_tpm2 $flags "$config_file" "$tpm_state_path" \
