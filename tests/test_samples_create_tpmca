@@ -19,6 +19,7 @@ SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_CREATE_TPMCA=${SRCDIR}/samples/swtpm-create-tpmca
+SWTPM_LOCALCA=${SRCDIR}/samples/swtpm-localca
 SWTPM=${ROOT}/src/swtpm/swtpm
 SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
 
@@ -38,6 +39,7 @@ TCSD_CONF=${workdir}/tcsd.conf
 TCSD_SYSTEM_PS_FILE=${workdir}/system_ps_file
 TCSD_PIDFILE=${workdir}/tcsd.pid
 SWTPM_LOCALCA_DIR=${workdir}/localca
+SWTPM_LOCALCA_CONF=${workdir}/localca/swtpm-localca.conf
 
 function cleanup()
 {
@@ -56,21 +58,45 @@ function cleanup()
 trap "cleanup" SIGTERM EXIT
 source ${TESTDIR}/common
 
-PATH=${ROOT}/src/swtpm_bios:$PATH
+case "$(uname -s)" in
+Darwin)
+	CERTTOOL=gnutls-certtool;;
+*)
+	CERTTOOL=certtool;;
+esac
 
+PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
 
 # run the test with the given owner and SRK passwords
-# @param1: owner password
-# @param2: SRK password
+# @param1: owner password; empty means to use well known password
+# @param2: SRK password; empty means to use well known password
+# @param3: vTPM is a TPM 2.0
 function run_test() {
 	local owner_password="$1"
 	local srk_password="$2"
+	local vtpm_is_tpm2=$3
+
+	local params certinfo regex regexs fil i skip
+
+	rm -rf ${workdir}/*
 
 	cat <<_EOF_ > ${workdir}/swtpm_setup.conf
 create_certs_tool=${SWTPM_LOCALCA}
 create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=${workdir}/swtpm-localca.options
 _EOF_
+
+	params=""
+	if [ -n "${owner_password}" ]; then
+		params="${params} --ownerpass ${owner_password}"
+	else
+		params="${params} --owner-well-known"
+	fi
+	if [ -n "${srk_password}" ]; then
+		params="${params} --srkpass ${srk_password}"
+	else
+		params="${params} --srk-well-known"
+	fi
 
 	# First setup the TPM and take ownership of it and set SRK password
 	$SWTPM_SETUP \
@@ -81,9 +107,8 @@ _EOF_
 		--tpm "${SWTPM_EXE} socket" \
 		--swtpm_ioctl ${SWTPM_IOCTL} \
 		--take-ownership \
-		--ownerpass ${owner_password} \
-		--srkpass ${srk_password} \
-		--tcsd-system-ps-file ${TCSD_SYSTEM_PS_FILE}
+		${params} \
+		--tcsd-system-ps-file ${TCSD_SYSTEM_PS_FILE} &>/dev/null
 
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not run $SWTPM_SETUP."
@@ -119,7 +144,7 @@ _EOF_
 	chown tss:tss ${TCSD_CONF}
 	chmod 0600 ${TCSD_CONF}
 
-	bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c ${TCSD_CONF} -e -f & echo \$! > ${TCSD_PIDFILE}; wait" &
+	bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c ${TCSD_CONF} -e -f &>/dev/null & echo \$! > ${TCSD_PIDFILE}; wait" &
 	BASH_PID=$!
 
 	if wait_for_file ${TCSD_PIDFILE} 3; then
@@ -134,12 +159,19 @@ _EOF_
 		exit 1
 	fi
 
-	$SWTPM_CREATE_TPMCA \
+	if [ -n "${srk_password}" ]; then
+		params="--srk-password ${srk_password}"
+	else
+		params=""
+	fi
+
+	${SWTPM_CREATE_TPMCA} \
 		--dir ${SWTPM_LOCALCA_DIR} \
-		--srk-password ${srk_password} \
+		${params} \
 		--register \
 		--group tss \
-		--tss-tcsd-port ${TCSD_LISTEN_PORT}
+		--tss-tcsd-port ${TCSD_LISTEN_PORT} \
+		--outfile ${SWTPM_LOCALCA_CONF} &>/dev/null
 
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not create TPM CA"
@@ -153,6 +185,87 @@ _EOF_
 		swtpm-localca-tpmca-pubkey.pem; do
 		if [ ! -r ${SWTPM_LOCALCA_DIR}/${fil} ]; then
 			echo "Error: TPM CA tool did not create file ${fil}."
+			exit 1
+		fi
+	done
+
+	params=""
+	if [ -n "${srk_password}" ]; then
+		params="^parentkey_password ="
+	fi
+
+	for regex in \
+		"^statedir = " \
+		"^signingkey = " \
+		"^issuercert = " \
+		"^certserial = " \
+		"^TSS_TCSD_HOSTNAME = " \
+		"^TSS_TCSD_PORT = " \
+		${params}; do
+		if [ -n "${regex}" ] && \
+		   [ -z "$(grep -E "${regex}" ${SWTPM_LOCALCA_CONF})" ]; then
+			echo "Error: Could not find regex '${line}' in CA config file."
+			cat ${SWTPM_LOCALCA_CONF}
+			exit 1
+		fi
+	done
+
+	params=""
+	if [ ${vtpm_is_tpm2} -ne 0 ]; then
+		params="--tpm2"
+		skip=0
+	else
+		skip=7 # header in cert
+	fi
+
+	# make sure we can actually sign with this new certificate
+	${SWTPM_LOCALCA} \
+		--type ek \
+		--ek x=739192d8f1004283957a7b1568d610b41c637ccc114aadcac4908c20456468fa,y=59f63ac06f8011f6fdd1460c6bc8e3e0a2d090d4fc188c7e04870e06795ce8ae \
+		--dir ${workdir} --vmid test \
+		${params} \
+		--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 00 \
+		--tpm-model swtpm --tpm-version 20170101 --tpm-manufacturer IBM \
+		--configfile ${SWTPM_LOCALCA_CONF}
+	if [ $? -ne 0 ]; then
+		echo "Error: The CA could not sign with the new certificate"
+		exit 1
+	fi
+	if [ ! -f ${workdir}/ek.cert ]; then
+		echo "Error: The CA did not produce a certificate"
+		exit 1
+	fi
+	#  cert was for example 541 bytes long
+	if [ $(get_filesize ${workdir}/ek.cert) -lt 500 ]; then
+		echo "Error: The certificate's size is dubious"
+		ls -l ${workdir}/ek.cert
+		exit 1
+	fi
+
+	# Check the contents of the certificate
+	certinfo=$(dd if=${workdir}/ek.cert bs=1 skip=$skip status=none | \
+		   $CERTTOOL -i --inder)
+	regexs=('^[[:space:]]+2.23.133.8.1$'
+		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.3=.*'
+		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.2=.*'
+		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.1=.*'
+		'^[[:space:]]+Certificate Authority \(CA\): FALSE$'
+		'^[[:space:]]+Unknown extension 2.5.29.9 \(not critical\):$'
+		'^[[:space:]]+Hexdump: 3019301706056781050210310e300c0c03322e3002010002020092$')
+	if [ ${vtpm_is_tpm2} -ne 0 ]; then
+		# TPM 2.0; due to ecc: Key agreement
+		regexs+=('^[[:space:]]+Key agreement\.$'
+			 '^[[:space:]]+Signature Algorithm: RSA-SHA256$')
+	else
+		regexs+=('^[[:space:]]+Key encipherment\.$'
+			 '^[[:space:]]+Signature Algorithm: RSA-SHA1$')
+	fi
+
+	for ((i=0; i < ${#regexs}; i++)); do \
+		if [ -n "${regexs[$i]}" ] && \
+		   [ -z "$(echo "${certinfo}" | grep -E "${regexs[$i]}")" ]; then
+			echo "Error: Could not match regex '${regexs[$i]}' with certificate info:"
+			echo "${certinfo}"
 			exit 1
 		fi
 	done
@@ -178,14 +291,40 @@ _EOF_
 	fi
 } # run_test
 
-run_test "${OWNER_PASSWORD}" "${SRK_PASSWORD}"
-
+run_test "${OWNER_PASSWORD}" "${SRK_PASSWORD}" 1
 echo "Test 1: OK"
+
+run_test "${OWNER_PASSWORD}" "${SRK_PASSWORD}" 0
+echo "Test 2: OK"
+
+run_test "" "${SRK_PASSWORD}" 1
+echo "Test 3: OK"
+
+run_test "" "${SRK_PASSWORD}" 0
+echo "Test 4: OK"
 
 # Repeat the test with the SRK having the well known password of 20 zero bytes
 # We will have to check the help screen of swtpm-create-tpmca for whether
 # it supports it, which in turn depends on tpmtool supporting it...
 
+if [ -n "$(${SWTPM_CREATE_TPMCA} --help | grep "use 'well known' password if")" ]; then
+	run_test "${OWNER_PASSWORD}" "" 1
+	echo "Test 5: OK"
+	run_test "${OWNER_PASSWORD}" "" 0
+	echo "Test 6: OK"
 
+	run_test "" "" 1
+	echo "Test 7: OK"
+
+	run_test "" "" 0
+	echo "Test 8: OK"
+else
+	if [ -n "$(tpmtool --help | grep srk-well-known)" ]; then
+		echo "Error: tpmtool seems to support --srk-well-known"
+		exit 1
+	fi
+	echo "tpmtool does not seem to support --srk-well-known"
+	echo "Tests 5..8: SKIP"
+fi
 
 exit 0
