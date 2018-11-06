@@ -141,7 +141,7 @@ fi
 %{_bindir}/swtpm_cert
 %endif
 %{_bindir}/swtpm_setup
-%attr( 755, @TSS_USER@ , @TSS_GROUP@)  %{_bindir}/swtpm_setup.sh
+%{_bindir}/swtpm_setup.sh
 %{_bindir}/swtpm_ioctl
 %{_mandir}/man8/swtpm_bios.8*
 %{_mandir}/man8/swtpm_cert.8*
