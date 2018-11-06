@@ -58,114 +58,134 @@ source ${TESTDIR}/common
 
 PATH=${ROOT}/src/swtpm_bios:$PATH
 
-cat <<_EOF_ > ${workdir}/swtpm_setup.conf
+
+# run the test with the given owner and SRK passwords
+# @param1: owner password
+# @param2: SRK password
+function run_test() {
+	local owner_password="$1"
+	local srk_password="$2"
+
+	cat <<_EOF_ > ${workdir}/swtpm_setup.conf
 create_certs_tool=${SWTPM_LOCALCA}
 create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=${workdir}/swtpm-localca.options
 _EOF_
 
-# First setup the TPM and take ownership of it and set SRK password
-$SWTPM_SETUP \
-	--runas root \
-	--tpm-state ${workdir} \
-	--logfile ${workdir}/logfile \
-	--config ${workdir}/swtpm_setup.conf \
-	--tpm "${SWTPM_EXE} socket" \
-	--swtpm_ioctl ${SWTPM_IOCTL} \
-	--take-ownership \
-	--ownerpass ${OWNER_PASSWORD} \
-	--srkpass ${SRK_PASSWORD} \
-	--tcsd-system-ps-file ${TCSD_SYSTEM_PS_FILE}
+	# First setup the TPM and take ownership of it and set SRK password
+	$SWTPM_SETUP \
+		--runas root \
+		--tpm-state ${workdir} \
+		--logfile ${workdir}/logfile \
+		--config ${workdir}/swtpm_setup.conf \
+		--tpm "${SWTPM_EXE} socket" \
+		--swtpm_ioctl ${SWTPM_IOCTL} \
+		--take-ownership \
+		--ownerpass ${owner_password} \
+		--srkpass ${srk_password} \
+		--tcsd-system-ps-file ${TCSD_SYSTEM_PS_FILE}
 
-if [ $? -ne 0 ]; then
-	echo "Error: Could not run $SWTPM_SETUP."
-	echo "Setup Logfile:"
-	cat ${workdir}/logfile
-	exit 1
-fi
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not run $SWTPM_SETUP."
+		echo "Setup Logfile:"
+		cat ${workdir}/logfile
+		exit 1
+	fi
 
-echo "Successfully took ownership of TPM and set owner and SRK passwords."
+	echo "Successfully took ownership of TPM and set owner and SRK passwords."
 
-run_swtpm ${SWTPM_INTERFACE} \
-	--flags not-need-init \
-	--tpmstate dir=${workdir}
+	run_swtpm ${SWTPM_INTERFACE} \
+		--flags not-need-init \
+		--tpmstate dir=${workdir}
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 
-# Startup the TPM
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')"
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
-if [ "$res" != "$exp" ]; then
-	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
-	echo "expected: $exp"
-	echo "received: $res"
-	exit 1
-fi
+	# Startup the TPM
+	res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')"
+	exp=' 00 c4 00 00 00 0a 00 00 00 00'
+	if [ "$res" != "$exp" ]; then
+		echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
+		echo "expected: $exp"
+		echo "received: $res"
+		exit 1
+	fi
 
-# Setup the TCSD config file and start TCSD with it
-
-cat <<_EOF_ > ${TCSD_CONF}
+	# Setup the TCSD config file and start TCSD with it
+	cat <<_EOF_ > ${TCSD_CONF}
 port = ${TCSD_LISTEN_PORT}
 system_ps_file = ${TCSD_SYSTEM_PS_FILE}
 _EOF_
 
-chown tss:tss ${TCSD_CONF}
-chmod 0600 ${TCSD_CONF}
+	chown tss:tss ${TCSD_CONF}
+	chmod 0600 ${TCSD_CONF}
 
-bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c ${TCSD_CONF} -e -f & echo \$! > ${TCSD_PIDFILE}; wait" &
-BASH_PID=$!
+	bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c ${TCSD_CONF} -e -f & echo \$! > ${TCSD_PIDFILE}; wait" &
+	BASH_PID=$!
 
-if wait_for_file ${TCSD_PIDFILE} 3; then
-	echo "Error: Could not get TCSD's PID file"
-	exit 1
-fi
-
-TCSD_PID=$(cat ${TCSD_PIDFILE})
-kill_quiet -0 ${TCSD_PID}
-if [ $? -ne 0 ]; then
-	echo "Error: TCSD with pid ${TCSD_PID} must have terminated"
-	exit 1
-fi
-
-$SWTPM_CREATE_TPMCA \
-	--dir ${SWTPM_LOCALCA_DIR} \
-	--srk-password ${SRK_PASSWORD} \
-	--register \
-	--group tss \
-	--tss-tcsd-port ${TCSD_LISTEN_PORT}
-
-if [ $? -ne 0 ]; then
-	echo "Error: Could not create TPM CA"
-	exit 1
-fi
-
-for fil in \
-	swtpm-localca-rootca-cert.pem \
-	swtpm-localca-rootca-privkey.pem \
-	swtpm-localca-tpmca-cert.pem \
-	swtpm-localca-tpmca-pubkey.pem; do
-	if [ ! -r ${SWTPM_LOCALCA_DIR}/${fil} ]; then
-		echo "Error: TPM CA tool did not create file ${fil}."
+	if wait_for_file ${TCSD_PIDFILE} 3; then
+		echo "Error: Could not get TCSD's PID file"
 		exit 1
 	fi
-done
 
-# Send SIGTERM to TCSD
-kill_quiet -15 ${TCSD_PID}
+	TCSD_PID=$(cat ${TCSD_PIDFILE})
+	kill_quiet -0 ${TCSD_PID}
+	if [ $? -ne 0 ]; then
+		echo "Error: TCSD with pid ${TCSD_PID} must have terminated"
+		exit 1
+	fi
 
-# Shut down TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
-if [ $? -ne 0 ]; then
-	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
-	exit 1
-fi
+	$SWTPM_CREATE_TPMCA \
+		--dir ${SWTPM_LOCALCA_DIR} \
+		--srk-password ${srk_password} \
+		--register \
+		--group tss \
+		--tss-tcsd-port ${TCSD_LISTEN_PORT}
 
-if wait_process_gone ${SWTPM_PID} 4; then
-	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
-	exit 1
-fi
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not create TPM CA"
+		exit 1
+	fi
+
+	for fil in \
+		swtpm-localca-rootca-cert.pem \
+		swtpm-localca-rootca-privkey.pem \
+		swtpm-localca-tpmca-cert.pem \
+		swtpm-localca-tpmca-pubkey.pem; do
+		if [ ! -r ${SWTPM_LOCALCA_DIR}/${fil} ]; then
+			echo "Error: TPM CA tool did not create file ${fil}."
+			exit 1
+		fi
+	done
+
+	# Send SIGTERM to TCSD
+	kill_quiet -15 ${TCSD_PID}
+
+	# Shut down TPM
+	run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+		exit 1
+	fi
+
+	if wait_process_gone ${SWTPM_PID} 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+		exit 1
+	fi
+
+	if wait_process_gone ${SWTPM_PID} 4; then
+		echo "Error: tcsd should not be running anymore."
+		exit 1
+	fi
+} # run_test
+
+run_test "${OWNER_PASSWORD}" "${SRK_PASSWORD}"
+
+echo "Test 1: OK"
+
+# Repeat the test with the SRK having the well known password of 20 zero bytes
+# We will have to check the help screen of swtpm-create-tpmca for whether
+# it supports it, which in turn depends on tpmtool supporting it...
 
 
-echo "OK"
 
 exit 0
