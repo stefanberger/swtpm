@@ -1542,9 +1542,9 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     if (sigkey) {
         err = gnutls_x509_crt_sign2(crt, sigcert, sigkey, hashAlgo, 0);
     } else {
-        /* TPM 1.2 signs cert */
+        /* TPM 1.2 signs cert for a TPM 1.2 (SHA1) or TPM 2 (SHA256) */
         err = gnutls_x509_crt_privkey_sign(crt, sigcert, tpmkey,
-                                           GNUTLS_DIG_SHA1, 0);
+                                           hashAlgo, 0);
     }
     CHECK_GNUTLS_ERROR(err, "Could not sign the CRT: %s\n",
                        gnutls_strerror(err))
