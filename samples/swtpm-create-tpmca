@@ -2,6 +2,8 @@
 
 FLAG_OVERWRITE=1
 FLAG_REGISTER_KEY=2
+FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN=4
+FLAG_SRK_WELL_KNOWN=8
 
 TSS_TCSD_HOSTNAME_DEFAULT=localhost
 TSS_TCSD_PORT_DEFAULT=30003
@@ -84,7 +86,7 @@ create_localca_cert() {
 	local tpmpubkey=${dir}/swtpm-localca-tpmca-pubkey.pem
 	local tpmca=${dir}/swtpm-localca-tpmca-cert.pem
 	local template=${dir}/template
-	local tpmkeyurl
+	local tpmkeyurl params
 	local msg output
 
 	if ! [ -r "${cakey}" ] || ! [ -r ${cacert} ]; then
@@ -129,8 +131,15 @@ create_localca_cert() {
 
 	rm -f ${tpmkey} ${tpmpubkey} ${tpmca}
 
+	if [ $((flags & FLAG_SRK_WELL_KNOWN)) -ne 0 ]; then
+		unset GNUTLS_PIN
+		params="--srk-well-known"
+	else
+		export GNUTLS_PIN=${TPM_SRK_PASSWORD}
+	fi
+
 	if [ $((flags & FLAG_REGISTER_KEY)) -ne 0 ]; then
-		msg="$(run_tpmtool --generate-rsa --signing --register)"
+		msg="$(run_tpmtool --generate-rsa --signing --register ${params})"
 		if [ $? -ne 0 ]; then
 			logerr "Could not generate registered signing key with tpmtool"
 			logerr "${msg}"
@@ -144,7 +153,7 @@ create_localca_cert() {
 		fi
 	else
 		rm -f "${tpmkey}"
-		msg="$(run_tpmtool --generate-rsa --signing --outfile "${tpmkey}")"
+		msg="$(run_tpmtool --generate-rsa --signing --outfile "${tpmkey}" ${params})"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create signing key with tpmtool"
 			logerr "${msg}"
@@ -161,7 +170,7 @@ create_localca_cert() {
 	fi
 
 	rm -f "${tpmpubkey}"
-	msg=$(run_tpmtool --pubkey=${tpmkeyurl} --outfile "${tpmpubkey}")
+	msg=$(run_tpmtool --pubkey=${tpmkeyurl} --outfile "${tpmpubkey}" ${params})
 	if [ $? -ne 0 ] || \
            [ ! -r ${tpmpubkey} ] || [ $(get_filesize "${tpmpubkey}") -eq 0 ]; then
 		logerr "Error: Could not get TPM public key"
@@ -175,7 +184,7 @@ create_localca_cert() {
 	echo "cert_signing_key" >> ${template}
 	echo "expiration_days = 3650" >> ${template}
 
-	msg=$(GNUTLS_PIN=${TPM_SRK_PASSWORD} ${CERTTOOL} \
+	msg=$(${CERTTOOL} \
 		--generate-certificate \
 		--template ${template} \
 		--outfile ${tpmca} \
@@ -232,6 +241,15 @@ TSS_TCSD_PORT = ${TSS_TCSD_PORT}"
 } #create_localca_cert
 
 usage() {
+	local flags=$2
+
+	local tpmtool_note=" use 'well known' password if not
+                   given"
+	[ $((flags & FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN)) -eq 0 ] && \
+		tpmtool_note="
+                   Note: the well known password of 20 zero bytes is not
+                         supported by tpmtool"
+
 	cat << _EOF_
 Create a TPM-based CA for signing EK and platform certificates.
 
@@ -250,9 +268,7 @@ The following options are supported:
 --key-password s   Password for the newly created TPM key; required if
                    --register is not passed
                    Note: use the same as the --srk-password (bug in certtool)
---srk-password s   Password for the TPM's SRK;
-                   Note: the well known password of 20 0x0 is not supported
-                         by tpmtool
+--srk-password s   Password for the TPM's SRK;${tpmtool_note}
 --outfile file     File to write the configuration to; if not passed it will be
                    written to stdout only
 --owner owner      The owner of the directory and the files; only set if this
@@ -274,9 +290,23 @@ SWTPM_ROOTCA_PASSWORD  The root CA's private key password
 _EOF_
 } #usage
 
+# Check whether tpmtool supports --srk-well-known
+tpmtool_supports_srk_well_known()
+{
+	local tmp
+
+	tmp=$(tpmtool --help | grep "srk-well-known")
+	[ -z "${tmp}" ] && return 1
+	return 0
+}
+
 main() {
 	local flags=0
 	local dir outfile owner group msg
+
+	if tpmtool_supports_srk_well_known; then
+		flags=$((flags | FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN | FLAG_SRK_WELL_KNOWN))
+	fi
 
 	CERTTOOL=certtool
 	export TSS_TCSD_HOSTNAME=${TSS_TCSD_HOSTNAME_DEFAULT}
@@ -297,6 +327,7 @@ main() {
 		--srk-password)
 			shift
 			TPM_SRK_PASSWORD="$1"
+			flags=$((flags & ~FLAG_SRK_WELL_KNOWN))
 			;;
 		--key-password)
 			shift
@@ -323,7 +354,7 @@ main() {
 			TSS_TCSD_PORT="$1"
 			;;
 		--help|-h|-?)
-			usage "$0"
+			usage "$0" "${flags}"
 			exit 0
 			;;
 		*)
@@ -345,7 +376,8 @@ main() {
 		return 1
 	fi
 
-	if [ -z "${TPM_SRK_PASSWORD}" ]; then
+	if [ -z "${TPM_SRK_PASSWORD}" ] && \
+	   [ $((flags & FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN)) -eq 0 ]; then
 		logerr "SRK password must be provided"
 		return 1
 	fi
