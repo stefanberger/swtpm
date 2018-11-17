@@ -294,6 +294,13 @@ cleanup:
     return err;
 }
 
+static void
+asn_free(void)
+{
+    if (_tpm_asn)
+        asn1_delete_structure(&_tpm_asn);
+}
+
 static int
 encode_asn1(gnutls_datum_t *asn1, ASN1_TYPE at)
 {
@@ -664,6 +671,8 @@ create_tpm_and_platform_manuf_info(
  cleanup:
     gnutls_free(datum.data);
     asn1_delete_structure(&at);
+    asn1_delete_structure(&platf_at);
+    asn1_delete_structure(&tpm_at);
 
     return err;
 }
@@ -1603,6 +1612,11 @@ cleanup:
     gnutls_privkey_deinit(tpmkey);
 
     gnutls_global_deinit();
+
+    free(modulus_bin);
+    free(ecc_x_bin);
+    free(ecc_y_bin);
+    asn_free();
 
     return ret;
 }
