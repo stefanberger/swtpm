@@ -133,7 +133,7 @@ case "$cryptolib" in
 openssl)
 	AC_CHECK_LIB(crypto,
 		      [AES_set_encrypt_key],
-		      [],
+		      [true],
 		      AC_MSG_ERROR(Faulty openssl crypto library))
 	AC_CHECK_HEADERS([openssl/aes.h],[],
 			 AC_MSG_ERROR(Is openssl-devel/libssl-dev installed?))
@@ -152,7 +152,7 @@ if test $? -ne 0; then
 	AC_MSG_ERROR("Is libtpms-devel installed? -- could not get libs for libtpms")
 fi
 AC_CHECK_LIB(tpms,
-             TPMLIB_ChooseTPMVersion,,
+             TPMLIB_ChooseTPMVersion,[true],
              AC_MSG_ERROR("libtpms 0.6 or later is required")
 )
 AC_SUBST([LIBTPMS_LIBS])
