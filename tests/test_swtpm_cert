@@ -5,7 +5,7 @@
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 
-SWTPM_CERT=${ROOT}/src/swtpm_cert/swtpm_cert
+SWTPM_CERT=${SWTPM_CERT:-${ROOT}/src/swtpm_cert/swtpm_cert}
 
 cert=$(mktemp)
 
