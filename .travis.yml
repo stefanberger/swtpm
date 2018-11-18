@@ -38,16 +38,16 @@ addons:
     build_command: make -j4
     branch_pattern: coverity_scan
 before_script:
-- pep8 $(find . -type f | grep -E "\.py$")
-- git clone https://github.com/stefanberger/libtpms
-- cd libtpms
-- "./bootstrap.sh && ./configure --with-openssl --prefix=/usr --with-tpm2 && make -j4 &&
-  sudo make install"
-- cd ..
-- sudo pip install cpp-coveralls
-- ./autogen.sh ${CONFIG}
+  - pep8 $(find . -type f | grep -E "\.py$")
+  - git clone https://github.com/stefanberger/libtpms
+  - cd libtpms
+  - "./bootstrap.sh && ./configure --with-openssl --prefix=/usr --with-tpm2 && make -j$(nproc) &&
+    sudo make install"
+  - cd ..
+  - sudo pip install cpp-coveralls
+  - ./autogen.sh ${CONFIG}
 script:
-  ${SUDO} make clean && export SWTPM_TEST_EXPENSIVE=1 && ${SUDO} make -j4 ${CHECK}
+  - ${SUDO} make clean && export SWTPM_TEST_EXPENSIVE=1 && ${SUDO} make -j$(nproc) ${CHECK}
 matrix:
   include:
     - env: CONFIG="--with-openssl --prefix=/usr"
