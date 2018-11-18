@@ -4,20 +4,31 @@ env:
 sudo: required
 language: c
 dist: xenial
-before_install:
-- sudo apt-get -y install pep8
-- pep8 $(find . -type f | grep -E "\.py$")
-- sudo apt-get -y install automake autoconf libtool libssl-dev sed make gawk sed bash
-  dh-exec python-twisted
-- git clone https://github.com/stefanberger/libtpms
-- cd libtpms
-- "./bootstrap.sh && ./configure --with-openssl --prefix=/usr --with-tpm2 && make -j4 &&
-  sudo make install"
-- cd ..
-- sudo apt-get -y install libfuse-dev libglib2.0-dev libgmp-dev expect libtasn1-dev
-  socat findutils tpm-tools gnutls-dev gnutls-bin
-- sudo pip install cpp-coveralls
 addons:
+  apt:
+      packages:
+        - pep8
+        - automake
+        - autoconf
+        - libtool
+        - libssl-dev
+        - sed
+        - make
+        - gawk
+        - sed
+        - bash
+        - dh-exec
+        - python-twisted
+        - libfuse-dev
+        - libglib2.0-dev
+        - libgmp-dev
+        - expect
+        - libtasn1-dev
+        - socat
+        - findutils
+        - tpm-tools
+        - gnutls-dev
+        - gnutls-bin
   coverity_scan:
     project:
       name: swtpm
@@ -26,6 +37,14 @@ addons:
     build_command_prepend: "./autogen.sh --with-openssl; make clean"
     build_command: make -j4
     branch_pattern: coverity_scan
+before_script:
+- pep8 $(find . -type f | grep -E "\.py$")
+- git clone https://github.com/stefanberger/libtpms
+- cd libtpms
+- "./bootstrap.sh && ./configure --with-openssl --prefix=/usr --with-tpm2 && make -j4 &&
+  sudo make install"
+- cd ..
+- sudo pip install cpp-coveralls
 script: "./autogen.sh --with-openssl --prefix=/usr
   && SWTPM_TEST_EXPENSIVE=1 make -j4 distcheck
   && ./configure --with-openssl --prefix=/usr --enable-test-coverage
