@@ -45,10 +45,12 @@ before_script:
   sudo make install"
 - cd ..
 - sudo pip install cpp-coveralls
-script: "./autogen.sh --with-openssl --prefix=/usr
-  && SWTPM_TEST_EXPENSIVE=1 make -j4 distcheck
-  && ./configure --with-openssl --prefix=/usr --enable-test-coverage
-  && sudo make clean
-  && sudo make -j4 check"
-after_success:
-- sudo coveralls --gcov-options '\-lp'
+matrix:
+  include:
+    - script: "./autogen.sh --with-openssl --prefix=/usr
+      && SWTPM_TEST_EXPENSIVE=1 make -j4 distcheck
+      && ./configure --with-openssl --prefix=/usr --enable-test-coverage
+      && sudo make clean
+      && sudo make -j4 check"
+      after_success:
+      - sudo coveralls --gcov-options '\-lp'
