@@ -29,6 +29,7 @@ addons:
         - tpm-tools
         - gnutls-dev
         - gnutls-bin
+        - libasan2
   coverity_scan:
     project:
       name: swtpm
@@ -37,23 +38,34 @@ addons:
     build_command_prepend: "./autogen.sh --with-openssl; make clean"
     build_command: make -j4
     branch_pattern: coverity_scan
-before_script:
-  - pep8 $(find . -type f | grep -E "\.py$")
+script:
   - git clone https://github.com/stefanberger/libtpms
   - cd libtpms
   - "./bootstrap.sh && ./configure --with-openssl --prefix=/usr --with-tpm2 && make -j$(nproc) &&
     sudo make install"
   - cd ..
-  - sudo pip install cpp-coveralls
   - ./autogen.sh ${CONFIG}
-script:
   - ${SUDO} make clean && export SWTPM_TEST_EXPENSIVE=1 && ${SUDO} make -j$(nproc) ${CHECK}
+after_failure:
+  - for f in tests/*.log; do echo ">>>>>>> $f <<<<<<<"; cat $f; done
 matrix:
   include:
     - env: CONFIG="--with-openssl --prefix=/usr"
            CHECK="distcheck"
+      before_script:
+      - pep8 $(find . -type f | grep -E "\.py$")
     - env: CONFIG="--with-openssl --prefix=/usr --enable-test-coverage"
            SUDO="sudo"
            CHECK="check"
+      before_script:
+      - sudo pip install cpp-coveralls
       after_success:
       - sudo coveralls --gcov-options '\-lp'
+    - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer"
+           LIBS="-lasan"
+           CONFIG="--with-openssl --prefix=/usr"
+           SUDO="sudo"
+           CHECK="check"
+      before_script:
+        # Tspi_NV_WriteValue has an I/O error when using asan
+        - echo -e '#!/usr/bin/env bash\nexit 0' > tests/test_parameters
