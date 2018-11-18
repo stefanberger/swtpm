@@ -45,12 +45,15 @@ before_script:
   sudo make install"
 - cd ..
 - sudo pip install cpp-coveralls
+- ./autogen.sh ${CONFIG}
+script:
+  ${SUDO} make clean && export SWTPM_TEST_EXPENSIVE=1 && ${SUDO} make -j4 ${CHECK}
 matrix:
   include:
-    - script: "./autogen.sh --with-openssl --prefix=/usr
-      && SWTPM_TEST_EXPENSIVE=1 make -j4 distcheck
-      && ./configure --with-openssl --prefix=/usr --enable-test-coverage
-      && sudo make clean
-      && sudo make -j4 check"
+    - env: CONFIG="--with-openssl --prefix=/usr"
+           CHECK="distcheck"
+    - env: CONFIG="--with-openssl --prefix=/usr --enable-test-coverage"
+           SUDO="sudo"
+           CHECK="check"
       after_success:
       - sudo coveralls --gcov-options '\-lp'
