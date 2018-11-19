@@ -21,7 +21,7 @@ keyfile=${TPM_PATH}/keyfile
 logfile=${TPM_PATH}/logfile
 binkeyfile=${TPM_PATH}/binkeyfile
 echo "$KEY" > ${keyfile}
-/bin/echo -en "$BINKEY" > ${binkeyfile}
+echo -en "$BINKEY" > ${binkeyfile}
 
 function cleanup()
 {
