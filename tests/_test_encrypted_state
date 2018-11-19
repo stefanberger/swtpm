@@ -12,13 +12,16 @@ export TPM_PATH=$(mktemp -d)
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 KEY=1234567890abcdef1234567890abcdef
+BINKEY='\x12\x34\x56\x78\x90\xab\xcd\xef\x12\x34\x56\x78\x90\xab\xcd\xef'
 SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
 SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
 
-keyfile=$(mktemp)
-logfile=$(mktemp)
-echo "$KEY" > $keyfile
+keyfile=${TPM_PATH}/keyfile
+logfile=${TPM_PATH}/logfile
+binkeyfile=${TPM_PATH}/binkeyfile
+echo "$KEY" > ${keyfile}
+/bin/echo -en "$BINKEY" > ${binkeyfile}
 
 function cleanup()
 {
@@ -26,7 +29,6 @@ function cleanup()
 	if [ -n "$pid" ]; then
 		kill_quiet -9 $pid
 	fi
-	rm -f $keyfile $logfile
 	rm -rf $TPM_PATH
 }
 
@@ -38,7 +40,7 @@ source ${TESTDIR}/common
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
 run_swtpm ${SWTPM_INTERFACE} \
-	--key file=$keyfile,mode=aes-cbc,format=hex \
+	--key file=$keyfile,mode=aes-cbc,format=hex,remove \
 	--log file=$logfile
 
 display_processes_by_name "$SWTPM"
@@ -46,6 +48,13 @@ display_processes_by_name "$SWTPM"
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+
+if wait_file_gone ${keyfile} 4; then
+	echo "Error: Keyfile $keyfile was not removed by ${SWTPM_INTERFACE} tpm."
 	echo "TPM Logfile:"
 	cat $logfile
 	exit 1
@@ -141,7 +150,7 @@ fi
 
 # Start the TPM again; have the keyfile removed
 run_swtpm ${SWTPM_INTERFACE} \
-	--key file=$keyfile,mode=aes-cbc,format=hex,remove \
+	--key file=$binkeyfile,mode=aes-cbc,format=binary,remove \
 	--log file=$logfile
 
 display_processes_by_name "$SWTPM"
@@ -154,8 +163,8 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if wait_file_gone ${keyfile} 4; then
-	echo "Error: Keyfile $keyfile was not removed by swtpm_cuse."
+if wait_file_gone ${binkeyfile} 4; then
+	echo "Error: Keyfile $binkeyfile was not removed by ${SWTPM_INTERFACE} tpm."
 	echo "TPM Logfile:"
 	cat $logfile
 	exit 1
