@@ -48,6 +48,8 @@ FILESIZES=(
 	1721
 	1788
 	1788
+	1820
+	1820
 )
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -55,17 +57,18 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 77
 fi
 
+source ${TESTDIR}/common
+source ${TESTDIR}/test_config
+
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
 SWTPM_IOCTL=${SWTPM_IOCTL:-$ROOT/src/swtpm_ioctl/swtpm_ioctl}
-TCSD=`type -P tcsd`
-TPMDIR=`mktemp -d`
+TCSD=$(type -P tcsd)
+TPMDIR=$(mktemp -d)
 SWTPM_SETUP_CONF=$SRCDIR/etc/swtpm_setup.conf
 # filesystem privileges require to run swtpm_setup as root during test
 TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --config ${SWTPM_SETUP_CONF} --runas root"
 PATH=${ROOT}/src/swtpm_bios:${TESTDIR}:$PATH
-
-source ${TESTDIR}/test_config
 
 trap "cleanup" SIGTERM EXIT
 
@@ -109,7 +112,7 @@ for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 		exit 1
 	fi
 
-	FILESIZE=`stat -c%s $TPMDIR/tpm-00.permall`
+	FILESIZE=$(get_filesize $TPMDIR/tpm-00.permall)
 	if [ ${FILESIZE} -ne ${FILESIZES[$i]} ]; then
 		echo "ERROR: Unexpected file size of $FILESIZE, "\
 		     "expected ${FILESIZES[$i]}. Parameters: ${PARAMETERS[$i]}"
