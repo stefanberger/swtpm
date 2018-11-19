@@ -321,6 +321,7 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
     ptm_getstate *pgs;
     ptm_setstate *pss;
     ptm_loc *pl;
+    const void *msg_iov = msg->msg_iov;
 
     clock_gettime(CLOCK_REALTIME, &deadline);
 
@@ -332,9 +333,14 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
     }
 
     while (recvd < buffer_len) {
-        if (!recvd)
+        if (!recvd) {
             n = recvmsg(fd, msg, 0);
-        else
+            /* address a coverity issue by validating msg */
+            if (msg_iov != msg->msg_iov ||
+                msg->msg_iov[0].iov_base != input ||
+                msg->msg_iov[0].iov_len > buffer_len)
+                return -1;
+        } else
             n = read(fd, msg->msg_iov[0].iov_base + recvd, buffer_len - recvd);
         if (n <= 0)
             return n;
