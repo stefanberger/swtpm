@@ -343,6 +343,9 @@ start_tpm()
 	while [ $ctr -lt 100 ]; do
 		TPM_PORT=$(get_random 30000 65535)
 
+		# kill swtpm if still alive
+		stop_tpm 1
+
 		rm -f $pidfile &>/dev/null
 		$swtpm \
 			--flags not-need-init \
@@ -372,7 +375,7 @@ start_tpm()
 				(exec 100<>/dev/tcp/localhost/$TPM_PORT) 2>/dev/null
 				if [ $? -ne 0 ]; then
 					if [ $ctr2 -eq 40 ]; then
-						stop_tpm
+						stop_tpm 0
 						break
 					fi
 					sleep 0.05
@@ -388,7 +391,7 @@ start_tpm()
 			let ctr3=ctr3+1
 			# at some point the pid file must appear...
 			if [ $ctr3 -eq 40 ] && [ ! -f ${pidfile} ]; then
-				stop_tpm
+				stop_tpm 0
 				break
 			fi
 		done
@@ -399,11 +402,49 @@ start_tpm()
 	return 1
 }
 
-# Stop the TPM by sigalling it with a SIGTERM
+# Terminate a process gracefully, and if wanted wait for some time
+# and kill it hard if it didn't terminate.
+#
+# @param1: pid
+# @param2: whether to wait (1) for it to be gone or not (0)
+# @param3: name of process for error message in case of hard kill
+terminate_proc()
+{
+	local pid="$1"
+	local sync="$2"
+	local name="$3"
+
+	local c
+
+	kill -0 $pid &>/dev/null
+	[ $? -ne 0 ] && return
+
+	kill -SIGTERM $pid &>/dev/null
+	[ $sync -eq 0 ] && return
+
+	# kill hard if necessary
+	for ((c=0; c<50; c++)); do
+		kill -0 $pid &>/dev/null
+		[ $? -ne 0 ] && return
+		sleep 0.02
+	done
+	kill -SIGKILL $pid
+	logerr "Had to use SIGKILL on $name"
+}
+
+# Stop the TPM by sigalling it with a SIGTERM and if @param1 is '1',
+# make sure it's gone.
+#
+# @param1: whether to wait (1) until it is gone, or not
 stop_tpm()
 {
-	[ "$SWTPM_PID" != "" ] && kill -SIGTERM $SWTPM_PID
-	SWTPM_PID=
+	local sync="$1"
+
+	[ "$SWTPM_PID" != "" ] && {
+		terminate_proc $SWTPM_PID "$sync" "swtpm"
+		[ $sync -eq 0 ] && return
+		SWTPM_PID=
+	}
 }
 
 # Start the TSS for TPM 1.2
@@ -447,6 +488,8 @@ EOF
 			return 1
 		fi
 
+		# make sure tcsd is gone
+		stop_tcsd 1
 		case "$(id -u)" in
 		0)
 			$TCSD -c $TCSD_CONFIG -e -f 2>&1 1>/dev/null &
@@ -469,7 +512,7 @@ EOF
 			(exec 100<>/dev/tcp/localhost/$TSS_TCSD_PORT) 2>/dev/null
 			if [ $? -ne 0 ]; then
 				if [ $ctr2 -eq 40 ]; then
-					stop_tcsd
+					stop_tcsd 0
 					break
 				fi
 				# check TCSD is still alive and we haven't
@@ -494,18 +537,30 @@ EOF
 	return 1
 }
 
-# Stop the TSS
+# Stop the TSS by sigalling it with a SIGTERM and if @param1 is '1',
+# make sure it's gone.
+#
+# @param1: whether to wait (1) until it is gone, or not
 stop_tcsd()
 {
-	[ "$TCSD_PID" != "" ] && kill -SIGTERM $TCSD_PID
-	TCSD_PID=
+	local sync="$1"
+
+	[ "$TCSD_PID" != "" ] && {
+		terminate_proc $TCSD_PID "$sync" "tcsd"
+		[ $sync -eq 0 ] && return
+		TCSD_PID=
+	}
 }
 
 # Cleanup everything including TPM, TSS, and files we may have created
 cleanup()
 {
-	stop_tpm
-	stop_tcsd
+	# Send SIGTERMs first
+	stop_tpm 0
+	stop_tcsd 0
+	# Make sure they are gone for good
+	stop_tpm 1
+	stop_tcsd 1
 	rm -rf "$TCSD_CONFIG" "$TCSD_DATA_FILE" "$TCSD_DATA_DIR"
 }
 
@@ -632,7 +687,6 @@ init_tpm()
 			return 1
 		fi
 		logit "Successfully created EK."
-		logit "flags=$flags"
 
 		if [ $((flags & ~$SETUP_CREATE_EK_F)) -eq 0 ]; then
 			return 0
@@ -811,7 +865,7 @@ init_tpm()
 		logit "Successfully gave up ownership of the TPM."
 
 		# TPM is now disabled and deactivated; enable and activate it
-		stop_tpm
+		stop_tpm 1
 		start_tpm "$SWTPM" "$tpm_state_path"
 
 		if [ $? -ne 0 ]; then
