@@ -175,13 +175,13 @@ int main(int argc, char *argv[])
     path_program = malloc(length);
     if (!path_program) {
         fprintf(stderr, "Out of memory.\n");
-        return EXIT_FAILURE;
+        goto exit_failure;
     }
 
     if (snprintf(path_program, length, "%s/%s", dir, program) >=
         (int)length) {
         fprintf(stderr, "Internal error writing string.\n");
-        return EXIT_FAILURE;
+        goto exit_failure;
     }
 
     /*
@@ -204,14 +204,14 @@ int main(int argc, char *argv[])
         passwd = getpwnam(E_USER_ID);
         if (!passwd) {
             fprintf(stderr, "Could not get account data of user %s.\n", E_USER_ID);
-            return EXIT_FAILURE;
+            goto exit_failure;
         }
         if (passwd->pw_uid == geteuid())
             change_user = false;
     }
 
     if (change_user && change_process_owner(userid))
-        return EXIT_FAILURE;
+        goto exit_failure;
     /*
      * need to pass unmodified argv to swtpm_setup.sh
      */
@@ -224,6 +224,9 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "Could not execute '%s' : %s\n",
             path_program, strerror(errno));
+
+exit_failure:
+    free(path_program);
 
     return EXIT_FAILURE;
 }
