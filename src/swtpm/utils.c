@@ -58,7 +58,7 @@ int install_sighandlers(int pipefd[2], sighandler_t handler)
         goto err_exit;
     }
 
-    if (signal(SIGTERM, handler) == SIG_ERR) {
+    if (signal(SIGTERM, (handler != NULL) ? handler : SIG_DFL) == SIG_ERR) {
         logprintf(STDERR_FILENO, "Could not install signal handler for SIGTERM.\n");
         goto err_close_pipe;
     }

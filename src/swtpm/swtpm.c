@@ -470,6 +470,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
     rc = mainLoop(&mlp, notify_fd[0]);
 
+    install_sighandlers(notify_fd, NULL);
+
 error_no_sighandlers:
     TPMLIB_Terminate();
 
