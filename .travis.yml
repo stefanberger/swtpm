@@ -69,3 +69,8 @@ matrix:
       before_script:
         # Tspi_NV_WriteValue has an I/O error when using asan
         - echo -e '#!/usr/bin/env bash\nexit 0' > tests/test_parameters
+    - env: CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
+           LIBS="-lubsan"
+           CONFIG="--with-openssl --prefix=/usr"
+           SUDO="sudo"
+           CHECK="check"
