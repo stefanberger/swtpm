@@ -483,7 +483,7 @@ int ctrlchannel_process_fd(int fd,
     ptm_setstate *pss;
     ptm_loc *pl;
     ptm_setbuffersize *psbs;
-    ptm_getinfo *pgi;
+    ptm_getinfo *pgi, _pgi;
 
     size_t out_len = 0;
     TPM_RESULT res;
@@ -816,9 +816,12 @@ int ctrlchannel_process_fd(int fd,
         break;
 
     case CMD_GET_INFO:
-        pgi = (ptm_getinfo *)input.body;
         if (n < (ssize_t)sizeof(pgi->u.req)) /* rw */
             goto err_bad_input;
+
+        /* copy since flags needs to be 8-byte aligned  */
+        memcpy(&_pgi, input.body, sizeof(_pgi));
+        pgi = &_pgi;
 
         info_flags = be64toh(pgi->u.req.flags);
 
