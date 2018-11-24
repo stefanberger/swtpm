@@ -233,6 +233,7 @@ static int talk(const void *cmd, size_t count, int *tpm_errcode,
 		.tv_usec = 0,
 	};
 	fd_set rfds;
+	struct tpm_resp_header *hdr;
 
 	fd = open_connection(tpm_device, tcp_hostname, tcp_port, unix_path);
 	if (fd < 0) {
@@ -269,7 +270,8 @@ static int talk(const void *cmd, size_t count, int *tpm_errcode,
 		goto err_close_fd;
 	}
 
-	pkt_len = be32toh( *((uint32_t *)(buffer + 2)));
+	hdr = (struct tpm_resp_header *)buffer;
+	pkt_len = be32toh(hdr->length);
 	if ((unsigned int)len != pkt_len) {
 		fprintf(stderr, "Malformed response.\n");
 		goto err_close_fd;
@@ -278,7 +280,7 @@ static int talk(const void *cmd, size_t count, int *tpm_errcode,
 	if (res)
 		memcpy(res, buffer, MIN(pkt_len, res_size));
 
-	*tpm_errcode = be32toh( *((uint32_t *)(buffer + 6)));
+	*tpm_errcode = be32toh(hdr->result);
 
 	rc = 0;
 
