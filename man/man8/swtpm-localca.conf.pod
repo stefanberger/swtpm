@@ -19,7 +19,8 @@ in this directory.
 =item B<signinkey>
 
 The file containing the key used for signing the certificates. Provide
-a key in PEM format.
+a key in PEM format. In case a PKCS11 URI is used all semicolons ';'
+have to be escaped and written as '\;'.
 
 =item B<signingkey_password>
 
@@ -55,6 +56,14 @@ An example I<swtpm-localca.conf> file may look as follows:
  signingkey = /var/lib/swtpm_localca/signkey.pem
  issuercert = /var/lib/swtpm_localca/issuercert.pem
  certserial = /var/lib/swtpm_localca/certserial
+
+With a PKCS11 URI it may look like this:
+
+ statedir = /var/lib/swtpm-localca
+ signingkey = pkcs11:model=SoftHSM%20v2\;manufacturer=SoftHSM%20project\;serial=891b99c169e41301\;token=mylabel\;id=%00\;object=mykey\;type=public
+ issuercert = /var/lib/swtpm-localca/swtpm-localca-tpmca-cert.pem
+ certserial = /var/lib/swtpm-localca/certserial
+ SWTPM_PKCS11_PIN = 1234
 
 =head1 SEE ALSO
 
