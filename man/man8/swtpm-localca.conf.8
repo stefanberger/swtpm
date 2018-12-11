@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm-localca.conf 8"
-.TH swtpm-localca.conf 8 "2018-10-15" "swtpm" ""
+.TH swtpm-localca.conf 8 "2018-12-11" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -153,7 +153,8 @@ in this directory.
 .IP "\fBsigninkey\fR" 4
 .IX Item "signinkey"
 The file containing the key used for signing the certificates. Provide
-a key in \s-1PEM\s0 format.
+a key in \s-1PEM\s0 format. In case a \s-1PKCS11 URI\s0 is used all semicolons ';'
+have to be escaped and written as '\e;'.
 .IP "\fBsigningkey_password\fR" 4
 .IX Item "signingkey_password"
 The password to use for the signing key.
@@ -182,6 +183,16 @@ An example \fIswtpm\-localca.conf\fR file may look as follows:
 \& signingkey = /var/lib/swtpm_localca/signkey.pem
 \& issuercert = /var/lib/swtpm_localca/issuercert.pem
 \& certserial = /var/lib/swtpm_localca/certserial
+.Ve
+.PP
+With a \s-1PKCS11 URI\s0 it may look like this:
+.PP
+.Vb 5
+\& statedir = /var/lib/swtpm\-localca
+\& signingkey = pkcs11:model=SoftHSM%20v2\e;manufacturer=SoftHSM%20project\e;serial=891b99c169e41301\e;token=mylabel\e;id=%00\e;object=mykey\e;type=public
+\& issuercert = /var/lib/swtpm\-localca/swtpm\-localca\-tpmca\-cert.pem
+\& certserial = /var/lib/swtpm\-localca/certserial
+\& SWTPM_PKCS11_PIN = 1234
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
