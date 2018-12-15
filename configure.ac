@@ -161,16 +161,12 @@ AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
 AC_SUBST([LIBRT_LIBS])
 
 AC_PATH_PROG([TPM_NVDEFINE], tpm_nvdefine)
-case $host_os in
-linux-*)
-    if test "x$TPM_NVDEFINE" = "x"; then
-	AC_MSG_ERROR([NVRAM area tools are needed: tpm-tools package])
-    fi
-    have_tcsd=yes
-    ;;
-*)
+if test "x$TPM_NVDEFINE" = "x"; then
     have_tcsd=no
-esac
+    AC_MSG_WARN([NVRAM area tools are needed for TPM 1.2 certificate injection: tpm-tools package])
+else
+    have_tcsd=yes
+fi
 with_swtpm_setup=yes
 AM_CONDITIONAL([HAVE_TCSD], test "$have_tcsd" != "no")
 
