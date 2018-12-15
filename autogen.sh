@@ -8,6 +8,8 @@ test -z "$srcdir" && srcdir=.
 olddir=`pwd`
 cd "$srcdir"
 
+test ! -d m4 && mkdir m4
+
 autoreconf --verbose --force --install
 
 cd "$olddir"
