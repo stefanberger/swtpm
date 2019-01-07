@@ -54,7 +54,7 @@ Description: TPM emulator with CUSE interface
  swtpm-tools package can be used for that.
 
 Package: swtpm-dev
-Architecture: all
+Architecture: any
 Description: Include files for the TPM emulator's CUSE interface
  The swtpm-dev package provides include files for developing clients
  controlling the CUSE TPM through ioctls.
