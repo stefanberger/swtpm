@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm-localca.conf
+swtpm-localca.conf - Configuration file for swtpm-localca
 
 =head1 DESCRIPTION
 

@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm_bios
+swtpm_bios - BIOS simulation tool for swtpm
 
 =head1 SYNOPSIS
 

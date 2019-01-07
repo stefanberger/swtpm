@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm-localca
+swtpm-localca  - Local CA to create EK and platform certs for swtpm
 
 =head1 SYNOPSIS
 
