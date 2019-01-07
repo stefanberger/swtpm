@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm_ioctl
+swtpm_ioctl - Utility for sending control commands to swtpm
 
 =head1 SYNOPSIS
 

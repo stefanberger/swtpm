@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm
+swtpm - TPM Emulator for TPM 1.2 and 2.0
 
 =head1 SYNOPSIS
 

@@ -1,7 +1,7 @@
 =head1 NAME
 
-Description of the ioctl's of the CUSE TPM (swtpm_cuse) and control commands
-used by the control channel over socket interface.
+swtpm_ioctls - Description of the ioctl's of the CUSE TPM (swtpm_cuse)
+and control commands used by the control channel over socket interface.
 
 =head1 SYNOPSYS
 

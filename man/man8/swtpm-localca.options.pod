@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm-localca.options
+swtpm-localca.options - Options file for swtpm-localca
 
 =head1 DESCRIPTION
 

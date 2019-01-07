@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm_cert
+swtpm_cert - Tool to create EK and platform certs for swtpm (1.2 & 2.0)
 
 =head1 SYNOPSIS
 

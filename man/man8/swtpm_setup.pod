@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm_setup
+swtpm_setup - Swtpm utility to simulate the manufacturing of a TPM 1.2 or 2.0
 
 =head1 SYNOPSIS
 

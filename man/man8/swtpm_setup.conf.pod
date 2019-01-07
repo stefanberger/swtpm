@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm_setup.conf
+swtpm_setup.conf - Configuration file for swtpm_setup
 
 =head1 DESCRIPTION
 
