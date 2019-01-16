@@ -30,8 +30,10 @@ Makefile
 /dist/swtpm.spec
 /m4/*
 /.pc/*
+/etc/swtpm_setup.conf
 /patches/*
 /include/swtpm.h
+/samples/swtpm-localca
 /src/selinux/*.pp.bz2
 /src/selinux/swtpm.pp
 /src/selinux/swtpm_svirt.fc

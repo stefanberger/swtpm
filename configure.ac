@@ -120,6 +120,10 @@ fi
 if test "$prefix" = "" && test "$datarootdir" = '${prefix}/share'; then
 	datarootdir="/usr/share"
 fi
+SYSCONFDIR=`eval echo $sysconfdir`
+DATAROOTDIR=`eval echo $datarootdir`
+AC_SUBST([SYSCONFDIR])
+AC_SUBST([DATAROOTDIR])
 
 cryptolib=openssl
 
@@ -423,6 +427,7 @@ esac
 AC_CONFIG_FILES([Makefile                    \
 		dist/swtpm.spec             \
 		etc/Makefile                \
+		etc/swtpm_setup.conf        \
 		samples/Makefile            \
 		include/Makefile            \
 		include/swtpm/Makefile      \
@@ -443,6 +448,8 @@ AC_CONFIG_FILES([Makefile                    \
 		])
 AC_CONFIG_FILES([src/swtpm_setup/swtpm_setup.sh],
 		[chmod 755 src/swtpm_setup/swtpm_setup.sh])
+AC_CONFIG_FILES([samples/swtpm-localca],
+		[chmod 755 samples/swtpm-localca])
 AC_OUTPUT
 
 echo

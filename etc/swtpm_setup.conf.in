@@ -1,0 +1,4 @@
+# Program invoked for creating certificates
+create_certs_tool= @DATAROOTDIR@/swtpm/swtpm-localca
+create_certs_tool_config = @SYSCONFDIR@/swtpm-localca.conf
+create_certs_tool_options = @SYSCONFDIR@/swtpm-localca.options

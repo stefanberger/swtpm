@@ -79,7 +79,7 @@ DEFAULT_OWNER_PASSWORD=ooo
 DEFAULT_SRK_PASSWORD=sss
 
 # default configuration file
-DEFAULT_CONFIG_FILE="${XDG_CONFIG_HOME:-/etc}/swtpm_setup.conf"
+DEFAULT_CONFIG_FILE="${XDG_CONFIG_HOME:-@SYSCONFDIR@}/swtpm_setup.conf"
 
 #default PCR banks to activate for TPM 2
 DEFAULT_PCR_BANKS="sha1,sha256"
