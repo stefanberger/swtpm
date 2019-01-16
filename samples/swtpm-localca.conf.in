@@ -1,0 +1,4 @@
+statedir = @LOCALSTATEDIR@/lib/swtpm-localca
+signingkey = @LOCALSTATEDIR@/lib/swtpm-localca/signkey.pem
+issuercert = @LOCALSTATEDIR@/lib/swtpm-localca/issuercert.pem
+certserial = @LOCALSTATEDIR@/lib/swtpm-localca/certserial
