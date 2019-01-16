@@ -120,10 +120,15 @@ fi
 if test "$prefix" = "" && test "$datarootdir" = '${prefix}/share'; then
 	datarootdir="/usr/share"
 fi
+if test "$prefix" = "/usr" && test "$localstatedir" = '${prefix}/var'; then
+	localstatedir="/var"
+fi
 SYSCONFDIR=`eval echo $sysconfdir`
 DATAROOTDIR=`eval echo $datarootdir`
+LOCALSTATEDIR=`eval echo $localstatedir`
 AC_SUBST([SYSCONFDIR])
 AC_SUBST([DATAROOTDIR])
+AC_SUBST([LOCALSTATEDIR])
 
 cryptolib=openssl
 
@@ -429,6 +434,7 @@ AC_CONFIG_FILES([Makefile                    \
 		etc/Makefile                \
 		etc/swtpm_setup.conf        \
 		samples/Makefile            \
+		samples/swtpm-localca.conf  \
 		include/Makefile            \
 		include/swtpm/Makefile      \
 		include/swtpm.h             \
