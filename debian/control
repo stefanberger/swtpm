@@ -17,7 +17,10 @@ Build-Depends: automake,
 	       findutils,
 	       tpm-tools (>= 1.3.8),
 	       python3-twisted,
-	       gnutls-dev
+	       gnutls-dev,
+	       libssl-dev,
+	       net-tools,
+	       gawk
 # linux-image-extra
 
 Package: swtpm
