@@ -41,20 +41,34 @@ addons:
 script:
   - git clone https://github.com/stefanberger/libtpms
   - cd libtpms
-  - "./bootstrap.sh && ./configure --with-openssl --prefix=/usr --with-tpm2 && make -j$(nproc) &&
-    sudo make install"
+  - CFLAGS="${LIBTPMS_CFLAGS:--g -O2}" LDFLAGS="${LIBTPMS_LDFLAGS}"
+       ./autogen.sh --with-openssl --prefix=${LIBTPMS_PREFIX:-/usr} --with-tpm2
+       && make -j$(${NPROC:-nproc})
+       && sudo make install
   - cd ..
   - ./autogen.sh ${CONFIG}
-  - ${SUDO} make clean && export SWTPM_TEST_EXPENSIVE=1 && ${SUDO} make -j$(nproc) ${CHECK}
+      && ${SUDO} make clean
+      && export SWTPM_TEST_EXPENSIVE=${SWTPM_TEST_EXPENSIVE:-1}
+      && ${SUDO} make -j$(${NPROC:-nproc}) ${CHECK}
+  - if [ -n "${RUN_TEST}" ]; then
+        sudo make install
+        && sudo ${PREFIX}/bin/swtpm_setup
+              --tpmstate /tmp --create-ek-cert --create-platform-cert
+              --runas ${TSS_USER:-tss} --tpm2
+         || { exit 1; };
+    fi
 after_failure:
   - for f in tests/*.log; do echo ">>>>>>> $f <<<<<<<"; cat $f; done
 matrix:
   include:
-    - env: CONFIG="--with-openssl --prefix=/usr"
+    - env: PREFIX="/usr"
+           CONFIG="--with-openssl --prefix=${PREFIX}"
            CHECK="distcheck"
+           RUN_TEST="1"
       before_script:
       - pep8 $(find . -type f | grep -E "\.py$")
-    - env: CONFIG="--with-openssl --prefix=/usr --enable-test-coverage"
+    - env: PREFIX="/usr"
+           CONFIG="--with-openssl --prefix=/usr --enable-test-coverage"
            SUDO="sudo"
            CHECK="check"
       before_script:
@@ -63,7 +77,8 @@ matrix:
       - sudo coveralls --gcov-options '\-lp'
     - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer"
            LIBS="-lasan"
-           CONFIG="--with-openssl --prefix=/usr"
+           PREFIX="/usr"
+           CONFIG="--with-openssl --prefix=${PREFIX}"
            SUDO="sudo"
            CHECK="check"
       before_script:
@@ -71,6 +86,33 @@ matrix:
         - echo -e '#!/usr/bin/env bash\nexit 0' > tests/test_parameters
     - env: CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBS="-lubsan"
-           CONFIG="--with-openssl --prefix=/usr"
+           PREFIX="/usr"
+           CONFIG="--with-openssl --prefix=${PREFIX}"
            SUDO="sudo"
            CHECK="check"
+    - env: NPROC="sysctl -n hw.ncpu"
+           LIBTPMS_CFLAGS="-I/usr/local/opt/openssl/include"
+           LIBTPMS_LDFLAGS="-L/usr/local/opt/openssl/lib"
+           LIBTPMS_PREFIX="${HOME}"
+           CFLAGS="-I/usr/local/opt/openssl/include -I${HOME}/include"
+           LDFLAGS="-L/usr/local/opt/openssl/lib -L${HOME}/lib"
+           PKG_CONFIG_PATH="${HOME}/lib/pkgconfig"
+           PREFIX="${HOME}"
+           TSS_USER=$(id -u -n)
+           CONFIG="--with-openssl --prefix=${PREFIX} --with-tss-user=${TSS_USER} --with-tss-group=$(id -g -n)"
+           SWTPM_TEST_EXPENSIVE=0
+           CHECK="check"
+           LD_LIBRARY_PATH=${PREFIX}/lib:${PREFIX}/lib/swtpm
+           RUN_TEST="1"
+      os: osx
+      compiler: clang
+      before_script:
+      - brew upgrade gnutls
+      - brew install expect
+      - brew install libtasn
+      - brew install glib
+      - brew install gawk
+      - brew install gmp
+      - brew tap discoteq/discoteq
+      - brew install flock
+      - brew install socat
