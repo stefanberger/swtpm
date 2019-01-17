@@ -49,7 +49,6 @@ if [ $? -ne 0 ]; then
 	echo "Error: Chardev TPM did not start."
 	exit 1
 fi
-less $LOGFILE
 TPM_DEVICE=$(sed -n 's,.*\(/dev/tpm[0-9]\+\).*,\1,p' $LOGFILE)
 echo "Using ${TPM_DEVICE}."
 
