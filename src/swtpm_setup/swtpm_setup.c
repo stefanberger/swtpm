@@ -47,6 +47,11 @@
 #include <pwd.h>
 #include <grp.h>
 
+#if defined __APPLE__
+#include <sys/mount.h>
+#include <mach-o/dyld.h>
+#endif
+
 #include "swtpm_setup.h"
 
 /*
@@ -126,6 +131,11 @@ int main(int argc, char *argv[])
     bool change_user = true;
     bool use_tpm2 = false;
     bool have_runas = false;
+    const char *p;
+#if defined __APPLE__
+    char path[MAXPATHLEN];
+    uint32_t pathlen = sizeof(path);
+#endif
 
     while (i < argc) {
         if (!strcmp("--runas", argv[i])) {
@@ -152,14 +162,20 @@ int main(int argc, char *argv[])
         i++;
     }
 
-#if defined __OpenBSD__ || defined __FreeBSD__ || defined __APPLE__ \
-  || defined __DragonFly__
-    if (!realpath(getenv("_"), resolved_path)) {
+#if defined __OpenBSD__ || defined __FreeBSD__ || defined __DragonFly__
+    p = getenv("_");
+#elif defined __APPLE__
+    if (_NSGetExecutablePath(path, &pathlen) < 0) {
+        fprintf(stderr, "Could not get path of 'self'.");
+        return EXIT_FAILURE;
+    }
+    p = path;
 #else
-    if (!realpath("/proc/self/exe", resolved_path)) {
+    p = "/proc/self/exe";
 #endif
-        fprintf(stderr, "Could not resolve path to executable : %s\n",
-                strerror(errno));
+    if (!realpath(p, resolved_path)) {
+        fprintf(stderr, "Could not resolve path (%s) to executable: %s\n",
+                p, strerror(errno));
         return EXIT_FAILURE;
     }
 
