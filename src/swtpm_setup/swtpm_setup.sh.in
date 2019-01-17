@@ -459,7 +459,7 @@ start_tcsd()
 
 	TCSD_CONFIG="$(mktemp)"
 	TCSD_DATA_DIR="$(mktemp -d)"
-	TCSD_DATA_FILE="$(mktemp --tmpdir=$TCSD_DATA_DIR)"
+	TCSD_DATA_FILE="$(TMPDIR=${TCSD_DATA_DIR} mktemp)"
 
 	if [ -z "$TCSD_CONFIG" ] || [ -z "$TCSD_DATA_DIR" ] || \
 	   [ -z "$TCSD_DATA_FILE" ]; then
