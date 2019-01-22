@@ -20,7 +20,8 @@ Build-Depends: automake,
 	       gnutls-dev,
 	       libssl-dev,
 	       net-tools,
-	       gawk
+	       gawk,
+	       softhsm2
 # linux-image-extra
 
 Package: swtpm

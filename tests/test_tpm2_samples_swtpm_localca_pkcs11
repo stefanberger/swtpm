@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
+TOPSRC=${abs_top_srcdir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+SWTPM_LOCALCA=${TOPSRC}/samples/swtpm-localca
+
+workdir=$(mktemp -d)
+
+ek=""
+for ((i = 0; i < 256; i++)); do
+  ek="${ek}$(printf "%02x" $i)"
+done
+
+SIGNINGKEY=${workdir}/signingkey.pem
+ISSUERCERT=${workdir}/issuercert.pem
+CERTSERIAL=${workdir}/certserial
+
+PATH=${TOPBUILD}/src/swtpm_cert:$PATH
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf ${workdir}
+	${TESTDIR}/softhsm_setup teardown
+}
+
+case "$(uname -s)" in
+Darwin)
+	CERTTOOL=gnutls-certtool;;
+*)
+	CERTTOOL=certtool;;
+esac
+
+unset GNUTLS_PIN
+export PIN="abcdef"
+
+# Generate the PKCS11 token and key; it uses env. variable 'PIN'
+msg=$(${TESTDIR}/softhsm_setup setup 2>&1)
+if [ $? -ne 0 ]; then
+	echo -e "Could not setup softhsm:\n${msg}"
+	echo "softhsm needs to be v2.3.0 or greater and pkcs11 correctly configured"
+	exit 77
+fi
+pkcs11uri=$(echo ${msg} | sed -n 's|^keyuri: \(.*\)|\1|p')
+
+# Now we need to create the root CA ...
+template=${workdir}/template
+
+cakey=${workdir}/swtpm-localca-rootca-privkey.pem
+cacert=${workdir}/swtpm-localca-rootca-cert.pem
+
+# first the private key
+msg=$(${CERTTOOL} \
+	--generate-privkey \
+	--outfile ${cakey} \
+	${passparam} \
+	2>&1)
+if [ $? -ne 0 ]; then
+	echo "Could not create root-CA key ${cakey}."
+	echo "${msg}"
+	exit 1
+fi
+chmod 640 ${cakey}
+
+# now the self-signed certificate
+cat <<_EOF_ >${template}
+cn=swtpm-localca-rootca
+ca
+cert_signing_key
+expiration_days = 3650
+_EOF_
+
+msg=$(${CERTTOOL} \
+	--generate-self-signed \
+	--template ${template} \
+	--outfile ${cacert} \
+	--load-privkey ${cakey} \
+	2>&1)
+if [ $? -ne 0 ]; then
+	echo "Could not create root CA."
+	echo "${msg}"
+	exit 1
+fi
+
+# And now create the intermediate CA with the pkcs11 URI key
+
+pubkey=${workdir}/swtpm-localca-interm-pubkey.pem
+
+msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
+	--load-privkey ${pkcs11uri} \
+	--pubkey-info \
+	--outfile ${pubkey})
+if [ $? -ne 0 ]; then
+	echo "Could not get public key for pkcs11 uri key ($pkcs11uri}."
+	echo "${msg}"
+	exit 1
+fi
+
+cat <<_EOF_ > ${template}
+cn=swtpm-localca
+ca
+cert_signing_key
+expiration_days = 3650
+_EOF_
+
+msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
+	--generate-certificate \
+	--template ${template} \
+	--outfile ${ISSUERCERT} \
+	--load-ca-privkey ${cakey} \
+	--load-ca-certificate ${cacert} \
+	--load-privkey ${pkcs11uri} \
+	--load-pubkey ${pubkey} \
+	2>&1)
+if [ $? -ne 0 ]; then
+	echo "Could not create intermediate CA"
+	echo "${msg}"
+	exit 1
+fi
+
+echo -n 1 > ${CERTSERIAL}
+
+# Now we can create the config files
+cat <<_EOF_ > ${workdir}/swtpm-localca.conf
+statedir = ${workdir}
+signingkey = $(echo ${pkcs11uri} | sed 's|;|\\;|g')
+issuercert = ${ISSUERCERT}
+certserial = ${CERTSERIAL}
+SWTPM_PKCS11_PIN = ${PIN}
+_EOF_
+
+cat <<_EOF_ > ${workdir}/swtpm-localca.options
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 2
+--platform-manufacturer Fedora
+--platform-version 2.1
+--platform-model QEMU
+_EOF_
+
+# the following contains the test parameters and
+# expected key usage
+for testparams in \
+	"--allow-signing|Digital signature" \
+	"--allow-signing --decryption|Digital signature,Key encipherment" \
+	"--decryption|Key encipherment" \
+	"|Key encipherment";
+do
+  params=$(echo ${testparams} | cut -d"|" -f1)
+  usage=$(echo ${testparams} | cut -d"|" -f2)
+
+  ${SWTPM_LOCALCA} \
+    --type ek \
+    --ek ${ek} \
+    --dir ${workdir} \
+    --vmid test \
+    --tpm2 \
+    --configfile ${workdir}/swtpm-localca.conf \
+    --optsfile ${workdir}/swtpm-localca.options \
+    --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
+    ${params}
+  if [ $? -ne 0 ]; then
+    echo "Error: Test with parameters '$params' failed."
+    exit 1
+  fi
+
+  if [ ! -r ${workdir}/ek.cert ]; then
+    echo "Error: ${workdir}/ek.cert was not created."
+    exit 1
+  fi
+
+  OIFS="$IFS"
+  IFS=","
+
+  for u in $usage; do
+    if [ -z "$(${CERTTOOL} -i \
+                 --inder --infile ${workdir}/ek.cert | \
+                grep "Key Usage" -A2 | \
+                grep "$u")" ]; then
+      echo "Error: Could not find key usage $u in key created " \
+           "with $params."
+    else
+      echo "Found '$u'"
+    fi
+  done
+
+  IFS="$OIFS"
+
+  ${CERTTOOL} \
+    -i \
+    --inder --infile ${workdir}/ek.cert \
+    --outfile ${workdir}/ek.pem
+
+  GNUTLS_PIN=${PIN} ${CERTTOOL} \
+    --verify \
+    --load-ca-certificate ${ISSUERCERT} \
+    --infile ${workdir}/ek.pem
+  if [ $? -ne 0 ]; then
+    echo "Error: Could not verify certificate chain."
+    exit 1
+  fi
+done
+
+exit 0

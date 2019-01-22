@@ -75,6 +75,7 @@ TESTS += \
 	test_swtpm_cert \
 	test_tpm2_parameters \
 	test_tpm2_samples_swtpm_localca \
+	test_tpm2_samples_swtpm_localca_pkcs11 \
 	test_tpm2_swtpm_cert \
 	test_tpm2_swtpm_cert_ecc \
 	test_tpm2_swtpm_setup_create_cert
@@ -131,6 +132,7 @@ EXTRA_DIST=$(TESTS) \
 	data/tpm2state3b/tpm2-00.volatilestate \
 	data/tpm2state3b/tpm2-00.permall \
 	load_vtpm_proxy \
+	softhsm_setup \
 	test_clientfds.py \
 	test_common \
 	test_cuse \

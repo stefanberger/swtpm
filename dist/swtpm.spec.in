@@ -29,6 +29,7 @@ BuildRequires:  openssl-devel
 BuildRequires:  socat
 BuildRequires:  python3
 BuildRequires:  python3-twisted
+BuildRequires:  softhsm2
 BuildRequires:  trousers >= 0.3.9
 BuildRequires:  tpm-tools >= 1.3.8-6
 %if %{with gnutls}
