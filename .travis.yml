@@ -30,6 +30,7 @@ addons:
         - gnutls-dev
         - gnutls-bin
         - libasan2
+        - softhsm2
   coverity_scan:
     project:
       name: swtpm
