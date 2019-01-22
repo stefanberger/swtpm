@@ -60,11 +60,33 @@ NAME=swtpm-test
 PIN=${PIN:-1234}
 SO_PIN=${SO_PIN:-1234}
 
+UNAME_S="$(uname -s)"
+
+case "${UNAME_S}" in
+Darwin)
+	msg=$(sudo -v -n)
+	if [ $? -ne 0 ]; then
+		echo "Need password-less sudo rights on OS X to change /etc/gnutls/pkcs11.conf"
+		exit 1
+	fi
+	;;
+esac
+
 teardown_softhsm() {
 	local configdir=~/.config/softhsm2
 	local configfile=${configdir}/softhsm2.conf
 	local bakconfigfile=${configfile}.bak
 	local tokendir=${configdir}/tokens
+
+	case "${UNAME_S}" in
+	Darwin*)
+		if [ -f /etc/gnutls/pkcs11.conf.bak ]; then
+			sudo rm -f /etc/gnutls/pkcs11.conf
+			sudo mv /etc/gnutls/pkcs11.conf.bak \
+			   /etc/gnutls/pkcs11.conf &>/dev/null
+		fi
+		;;
+	esac
 
 	if [ -f "$bakconfigfile" ]; then
 		mv "$bakconfigfile" "$configfile"
@@ -84,6 +106,19 @@ setup_softhsm() {
 	local bakconfigfile=${configfile}.bak
 	local tokendir=${configdir}/tokens
 	local rc
+
+	case "${UNAME_S}" in
+	Darwin*)
+		if [ -f /etc/gnutls/pkcs11.conf.bak ]; then
+			echo "/etc/gnutls/pkcs11.conf.bak already exists; need to 'teardown' first"
+			return 1
+		fi
+		sudo mv /etc/gnutls/pkcs11.conf \
+			/etc/gnutls/pkcs11.conf.bak &>/dev/null
+		SONAME="$(brew ls --verbose softhsm | grep -E "\.so$")"
+		sudo bash -c "echo "load=${SONAME}" > /etc/gnutls/pkcs11.conf"
+		;;
+	esac
 
 	if ! [ -d $configdir ]; then
 		mkdir -p $configdir
