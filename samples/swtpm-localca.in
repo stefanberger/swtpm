@@ -559,7 +559,18 @@ main() {
 	esac
 
 	# TPM keys are GNUTLS URLs...
-	if ! [[ "$SIGNKEY" =~ ^tpmkey:(uuid|file)= ]]; then
+	if [[ "$SIGNKEY" =~ ^tpmkey:(uuid|file)= ]]; then
+		export TSS_TCSD_HOSTNAME=$(get_config_value "$LOCALCA_CONFIG" \
+			"TSS_TCSD_HOSTNAME" "localhost")
+		export TSS_TCSD_PORT=$(get_config_value "$LOCALCA_CONFIG" \
+			"TSS_TCSD_PORT" "30003")
+		logit "CA uses a GnuTLS TPM key; using TSS_TCSD_HOSTNAME=${TSS_TCSD_HOSTNAME}" \
+			"TSS_TCSD_PORT=${TSS_TCSD_PORT}"
+	elif [[ "$SIGNKEY" =~ ^pkcs11: ]]; then
+		export SWTPM_PKCS11_PIN=$(get_config_value "$LOCALCA_CONFIG" \
+			"SWTPM_PKCS11_PIN" "swtpm-tpmca")
+		logit "CA uses a PKCS#11 key; using SWTPM_PKCS11_PIN"
+	else
 		if [ ! -r "$SIGNKEY" ]; then
 			if [ -f "$SIGNKEY" ]; then
 				logerr "Signing key $SIGNKEY exists but cannot access" \
@@ -579,13 +590,6 @@ main() {
 			logerr "Cannot access signing key ${SIGNKEY}."
 			exit 1
 		fi
-	else
-		export TSS_TCSD_HOSTNAME=$(get_config_value "$LOCALCA_CONFIG" \
-			"TSS_TCSD_HOSTNAME" "localhost")
-		export TSS_TCSD_PORT=$(get_config_value "$LOCALCA_CONFIG" \
-			"TSS_TCSD_PORT" "30003")
-		logit "CA uses a GnuTLS TPM key; using TSS_TCSD_HOSTNAME=${TSS_TCSD_HOSTNAME}" \
-			"TSS_TCSD_PORT=${TSS_TCSD_PORT}"
 	fi
 
 	if [ ! -r "$ISSUERCERT" ]; then
