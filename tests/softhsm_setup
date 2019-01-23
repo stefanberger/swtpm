@@ -115,7 +115,14 @@ setup_softhsm() {
 		fi
 		sudo mv /etc/gnutls/pkcs11.conf \
 			/etc/gnutls/pkcs11.conf.bak &>/dev/null
-		SONAME="$(brew ls --verbose softhsm | grep -E "\.so$")"
+		if [ $(id -u) -eq 0 ]; then
+			SONAME="$(sudo -u nobody brew ls --verbose softhsm | \
+				  grep -E "\.so$")"
+		else
+			SONAME="$(brew ls --verbose softhsm | \
+				  grep -E "\.so$")"
+		fi
+		sudo mkdir -p /etc/gnutls &>/dev/null
 		sudo bash -c "echo "load=${SONAME}" > /etc/gnutls/pkcs11.conf"
 		;;
 	esac

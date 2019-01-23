@@ -105,6 +105,7 @@ matrix:
            CHECK="check"
            LD_LIBRARY_PATH=${PREFIX}/lib:${PREFIX}/lib/swtpm
            RUN_TEST="1"
+           SUDO="sudo"
       os: osx
       compiler: clang
       before_script:
@@ -117,3 +118,5 @@ matrix:
       - brew tap discoteq/discoteq
       - brew install flock
       - brew install socat
+      # To run the pkcs11 test with softhsm we need SUDO (above)
+      - brew install softhsm
