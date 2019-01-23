@@ -24,7 +24,7 @@ function cleanup()
 
 source ${TESTDIR}/common
 
-if ! [[ "$(uname -o)" =~ Linux ]]; then
+if ! [[ "$(uname -s)" =~ Linux ]]; then
 	echo "Need Linux to run UnixIO test for CMD_SET_DATAFD."
 	exit 77
 fi
