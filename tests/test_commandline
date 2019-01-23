@@ -105,7 +105,7 @@ check_logfile_patterns_level_20 $LOG_FILE
 rm -f $LOG_FILE
 
 kill_quiet -SIGTERM $PID &>/dev/null
-sleep 1
+wait_process_gone $PID 2
 
 exec 20<&1-; exec 21<&2-
 kill_quiet -0 $PID &>/dev/null
@@ -140,7 +140,7 @@ if [ $RES -ne 0 ]; then
 	exit 1
 fi
 
-exec 200<> /dev/tcp/localhost/$PORT
+exec 200<>/dev/tcp/localhost/$PORT
 if [ $? -ne 0 ]; then
 	echo "Test 2 failed: Could not connect to TPM"
 	exit 1
@@ -150,7 +150,7 @@ exec 200>&-
 
 wait_port_closed $PORT $PID
 # Give it time to fully shut down
-sleep 1
+wait_process_gone $PID 2
 
 exec 20<&1-; exec 21<&2-
 kill_quiet -0 $PID
