@@ -15,26 +15,26 @@ unset SWTPM
 
 CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 && \
  make clean && \
- make -j8 &&
- sudo make -j8 install &&
+ make -j$(nproc) &&
+ sudo make -j$(nproc) install &&
  cp /usr/bin/swtpm /tmp/swtpm64 &&
- make -j8 check &&
- sudo make -j8 check ||
+ make -j$(nproc) check &&
+ sudo make -j$(nproc) check ||
  exit 1
 
 PKG_CONFIG_PATH=/usr/lib/pkgconfig \
  CFLAGS='-m32' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib && \
  make clean && \
- make -j8 &&
- sudo make -j8 install &&
+ make -j$(nproc) &&
+ sudo make -j$(nproc) install &&
  cp /usr/bin/swtpm /tmp/swtpm32 &&
- make -j8 check &&
- SWTPM_EXE=/tmp/swtpm64 make -j8 check &&
- sudo SWTPM_EXE=/tmp/swtpm64 make -j8 check ||
+ make -j$(nproc) check &&
+ SWTPM_EXE=/tmp/swtpm64 make -j$(nproc) check &&
+ sudo SWTPM_EXE=/tmp/swtpm64 make -j$(nproc) check ||
  exit 1
 
 CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 && \
  make clean && \
- make -j8 &&
- SWTPM_EXE=/tmp/swtpm32 make -j8 check &&
+ make -j$(nproc) &&
+ SWTPM_EXE=/tmp/swtpm32 make -j$(nproc) check &&
  exit 1
