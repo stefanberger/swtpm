@@ -155,7 +155,7 @@ do
   params=$(echo ${testparams} | cut -d"|" -f1)
   usage=$(echo ${testparams} | cut -d"|" -f2)
 
-  ${SWTPM_LOCALCA} \
+  msg=$(${SWTPM_LOCALCA} \
     --type ek \
     --ek ${ek} \
     --dir ${workdir} \
@@ -164,13 +164,20 @@ do
     --configfile ${workdir}/swtpm-localca.conf \
     --optsfile ${workdir}/swtpm-localca.options \
     --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
-    ${params}
+    ${params} 2>&1)
   if [ $? -ne 0 ]; then
     echo "Error: Test with parameters '$params' failed."
+    echo "${msg}"
+    if [[ "${msg}" =~ The\ requested\ PKCS\ #11\ object\ is\ not\ available ]]; then
+        # could be related to i386 executables on x86_64 host and
+        # libsofthsm.so only available for x86_64...
+        exit 77
+    fi
     exit 1
   fi
 
   if [ ! -r ${workdir}/ek.cert ]; then
+    echo "${msg}"
     echo "Error: ${workdir}/ek.cert was not created."
     exit 1
   fi
