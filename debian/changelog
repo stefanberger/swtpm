@@ -1,4 +1,10 @@
-swtpm (0.1.0-1-dev2) RELEASE; urgency=medium
+swtpm (0.1.0-1) RELEASED; urgency medium
+
+  * Initial public release
+
+ -- Stefan Berger <stefanb@linux.vnet.ibm.com>  Mon, 28 Jan 2019 15:58:22 -0500
+
+swtpm (0.1.0-1~dev2) RELEASED; urgency=medium
 
   * Developer release 2
 
