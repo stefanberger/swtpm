@@ -429,7 +429,8 @@ cygwin)
   CFLAGS="$CFLAGS -D__USE_LINUX_IOCTL_DEFS"
 esac
 
-AC_CONFIG_FILES([Makefile                    \
+AC_CONFIG_FILES([Makefile                   \
+		debian/swtpm-tools.postinst \
 		dist/swtpm.spec             \
 		etc/Makefile                \
 		etc/swtpm_setup.conf        \

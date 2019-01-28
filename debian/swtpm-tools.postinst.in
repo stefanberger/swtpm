@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+SWTPM_LOCALCA_DIR=@LOCALSTATEDIR@/lib/swtpm-localca
+
+if ! [ -d $SWTPM_LOCALCA_DIR ]; then
+	mkdir -p $SWTPM_LOCALCA_DIR
+	chown @TSS_USER@:@TSS_GROUP@ $SWTPM_LOCALCA_DIR
+fi
