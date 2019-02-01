@@ -36,9 +36,11 @@ addons:
       name: swtpm
       description: Build submitted via Travis CI
     notification_email: stefanb@linux.vnet.ibm.com
-    build_command_prepend: "./autogen.sh --with-openssl; make clean"
-    build_command: make -j4
+    build_command_prepend: "git clone https://github.com/stefanberger/libtpms && cd libtpms && ./autogen.sh --with-openssl --prefix=/usr --with-tpm2 && make -j$(${NPROC:-nproc}) && sudo make install && cd .. && ./autogen.sh --with-openssl"
+    build_command: make -j$(${NPROC:-nproc})
     branch_pattern: coverity_scan
+before_install:
+  - test $TRAVIS_BRANCH != coverity_scan -o ${TRAVIS_JOB_NUMBER##*.} = 1 || exit 0
 script:
   - git clone https://github.com/stefanberger/libtpms
   - cd libtpms
