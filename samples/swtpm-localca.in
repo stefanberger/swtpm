@@ -43,8 +43,23 @@ SETUP_TPM2_F=1
 ALLOW_SIGNING_F=2
 DECRYPTION_F=4
 
-LOCALCA_OPTIONS=${XDG_CONFIG_HOME:-@SYSCONFDIR@}/swtpm-localca.options
-LOCALCA_CONFIG=${XDG_CONFIG_HOME:-@SYSCONFDIR@}/swtpm-localca.conf
+LOCALCA_OPTIONS="swtpm-localca.options"
+if [ -n "$XDG_CONFIG_HOME" ] && [ -r "$XDG_CONFIG_HOME/$LOCALCA_OPTIONS" ]; then
+    LOCALCA_OPTIONS="$XDG_CONFIG_HOME/$LOCALCA_OPTIONS"
+elif [ -n "$HOME" ] && [ -r "$HOME/.config/$LOCALCA_OPTIONS" ]; then
+    LOCALCA_OPTIONS="$HOME/.config/$LOCALCA_OPTIONS"
+else
+    LOCALCA_OPTIONS="@SYSCONFDIR@/$LOCALCA_OPTIONS"
+fi
+
+LOCALCA_CONFIG="swtpm-localca.conf"
+if [ -n "$XDG_CONFIG_HOME" ] && [ -r "$XDG_CONFIG_HOME/$LOCALCA_CONFIG" ]; then
+    LOCALCA_CONFIG="$XDG_CONFIG_HOME/$LOCALCA_CONFIG"
+elif [ -n "$HOME" ] && [ -r "$HOME/.config/$LOCALCA_CONFIG" ]; then
+    LOCALCA_CONFIG="$HOME/.config/$LOCALCA_CONFIG"
+else
+    LOCALCA_CONFIG="@SYSCONFDIR@/$LOCALCA_CONFIG"
+fi
 
 # Default logging goes to stderr
 LOGFILE=""
