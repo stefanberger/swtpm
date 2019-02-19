@@ -79,7 +79,15 @@ DEFAULT_OWNER_PASSWORD=ooo
 DEFAULT_SRK_PASSWORD=sss
 
 # default configuration file
-DEFAULT_CONFIG_FILE="${XDG_CONFIG_HOME:-@SYSCONFDIR@}/swtpm_setup.conf"
+SWTPM_SETUP_CONF="swtpm_setup.conf"
+
+if [ -n "$XDG_CONFIG_HOME" ] && [ -r "$XDG_CONFIG_HOME/$SWTPM_SETUP_CONF" ] ; then
+    DEFAULT_CONFIG_FILE="$XDG_CONFIG_HOME/$SWTPM_SETUP_CONF"
+elif [ -n "$HOME" ] && [ -r "$HOME/.config/$SWTPM_SETUP_CONF" ] ; then
+    DEFAULT_CONFIG_FILE="$HOME/.config/$SWTPM_SETUP_CONF"
+else
+    DEFAULT_CONFIG_FILE="@SYSCONFDIR@/$SWTPM_SETUP_CONF"
+fi
 
 #default PCR banks to activate for TPM 2
 DEFAULT_PCR_BANKS="sha1,sha256"
