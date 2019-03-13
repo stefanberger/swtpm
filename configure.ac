@@ -429,6 +429,38 @@ cygwin)
   CFLAGS="$CFLAGS -D__USE_LINUX_IOCTL_DEFS"
 esac
 
+dnl Seccomp profile using -lseccomp (Linux only)
+case $host_os in
+linux-*)
+  with_seccomp_default=yes
+  ;;
+*)
+  with_seccomp_default=no
+  ;;
+esac
+
+AC_MSG_CHECKING([for whether to build with seccomp profile])
+AC_ARG_WITH([seccomp],
+  AC_HELP_STRING([--with-seccomp],
+                 [build with seccomp profile]),
+  [],
+  [with_seccomp=$with_seccomp_default]
+)
+
+if test "$with_seccomp" != "no"; then
+  LIBSECCOMP_CFLAGS=$(pkg-config libseccomp --cflags 2>/dev/null)
+  if test $? -ne 0; then
+    AC_MSG_ERROR("Is libseccomp-devel installed? -- could not get cflags for libseccomp")
+  else
+    with_libseccomp=yes
+  fi
+  LIBSECCOMP_LIBS=$(pkg-config --libs libseccomp)
+  AC_SUBST([LIBSECCOMP_LIBS])
+  AC_SUBST([LIBSECCOMP_CFLAGS])
+  AC_DEFINE_UNQUOTED([WITH_SECCOMP], 1,
+                     [whether to build in seccomp profile (Linux only)])
+fi
+
 AC_CONFIG_FILES([Makefile                   \
 		debian/swtpm-tools.postinst \
 		dist/swtpm.spec             \
@@ -466,12 +498,14 @@ printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
 printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
 printf "with_swtpm_setup: %5s  (no = swtpm_setup will NOT be built)\n" $with_swtpm_setup
 printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
+printf "with_seccomp    : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
 echo
 echo "cryptolib: $cryptolib"
 echo
 echo "CFLAGS=$CFLAGS"
 echo "HARDENING_CFLAGS=$HARDENING_CFLAGS"
 echo "LDFLAGS=$LDFLAGS"
+echo "LIBSECCOMP_LIBS=$LIBSECCOMP_LIBS"
 echo
 echo "TSS_USER=$TSS_USER"
 echo "TSS_GROUP=$TSS_GROUP"
