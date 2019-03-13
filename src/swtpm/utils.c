@@ -1,7 +1,7 @@
 /*
  * utils.s -- utilities
  *
- * (c) Copyright IBM Corporation 2014, 2015.
+ * (c) Copyright IBM Corporation 2014, 2015, 2019.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -51,6 +51,15 @@
 #include "tpmlib.h"
 #include "swtpm_debug.h"
 
+void uninstall_sighandlers()
+{
+    if (signal(SIGTERM, SIG_DFL) == SIG_ERR)
+        logprintf(STDERR_FILENO, "Could not uninstall signal handler for SIGTERM.\n");
+
+    if (signal(SIGPIPE, SIG_DFL) == SIG_ERR)
+        logprintf(STDERR_FILENO, "Could not uninstall signal handler for SIGPIPE.\n");
+}
+
 int install_sighandlers(int pipefd[2], sighandler_t handler)
 {
     if (pipe(pipefd) < 0) {
@@ -58,7 +67,7 @@ int install_sighandlers(int pipefd[2], sighandler_t handler)
         goto err_exit;
     }
 
-    if (signal(SIGTERM, (handler != NULL) ? handler : SIG_DFL) == SIG_ERR) {
+    if (signal(SIGTERM, handler) == SIG_ERR) {
         logprintf(STDERR_FILENO, "Could not install signal handler for SIGTERM.\n");
         goto err_close_pipe;
     }

@@ -4,7 +4,7 @@
 /*                 Written by Ken Goldman, Stefan Berger                        */
 /*                     IBM Thomas J. Watson Research Center                     */
 /*                                                                              */
-/* (c) Copyright IBM Corporation 2006, 2010, 2015, 2016.			*/
+/* (c) Copyright IBM Corporation 2006, 2010, 2015, 2016, 2019			*/
 /*										*/
 /* All rights reserved.								*/
 /* 										*/
@@ -504,7 +504,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
     rc = mainLoop(&mlp, notify_fd[0]);
 
-    install_sighandlers(notify_fd, NULL);
+    uninstall_sighandlers();
 
 error_no_sighandlers:
     TPMLIB_Terminate();
