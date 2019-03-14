@@ -1,2 +1,6 @@
+version 0.2.0:
+  - Linux: swtpm now runs with a seccomp profile (blacklist) if compiled with
+           libseccomp support
+
 version 0.1.0:
   first public release
