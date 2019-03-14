@@ -41,6 +41,7 @@ BuildRequires:  libtasn1
 %endif
 BuildRequires:  selinux-policy-devel
 BuildRequires:  gcc
+BuildRequires:  libseccomp-devel
 
 Requires:       %{name}-libs = %{version}-%{release}
 Requires:       libtpms >= 0.6.0
