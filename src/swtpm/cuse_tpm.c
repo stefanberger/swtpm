@@ -58,6 +58,10 @@
 
 #include <glib.h>
 
+#ifdef WITH_SECCOMP
+# include <seccomp.h>
+#endif
+
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_tis.h>
 #include <libtpms/tpm_error.h>
@@ -75,6 +79,7 @@
 #include "main.h"
 #include "utils.h"
 #include "threadpool.h"
+#include "seccomp_profile.h"
 
 /* maximum size of request buffer */
 #define TPM_REQ_MAX 4096
@@ -129,6 +134,8 @@ struct cuse_param {
     char *piddata;
     char *tpmstatedata;
     char *localitydata;
+    char *seccompdata;
+    unsigned int seccomp_action;
 };
 
 /* single message to send to the worker thread */
@@ -217,6 +224,15 @@ static const char *usage =
 "-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
 "                       user\n"
 "--tpm2              :  choose TPM2 functionality\n"
+#ifdef WITH_SECCOMP
+# ifndef SCMP_ACT_LOG
+"--seccomp action=none|kill\n"
+# else
+"--seccomp action=none|kill|log\n"
+# endif
+"                    :  Choose the action of the seccomp profile when a\n"
+"                       blacklisted syscall is executed; default is kill\n"
+#endif
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
 
@@ -1289,17 +1305,27 @@ static void ptm_init_done(void *userdata)
 
     /* at this point the entry in /dev/ is available */
     if (pidfile_write(getpid()) < 0) {
-        ptm_cleanup();
-        exit(-13);
+        ret = -13;
+        goto error_exit;
     }
 
     if (param->runas) {
         ret = change_process_owner(param->runas);
-        if (ret) {
-            ptm_cleanup();
-            exit(ret);
-        }
+        if (ret)
+            goto error_exit;
     }
+
+    if (create_seccomp_profile(true, param->seccomp_action) < 0) {
+        ret = -14;
+        goto error_exit;
+    }
+
+    return;
+
+error_exit:
+    ptm_cleanup();
+
+    exit(ret);
 }
 
 static void ptm_cleanup(void)
@@ -1327,13 +1353,14 @@ ptm_cuse_lowlevel_main(int argc, char *argv[], const struct cuse_info *ci,
 {
     int mt;
     int ret;
+    struct cuse_param *param = userdata;
 
     ptm_fuse_session = cuse_lowlevel_setup(argc, argv, ci, clop, &mt,
                                            userdata);
     if (ptm_fuse_session == NULL)
         return 1;
 
-    if (mt)
+    if (param->seccomp_action == SWTPM_SECCOMP_ACTION_NONE && mt)
         ret = fuse_session_loop_mt(ptm_fuse_session);
     else
         ret = fuse_session_loop(ptm_fuse_session);
@@ -1369,6 +1396,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {"tpm2"          ,       no_argument, 0, '2'},
         {"help"          ,       no_argument, 0, 'h'},
         {"version"       ,       no_argument, 0, 'v'},
+#ifdef WITH_SECCOMP
+        {"seccomp"       , required_argument, 0, 'S'},
+#endif
         {NULL            , 0                , 0, 0  },
     };
     struct cuse_info cinfo;
@@ -1465,6 +1495,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case '2':
             tpmversion = TPMLIB_TPM_VERSION_2;
             break;
+        case 'S':
+            param.seccompdata = optarg;
+            break;
         case 'h': /* help */
             fprintf(stdout, usage, prgname, iface);
             goto exit;
@@ -1509,6 +1542,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_migration_key_options(param.migkeydata) < 0 ||
         handle_pid_options(param.piddata) < 0 ||
         handle_tpmstate_options(param.tpmstatedata) < 0 ||
+        handle_seccomp_options(param.seccompdata, &param.seccomp_action) < 0 ||
         handle_locality_options(param.localitydata, &locality_flags) < 0) {
         ret = -3;
         goto exit;
