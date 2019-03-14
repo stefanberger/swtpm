@@ -50,6 +50,7 @@ struct server;
 int handle_server_options(char *options, struct server **s);
 int handle_locality_options(char *options, uint32_t *flags);
 int handle_flags_options(char *options, bool *need_init_cmd);
+int handle_seccomp_options(char *options, unsigned int *seccomp_action);
 
 #endif /* _SWTPM_COMMON_H_ */
 

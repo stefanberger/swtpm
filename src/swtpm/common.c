@@ -51,6 +51,10 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 
+#ifdef WITH_SECCOMP
+# include <seccomp.h>
+#endif
+
 #include <libtpms/tpm_error.h>
 
 #include "common.h"
@@ -63,6 +67,7 @@
 #include "tpmstate.h"
 #include "ctrlchannel.h"
 #include "server.h"
+#include "seccomp_profile.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -221,6 +226,14 @@ static const OptionDesc flags_opt_desc[] = {
     {
         .name = "not-need-init",
         .type = OPT_TYPE_BOOLEAN,
+    },
+    END_OPTION_DESC
+};
+
+static const OptionDesc seccomp_opt_desc[] = {
+    {
+        .name = "action",
+        .type = OPT_TYPE_STRING,
     },
     END_OPTION_DESC
 };
@@ -1148,6 +1161,65 @@ int handle_flags_options(char *options, bool *need_init_cmd)
         return 0;
 
     if (parse_flags_options(options, need_init_cmd) < 0)
+        return -1;
+
+    return 0;
+}
+
+static int parse_seccomp_options(char *options, unsigned int *seccomp_action)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+    const char *action;
+
+    ovs = options_parse(options, seccomp_opt_desc, &error);
+    if (!ovs) {
+        logprintf(STDERR_FILENO, "Error parsing seccomp options: %s\n", error);
+        goto error;
+    }
+
+    action = option_get_string(ovs, "action", "kill");
+    if (!strcmp(action, "kill")) {
+        *seccomp_action = SWTPM_SECCOMP_ACTION_KILL;
+#ifdef SCMP_ACT_LOG
+    } else if (!strcmp(action, "log")) {
+        *seccomp_action = SWTPM_SECCOMP_ACTION_LOG;
+#endif
+    } else if (!strcmp(action, "none")) {
+        *seccomp_action = SWTPM_SECCOMP_ACTION_NONE;
+    } else {
+        logprintf(STDERR_FILENO,
+                  "Unsupported seccomp log action %s\n", action);
+        goto error;
+    }
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+
+    return -1;
+}
+
+/*
+ * handle_seccomp_options:
+ * Parse the 'seccomp' options.
+ *
+ * @options: the flags options to parse
+ * @seccomp_action: the action to take when 
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int handle_seccomp_options(char *options, unsigned int *seccomp_action)
+{
+    *seccomp_action = SWTPM_SECCOMP_ACTION_KILL;
+
+    if (!options)
+        return 0;
+
+    if (parse_seccomp_options(options, seccomp_action) < 0)
         return -1;
 
     return 0;
