@@ -15,6 +15,7 @@ noinst_HEADERS = \
 	options.h \
 	osx.h \
 	pidfile.h \
+	seccomp_profile.h \
 	server.h \
 	swtpm_aes.h \
 	swtpm_debug.h \
@@ -38,6 +39,7 @@ libswtpm_libtpms_la_SOURCES = \
 	mainloop.c \
 	options.c \
 	pidfile.c \
+	seccomp_profile.c \
 	server.c \
 	swtpm_aes.c \
 	swtpm_debug.c \
@@ -58,12 +60,14 @@ libswtpm_libtpms_la_CFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(HARDENING_CFLAGS) \
-	$(GLIB_CFLAGS)
+	$(GLIB_CFLAGS) \
+	$(LIBSECCOMP_CFLAGS)
 
 libswtpm_libtpms_la_LIBADD = \
 	$(LIBTPMS_LIBS) \
 	$(GLIB_LIBS) \
-	$(LIBRT_LIBS)
+	$(LIBRT_LIBS) \
+	$(LIBSECCOMP_LIBS)
 
 bin_PROGRAMS = swtpm
 if WITH_CUSE

@@ -1,7 +1,7 @@
 /*
- * utils.h -- utilities
+ * seccomp_profile.h -- seccomp profile suppport
  *
- * (c) Copyright IBM Corporation 2015.
+ * (c) Copyright IBM Corporation 2019.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -35,26 +35,26 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SWTPM_UTILS_H_
-#define _SWTPM_UTILS_H_
+#ifndef SWTPM_SECCOMP_H
+#define SWTPM_SECCOMP_H
 
 #include "config.h"
 
-#include <signal.h>
+#include <stdbool.h>
 
-#include <libtpms/tpm_library.h>
+/* action to take in seccomp profile */
+#define SWTPM_SECCOMP_ACTION_KILL  1
+#define SWTPM_SECCOMP_ACTION_LOG   2
+#define SWTPM_SECCOMP_ACTION_NONE  3 /* = no profile */
 
-#define min(a,b) ((a) < (b) ? (a) : (b))
-#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
+#ifdef WITH_SECCOMP
+int create_seccomp_profile(bool cusetpm, unsigned int action);
+#else
+static inline int create_seccomp_profile(bool cusetpm __attribute__((unused)),
+                                  unsigned int action __attribute__((unused)))
+{
+    return 0;
+}
+#endif
 
-typedef void (*sighandler_t)(int);
-
-int install_sighandlers(int pipefd[2], sighandler_t handler);
-void uninstall_sighandlers(void);
-int change_process_owner(const char *owner);
-
-void tpmlib_debug_libtpms_parameters(TPMLIB_TPMVersion);
-
-char *fd_to_filename(int fd);
-
-#endif /* _SWTPM_UTILS_H_ */
+#endif /* SWTPM_SECCOMP_H */
