@@ -50,6 +50,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#ifdef WITH_SECCOMP
+# include <seccomp.h>
+#endif
+
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_memory.h>
@@ -69,6 +73,7 @@
 #include "tpmstate.h"
 #include "sys_dependencies.h"
 #include "osx.h"
+#include "seccomp_profile.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -170,6 +175,15 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   send an INIT via control channel;\n"
     "-r|--runas <user>: change to the given user\n"
     "--tpm2           : choose TPM2 functionality\n"
+#ifdef WITH_SECCOMP
+# ifndef SCMP_ACT_LOG
+    "--seccomp action=none|kill\n"
+# else
+    "--seccomp action=none|kill|log\n"
+# endif
+    "                 : Choose the action of the seccomp profile when a\n"
+    "                   blacklisted syscall is executed; default is kill\n"
+#endif
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -210,6 +224,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *ctrlchdata = NULL;
     char *serverdata = NULL;
     char *flagsdata = NULL;
+    char *seccompdata = NULL;
     char *runas = NULL;
     int sock_type = 0;
     socklen_t len = 0;
@@ -217,6 +232,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 #ifdef DEBUG
     time_t              start_time;
 #endif
+    unsigned int seccomp_action;
     static struct option longopts[] = {
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
@@ -234,6 +250,9 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"ctrl"      , required_argument, 0, 'C'},
         {"flags"     , required_argument, 0, 'F'},
         {"tpm2"      ,       no_argument, 0, '2'},
+#ifdef WITH_SECCOMP
+        {"seccomp"   , required_argument, 0, 'S'},
+#endif
         {NULL        , 0                , 0, 0  },
     };
 
@@ -359,6 +378,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             runas = optarg;
             break;
 
+        case 'S':
+            seccompdata = optarg;
+            break;
+
         default:
             usage(stderr, prgname, iface);
             exit(EXIT_FAILURE);
@@ -407,6 +430,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_pid_options(piddata) < 0 ||
         handle_locality_options(localitydata, &mlp.locality_flags) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
+        handle_seccomp_options(seccompdata, &seccomp_action) < 0 ||
         handle_flags_options(flagsdata, &need_init_cmd) < 0) {
         goto exit_failure;
     }
@@ -468,8 +492,12 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
         goto error_no_sighandlers;
 
+    if (create_seccomp_profile(false, seccomp_action) < 0)
+        goto error_seccomp_profile;
+
     rc = mainLoop(&mlp, notify_fd[0]);
 
+error_seccomp_profile:
     uninstall_sighandlers();
 
 error_no_sighandlers:
