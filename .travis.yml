@@ -31,6 +31,7 @@ addons:
         - gnutls-bin
         - libasan2
         - softhsm2
+        - libseccomp-dev
   coverity_scan:
     project:
       name: swtpm
@@ -81,7 +82,7 @@ matrix:
     - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer"
            LIBS="-lasan"
            PREFIX="/usr"
-           CONFIG="--with-openssl --prefix=${PREFIX}"
+           CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
            CHECK="check"
       before_script:
