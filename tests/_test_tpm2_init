@@ -31,7 +31,11 @@ source ${TESTDIR}/common
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
-run_swtpm ${SWTPM_INTERFACE} --tpm2
+if has_seccomp_support ${SWTPM_EXE}; then
+	seccomp_params="--seccomp action=none"
+fi
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2 ${seccomp_params}
 
 display_processes_by_name "$SWTPM"
 
@@ -87,6 +91,11 @@ if [ "$(id -u)" != "0" ]; then
 		echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 		exit 1
 	fi
+fi
+
+check_seccomp_profile ${SWTPM_EXE} ${SWTPM_PID} 0
+if [ $? -ne 0 ]; then
+	exit 1
 fi
 
 # Shut down
