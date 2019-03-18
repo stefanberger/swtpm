@@ -648,3 +648,48 @@ function display_processes_by_name()
 		ps aux | grep "${name}" | grep -v grep
 	fi
 }
+
+# Check whether seccomp support is compiled in
+#
+# @1: path to swtpm
+#
+# Returns 0 if seccomp is supported, 1 otherwise
+function has_seccomp_support()
+{
+	local swtpm_exe="$1"
+
+	local tmp=$(${swtpm_exe} socket --help | grep -E "\-\-seccomp")
+
+	[ -n "${tmp}" ] && return 0
+	return 1
+}
+
+# Check whether the given process runs with the given seccomp
+# profile type IF the given swtpm executable has seccomp support
+#
+# @1: Path to swtpm executable from which process was started
+# @2: The process ID
+# @3: The expected seccomp profile type
+function check_seccomp_profile()
+{
+	local swtpm_exe="$1"
+	local swtpm_pid="$2"
+	local profile="$3"
+
+	local tmp
+
+	if ! has_seccomp_support "${swtpm_exe}"; then
+		return 0
+	fi
+
+	tmp=$(grep -E "^Seccomp" /proc/${swtpm_pid}/status |
+		cut -d":" -f2 |
+		tr -d '\t')
+	if [ "${tmp}" != ${profile} ]; then
+		echo "Process ${swtpm_pid} has wrong seccomp profile type"
+		echo "Expected: ${profile}"
+		echo "Actual  : ${tmp}"
+		return 1
+	fi
+	return 0
+}

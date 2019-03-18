@@ -81,6 +81,11 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
+check_seccomp_profile "${SWTPM_EXE}" "${SWTPM_PID}" 2
+if [ $? -ne 0 ]; then
+	exit 1
+fi
+
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
