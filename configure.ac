@@ -123,6 +123,9 @@ fi
 if test "$prefix" = "/usr" && test "$localstatedir" = '${prefix}/var'; then
 	localstatedir="/var"
 fi
+if test "x$prefix" = "xNONE"; then
+	prefix="/usr/local"
+fi
 SYSCONFDIR=`eval echo $sysconfdir`
 DATAROOTDIR=`eval echo $datarootdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
