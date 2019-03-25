@@ -83,7 +83,7 @@ function run_test() {
 	cat <<_EOF_ > ${workdir}/swtpm_setup.conf
 create_certs_tool=${SWTPM_LOCALCA}
 create_certs_tool_config=${workdir}/swtpm-localca.conf
-create_certs_tool_options=${workdir}/swtpm-localca.options
+create_certs_tool_options=/dev/null
 _EOF_
 
 	params=""
@@ -226,7 +226,8 @@ _EOF_
 		${params} \
 		--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 00 \
 		--tpm-model swtpm --tpm-version 20170101 --tpm-manufacturer IBM \
-		--configfile ${SWTPM_LOCALCA_CONF}
+		--configfile ${SWTPM_LOCALCA_CONF} \
+		--optsfile /dev/null
 	if [ $? -ne 0 ]; then
 		echo "Error: The CA could not sign with the new certificate"
 		exit 1
