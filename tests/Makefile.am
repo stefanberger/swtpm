@@ -39,6 +39,7 @@ TESTS += \
 	test_volatilestate \
 	test_swtpm_bios \
 	test_tpm_probe \
+	test_tpm12 \
 	test_wrongorder
 
 TESTS += \
@@ -132,6 +133,7 @@ EXTRA_DIST=$(TESTS) \
 	data/tpm2state3b/tpm2-00.volatilestate \
 	data/tpm2state3b/tpm2-00.permall \
 	load_vtpm_proxy \
+	patches/lib.patch \
 	softhsm_setup \
 	test_clientfds.py \
 	test_common \
