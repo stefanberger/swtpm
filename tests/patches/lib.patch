@@ -1,0 +1,88 @@
+Patch for TPM 1.2 test suite to support recent OpenSSL versions.
+--- hmac.c.old	2017-07-28 15:44:50.000000000 -0400
++++ hmac.c	2019-03-28 15:48:46.564254873 -0400
+@@ -3,7 +3,7 @@
+ /*			     	TPM HMAC routines				*/
+ /*			     Written by J. Kravitz				*/
+ /*		       IBM Thomas J. Watson Research Center			*/
+-/*	      $Id: hmac.c 4726 2014-09-03 22:02:10Z kgoldman $			*/
++/*	      $Id: hmac.c 4771 2017-08-31 21:12:33Z kgoldman $			*/
+ /*										*/
+ /* (c) Copyright IBM Corporation 2006, 2010.					*/
+ /*										*/
+@@ -381,16 +381,29 @@
+ /****************************************************************************/
+ uint32_t TSS_rawhmac(unsigned char *digest, const unsigned char *key, unsigned int keylen, ...)
+    {
+-   HMAC_CTX hmac;
++#if OPENSSL_VERSION_NUMBER < 0x10100000
++   HMAC_CTX 	hmac;
++#else
++   HMAC_CTX 	*hmac;
++#endif
+    unsigned int dlen;
+    unsigned char *data;
+    va_list argp;
+    
+-#ifdef HAVE_HMAC_CTX_CLEANUP
++#if OPENSSL_VERSION_NUMBER < 0x10100000
+    HMAC_CTX_init(&hmac);
++#else
++   hmac = HMAC_CTX_new();
+ #endif
+-   HMAC_Init(&hmac,key,keylen,EVP_sha1());
+ 
++#if OPENSSL_VERSION_NUMBER < 0x10100000
++   HMAC_Init(&hmac,key,keylen,EVP_sha1());
++#else
++   HMAC_Init_ex(hmac,
++		key, keylen,		/* HMAC key */
++		EVP_sha1(),		/* message digest method */
++		NULL);
++#endif
+    va_start(argp,keylen);
+    for (;;)
+       {
+@@ -398,14 +411,23 @@
+       if (dlen == 0) break;
+       data = (unsigned char *)va_arg(argp,unsigned char *);
+       if (data == NULL) return ERR_NULL_ARG;
+-      HMAC_Update(&hmac,data,dlen);
++
++#if OPENSSL_VERSION_NUMBER < 0x10100000
++      HMAC_Update(&hmac, data, dlen);
++#else
++      HMAC_Update(hmac, data, dlen);
++#endif
+       }
+-   HMAC_Final(&hmac,digest,&dlen);
++#if OPENSSL_VERSION_NUMBER < 0x10100000
++   HMAC_Final(&hmac, digest, &dlen);
++#else
++   HMAC_Final(hmac, digest, &dlen);
++#endif
+ 
+-#ifdef HAVE_HMAC_CTX_CLEANUP
++#if OPENSSL_VERSION_NUMBER < 0x10100000
+    HMAC_CTX_cleanup(&hmac);
+ #else
+-   HMAC_cleanup(&hmac);
++   HMAC_CTX_free(hmac);
+ #endif
+    va_end(argp);
+    return 0;
+--- keys.c.old	2019-03-28 15:47:22.627805826 -0400
++++ keys.c	2019-03-28 15:48:42.665280466 -0400
+@@ -1316,8 +1316,12 @@
+                 exp);
+    }
+    /* set up the RSA public key structure */
++#if OPENSSL_VERSION_NUMBER < 0x10100000
+    rsa->n = mod;
+    rsa->e = exp;
++#else
++   RSA_set0_key(rsa, mod, exp, NULL);
++#endif
+    return rsa;
+    }
+ 
