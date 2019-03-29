@@ -1,6 +1,6 @@
 Patch for TPM 1.2 test suite to support recent OpenSSL versions.
---- hmac.c.old	2017-07-28 15:44:50.000000000 -0400
-+++ hmac.c	2019-03-28 15:48:46.564254873 -0400
+--- lib/hmac.c.old	2017-07-28 15:44:50.000000000 -0400
++++ lib/hmac.c	2019-03-28 15:48:46.564254873 -0400
 @@ -3,7 +3,7 @@
  /*			     	TPM HMAC routines				*/
  /*			     Written by J. Kravitz				*/
@@ -71,8 +71,8 @@ Patch for TPM 1.2 test suite to support recent OpenSSL versions.
  #endif
     va_end(argp);
     return 0;
---- keys.c.old	2019-03-28 15:47:22.627805826 -0400
-+++ keys.c	2019-03-28 15:48:42.665280466 -0400
+--- lib/keys.c.old	2019-03-28 15:47:22.627805826 -0400
++++ lib/keys.c	2019-03-28 15:48:42.665280466 -0400
 @@ -1316,8 +1316,12 @@
                  exp);
     }
@@ -85,4 +85,24 @@ Patch for TPM 1.2 test suite to support recent OpenSSL versions.
 +#endif
     return rsa;
     }
- 
+
+--- utils/test_console.sh.old	2019-03-29 16:34:47.014890971 -0400
++++ utils/test_console.sh	2019-03-29 16:35:16.181691631 -0400
+@@ -61,7 +61,7 @@
+ USE_HWTPM="0"
+ export TPM_SERVER_NAME
+ export TPM_SERVER_PORT
+-export TPM_TRANSPORT="0"
++export TPM_TRANSPORT=${TPM_TRANSPORT:-0}
+ export TPM_TRANSPORT_EK
+ export TPM_TRANSPORT_EKP
+ export TPM_TRANSPORT_SK
+@@ -71,7 +71,7 @@
+ export TPM_TRANSPORT_ENONCE
+ export TPM_TRANSPORT_ENC
+ export LOADKEY_VERSION=""
+-export TPM_AUDITING="0"
++export TPM_AUDITING=${TPM_AUDITING:-0}
+ export TPM_IS_FIPS="0"
+ export TPM_ET_ENCRYPT_AES="0"
+ export NO_SRK_PASSWORD=0

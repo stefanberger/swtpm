@@ -18,7 +18,7 @@ function cleanup() {
 		rm -rf ${WORKDIR}
 	fi
 	# clean up after (interrupted) test suite
-	rm -f /tmp/.key-*-0 /tmp/.delegation-0
+	rm -f /tmp/.key-*-0 /tmp/.delegation-0 /tmp/.transdigest-*-0
 }
 
 trap "cleanup" EXIT
@@ -64,13 +64,11 @@ tar -xzf tpm4769tar.gz
 
 pushd libtpm &>/dev/null
 
-pushd lib &>/dev/null
-patch -p0 < ${TESTDIR}/patches/lib.patch
+patch -p0 < ${TESTDIR}/patches/libtpm.patch
 if [ $? -ne 0 ]; then
 	echo "Error: Patching failed."
 	exit 1
 fi
-popd &>/dev/null
 
 ./autogen
 LIBS="" CFLAGS="-g -O2" ./configure
@@ -78,23 +76,45 @@ make -j$(nproc)
 
 pushd utils &>/dev/null
 
+# variables used by TPM 1.2 tools and test suite
+export TPM_SERVER_PORT=${TPM_SERVER_PORT} \
+    TPM_SERVER_NAME=${TPM_SERVER_NAME} \
+    SLAVE_TPM_PORT=${SLAVE_TPM_PORT} \
+    SLAVE_TPM_SERVER=${SLAVE_TPM_SERVER} \
+    PATH=$PWD:$PATH
+
+if wait_for_serversocket ${TPM_SERVER_PORT} 127.0.0.1 2; then
+	echo "Error: swtpm 1 did not open port ${TPM_SERVER_PORT}"
+	exit 1
+fi
+
+if wait_for_serversocket ${SLAVE_TPM_PORT} 127.0.0.1 2; then
+	echo "Error: swtpm 2 did not open port ${SLAVE_TPM_PORT}"
+	exit 1
+fi
+
+tpmbios
+
 ln -s makeidentity identity
 
 # keep test 1 last due to ERRORs it creates since we do not
 # restart the TPM
-for tst in 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 20 23 2 1; do
+for tst in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 20 23 25 26 1; do
+
+    TPM_AUDITING=0
+    TPM_TRANSPORT=0
 
     echo "Running test ${tst}"
-    if [[ "${tst}" =~ ^(1|2)$ ]]; then
+    if [[ "${tst}" =~ ^(1)$ ]]; then
         $SWTPM_IOCTL --tcp :65441 -i
+        tpmbios
+    elif [[ "${tst}" = ^25$ ]]; then
+        TPM_AUDITING=1
+        TPM_TRANSPORT=1
     fi
 
-    PATH=$PWD:$PATH \
-       TPM_SERVER_PORT=${TPM_SERVER_PORT} TPM_SERVER_NAME=${TPM_SERVER_NAME} \
-       SLAVE_TPM_PORT=${SLAVE_TPM_PORT} SLAVE_TPM_SERVER=${SLAVE_TPM_SERVER} \
-       ./test_console.sh \
-           --non-interactive \
-           ${tst} >> ${TESTLOG}
+    timeout 40 ./test_console.sh \
+        --non-interactive ${tst} >> ${TESTLOG} </dev/null
     # Ignore all errors that occurred in test 1
     if [ $tst != "1" ] && [ -n "$(grep "ERROR" ${TESTLOG})" ]; then
         echo "Error occurred!"
@@ -103,8 +123,15 @@ for tst in 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 20 23 2 1; do
     fi
 done
 
+$SWTPM_IOCTL --tcp :65441 -s
+wait_process_gone ${SWTPM1_PID} 4
+
+$SWTPM_IOCTL --tcp :65443 -s
+wait_process_gone ${SWTPM_PID} 4
+
 popd &>/dev/null
 popd &>/dev/null
 
 echo "OK"
+
 exit 0
