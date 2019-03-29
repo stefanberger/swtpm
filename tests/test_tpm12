@@ -5,7 +5,7 @@ if [ ${SWTPM_TEST_EXPENSIVE:-0} -eq 0 ]; then
 fi
 
 ROOT=${abs_top_builddir:-$(pwd)/..}
-TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+TESTDIR=${abs_top_testdir:-${PWD}/$(dirname "$0")}
 
 function cleanup() {
 	if [ -n "${SWTPM_PID}" ]; then
@@ -17,6 +17,8 @@ function cleanup() {
 	if [ -n ${WORKDIR} ]; then
 		rm -rf ${WORKDIR}
 	fi
+	# clean up after (interrupted) test suite
+	rm -f /tmp/.key-*-0 /tmp/.delegation-0
 }
 
 trap "cleanup" EXIT
@@ -64,6 +66,10 @@ pushd libtpm &>/dev/null
 
 pushd lib &>/dev/null
 patch -p0 < ${TESTDIR}/patches/lib.patch
+if [ $? -ne 0 ]; then
+	echo "Error: Patching failed."
+	exit 1
+fi
 popd &>/dev/null
 
 ./autogen
@@ -74,15 +80,23 @@ pushd utils &>/dev/null
 
 ln -s makeidentity identity
 
-for tst in 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 20 23; do
+# keep test 1 last due to ERRORs it creates since we do not
+# restart the TPM
+for tst in 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 20 23 2 1; do
+
     echo "Running test ${tst}"
+    if [[ "${tst}" =~ ^(1|2)$ ]]; then
+        $SWTPM_IOCTL --tcp :65441 -i
+    fi
+
     PATH=$PWD:$PATH \
        TPM_SERVER_PORT=${TPM_SERVER_PORT} TPM_SERVER_NAME=${TPM_SERVER_NAME} \
        SLAVE_TPM_PORT=${SLAVE_TPM_PORT} SLAVE_TPM_SERVER=${SLAVE_TPM_SERVER} \
        ./test_console.sh \
            --non-interactive \
            ${tst} >> ${TESTLOG}
-    if [ -n "$(grep "ERROR" ${TESTLOG})" ]; then
+    # Ignore all errors that occurred in test 1
+    if [ $tst != "1" ] && [ -n "$(grep "ERROR" ${TESTLOG})" ]; then
         echo "Error occurred!"
         cat ${TESTLOG}
         exit 1
