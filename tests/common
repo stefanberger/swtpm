@@ -628,6 +628,19 @@ function get_filemode()
 	fi
 }
 
+# Get the file owner uid and gid
+#
+# @1: filename
+function get_fileowner()
+{
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+		stat -c"%u %g" $1
+	else
+		# BSDs
+		stat -f"%u %g" $1
+	fi
+}
+
 # Get the SHA1 of a file
 #
 # @1: filename
