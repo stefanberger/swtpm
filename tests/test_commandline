@@ -140,13 +140,13 @@ if [ $RES -ne 0 ]; then
 	exit 1
 fi
 
-exec 200<>/dev/tcp/localhost/$PORT
+exec 100<>/dev/tcp/localhost/$PORT
 if [ $? -ne 0 ]; then
 	echo "Test 2 failed: Could not connect to TPM"
 	exit 1
 fi
 
-exec 200>&-
+exec 100>&-
 
 wait_port_closed $PORT $PID
 # Give it time to fully shut down
