@@ -67,14 +67,16 @@ function wait_port_closed()
 
 # Test 1: test port and directory command line parameters; use log level 20
 FILEMODE=641
+exec 100<>$LOG_FILE
 
 $SWTPM_EXE socket \
 	-p $PORT \
 	--tpmstate dir=$TPMDIR,mode=$FILEMODE \
 	--pid file=$PID_FILE \
-	--log file=$LOG_FILE,level=20 \
+	--log fd=100,level=20 \
 	--flags not-need-init &
 PID=$!
+exec 100>&-
 
 wait_port_open $PORT $PID
 
