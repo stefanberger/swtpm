@@ -104,7 +104,7 @@ change_process_owner(const char *user)
             logprintf(STDERR_FILENO,
                       "Error: User '%s' does not exist.\n",
                       user);
-            return 14;
+            return -14;
         }
 
         if (initgroups(passwd->pw_name, passwd->pw_gid) < 0) {
