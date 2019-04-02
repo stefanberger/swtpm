@@ -615,6 +615,19 @@ function get_filesize()
 	fi
 }
 
+# Get the file mode bits in octal format
+#
+# @1: filename
+function get_filemode()
+{
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+		stat -c%a $1
+	else
+		# BSDs
+		stat -f%Lp $1
+	fi
+}
+
 # Get the SHA1 of a file
 #
 # @1: filename

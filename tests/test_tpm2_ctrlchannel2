@@ -31,13 +31,14 @@ function cleanup()
 
 # Test 1: test the control channel on the chardev tpm
 
+FILEMODE=621
 # use a pseudo terminal
 exec 100<>/dev/ptmx
 $SWTPM_EXE chardev \
 	--fd 100 \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
-	--ctrl type=unixio,path=$SOCK_PATH \
+	--ctrl type=unixio,path=$SOCK_PATH,mode=$FILEMODE \
 	--tpm2 &
 
 if wait_for_file $PID_FILE 3; then
@@ -51,6 +52,14 @@ PID="$(cat $PID_FILE)"
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_CAPABILITY failed: $act"
+	exit 1
+fi
+
+filemode=$(get_filemode $SOCK_PATH)
+if [ "$filemode" != "$FILEMODE" ]; then
+	echo "Filemode bits are wrong"
+	echo "Expected: $FILEMODE"
+	echo "Actual  : $filemode"
 	exit 1
 fi
 
