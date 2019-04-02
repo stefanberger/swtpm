@@ -78,7 +78,7 @@ matrix:
       before_script:
       - sudo pip install cpp-coveralls
       after_success:
-      - sudo coveralls --gcov-options '\-lp'
+      - sudo coveralls --gcov-options '\-lp' -e libtpms
     - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer"
            LIBS="-lasan"
            PREFIX="/usr"
