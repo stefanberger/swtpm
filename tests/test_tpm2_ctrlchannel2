@@ -30,6 +30,10 @@ function cleanup()
 }
 
 # Test 1: test the control channel on the chardev tpm
+if [ $(id -u) -eq 0 ]; then
+	FOWNER=",uid=$(id -u nobody),gid=$(id -G nobody | cut -d" " -f1)"
+	FILEOWNER="$(id -u nobody) $(id -G nobody | cut -d" " -f1)"
+fi
 
 FILEMODE=621
 # use a pseudo terminal
@@ -38,7 +42,7 @@ $SWTPM_EXE chardev \
 	--fd 100 \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
-	--ctrl type=unixio,path=$SOCK_PATH,mode=$FILEMODE \
+	--ctrl type=unixio,path=$SOCK_PATH,mode=${FILEMODE}${FOWNER} \
 	--tpm2 &
 
 if wait_for_file $PID_FILE 3; then
@@ -60,6 +64,14 @@ if [ "$filemode" != "$FILEMODE" ]; then
 	echo "Filemode bits are wrong"
 	echo "Expected: $FILEMODE"
 	echo "Actual  : $filemode"
+	exit 1
+fi
+
+fileowner=$(get_fileowner $SOCK_PATH)
+if [ -n "$FILEOWNER" ] && [ "$fileowner" != "$FILEOWNER" ]; then
+	echo "File ownership is wrong"
+	echo "Expected: $FILEOWNER"
+	echo "Actual  : $fileowner"
 	exit 1
 fi
 
