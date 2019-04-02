@@ -35,6 +35,12 @@ source ${TESTDIR}/common
 if [ $(id -u) -eq 0 ] && [ "$(uname -s)" != "Darwin" ]; then
 	FOWNER=",uid=nobody,gid=$(id -Gn nobody | cut -d" " -f1)"
 	FILEOWNER="$(id -u nobody) $(id -G nobody | cut -d" " -f1)"
+	RUNAS="--runas nobody"
+	chown nobody $TPMDIR
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not change ownership of $TPMDIR"
+		exit 1
+	fi
 fi
 
 if [[ "$(uname -s)" =~ CYGWIN_NT- ]]; then
@@ -63,7 +69,8 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH,mode=${FILEMODE}${FOWNER} \
-	--log file=$LOG_FILE,level=20 &
+	--log file=$LOG_FILE,level=20 \
+	$RUNAS &
 
 exec 100>&-
 
@@ -159,6 +166,12 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
+# To enable coverage of the above running as non-root we change the .gcda
+# files' ownership with this small hack
+if [ $(id -u) -eq 0 ] && [ "$(uname -s)" != "Darwin" ]; then
+	find $ROOT -name *.gcda -exec chown nobody {} \;
+fi
+
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x03')"
 exp=" 00 00 00 00"
@@ -192,7 +205,8 @@ echo "OK"
 run_swtpm ${SWTPM_INTERFACE} \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
-	--log file=$LOG_FILE
+	--log file=$LOG_FILE \
+	$RUNAS
 
 if wait_for_file ${PID_FILE} 4; then
 	echo "Error: Socket TPM did not write pidfile."

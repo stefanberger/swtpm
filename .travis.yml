@@ -77,6 +77,9 @@ matrix:
            CHECK="check"
       before_script:
       - sudo pip install cpp-coveralls
+      - p=$PWD; while [ "$PWD" != "/" ]; do chmod o+x . &>/dev/null ; cd .. ; done; cd $p
+        && sudo mkdir src/swtpm/.libs
+        && sudo chown nobody src/swtpm src/swtpm/.libs
       after_success:
       - sudo coveralls --gcov-options '\-lp' -e libtpms
     - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer"
