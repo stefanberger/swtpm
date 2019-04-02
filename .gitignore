@@ -1,5 +1,8 @@
 *.exe
 *.exe.stackdump
+*.gcda
+*.gcno
+*.gcov
 *.la
 *.lo
 *.o
