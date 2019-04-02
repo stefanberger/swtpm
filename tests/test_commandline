@@ -66,10 +66,11 @@ function wait_port_closed()
 }
 
 # Test 1: test port and directory command line parameters; use log level 20
+FILEMODE=641
 
 $SWTPM_EXE socket \
 	-p $PORT \
-	--tpmstate dir=$TPMDIR \
+	--tpmstate dir=$TPMDIR,mode=$FILEMODE \
 	--pid file=$PID_FILE \
 	--log file=$LOG_FILE,level=20 \
 	--flags not-need-init &
@@ -95,9 +96,16 @@ if [ "$PIDF" != "$PID" ]; then
 fi
 
 ${SWTPM_BIOS} &>/dev/null
-
 if [ $? -ne 0 ]; then
 	echo "Test 1 failed: tpm_bios did not work"
+	exit 1
+fi
+
+filemode=$(get_filemode ${TPMDIR}/tpm-00.permall)
+if [ "$filemode" != "$FILEMODE" ]; then
+	echo "Filemode bits are wrong"
+	echo "Expected: $FILEMODE"
+	echo "Actual  : $filemode"
 	exit 1
 fi
 

@@ -31,6 +31,12 @@ source ${TESTDIR}/common
 
 # Test 1: test the control channel on the socket tpm
 
+if [[ "$(uname -s)" =~ CYGWIN_NT- ]]; then
+	FILEMODE=661
+else
+	FILEMODE=621
+fi
+
 case "$(uname -s)" in
 FreeBSD)
 	kldload pty
@@ -50,7 +56,7 @@ $SWTPM_EXE socket \
 	--fd 100 \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
-	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH \
+	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH,mode=$FILEMODE \
 	--log file=$LOG_FILE,level=20 &
 
 exec 100>&-
@@ -73,6 +79,14 @@ if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"
 	echo "       expected: $exp"
+	exit 1
+fi
+
+filemode=$(get_filemode $SWTPM_CTRL_UNIX_PATH)
+if [ "$filemode" != "$FILEMODE" ]; then
+	echo "Filemode bits are wrong"
+	echo "Expected: $FILEMODE"
+	echo "Actual  : $filemode"
 	exit 1
 fi
 
