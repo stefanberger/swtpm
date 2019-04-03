@@ -64,15 +64,27 @@ else
 	echo "Could not find chardev for opening file descriptor."
 	exit 1
 fi
+
+case $(uname -s) in
+Linux|CYGWIN_NT-)
+	PIDPARAM="fd=101"
+	exec 101<>$PID_FILE
+	;;
+*)
+	PIDPARAM="file=$PID_FILE"
+	;;
+esac
+
 $SWTPM_EXE socket \
 	--fd 100 \
 	--tpmstate dir=$TPMDIR \
-	--pid file=$PID_FILE \
+	--pid $PIDPARAM \
 	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH,mode=${FILEMODE}${FOWNER} \
 	--log file=$LOG_FILE,level=20 \
 	$RUNAS &
 
 exec 100>&-
+exec 101>&-
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
