@@ -46,6 +46,11 @@
 #include <string.h>
 #include <errno.h>
 
+#if defined __APPLE__
+#include <fcntl.h>
+#include <sys/param.h>
+#endif
+
 #include "utils.h"
 #include "logging.h"
 #include "tpmlib.h"
@@ -177,6 +182,8 @@ void tpmlib_debug_libtpms_parameters(TPMLIB_TPMVersion tpmversion)
 
 char *fd_to_filename(int fd)
 {
+#if defined __linux__
+
     char buffer[64];
     char *path;
 
@@ -190,4 +197,27 @@ char *fd_to_filename(int fd)
     }
 
     return path;
+
+#elif defined __APPLE__
+
+    char *path = malloc(MAXPATHLEN);
+    if (!path) {
+        logprintf(STDERR_FILENO, "Out of memory.\n");
+        return NULL;
+    }
+    if (fcntl(fd, F_GETPATH, path) < 0) {
+        logprintf(STDERR_FILENO, "fcntl for F_GETPATH failed: %\n",
+                  strerror(errno));
+        free(path);
+        return NULL;
+    }
+    return path;
+
+#else
+
+    logprintf(STDERR_FILENO,
+              "Cannot convert file descriptor to filename on this platform.\n");
+    return NULL;
+
+#endif
 }
