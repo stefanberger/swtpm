@@ -81,7 +81,9 @@ matrix:
         && sudo mkdir src/swtpm/.libs
         && sudo chown nobody src/swtpm src/swtpm/.libs
       after_success:
-      - sudo coveralls --gcov-options '\-lp' -e libtpms
+        - uidgid="$(id -nu):$(id -ng)" &&
+          sudo chown -R ${uidgid} ./ &&
+          cpp-coveralls --gcov-options '\-lp' -e libtpms
     - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer"
            LIBS="-lasan"
            PREFIX="/usr"
