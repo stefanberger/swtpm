@@ -64,7 +64,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/param.h>
 
@@ -647,9 +646,9 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
 }
 
 static int open_connection(const char *devname, char *tcp_hostname,
-                           int tcp_port, const char *unix_path)
+                           unsigned short tcp_port, const char *unix_path)
 {
-    int fd;
+    int fd = -1;
 
     if (devname) {
         fd = open(devname, O_RDWR);
@@ -657,28 +656,39 @@ static int open_connection(const char *devname, char *tcp_hostname,
             fprintf(stderr, "Unable to open device '%s'.\n", devname);
         }
     } else if (tcp_hostname) {
-        fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (fd >= 0) {
-            struct hostent *host = gethostbyname(tcp_hostname);
-            if (host != NULL) {
-                struct sockaddr_in addr;
+        struct addrinfo hints = {
+            .ai_family = AF_UNSPEC,
+            .ai_socktype = SOCK_STREAM,
+        };
+        struct addrinfo *ais = NULL, *ai;
+        char portstr[10];
 
-                memset(&addr, 0, sizeof(addr));
-                addr.sin_family = host->h_addrtype;
-                addr.sin_port = htons(tcp_port);
-                memcpy(&addr.sin_addr, host->h_addr, host->h_length);
-                if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-                    close(fd);
-                    fd = -1;
-                }
-            } else {
-                close (fd);
-                fd = -1;
-            }
+        snprintf(portstr, sizeof(portstr), "%u", tcp_port);
+
+        int err = getaddrinfo(tcp_hostname, portstr, &hints, &ais);
+        if (err != 0) {
+            fprintf(stderr, "getaddrinfo failed on host '%s': %s\n",
+                    tcp_hostname, gai_strerror(err));
+            return -1;
         }
 
+        for (ai = ais; ai != NULL; ai = ai->ai_next) {
+            fd = socket(ai->ai_family, ai->ai_socktype, 0);
+            if (fd < 0)
+                continue;
+
+            if (connect(fd,
+                        (struct sockaddr *)ai->ai_addr, ai->ai_addrlen) == 0)
+                break;
+            close(fd);
+            fd = -1;
+        }
+        freeaddrinfo(ais);
+
         if (fd < 0) {
-            fprintf(stderr, "Could not connect using TCP socket.\n");
+            fprintf(stderr, "Could not connect to host '%s' on port '%u' "
+                    "using TCP socket: %s\n", tcp_hostname, tcp_port,
+                    strerror(errno));
         }
     } else if (unix_path) {
         struct sockaddr_un addr;
@@ -703,8 +713,6 @@ static int open_connection(const char *devname, char *tcp_hostname,
         if (fd < 0) {
             fprintf(stderr, "Could not connect using UnixIO socket.\n");
         }
-    } else {
-        fd = -1;
     }
 
     return fd;
@@ -712,7 +720,7 @@ static int open_connection(const char *devname, char *tcp_hostname,
 
 static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
 {
-    char *pos = strchr(optarg, ':');
+    char *pos = strrchr(optarg, ':');
     int n;
 
     *tcp_port = DEFAULT_TCP_PORT;
