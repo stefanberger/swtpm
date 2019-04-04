@@ -74,7 +74,7 @@ static char *unix_path;
 
 static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
 {
-	char *pos = strchr(optarg, ':');
+	char *pos = strrchr(optarg, ':');
 	int n;
 
 	*tcp_port = DEFAULT_TCP_PORT;
@@ -169,6 +169,11 @@ static int open_connection(char *devname, char *tcp_device_hostname,
 	}
 
 	if (getenv("TCSD_USE_TCP_DEVICE")) {
+		struct addrinfo hints;
+		struct addrinfo *ais = NULL, *ai;
+		char portstr[10];
+		int err;
+
 		if ((tcp_device_hostname = getenv("TCSD_TCP_DEVICE_HOSTNAME")) == NULL)
 			tcp_device_hostname = "localhost";
 		if ((tcp_device_port_string = getenv("TCSD_TCP_DEVICE_PORT")) != NULL)
@@ -177,27 +182,32 @@ static int open_connection(char *devname, char *tcp_device_hostname,
 			tcp_device_port = DEFAULT_TCP_PORT;
 
 use_tcp:
-		fd = socket(AF_INET, SOCK_STREAM, 0);
-		if (fd >= 0) {
-			struct hostent *host = gethostbyname(tcp_device_hostname);
-			if (host != NULL) {
-				struct sockaddr_in addr;
-				memset(&addr, 0x0, sizeof(addr));
-				addr.sin_family = host->h_addrtype;
-				addr.sin_port   = htons(tcp_device_port);
-				memcpy(&addr.sin_addr,
-						host->h_addr,
-						host->h_length);
-				if (connect(fd,	(struct sockaddr *)&addr,
-					    sizeof(addr)) < 0) {
-					close(fd);
-					fd = -1;
-				}
-			} else {
-				close (fd);
-				fd = -1;
-			}
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+
+		snprintf(portstr, sizeof(portstr), "%u", tcp_device_port);
+
+		err = getaddrinfo(tcp_device_hostname, portstr, &hints, &ais);
+		if (err != 0) {
+			fprintf(stderr, "getaddrinfo failed on host '%s': %s\n",
+			        tcp_device_hostname, gai_strerror(err));
+			return -1;
 		}
+
+		for (ai = ais; ai != NULL; ai = ai->ai_next) {
+			fd = socket(ai->ai_family, ai->ai_socktype, 0);
+			if (fd < 0)
+				continue;
+
+			if (connect(fd, (struct sockaddr *)ai->ai_addr,
+			            ai->ai_addrlen) == 0)
+				break;
+
+			close(fd);
+			fd = -1;
+		}
+		freeaddrinfo(ais);
 
 		if (fd < 0) {
 			fprintf(stderr, "Could not connect using TCP socket.\n");
