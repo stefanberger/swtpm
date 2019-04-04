@@ -116,8 +116,20 @@ echo "OK"
 
 # There are a few more tests here that require sending commands to the TPM
 
+BINDADDR="127.0.0.1"
+case $(uname -s) in
+Linux*)
+	# make sure IPv6 is available
+	ip -6 addr show lo | grep -q " ::1/128" && BINDADDR="::1"
+	;;
+esac
+
 # use a pseudo terminal
-$SWTPM_EXE socket --server port=65431,disconnect=true --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &
+$SWTPM_EXE socket \
+	--server port=65431,disconnect=true,bindaddr=$BINDADDR \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -125,8 +137,6 @@ if wait_for_file $PID_FILE 3; then
 fi
 
 PID="$(cat $PID_FILE)"
-
-exec 100<>/dev/tcp/localhost/65431
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
@@ -149,13 +159,9 @@ if [ $? -ne 0 ]; then
 fi
 
 # Startup the TPM
-/bin/echo -en '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01' >&100
-RES=$(cat <&100 | od -t x1 -A n)
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
-if [ "$RES" != "$exp" ]; then
-	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
-	echo "expected: $exp"
-	echo "received: $RES"
+msg=$($SWTPM_BIOS --tcp ${BINDADDR}:65431 -o 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: Failed to startup TPM: $msg"
 	exit 1
 fi
 
@@ -229,7 +235,7 @@ if [ "$act" != "$exp" ]; then
 fi
 
 # Read PCR 17
-exec 100<>/dev/tcp/localhost/65431
+exec 100<>/dev/tcp/${BINDADDR}/65431
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
 exp=' 00 c4 00 00 00 1e 00 00 00 00 f9 87 3e 96 6b 9e 46 c8 45 46 2d 1f f2 52 eb cc c1 9b df fd'
@@ -255,7 +261,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Read PCR 17 -- should fail now
-exec 100<>/dev/tcp/localhost/65431
+exec 100<>/dev/tcp/${BINDADDR}/65431
 echo -en '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
