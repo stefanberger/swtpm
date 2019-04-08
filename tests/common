@@ -19,8 +19,7 @@ function kill_quiet()
   return $?
 }
 
-# Wait for a regular file to appear; give the process 0.2s to write
-# into the file
+# Wait for a regular file to appear and for it to have > 0 bytes
 #
 # @1: filename
 # @2: timeout in seconds
@@ -32,8 +31,7 @@ function wait_for_file()
   local loops=$((timeout * 10)) loop
 
   for ((loop=0; loop<loops; loop++)); do
-    [ -f "${filename}" ] && {
-      sleep 0.2
+    [ -f "${filename}" ] && [ $(get_filesize ${filename}) != 0 ] && {
       return 1
     }
     sleep 0.1
