@@ -89,6 +89,8 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(chroot),
         SCMP_SYS(settimeofday),
         SCMP_SYS(clock_adjtime),
+        SCMP_SYS(clock_settime),
+        SCMP_SYS(adjtimex),
         SCMP_SYS(mount),
         SCMP_SYS(umount2),
         SCMP_SYS(swapon),
@@ -101,6 +103,7 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(kcmp),
         SCMP_SYS(init_module),
         SCMP_SYS(finit_module),
+        SCMP_SYS(delete_module), 
         SCMP_SYS(seccomp),
         SCMP_SYS(kexec_file_load),
 #ifdef __NR_sysctl
@@ -161,7 +164,12 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(eventfd2),
         SCMP_SYS(fanotify_init),
         SCMP_SYS(fanotify_mark),
-        SCMP_SYS(clock_adjtime),
+        SCMP_SYS(mknod),
+        SCMP_SYS(mknodat),
+        SCMP_SYS(acct),
+        SCMP_SYS(prctl),
+        SCMP_SYS(prlimit64),
+        SCMP_SYS(setrlimit),
 #ifdef __NR_bpf
         SCMP_SYS(bpf),
 #endif
