@@ -227,13 +227,17 @@ options_parse(char *opts, const OptionDesc optdesc[], char **error)
 
     tok = strtok_r(opts_bak, ",", &saveptr);
     while (tok) {
+        size_t toklen = strlen(tok);
+
         found = false;
         i = 0;
         while (optdesc[i].name) {
             size_t len = strlen(optdesc[i].name);
-            if (tok[len] == '=' &&
+
+            if (toklen > len + 1 && tok[len] == '=' &&
                 !strncmp(optdesc[i].name, tok, len)) {
-                const char *v = &tok[len+1];
+                const char *v = &tok[len + 1];
+
                 if (option_value_add(ovs, optdesc[i], v, error) < 0)
                     goto error;
                 found = true;
