@@ -84,8 +84,10 @@ matrix:
         - uidgid="$(id -nu):$(id -ng)" &&
           sudo chown -R ${uidgid} ./ &&
           cpp-coveralls --gcov-options '\-lp' -e libtpms
-    - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer"
+    - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
+           LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBS="-lasan"
+           ASAN_OPTIONS="halt_on_error=1"
            PREFIX="/usr"
            CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
@@ -94,7 +96,9 @@ matrix:
         # Tspi_NV_WriteValue has an I/O error when using asan
         - echo -e '#!/usr/bin/env bash\nexit 0' > tests/test_parameters
     - env: CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
+           LIBTPMS_CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBS="-lubsan"
+           UBSAN_OPTIONS="halt_on_error=1"
            PREFIX="/usr"
            CONFIG="--with-openssl --prefix=${PREFIX}"
            SUDO="sudo"
