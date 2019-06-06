@@ -38,16 +38,21 @@ pushd ${WORKDIR} &>/dev/null
 
 git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
 
-pushd ibmtpm20tss-tss/utils &>/dev/null
+pushd ibmtpm20tss-tss &>/dev/null
 
-git checkout 8440ed
+git checkout tags/v1470
 if [ $? -ne 0 ]; then
 	echo "'Git checkout' failed."
 	exit 1
 fi
 
+autoreconf --force --install
+CFLAGS="" LDFLAGS="" LIBS="" ./configure --disable-tpm-1.2
 make -j4
-make
+
+pushd utils
+# FIXME: This may only be needed for v1470
+sed -i 's/export CRYPTOLIBRARY.*/export CRYPTOLIBRARY=openssl/' reg.sh
 
 export TPM_SERVER_NAME=localhost
 export TPM_SERVER_TYPE=raw
@@ -92,6 +97,7 @@ if wait_process_gone ${SWTPM_PID} 4; then
 	ret=1
 fi
 
+popd &>/dev/null
 popd &>/dev/null
 popd &>/dev/null
 
