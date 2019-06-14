@@ -1,0 +1,223 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+VTPM_NAME="vtpm-test-tpm2-derived-keys"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+
+tpmstatedir="$(mktemp -d)"
+if [ -z "$tpmstatedir" ]; then
+	echo "Could not create temporary directory"
+	exit 1
+fi
+
+SWTPM_CMD_UNIX_PATH=${tpmstatedir}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${tpmstatedir}/unix-ctrl.sock
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill_quiet -9 $pid
+	fi
+	rm -rf $tpmstatedir
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
+source ${TESTDIR}/common
+
+export TPM_PATH=$tpmstatedir
+
+# copy all the state files
+cp ${TESTDIR}/data/tpm2state1/* ${TPM_PATH}
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2
+
+kill_quiet -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Create a key
+# @param1: reset (!= 0) TPM before creating key;
+# @param2: whether to send TPM2_Startup
+# @param3: command to send
+# @param4: expected return value
+function tx_cmd()
+{
+	local reset="$1"
+	local startup="$2"
+	local cmd="$3"
+	local exp="$4"
+
+	local RES tmp
+
+	if [ "$reset" != "0" ]; then
+		run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not send TPM_INIT"
+			return 1
+		fi
+	fi
+	if [ "$startup" != "0" ]; then
+		swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+		RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+		tmp=' 80 01 00 00 00 0a 00 00 00 00'
+		if [ "$RES" != "$tmp" ]; then
+			echo "Error: Did not get expected response from TPM2_Startup"
+			echo "expected: $tmp"
+			echo "received: $RES"
+			return 1
+		fi
+		exec 100>&-
+	fi
+
+	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+	if [ "$RES" != "$exp" ]; then
+		echo "Error: Did not get expected return from creating key"
+		echo "expected: $exp"
+		echo "received: $RES"
+		return 1
+	fi
+	exec 100>&-
+
+	return 0
+}
+
+# Create a primary RSA key and expect a predictable return value
+# tsscreateprimary -hi e -v
+# -> creates key with handle 0x80 00 00 00
+test1_cmd='\x80\x02\x00\x00\x00\x43\x00\x00\x01\x31\x40\x00\x00\x0b\x00\x00'
+test1_cmd+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00'
+test1_cmd+='\x00\x00\x1a\x00\x01\x00\x0b\x00\x03\x04\x72\x00\x00\x00\x06\x00'
+test1_cmd+='\x80\x00\x43\x00\x10\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+test1_cmd+='\x00\x00\x00'
+
+test1_exp=' 80 02 00 00 01 fa 00 00 00 00 80 00 00 00 00 00'
+test1_exp+=' 01 e3 01 1a 00 01 00 0b 00 03 04 72 00 00 00 06 00'
+test1_exp+=' 80 00 43 00 10 08 00 00 00 00 00 01 00 b5 0a c8 18'
+test1_exp+=' 00 01 82 b6 53 63 fc a1 ba 4d 13 d2 1e 05 63 08 bb'
+test1_exp+=' df b3 95 c5 e0 d7 42 f8 c4 21 f1 c7 df ac ee 57 e4'
+test1_exp+=' 3d 80 7b da 33 95 76 56 cc 73 df 0b 33 db 4b 3a f0'
+test1_exp+=' d1 80 86 a2 35 df a9 a7 82 4b 6d 1e 88 d7 e8 d9 73'
+test1_exp+=' 0b 6c d3 c5 ef b9 5c fb 92 69 d8 c0 d8 e9 a1 fa a3'
+test1_exp+=' 72 dc 6a 3e 8c c4 a7 8e 9f b8 f2 0e b3 64 e0 8c cb'
+test1_exp+=' f0 02 31 d1 b6 ee 2c de e7 c7 92 7e 34 b8 46 80 7e'
+test1_exp+=' f6 0a f9 b6 57 e0 91 51 18 27 5b fe 8a e7 22 d2 41'
+test1_exp+=' e1 e6 16 d6 04 e0 03 a9 1c be 5d 6b 37 a7 d7 03 45'
+test1_exp+=' 7e dc 96 ad 5d ea bb 99 c5 e1 07 a9 70 6f b2 89 d9'
+test1_exp+=' 4b c1 cc 01 fa df 6d 74 de ca f9 41 bf be 89 bd 53'
+test1_exp+=' 79 ee 28 8e ef 81 16 c2 d1 6d cf 10 49 06 23 ba b3'
+test1_exp+=' ab d7 27 fc 7c f2 6a f4 8a 75 5b de ea dc e9 33 0a'
+test1_exp+=' e8 d5 70 2b 5a 94 03 f7 5e 75 5d 76 08 3b 6e c1 2c'
+test1_exp+=' 1f cb 28 68 ab 82 87 49 70 96 96 56 ac d7 00 37 00'
+test1_exp+=' 00 00 00 00 20 e3 b0 c4 42 98 fc 1c 14 9a fb f4 c8'
+test1_exp+=' 99 6f b9 24 27 ae 41 e4 64 9b 93 4c a4 95 99 1b 78'
+test1_exp+=' 52 b8 55 01 00 10 00 04 40 00 00 0b 00 04 40 00 00'
+test1_exp+=' 0b 00 00 00 20 28 d0 26 fa fd 74 91 06 74 3e 27 c4'
+test1_exp+=' 28 05 51 58 5e 5d 17 66 8e b5 21 83 5e d6 01 27 ef'
+test1_exp+=' fc 05 d4 80 21 40 00 00 0b 00 40 dc 19 bf 88 fc 7b'
+test1_exp+=' d8 5c 0b 40 fb 0f ec b0 af 6b f1 46 3e 26 bf bf 74'
+test1_exp+=' 95 ec 0e 6f 60 b3 e7 dd 29 55 11 3f 9f ee 9f 75 27'
+test1_exp+=' d8 b5 4a 51 72 6e dc a1 68 a6 0a 6d d3 70 1f 0c 00'
+test1_exp+=' df 79 60 23 86 83 e0 00 22 00 0b 45 fe 98 72 0a c6'
+test1_exp+=' cf 0a ca 16 37 28 d9 e2 33 a9 d5 4f 5d b5 d3 78 bf'
+test1_exp+=' 40 20 60 b3 85 8d 41 ff c7 00 00 01 00 00'
+
+# Create a primary ECC key and expect a predictable return value
+# tsscreateprimary -hi e -ecc bnp256 -v
+# -> creates key with handle 0x80 00 00 00
+test2_cmd='\x80\x02\x00\x00\x00\x43\x00\x00\x01\x31\x40\x00\x00\x0b\x00\x00'
+test2_cmd+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00'
+test2_cmd+='\x00\x00\x1a\x00\x23\x00\x0b\x00\x03\x04\x72\x00\x00\x00\x06\x00'
+test2_cmd+='\x80\x00\x43\x00\x10\x00\x03\x00\x10\x00\x00\x00\x00\x00\x00\x00'
+test2_cmd+='\x00\x00\x00'
+
+test2_exp=' 80 02 00 00 01 3a 00 00 00 00 80 00 00 00 00 00 01 23'
+test2_exp+=' 00 5a 00 23 00 0b 00 03 04 72 00 00 00 06 00 80 00 43'
+test2_exp+=' 00 10 00 03 00 10 00 20 15 86 c2 64 96 e4 b1 07 83 17 de 90'
+test2_exp+=' da 9e df 61 42 e2 12 6b 94 48 c9 d9 bc e6 31 03 8e 8b fb 1f'
+test2_exp+=' 00 20 37 26 ca 32 f2 6d 75 cb 1f 5d e8 8e b6 3e 96 8e 10 a0'
+test2_exp+=' 1c df 55 91 4a 9b 50 a1 2a e6 a1 ee 32 45 00 37 00 00 00 00'
+test2_exp+=' 00 20 e3 b0 c4 42 98 fc 1c 14 9a fb f4 c8 99 6f b9 24 27 ae'
+test2_exp+=' 41 e4 64 9b 93 4c a4 95 99 1b 78 52 b8 55 01 00 10 00 04 40'
+test2_exp+=' 00 00 0b 00 04 40 00 00 0b 00 00 00 20 28 d0 26 fa fd 74 91'
+test2_exp+=' 06 74 3e 27 c4 28 05 51 58 5e 5d 17 66 8e b5 21 83 5e d6 01'
+test2_exp+=' 27 ef fc 05 d4 80 21 40 00 00 0b 00 40 99 3f 24 8d 87 28 fe'
+test2_exp+=' bb 5d 1b be fc 12 2c cd 4e 5b 03 22 7a 78 00 3b 64 76 ec 08'
+test2_exp+=' 11 2f 4c 36 7b 36 f7 83 1a 59 74 19 fe 52 45 81 f7 08 bc be'
+test2_exp+=' b0 e1 99 37 1a 3e 7b ba cb dc 3e 20 d8 51 82 45 24 00 22 00'
+test2_exp+=' 0b ac 4c a0 86 53 fa 68 b2 c9 54 f5 7e f7 c2 54 12 0a 08 03'
+test2_exp+=' de 8e 96 e1 f1 89 97 52 a8 1a fb 0b cc 00 00 01 00 00'
+
+# Create an AES key and expect a predictable return value
+# tsscreateloaded -hp 40000001 -rsa -des -v
+# -> creates key with handle 0x80 00 00 00
+test3_cmd='\x80\x02\x00\x00\x00\x35\x00\x00\x01\x91\x40\x00\x00\x01\x00\x00'
+test3_cmd+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00'
+test3_cmd+='\x00\x00\x12\x00\x25\x00\x0b\x00\x06\x04\x60\x00\x00\x00\x06\x00'
+test3_cmd+='\x80\x00\x43\x00\x00'
+
+test3_exp=' 80 02 00 00 00 71 00 00 00 00 80 00 00 00 00 00 00'
+test3_exp+=' 5a 00 00 00 32 00 25 00 0b 00 06 04 60 00 00 00 06 00 80'
+test3_exp+=' 00 43 00 20 b4 1c 16 e3 78 1e dc 6c 8a 84 ce 27 f1 f3 8c'
+test3_exp+=' 8c 67 fe ea 6e 1f 14 2d db 26 2e 16 dd 5c fb f0 fb 00 22'
+test3_exp+=' 00 0b d4 2a 69 2b 4c b7 31 e2 65 d4 14 61 10 aa 16 ec b2'
+test3_exp+=' 7f a3 27 15 1b 5c 7c 22 98 90 1f cd f2 9e bc 00 00 01 00'
+test3_exp+=' 00'
+
+# Create a TDES (0x03) key and expect a predictable return value
+# (tsscreateloaded does not support TDES)
+# -> creates key with handle 0x80 00 00 00
+test4_cmd='\x80\x02\x00\x00\x00\x35\x00\x00\x01\x91\x40\x00\x00\x01\x00\x00'
+test4_cmd+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00'
+test4_cmd+='\x00\x00\x12\x00\x25\x00\x0b\x00\x03\x04\x60\x00\x00\x00\x06\x00'
+test4_cmd+='\x80\x00\x43\x00\x00'          #^^^^ <- TDES
+
+test4_exp=' 80 02 00 00 00 71 00 00 00 00 80 00 00 00 00 00 00'
+test4_exp+=' 5a 00 00 00 32 00 25 00 0b 00 03 04 60 00 00 00 06 00 80'
+test4_exp+=' 00 43 00 20 fa d6 aa f9 c2 b2 c6 c5 fe fa 84 9e ae b6 68'
+test4_exp+=' 63 32 2d cd da 27 f8 5e 20 9c f2 e7 f0 5f c7 27 88 00 22'
+test4_exp+=' 00 0b fe f7 d7 5b c6 f7 70 17 40 25 d8 ed 80 e0 be e8 ec'
+test4_exp+=' f2 ec 5a a6 08 29 79 13 13 7e 85 5f 03 9a 91 00 00 01 00'
+test4_exp+=' 00'
+
+#
+# The issue is that 32bit TPMs produce different results than
+# 64bit TPMs. We only test 64bit TPMs with the above expected
+# return values.
+#
+case "$(uname -p)" in
+ppc64|ppc64le|x86_64)
+	echo "[Assuming ${SWTPM_EXE} is 64bit]"
+	tx_cmd 1 0 "$test1_cmd" "$test1_exp" || exit 1 && echo "Test 1: OK"
+	tx_cmd 1 1 "$test2_cmd" "$test2_exp" || exit 1 && echo "Test 2: OK"
+	tx_cmd 1 1 "$test3_cmd" "$test3_exp" || exit 1 && echo "Test 3: OK"
+	tx_cmd 1 1 "$test4_cmd" "$test4_exp" || exit 1 && echo "Test 4: OK"
+	;;
+*)
+	echo "This test currently only works with 64bit TPMs"
+	exit 77
+esac
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone ${SWTPM_PID} 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+exit 0
