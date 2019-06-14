@@ -167,7 +167,6 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(mknod),
         SCMP_SYS(mknodat),
         SCMP_SYS(acct),
-        SCMP_SYS(prctl),
         SCMP_SYS(prlimit64),
         SCMP_SYS(setrlimit),
 #ifdef __NR_bpf
@@ -234,7 +233,8 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
     int blacklist_noncuse[] = {
         SCMP_SYS(clone),
         SCMP_SYS(fork),
-        SCMP_SYS(vfork)
+        SCMP_SYS(vfork),
+        SCMP_SYS(prctl)
     };
     scmp_filter_ctx ctx;
     int ret;
