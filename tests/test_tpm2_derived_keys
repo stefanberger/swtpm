@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+cd "$(dirname "$0")"
+
+export SWTPM_IOCTL_BUFFERSIZE=100
+export SWTPM_INTERFACE=cuse
+bash _test_tpm2_derived_keys
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_IOCTL_BUFFERSIZE=4096
+export SWTPM_INTERFACE=cuse
+bash _test_tpm2_derived_keys
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65444
+export SWTPM_CTRL_PORT=65445
+bash _test_tpm2_derived_keys
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_INTERFACE=unix+socket
+export SWTPM_CTRL_PORT=65445
+bash _test_tpm2_derived_keys
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_INTERFACE=unix+unix
+bash _test_tpm2_derived_keys
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+exit 0

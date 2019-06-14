@@ -43,6 +43,7 @@ TESTS += \
 	test_wrongorder
 
 TESTS += \
+	test_tpm2_derived_keys \
 	test_tpm2_encrypted_state \
 	test_tpm2_init \
 	test_tpm2_getcap \
@@ -154,6 +155,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_setbuffersize \
 	_test_swtpm_bios \
 	_test_tpm_probe \
+	_test_tpm2_derived_keys \
 	_test_tpm2_encrypted_state \
 	_test_tpm2_getcap \
 	_test_tpm2_hashing \
