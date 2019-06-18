@@ -20,7 +20,7 @@ Source0:        %{url}/archive/%{gitcommit}/%{name}-%{gitshortcommit}.tar.gz
 BuildRequires:  automake
 BuildRequires:  autoconf
 BuildRequires:  libtool
-BuildRequires:  libtpms-devel >= 0.6.0
+BuildRequires:  libtpms-devel >= 0.8.0
 BuildRequires:  glib2-devel
 BuildRequires:  gmp-devel
 BuildRequires:  expect
@@ -44,7 +44,7 @@ BuildRequires:  gcc
 BuildRequires:  libseccomp-devel
 
 Requires:       %{name}-libs = %{version}-%{release}
-Requires:       libtpms >= 0.6.0
+Requires:       libtpms >= 0.8.0
 %{?selinux_requires}
 
 %description

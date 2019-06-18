@@ -7,7 +7,7 @@ Build-Depends: automake,
 	       coreutils,
 	       libtool,
 	       sed,
-	       libtpms-dev,
+	       libtpms-dev (>= 0.8.0),
 	       libfuse-dev,
 	       libglib2.0-dev,
 	       libgmp-dev,
@@ -39,7 +39,7 @@ Package: swtpm-libs
 Architecture: any
 Multi-Arch: same
 Depends: openssl,
-	 libtpms0,
+	 libtpms0 (>= 0.8.0),
 	 libglib2.0-0,
 	 ${shlibs:Depends},
 	 ${misc:Pre-Depends},
