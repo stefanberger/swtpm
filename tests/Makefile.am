@@ -135,6 +135,8 @@ EXTRA_DIST=$(TESTS) \
 	data/tpm2state3b/h02000000.bin \
 	data/tpm2state3b/tpm2-00.volatilestate \
 	data/tpm2state3b/tpm2-00.permall \
+	data/tpm2state4/tpm2-00.volatilestate \
+	data/tpm2state4/tpm2-00.permall \
 	load_vtpm_proxy \
 	patches/libtpm.patch \
 	softhsm_setup \

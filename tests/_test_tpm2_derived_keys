@@ -254,8 +254,57 @@ ppc64le|x86_64)
 	;;
 *)
 	echo "This test currently only works with 64bit TPMs"
-	exit 77
 esac
+
+# Get revision of TPM 2.0 implementation; we need >= 155 for subsequent tests
+revision=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 1 |
+          sed 's/.*,"revision":\([^\}]*\).*/\1/')
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone ${SWTPM_PID} 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+if [ $revision -lt 155 ]; then
+	echo "Skipping next tests since libtpms implements TPM 2.0 revision $revision, but need >= 155"
+	exit 0
+fi
+
+# Repeat the tests for the 'fixed' CryptAdjustPrimeCandidate test, which works
+# on 32 bit and 64 bit machines and produces the same results
+
+echo "Testing new CryptAdjustPrimeCandidate implementation"
+
+# copy all the state files
+cp ${TESTDIR}/data/tpm2state4/* ${TPM_PATH}
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2
+
+kill_quiet -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+test1_exp=' 80 02 00 00 01 fa 00 00 00 00 80 00 00 00 00 00 01 e3 01 1a 00 01 00 0b 00 03 04 72 00 00 00 06 00 80 00 43 00 10 08 00 00 00 00 00 01 00 9b ef 34 ef e5 b1 2a 2b bc 85 71 5c 59 a5 67 f2 fe 13 38 15 c0 45 68 05 b1 27 c3 ef 63 89 21 c0 13 39 47 6d 99 82 b1 7c 79 d9 b7 9f 50 1c 2c 05 22 c3 53 02 76 f1 9b 8c 61 31 0d af a5 c1 12 28 f6 2b 02 24 d8 b5 04 51 c8 74 38 95 00 a9 24 88 40 a8 7f ce 49 eb f9 bd 67 f1 96 a8 39 3e e6 af 8c 7d ae 29 48 dc e3 64 1a 54 58 70 30 9f ae 96 de f4 2e 79 b1 89 fd 81 8f 29 b7 01 ab 92 30 32 0f 2c e9 0c 4f 6b cd aa b1 2e d1 dc 91 b0 d0 13 50 07 89 52 57 ce af e2 cf 4a 01 c2 7d 04 35 01 0e 7b 3e 42 98 91 71 a6 65 ab f2 31 97 4f 70 9c f8 fe a9 d1 5b 1c be 8c fc b8 0f 84 cc a1 52 42 94 74 92 76 94 0b 8f b4 95 8c b8 1e d5 7d 58 d1 3a 7f 8b 22 50 fc 57 39 6e bb e5 29 c8 7c b1 6b dd 11 9d 3b 06 2c 63 e4 d5 55 56 93 8c e7 06 86 2b 15 91 33 7c b2 14 43 57 5b 94 11 77 f4 6c d9 00 37 00 00 00 00 00 20 e3 b0 c4 42 98 fc 1c 14 9a fb f4 c8 99 6f b9 24 27 ae 41 e4 64 9b 93 4c a4 95 99 1b 78 52 b8 55 01 00 10 00 04 40 00 00 0b 00 04 40 00 00 0b 00 00 00 20 28 d0 26 fa fd 74 91 06 74 3e 27 c4 28 05 51 58 5e 5d 17 66 8e b5 21 83 5e d6 01 27 ef fc 05 d4 80 21 40 00 00 0b 00 40 e7 23 e1 bb 81 90 bb 1f 1a 32 d7 bd 07 f5 40 ad 27 a8 cd 70 1a 17 d6 af b6 8f 86 6d 6f c1 5d 65 de 07 82 63 2a da ac 20 73 90 a0 f4 5f cd c8 61 84 79 5b 9d c0 19 98 62 94 fb 35 f0 5d 91 f5 21 00 22 00 0b 07 eb bd 34 07 3e 1e 20 d6 cb b6 ea 62 61 1a 12 4e 84 85 b5 bf 5e 1b bd f4 6b 93 6a 1d 5f 32 3b 00 00 01 00 00'
+test2_exp=' 80 02 00 00 01 3a 00 00 00 00 80 00 00 00 00 00 01 23 00 5a 00 23 00 0b 00 03 04 72 00 00 00 06 00 80 00 43 00 10 00 03 00 10 00 20 ff cc 72 69 28 1a fd 2a 2c 5d 12 8d 7a 9e 7c 3e 6f 86 8a d7 e5 93 a0 f0 de 01 30 50 94 51 31 8f 00 20 6b 15 ca 0d 9a 67 4a e9 b6 d0 23 d2 e5 98 71 be 83 b5 f7 66 3f 63 ca 95 e7 7a e7 44 c4 94 89 95 00 37 00 00 00 00 00 20 e3 b0 c4 42 98 fc 1c 14 9a fb f4 c8 99 6f b9 24 27 ae 41 e4 64 9b 93 4c a4 95 99 1b 78 52 b8 55 01 00 10 00 04 40 00 00 0b 00 04 40 00 00 0b 00 00 00 20 28 d0 26 fa fd 74 91 06 74 3e 27 c4 28 05 51 58 5e 5d 17 66 8e b5 21 83 5e d6 01 27 ef fc 05 d4 80 21 40 00 00 0b 00 40 fa bb 14 5e 67 43 43 64 c8 29 e9 9a 7c 81 5e ff 4a 29 bb 5e 72 75 03 5f 62 d2 6d 7a 90 0a 6e 6d 68 ef 83 9d df 77 1f 76 0f c8 0d 1d 86 be 62 09 0b 56 68 2a f3 92 11 b1 2d 35 03 82 d1 ea d9 8a 00 22 00 0b 5f 43 81 4d 6a ed b8 36 cf 2d 92 50 44 a4 8f 03 8a ad 08 32 f5 23 49 6f 85 76 8b 95 a4 37 18 8e 00 00 01 00 00'
+test3_exp=' 80 02 00 00 00 71 00 00 00 00 80 00 00 00 00 00 00 5a 00 00 00 32 00 25 00 0b 00 06 04 60 00 00 00 06 00 80 00 43 00 20 25 f3 2c cf 3d 14 ed 18 a9 ae 67 82 28 7b 3b 21 7c d1 f4 24 12 d1 74 d5 69 7d 73 1b 6d ae 45 04 00 22 00 0b c5 fa ae 5e 37 7a ad d0 78 4e 1b e5 63 9c 5b a8 17 03 82 cb a0 e8 ab 39 40 69 24 48 df 72 8b c8 00 00 01 00 00'
+test4_exp=' 80 02 00 00 00 71 00 00 00 00 80 00 00 00 00 00 00 5a 00 00 00 32 00 25 00 0b 00 03 04 60 00 00 00 06 00 80 00 43 00 20 f8 d2 1a f7 be 45 13 14 e0 53 0c b0 21 a7 20 c9 e2 98 13 7d e1 b3 cd 8e d1 35 df 34 f1 2b 02 27 00 22 00 0b 11 fc 4e 32 cf 3f 10 a3 ec e6 91 f5 1c c1 0f 04 c9 d5 61 1c e4 74 2a 2a 5d de a0 d6 ef 4d 18 38 00 00 01 00 00'
+test5_exp1=' 80 02 00 00 01 12 00 00 00 00 80 00 00 00 00 00 00 fb 00 32 00 08 00 0b 00 03 04 72 00 00 00 0a 00 0b 00 22 00 20 60 5c 90 40 d5 ef 80 59 70 f4 90 3e 43 7a ce 49 1e 06 06 f0 e9 79 39 e4 a0 a1 8b d5 12 ca 86 9a 00 37 00 00 00 00 00 20 e3 b0 c4 42 98 fc 1c 14 9a fb f4 c8 99 6f b9 24 27 ae 41 e4 64 9b 93 4c a4 95 99 1b 78 52 b8 55 01 00 10 00 04 40 00 00 0b 00 04 40 00 00 0b 00 00 00 20 28 d0 26 fa fd 74 91 06 74 3e 27 c4 28 05 51 58 5e 5d 17 66 8e b5 21 83 5e d6 01 27 ef fc 05 d4 80 21 40 00 00 0b 00 40 5a 84 8d d0 73 da 49 f6 76 84 6e d1 56 13 39 4d 4b 67 0a 68 97 71 c9 a4 92 a6 aa 6d 30 4b 19 6c 69 fc a7 d5 b9 5c 8f 5a af 0c f6 72 b9 85 c5 d4 0a 09 f8 f7 16 4d 11 bc 5d ec cc 48 02 15 ce 79 00 22 00 0b 04 13 09 39 42 b3 86 80 67 68 2a d7 27 e3 c7 44 1d 1c b6 65 23 c3 ee f0 b8 b8 b5 ff ee 49 1d 4b 00 00 01 00 00'
+test5_exp2=' 80 02 00 00 00 95 00 00 00 00 80 00 00 01 00 00 00 7e 00 00 00 56 00 23 00 0b 00 02 04 52 00 00 00 10 00 10 00 10 00 10 00 20 af 9f be fc c8 95 21 71 04 2d 7d db 3f 42 aa 54 cc 2f a0 cf 55 82 78 f4 3f 01 88 27 46 53 2c 88 00 20 dc ad 67 2f d1 ea 89 01 f5 27 1f 58 3f a5 da 52 85 50 98 d5 06 81 10 13 86 12 d7 23 55 12 ea 0c 00 22 00 0b 72 c2 60 3f c8 bb 79 ea 92 86 7e a3 df 57 8d 15 e3 f1 10 a2 f9 1c a6 80 41 c3 cf e1 fa 43 83 2f 00 00 01 00 00'
+
+tx_cmd 1 0 "$test1_cmd" "$test1_exp" || exit 1 && echo "Test 1: OK"
+tx_cmd 1 1 "$test2_cmd" "$test2_exp" || exit 1 && echo "Test 2: OK"
+tx_cmd 1 1 "$test3_cmd" "$test3_exp" || exit 1 && echo "Test 3: OK"
+tx_cmd 1 1 "$test4_cmd" "$test4_exp" || exit 1 && echo "Test 4: OK"
+tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" || exit 1
+tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" || exit 1 && echo "Test 5: OK"
 
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
