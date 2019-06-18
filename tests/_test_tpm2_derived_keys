@@ -191,6 +191,52 @@ test4_exp+=' 00 0b fe f7 d7 5b c6 f7 70 17 40 25 d8 ed 80 e0 be e8 ec'
 test4_exp+=' f2 ec 5a a6 08 29 79 13 13 7e 85 5f 03 9a 91 00 00 01 00'
 test4_exp+=' 00'
 
+# Create a primary RSA key and expect a predictable return value
+# tsscreateprimary -hi e -dp -v
+# -> creates key with handle 0x80 00 00 00
+test5_cmd1='\x80\x02\x00\x00\x00\x3b\x00\x00\x01\x31\x40\x00\x00\x0b\x00\x00'
+test5_cmd1+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00'
+test5_cmd1+='\x00\x00\x12\x00\x08\x00\x0b\x00\x03\x04\x72\x00\x00\x00\x0a\x00'
+test5_cmd1+='\x0b\x00\x22\x00\x00\x00\x00\x00\x00\x00\x00'
+
+test5_exp1=' 80 02 00 00 01 12 00 00 00 00 80 00 00 00 00 00'
+test5_exp1+=' 00 fb 00 32 00 08 00 0b 00 03 04 72 00 00 00 0a'
+test5_exp1+=' 00 0b 00 22 00 20 5f bc a0 5c 6c b0 60 fe 76 c5'
+test5_exp1+=' 0f f2 0e eb e8 52 9f 2b e7 3b 06 6a b4 3f 88 6f'
+test5_exp1+=' 51 1f cd d8 c1 1f 00 37 00 00 00 00 00 20 e3 b0'
+test5_exp1+=' c4 42 98 fc 1c 14 9a fb f4 c8 99 6f b9 24 27 ae'
+test5_exp1+=' 41 e4 64 9b 93 4c a4 95 99 1b 78 52 b8 55 01 00'
+test5_exp1+=' 10 00 04 40 00 00 0b 00 04 40 00 00 0b 00 00 00'
+test5_exp1+=' 20 28 d0 26 fa fd 74 91 06 74 3e 27 c4 28 05 51'
+test5_exp1+=' 58 5e 5d 17 66 8e b5 21 83 5e d6 01 27 ef fc 05'
+test5_exp1+=' d4 80 21 40 00 00 0b 00 40 8e 6b 7d 82 b0 d4 6b'
+test5_exp1+=' 04 f3 9d a7 54 5d f3 5e 70 79 c3 7a 8c 5b 7a 08'
+test5_exp1+=' cb 03 62 24 47 1a e3 7d de 49 95 23 2b d7 69 6b'
+test5_exp1+=' 23 6b 2f b5 ed 35 ee 9d c4 01 3f 3b 37 db 2f ba'
+test5_exp1+=' a4 8f 80 68 f9 c1 d2 ff 70 00 22 00 0b 6a 1a f5'
+test5_exp1+=' 61 1c 58 6a 02 3f 3f 12 15 86 67 57 7e da fb 30'
+test5_exp1+=' 0a 6b 66 b4 68 99 77 46 f8 4c ea ef 8b 00 00 01'
+test5_exp1+=' 00 00'
+
+# Create a derived key with this primary key as parent:
+# createloaded -hp 80000000 -der -ecc bnp256 -den -kt f -kt p -v
+# -> creates key with handle 0x80 00 00 01
+test5_cmd2='\x80\x02\x00\x00\x00\x39\x00\x00\x01\x91\x80\x00\x00\x00\x00\x00'
+test5_cmd2+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00'
+test5_cmd2+='\x00\x00\x16\x00\x23\x00\x0b\x00\x02\x04\x52\x00\x00\x00\x10\x00'
+test5_cmd2+='\x10\x00\x10\x00\x10\x00\x00\x00\x00'
+
+test5_exp2+=' 80 02 00 00 00 95 00 00 00 00 80 00 00 01 00 00'
+test5_exp2+=' 00 7e 00 00 00 56 00 23 00 0b 00 02 04 52 00 00'
+test5_exp2+=' 00 10 00 10 00 10 00 10 00 20 af 79 72 26 52 4e'
+test5_exp2+=' 14 e7 99 c2 a4 49 60 2a 19 8e 78 0c 30 c5 6f 65'
+test5_exp2+=' f1 e6 26 3a 67 ee 5a df 3c 31 00 20 cd b5 62 59'
+test5_exp2+=' 83 2e ad 91 1c 81 83 3e 92 22 8e 9d d0 71 bf 65'
+test5_exp2+=' 5c bc 38 24 6a a7 07 e6 0d eb 9d d3 00 22 00 0b'
+test5_exp2+=' be 61 98 28 b4 ea 33 db b0 24 39 2d 9f b4 0b 71'
+test5_exp2+=' ab ff ed 4b 55 02 f0 4e 3e 66 41 91 73 96 25 b6'
+test5_exp2+=' 00 00 01 00 00'
+
 #
 # The issue is that 32bit TPMs produce different results than
 # 64bit TPMs. We only test 64bit TPMs with the above expected
@@ -203,6 +249,8 @@ ppc64|ppc64le|x86_64)
 	tx_cmd 1 1 "$test2_cmd" "$test2_exp" || exit 1 && echo "Test 2: OK"
 	tx_cmd 1 1 "$test3_cmd" "$test3_exp" || exit 1 && echo "Test 3: OK"
 	tx_cmd 1 1 "$test4_cmd" "$test4_exp" || exit 1 && echo "Test 4: OK"
+	tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" || exit 1
+	tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" || exit 1 && echo "Test 5: OK"
 	;;
 *)
 	echo "This test currently only works with 64bit TPMs"
