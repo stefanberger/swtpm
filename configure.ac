@@ -163,10 +163,10 @@ LIBTPMS_LIBS=$(pkg-config --libs libtpms)
 if test $? -ne 0; then
 	AC_MSG_ERROR("Is libtpms-devel installed? -- could not get libs for libtpms")
 fi
-AC_CHECK_LIB(tpms,
-             TPMLIB_ChooseTPMVersion,[true],
-             AC_MSG_ERROR("libtpms 0.6 or later is required")
-)
+LIBTPMS_VERSION=$(pkg-config libtpms --modversion | sed 's|\.|0|g')
+if test $LIBTPMS_VERSION < 00800; then
+	AC_MSG_ERROR("libtpms 0.8 or later is required")
+fi
 AC_SUBST([LIBTPMS_LIBS])
 
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
