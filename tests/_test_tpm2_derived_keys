@@ -243,7 +243,7 @@ test5_exp2+=' 00 00 01 00 00'
 # return values.
 #
 case "$(uname -p)" in
-ppc64|ppc64le|x86_64)
+ppc64le|x86_64)
 	echo "[Assuming ${SWTPM_EXE} is 64bit]"
 	tx_cmd 1 0 "$test1_cmd" "$test1_exp" || exit 1 && echo "Test 1: OK"
 	tx_cmd 1 1 "$test2_cmd" "$test2_exp" || exit 1 && echo "Test 2: OK"
