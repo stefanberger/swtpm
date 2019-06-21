@@ -76,7 +76,7 @@ This option is implied by the I<--vtpm-proxy> option and therefore need not
 be explicity set if this option is passed. In all other cases care should be
 taken as to who can send the TPM/TPM2_SetLocality command.
 
-=item B<--key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]>
+=item B<--key file=E<lt>keyfileE<gt>|fd=E<lt>fdE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]>
 
 Enable encryption of the state files of the TPM. The keyfile must contain
 an AES key of supported size; 128 bit (16 bytes) and 256 bit (32 bytes) keys are
@@ -99,7 +99,7 @@ This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash
 or PBKDF2. By default PBKDF2 is used.
 
-=item B<--migration-key file=E<lt>keyfileE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]>
+=item B<--migration-key file=E<lt>keyfileE<gt>|fd=E<lt>fdE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]>
 
 The availability of a migration key ensures that the state of the TPM
 will not be revealed in unencrypted form by the swtpm_cuse program when
