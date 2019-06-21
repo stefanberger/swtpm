@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_cuse 8"
-.TH swtpm_cuse 8 "2019-03-18" "swtpm" ""
+.TH swtpm_cuse 8 "2019-06-21" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -201,8 +201,8 @@ TPM/TPM2_SetLocality commands. This is parameter is useful if the Linux
 This option is implied by the \fI\-\-vtpm\-proxy\fR option and therefore need not
 be explicity set if this option is passed. In all other cases care should be
 taken as to who can send the TPM/TPM2_SetLocality command.
-.IP "\fB\-\-key file=<keyfile>[,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]]\fR" 4
-.IX Item "--key file=<keyfile>[,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]"
+.IP "\fB\-\-key file=<keyfile>|fd=<fd>[,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]]\fR" 4
+.IX Item "--key file=<keyfile>|fd=<fd>[,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]"
 Enable encryption of the state files of the \s-1TPM.\s0 The keyfile must contain
 an \s-1AES\s0 key of supported size; 128 bit (16 bytes) and 256 bit (32 bytes) keys are
 supported.
@@ -222,8 +222,8 @@ has been read.
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a \s-1SHA512\s0 hash
 or \s-1PBKDF2.\s0 By default \s-1PBKDF2\s0 is used.
-.IP "\fB\-\-migration\-key file=<keyfile>[,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]]\fR" 4
-.IX Item "--migration-key file=<keyfile>[,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]"
+.IP "\fB\-\-migration\-key file=<keyfile>|fd=<fd>[,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]]\fR" 4
+.IX Item "--migration-key file=<keyfile>|fd=<fd>[,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]"
 The availability of a migration key ensures that the state of the \s-1TPM\s0
 will not be revealed in unencrypted form by the swtpm_cuse program when
 the \s-1TPM\s0 state blobs are retreived through the ioctl interface.
