@@ -1,7 +1,7 @@
 /*
  * common.c -- Common code for swtpm and swtpm_cuse
  *
- * (c) Copyright IBM Corporation 2014, 2015.
+ * (c) Copyright IBM Corporation 2014, 2015, 2019.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -110,6 +110,9 @@ static const OptionDesc key_opt_desc[] = {
     }, {
         .name = "kdf",
         .type = OPT_TYPE_STRING,
+    }, {
+        .name = "fd",
+        .type = OPT_TYPE_INT,
     },
     END_OPTION_DESC
 };
@@ -329,6 +332,7 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     enum kdf_identifier kdfid;
     size_t mode_keylength;
     int ret;
+    int keyfile_fd = -1;
 
     ovs = options_parse(options, key_opt_desc, &error);
 
@@ -339,9 +343,11 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     }
 
     keyfile = option_get_string(ovs, "file", NULL);
+    keyfile_fd = option_get_int(ovs, "fd", -1);
     pwdfile = option_get_string(ovs, "pwdfile", NULL);
-    if (!keyfile && !pwdfile) {
-        logprintf(STDERR_FILENO, "Either --key or --pwdfile is required\n");
+    if (!keyfile && keyfile_fd == -1 && !pwdfile) {
+        logprintf(STDERR_FILENO,
+                  "Either file=, fd= or pwdfile= is required for key option\n");
         goto error;
     }
 
@@ -370,6 +376,10 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
         if (key_load_key(keyfile, keyformat,
                          key, keylen, mode_keylength) < 0)
             goto error;
+    } else if (keyfile_fd >= 0) {
+        if (key_load_key_fd(keyfile_fd, keyformat,
+                            key, keylen, mode_keylength) < 0)
+            goto error;
     } else {
         tmp = option_get_string(ovs, "kdf", "pbkdf2");
         kdfid = kdf_identifier_from_string(tmp);
@@ -394,6 +404,8 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
 
 exit:
     option_values_free(ovs);
+    if (keyfile_fd >= 0)
+        close(keyfile_fd);
 
     return ret;
 
