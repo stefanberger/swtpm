@@ -39,9 +39,11 @@ source ${TESTDIR}/common
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
+exec 101<$keyfile
 run_swtpm ${SWTPM_INTERFACE} \
-	--key file=$keyfile,mode=aes-cbc,format=hex \
+	--key fd=101,mode=aes-cbc,format=hex \
 	--log file=$logfile
+exec 101>&-
 
 display_processes_by_name "$SWTPM"
 
