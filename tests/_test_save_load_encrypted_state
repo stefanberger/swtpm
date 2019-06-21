@@ -305,9 +305,11 @@ sha1_permanent=$(get_sha1_file "${STATE_FILE}")
 echo "sha1(volatile) : $sha1_volatile"
 echo "sha1(permanent): $sha1_permanent"
 
+exec 101<$keyfile
 run_swtpm ${SWTPM_INTERFACE} \
-	--key pwdfile=$keyfile \
+	--key pwdfd=101 \
 	--log file=$logfile
+exec 101>&-
 
 display_processes_by_name "$SWTPM"
 
