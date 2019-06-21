@@ -342,7 +342,7 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
                       *keylen, sizeof(hashbuf));
             goto exit;
         }
-        SHA512(filebuffer, filelen, hashbuf);
+        SHA512(filebuffer, len, hashbuf);
         memcpy(key, hashbuf, *keylen);
         break;
     case KDF_IDENTIFIER_PBKDF2:
