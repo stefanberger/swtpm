@@ -113,6 +113,9 @@ static const OptionDesc key_opt_desc[] = {
     }, {
         .name = "fd",
         .type = OPT_TYPE_INT,
+    }, {
+        .name = "pwdfd",
+        .type = OPT_TYPE_INT,
     },
     END_OPTION_DESC
 };
@@ -333,6 +336,7 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     size_t mode_keylength;
     int ret;
     int keyfile_fd = -1;
+    int pwdfile_fd = -1;
 
     ovs = options_parse(options, key_opt_desc, &error);
 
@@ -345,9 +349,10 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     keyfile = option_get_string(ovs, "file", NULL);
     keyfile_fd = option_get_int(ovs, "fd", -1);
     pwdfile = option_get_string(ovs, "pwdfile", NULL);
-    if (!keyfile && keyfile_fd == -1 && !pwdfile) {
+    pwdfile_fd = option_get_int(ovs, "pwdfd", -1);
+    if (!keyfile && keyfile_fd == -1 && !pwdfile && pwdfile_fd == -1) {
         logprintf(STDERR_FILENO,
-                  "Either file=, fd= or pwdfile= is required for key option\n");
+                  "Either file=, fd=, pwdfile=, or pwdfd= is required for key option\n");
         goto error;
     }
 
@@ -387,10 +392,16 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
             logprintf(STDERR_FILENO, "Unknown kdf '%s'.\n", tmp);
             goto error;
         }
-        /* no key file, so must be pwdfile */
-        if (key_from_pwdfile(pwdfile, key, keylen,
-                             mode_keylength, kdfid) < 0)
-            goto error;
+        /* no key file, so must be pwdfile or pwdfile_fd */
+        if (pwdfile) {
+            if (key_from_pwdfile(pwdfile, key, keylen,
+                                 mode_keylength, kdfid) < 0)
+                goto error;
+        } else {
+            if (key_from_pwdfile_fd(pwdfile_fd, key, keylen,
+                                    mode_keylength, kdfid) < 0)
+                goto error;
+        }
     }
 
     if (option_get_bool(ovs, "remove", false)) {
@@ -406,6 +417,8 @@ exit:
     option_values_free(ovs);
     if (keyfile_fd >= 0)
         close(keyfile_fd);
+    if (pwdfile_fd >= 0)
+        close(pwdfile_fd);
 
     return ret;
 

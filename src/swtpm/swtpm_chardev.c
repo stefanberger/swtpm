@@ -157,7 +157,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   when it is retrieved from the TPM via ioctls;\n"
     "                   Setting this key ensures that the TPM's state will always\n"
     "                   be encrypted when migrated\n"
-    "--migration-key pwdfile=<path>[,mode=aes-cbc|aes-256-cbc][,remove=[true|false]][,kdf=sha512|pbkdf2]\n"
+    "--migration-key pwdfile=<path>|pwdfd=<fd>[,mode=aes-cbc|aes-256-cbc][,remove=[true|false]][,kdf=sha512|pbkdf2]\n"
     "                 : provide a passphrase in a file; the AES key will be\n"
     "                   derived from this passphrase; default kdf is PBKDF2\n"
     "--log file=<path>|fd=<filedescriptor>[,level=n][,prefix=<prefix>][,truncate]\n"
