@@ -61,6 +61,8 @@ enum encryption_mode encryption_mode_from_string(const char *mode,
 enum kdf_identifier kdf_identifier_from_string(const char *kdf);
 int key_load_key(const char *filename, enum key_format keyformat,
                  unsigned char *key, size_t *keylen, size_t maxkeylen);
+int key_load_key_fd(int fd, enum key_format keyformat,
+                    unsigned char *key, size_t *keylen, size_t maxkeylen);
 int key_from_pwdfile(const char *pwdfile, unsigned char *key, size_t *keylen,
                      size_t maxkeylen, enum kdf_identifier kdfid);
 

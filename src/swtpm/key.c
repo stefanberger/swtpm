@@ -194,9 +194,9 @@ key_parse_as_hexkey(const char *rawkey,
 }
 
 /*
- * key_load_key:
+ * key_load_key_fd:
  * Load the raw key data from a file and convert it to a key.
- * @filename: file holding the raw key data
+ * @fd: file descriptor to read raw key data from
  * @keyformat: the format the raw key data are in; may either indicate
  *             binary data or hex string
  * @key: the buffer for holding the converted key
@@ -206,22 +206,14 @@ key_parse_as_hexkey(const char *rawkey,
  *             key buffer
  */
 int
-key_load_key(const char *filename, enum key_format keyformat,
-             unsigned char *key, size_t *keylen, size_t maxkeylen)
+key_load_key_fd(int fd, enum key_format keyformat,
+                unsigned char *key, size_t *keylen, size_t maxkeylen)
 {
     int ret = -1;
-    int fd;
     char filebuffer[2 + 256/4 + 1 + 1];
     ssize_t len;
 
-    fd = open(filename, O_RDONLY);
-    if (fd < 0) {
-        logprintf(STDERR_FILENO, "Unable to open file %s: %s\n",
-                  filename, strerror(errno));
-        return -1;
-    }
     len = read(fd, filebuffer, sizeof(filebuffer) - 1);
-    close(fd);
     if (len < 0) {
         logprintf(STDERR_FILENO, "Unable to read key: %s\n",
                   strerror(errno));
@@ -249,6 +241,37 @@ key_load_key(const char *filename, enum key_format keyformat,
     case KEY_FORMAT_UNKNOWN:
         break;
     }
+
+    return ret;
+}
+/*
+ * key_load_key:
+ * Load the raw key data from a file and convert it to a key.
+ * @filename: file holding the raw key data
+ * @keyformat: the format the raw key data are in; may either indicate
+ *             binary data or hex string
+ * @key: the buffer for holding the converted key
+ * @keylen: the actual key len of the converted key returned by this
+ *          function
+ * @maxkeylen: the max. size of the key; corresponds to the size of the
+ *             key buffer
+ */
+int
+key_load_key(const char *filename, enum key_format keyformat,
+             unsigned char *key, size_t *keylen, size_t maxkeylen)
+{
+    int ret;
+    int fd;
+
+    fd = open(filename, O_RDONLY);
+    if (fd < 0) {
+        logprintf(STDERR_FILENO, "Unable to open file %s: %s\n",
+                  filename, strerror(errno));
+        return -1;
+    }
+    ret = key_load_key_fd(fd, keyformat, key, keylen, maxkeylen);
+
+    close(fd);
 
     return ret;
 }
