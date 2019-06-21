@@ -300,8 +300,8 @@ The encrypted data is integrity protected using encrypt-then-mac.
 .Sp
 The \fIremove\fR parameter will attempt to remove the given keyfile once the key
 has been read.
-.IP "\fB\-\-key pwdfile=<passphrase file>[,mode=aes\-cbc|aes\-256\-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]\fR" 4
-.IX Item "--key pwdfile=<passphrase file>[,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]"
+.IP "\fB\-\-key pwdfile=<passphrase file>|pwdfd=<fd>[,mode=aes\-cbc|aes\-256\-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]\fR" 4
+.IX Item "--key pwdfile=<passphrase file>|pwdfd=<fd>[,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]"
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a \s-1SHA512\s0 hash
 or \s-1PBKDF2.\s0 By default \s-1PBKDF2\s0 is used.
@@ -337,8 +337,8 @@ The encrypted data is integrity protected using encrypt-then-mac.
 .Sp
 The \fIremove\fR parameter will attempt to remove the given keyfile once the key
 has been read.
-.IP "\fB\-\-migration\-key pwdfile=<passphrase file>[,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]\fR" 4
-.IX Item "--migration-key pwdfile=<passphrase file>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]"
+.IP "\fB\-\-migration\-key pwdfile=<passphrase file>|pwdfd=<fd>[,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]\fR" 4
+.IX Item "--migration-key pwdfile=<passphrase file>|pwdfd=<fd>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]"
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a \s-1SHA512\s0 hash
 or \s-1PBKDF2.\s0 By default \s-1PBKDF2\s0 is used.
