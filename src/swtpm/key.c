@@ -48,7 +48,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 
 #include "key.h"
 #include "logging.h"
@@ -294,10 +293,10 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
                     size_t maxkeylen, enum kdf_identifier kdfid)
 {
     unsigned char *filebuffer = NULL;
-    size_t filelen;
+    size_t filelen = 1024;
+    off_t offset = 0;
     ssize_t len;
     unsigned char hashbuf[SHA512_DIGEST_LENGTH];
-    struct stat statbuf;
     int ret = -1;
     const unsigned char salt[] = {'s','w','t','p','m'};
 
@@ -308,28 +307,30 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
         return -1;
     }
 
-    if (fstat(fd, &statbuf) < 0) {
-        logprintf(STDERR_FILENO,
-                  "Unable to stat pwdfile : %s\n",
-                  strerror(errno));
-        goto exit;
-    }
-    filelen = statbuf.st_size;
+    while (true) {
+        filebuffer = realloc(filebuffer, filelen);
+        if (!filebuffer) {
+            logprintf(STDERR_FILENO,
+                      "Could not allocate %zu bytes for filebuffer\n",
+                      filelen);
+            goto exit;
+        }
 
-    filebuffer = malloc(filelen);
-    if (!filebuffer) {
-        logprintf(STDERR_FILENO,
-                  "Could not allocate %zu bytes for filebuffer\n",
-                  filebuffer);
-        goto exit;
-    }
-
-    len = read(fd, filebuffer, filelen);
-    if (len < 0) {
-        logprintf(STDERR_FILENO,
-                  "Unable to read passphrase: %s\n",
-                  strerror(errno));
-        goto exit;
+        len = read(fd, &filebuffer[offset], filelen - offset);
+        if (len < 0) {
+            logprintf(STDERR_FILENO,
+                      "Unable to read passphrase: %s\n",
+                      strerror(errno));
+            goto exit;
+        }
+        /* EOF ? */
+        if ((size_t)len < filelen - offset) {
+            len += offset;
+            break;
+        }
+        /* expecting more bytes */
+        offset += len;
+        filelen += 1024;
     }
 
     *keylen = maxkeylen;
