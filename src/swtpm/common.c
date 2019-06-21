@@ -328,6 +328,7 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     enum key_format keyformat;
     enum kdf_identifier kdfid;
     size_t mode_keylength;
+    int ret;
 
     ovs = options_parse(options, key_opt_desc, &error);
 
@@ -389,14 +390,17 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
             unlink(pwdfile);
     }
 
+    ret = 0;
+
+exit:
     option_values_free(ovs);
 
-    return 0;
+    return ret;
 
 error:
-    option_values_free(ovs);
+    ret = -1;
 
-    return -1;
+    goto exit;
 }
 
 /*
