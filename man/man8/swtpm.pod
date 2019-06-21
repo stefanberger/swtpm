@@ -209,7 +209,7 @@ The encrypted data is integrity protected using encrypt-then-mac.
 The I<remove> parameter will attempt to remove the given keyfile once the key
 has been read.
 
-=item B<--key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]>
+=item B<--key pwdfile=E<lt>passphrase fileE<gt>|pwdfd=E<lt>fdE<gt>[,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]>
 
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash
@@ -248,7 +248,7 @@ The encrypted data is integrity protected using encrypt-then-mac.
 The I<remove> parameter will attempt to remove the given keyfile once the key
 has been read.
 
-=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]>
+=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>|pwdfd=E<lt>fdE<gt>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]>
 
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash
