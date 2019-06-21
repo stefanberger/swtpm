@@ -65,6 +65,8 @@ int key_load_key_fd(int fd, enum key_format keyformat,
                     unsigned char *key, size_t *keylen, size_t maxkeylen);
 int key_from_pwdfile(const char *pwdfile, unsigned char *key, size_t *keylen,
                      size_t maxkeylen, enum kdf_identifier kdfid);
+int key_from_pwdfile_fd(int pwdfile_fd, unsigned char *key, size_t *keylen,
+                        size_t maxkeylen, enum kdf_identifier kdfid);
 
 #endif /* _SWTPM_KEY_H */
 

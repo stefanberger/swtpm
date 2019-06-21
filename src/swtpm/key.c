@@ -278,10 +278,10 @@ key_load_key(const char *filename, enum key_format keyformat,
 
 /*
  * key_from_pwdfile:
- * Read the key from the given password file, convert the password into
- * a key by applying a SHA512 on the password and use the first bytes
+ * Read the password from the given file descriptor, convert the password into
+ * a key by applying a KDF on the password and use the first bytes
  * of the hash as the key.
- * @filename: name of the file holding the password
+ * @fd: file descriptor to read password from
  * @key: the buffer for holding the key
  * @keylen: the actual key len of the converted key returned by this
  *          function
@@ -290,12 +290,11 @@ key_load_key(const char *filename, enum key_format keyformat,
  * @kdfid: the kdf to invoke to create the key
  */
 int
-key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
-                 size_t maxkeylen, enum kdf_identifier kdfid)
+key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
+                    size_t maxkeylen, enum kdf_identifier kdfid)
 {
     unsigned char *filebuffer = NULL;
     size_t filelen;
-    int fd = -1;
     ssize_t len;
     unsigned char hashbuf[SHA512_DIGEST_LENGTH];
     struct stat statbuf;
@@ -309,18 +308,11 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
         return -1;
     }
 
-    fd = open(filename, O_RDONLY);
-    if (fd < 0) {
-        logprintf(STDERR_FILENO,
-                  "Unable to open file %s : %s\n",
-                  filename, strerror(errno));
-        return -1;
-    }
     if (fstat(fd, &statbuf) < 0) {
         logprintf(STDERR_FILENO,
-                  "Unable to stat file %s : %s\n",
-                  filename, strerror(errno));
-        goto exit_close;
+                  "Unable to stat pwdfile : %s\n",
+                  strerror(errno));
+        goto exit;
     }
     filelen = statbuf.st_size;
 
@@ -329,7 +321,7 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
         logprintf(STDERR_FILENO,
                   "Could not allocate %zu bytes for filebuffer\n",
                   filebuffer);
-        goto exit_close;
+        goto exit;
     }
 
     len = read(fd, filebuffer, filelen);
@@ -337,7 +329,7 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
         logprintf(STDERR_FILENO,
                   "Unable to read passphrase: %s\n",
                   strerror(errno));
-        goto exit_close;
+        goto exit;
     }
 
     *keylen = maxkeylen;
@@ -348,7 +340,7 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
             logprintf(STDERR_FILENO,
                       "Requested %zu bytes for key, only got %zu.\n",
                       *keylen, sizeof(hashbuf));
-            goto exit_close;
+            goto exit;
         }
         SHA512(filebuffer, filelen, hashbuf);
         memcpy(key, hashbuf, *keylen);
@@ -359,22 +351,55 @@ key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
                               EVP_sha512(), *keylen, key) != 1) {
             logprintf(STDERR_FILENO,
                       "PKCS5_PBKDF2_HMAC with SHA512 failed\n");
-            goto exit_close;
+            goto exit;
         }
         break;
     case KDF_IDENTIFIER_UNKNOWN:
         logprintf(STDERR_FILENO,
                   "Unknown KDF\n");
-        goto exit_close;
+        goto exit;
     }
 
-    ret =  0;
+    ret = 0;
 
-exit_close:
-    if (fd >= 0)
-        close(fd);
+exit:
 
     free(filebuffer);
+
+    return ret;
+}
+
+/*
+ * key_from_pwdfile:
+ * Read the password from the given file, convert the password into
+ * a key by applying a KDF on the password and use the first bytes
+ * of the hash as the key.
+ * @filename: name of the file holding the password
+ * @key: the buffer for holding the key
+ * @keylen: the actual key len of the converted key returned by this
+ *          function
+ * @maxkeylen: the max. size of the key; corresponds to the size of the
+ *             key buffer
+ * @kdfid: the kdf to invoke to create the key
+ */
+int
+key_from_pwdfile(const char *filename, unsigned char *key, size_t *keylen,
+                 size_t maxkeylen, enum kdf_identifier kdfid)
+{
+    int ret;
+    int fd;
+
+    fd = open(filename, O_RDONLY);
+    if (fd < 0) {
+        logprintf(STDERR_FILENO,
+                  "Unable to open file %s : %s\n",
+                  filename, strerror(errno));
+        return -1;
+    }
+
+    ret = key_from_pwdfile_fd(fd, key, keylen, maxkeylen, kdfid);
+
+    close(fd);
 
     return ret;
 }
