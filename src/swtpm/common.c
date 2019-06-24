@@ -236,6 +236,7 @@ static const OptionDesc flags_opt_desc[] = {
     END_OPTION_DESC
 };
 
+#ifdef WITH_SECCOMP
 static const OptionDesc seccomp_opt_desc[] = {
     {
         .name = "action",
@@ -243,6 +244,7 @@ static const OptionDesc seccomp_opt_desc[] = {
     },
     END_OPTION_DESC
 };
+#endif
 
 /*
  * handle_log_options:
@@ -1195,6 +1197,7 @@ int handle_flags_options(char *options, bool *need_init_cmd)
     return 0;
 }
 
+#ifdef WITH_SECCOMP
 static int parse_seccomp_options(char *options, unsigned int *seccomp_action)
 {
     OptionValues *ovs = NULL;
@@ -1253,3 +1256,4 @@ int handle_seccomp_options(char *options, unsigned int *seccomp_action)
 
     return 0;
 }
+#endif /* WITH_SECCOMP */
