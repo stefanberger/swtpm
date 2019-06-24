@@ -74,6 +74,8 @@
 #include "sys_dependencies.h"
 #include "osx.h"
 #include "seccomp_profile.h"
+#include "options.h"
+#include "capabilities.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -184,6 +186,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : Choose the action of the seccomp profile when a\n"
     "                   blacklisted syscall is executed; default is kill\n"
 #endif
+    "--print-capabilites\n"
+    "                 : print capabilities and terminate\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -202,7 +206,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 {
     TPM_RESULT rc = 0;
     int daemonize = FALSE;
-    int opt, longindex;
+    int opt, longindex, ret;
     struct stat statbuf;
     struct mainLoopParams mlp = {
         .cc = NULL,
@@ -251,6 +255,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 #ifdef WITH_SECCOMP
         {"seccomp"   , required_argument, 0, 'S'},
 #endif
+        {"print-capabilities"
+                     ,       no_argument, 0, 'a'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -367,6 +373,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
+
+        case 'a':
+            ret = capabilities_print_json(false);
+            exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
 
         case 'r':
             runas = optarg;
