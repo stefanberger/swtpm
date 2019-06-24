@@ -424,6 +424,27 @@ wait_chunk:
     return recvd;
 }
 
+static uint64_t get_ptm_caps_supported(void)
+{
+    return PTM_CAP_INIT
+            | PTM_CAP_SHUTDOWN
+            | PTM_CAP_GET_TPMESTABLISHED
+            | PTM_CAP_SET_LOCALITY
+            | PTM_CAP_HASHING
+            | PTM_CAP_CANCEL_TPM_CMD
+            | PTM_CAP_STORE_VOLATILE
+            | PTM_CAP_RESET_TPMESTABLISHED
+            | PTM_CAP_GET_STATEBLOB
+            | PTM_CAP_SET_STATEBLOB
+            | PTM_CAP_STOP
+            | PTM_CAP_GET_CONFIG
+#ifndef __CYGWIN__
+            | PTM_CAP_SET_DATAFD
+#endif
+            | PTM_CAP_SET_BUFFERSIZE
+            | PTM_CAP_GET_INFO;
+}
+
 /*
  * ctrlchannel_process_fd: Read command from control channel and execute it
  *
@@ -511,25 +532,7 @@ int ctrlchannel_process_fd(int fd,
 
     switch (be32toh(input.cmd)) {
     case CMD_GET_CAPABILITY:
-        *ptm_caps = htobe64(
-            PTM_CAP_INIT
-            | PTM_CAP_SHUTDOWN
-            | PTM_CAP_GET_TPMESTABLISHED
-            | PTM_CAP_SET_LOCALITY
-            | PTM_CAP_HASHING
-            | PTM_CAP_CANCEL_TPM_CMD
-            | PTM_CAP_STORE_VOLATILE
-            | PTM_CAP_RESET_TPMESTABLISHED
-            | PTM_CAP_GET_STATEBLOB
-            | PTM_CAP_SET_STATEBLOB
-            | PTM_CAP_STOP
-            | PTM_CAP_GET_CONFIG
-#ifndef __CYGWIN__
-            | PTM_CAP_SET_DATAFD
-#endif
-            | PTM_CAP_SET_BUFFERSIZE
-            | PTM_CAP_GET_INFO
-         );
+        *ptm_caps = htobe64(get_ptm_caps_supported());
 
         out_len = sizeof(*ptm_caps);
         break;
