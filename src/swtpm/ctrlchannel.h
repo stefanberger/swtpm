@@ -40,6 +40,8 @@
 
 #include <stdbool.h>
 
+#include <libtpms/tpm_types.h>
+
 struct ctrlchannel;
 struct libtpms_callbacks;
 struct mainLoopParams;
