@@ -76,6 +76,8 @@
 #include "tpmstate.h"
 #include "osx.h"
 #include "seccomp_profile.h"
+#include "options.h"
+#include "capabilities.h"
 
 /* local variables */
 static int notify_fd[2] = {-1, -1};
@@ -222,7 +224,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 {
     TPM_RESULT rc = 0;
     int daemonize = FALSE;
-    int opt, longindex;
+    int opt, longindex, ret;
     struct stat statbuf;
     struct mainLoopParams mlp = {
         .cc = NULL,
@@ -272,6 +274,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 #ifdef WITH_SECCOMP
         {"seccomp"   , required_argument, 0, 'S'},
 #endif
+        {"print-capabilities"
+                     ,       no_argument, 0, 'a'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -373,6 +377,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
+
+        case 'a':
+            ret = capabilities_print_json(false);
+            exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
 
         case 'r':
             runas = optarg;

@@ -80,6 +80,8 @@
 #include "utils.h"
 #include "threadpool.h"
 #include "seccomp_profile.h"
+#include "options.h"
+#include "capabilities.h"
 
 /* maximum size of request buffer */
 #define TPM_REQ_MAX 4096
@@ -233,6 +235,7 @@ static const char *usage =
 "                    :  Choose the action of the seccomp profile when a\n"
 "                       blacklisted syscall is executed; default is kill\n"
 #endif
+"--print-capabilites : print capabilities and terminate\n"
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
 
@@ -1401,6 +1404,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 #ifdef WITH_SECCOMP
         {"seccomp"       , required_argument, 0, 'S'},
 #endif
+        {"print-capabilities"
+                         ,       no_argument, 0, 'a'},
         {NULL            , 0                , 0, 0  },
     };
     struct cuse_info cinfo;
@@ -1502,6 +1507,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
             break;
         case 'h': /* help */
             fprintf(stdout, usage, prgname, iface);
+            goto exit;
+        case 'a':
+            ret = capabilities_print_json(true);
             goto exit;
         case 'v': /* version */
             fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
