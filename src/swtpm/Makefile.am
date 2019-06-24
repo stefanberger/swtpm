@@ -5,6 +5,7 @@
 #
 
 noinst_HEADERS = \
+	capabilities.h \
 	common.h \
 	ctrlchannel.h \
 	key.h \
@@ -32,6 +33,7 @@ privlibdir = $(libdir)/@PACKAGE@
 privlib_LTLIBRARIES = libswtpm_libtpms.la
 
 libswtpm_libtpms_la_SOURCES = \
+	capabilities.c \
 	common.c \
 	ctrlchannel.c \
 	key.c \
