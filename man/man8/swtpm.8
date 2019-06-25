@@ -359,6 +359,43 @@ The \fIlog\fR action is only available if libseccomp supports logging.
 .Sp
 This option is only available on Linux and only if swtpm was compiled with
 libseccomp support.
+.IP "\fB\-\-print\-capabilities\fR (since v0.2)" 4
+.IX Item "--print-capabilities (since v0.2)"
+Print capabilities that were added to swtpm after version 0.1. The output
+may contain the following:
+.Sp
+.Vb 9
+\&    {
+\&      "type": "swtpm",
+\&      "features": [
+\&        "cmdarg\-seccomp",
+\&        "cmdarg\-key\-fd",
+\&        "cmdarg\-pwd\-fd",
+\&        "tpm\-send\-command\-header",
+\&      ]
+\&    }
+.Ve
+.Sp
+The meaning of the feature verbs is as follows:
+.RS 4
+.IP "\fBcmdarg-seccomp\fR" 4
+.IX Item "cmdarg-seccomp"
+The \fI\-\-seccomp\fR option is supported.
+.IP "\fBcmdarg-key-fd\fR" 4
+.IX Item "cmdarg-key-fd"
+The \fI\-\-key\fR option supports the \fIfd=\fR parameter.
+.IP "\fBcmdarg-pwd-fd\fR" 4
+.IX Item "cmdarg-pwd-fd"
+The \fI\-\-key\fR option supports the \fIpwdfd=\fR parameter.
+.IP "\fBtpm-send-command-header\fR" 4
+.IX Item "tpm-send-command-header"
+The \s-1TPM 2\s0 commands may be prefixed by a header that carries a 4\-byte
+command, 1 byte for locality, and 4\-byte \s-1TPM 2\s0 command length indicator.
+The \s-1TPM 2\s0 will respond by preprending a 4\-byte response indicator and a
+4\-byte trailer. All data is sent in big endian format.
+.RE
+.RS 4
+.RE
 .IP "\fB\-h|\-\-help\fR" 4
 .IX Item "-h|--help"
 Display usage info.
