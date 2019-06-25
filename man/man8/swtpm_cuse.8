@@ -273,6 +273,32 @@ The \fIlog\fR action is only available if libseccomp supports logging.
 .Sp
 This option is only available on Linux and only if swtpm was compiled with
 libseccomp support.
+.IP "\fB\-\-print\-capabilities\fR (since v0.2)" 4
+.IX Item "--print-capabilities (since v0.2)"
+Print capabilities that were added to swtpm after version 0.1. The output
+may contain the following:
+.Sp
+.Vb 7
+\&    {
+\&      "type": "swtpm",
+\&      "features": [
+\&        "cmdarg\-seccomp",
+\&        "cmdarg\-key\-fd"
+\&      ]
+\&    }
+.Ve
+.Sp
+The meaning of the feature verbs is as follows:
+.RS 4
+.IP "\fBcmdarg-seccomp\fR" 4
+.IX Item "cmdarg-seccomp"
+The \fI\-\-seccomp\fR option is supported.
+.IP "\fBcmdarg-key-fd\fR" 4
+.IX Item "cmdarg-key-fd"
+The \fI\-\-key\fR option supports the \fIfd=\fR parameter.
+.RE
+.RS 4
+.RE
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 To start the \s-1CUSE TPM\s0 and have it create the character device /dev/foo,

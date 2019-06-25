@@ -274,6 +274,46 @@ The I<log> action is only available if libseccomp supports logging.
 This option is only available on Linux and only if swtpm was compiled with
 libseccomp support.
 
+=item B<--print-capabilities> (since v0.2)
+
+Print capabilities that were added to swtpm after version 0.1. The output
+may contain the following:
+
+    {
+      "type": "swtpm",
+      "features": [
+        "cmdarg-seccomp",
+        "cmdarg-key-fd",
+        "cmdarg-pwd-fd",
+        "tpm-send-command-header",
+      ]
+    }
+
+The meaning of the feature verbs is as follows:
+
+=over 4
+
+=item B<cmdarg-seccomp>
+
+The I<--seccomp> option is supported.
+
+=item B<cmdarg-key-fd>
+
+The I<--key> option supports the I<fd=> parameter.
+
+=item B<cmdarg-pwd-fd>
+
+The I<--key> option supports the I<pwdfd=> parameter.
+
+=item B<tpm-send-command-header>
+
+The TPM 2 commands may be prefixed by a header that carries a 4-byte
+command, 1 byte for locality, and 4-byte TPM 2 command length indicator.
+The TPM 2 will respond by preprending a 4-byte response indicator and a
+4-byte trailer. All data is sent in big endian format.
+
+=back
+
 =item B<-h|--help>
 
 Display usage info.

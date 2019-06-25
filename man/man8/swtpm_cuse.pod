@@ -154,6 +154,33 @@ The I<log> action is only available if libseccomp supports logging.
 This option is only available on Linux and only if swtpm was compiled with
 libseccomp support.
 
+=item B<--print-capabilities> (since v0.2)
+
+Print capabilities that were added to swtpm after version 0.1. The output
+may contain the following:
+
+    {
+      "type": "swtpm",
+      "features": [
+        "cmdarg-seccomp",
+        "cmdarg-key-fd"
+      ]
+    }
+
+The meaning of the feature verbs is as follows:
+
+=over 4
+
+=item B<cmdarg-seccomp>
+
+The I<--seccomp> option is supported.
+
+=item B<cmdarg-key-fd>
+
+The I<--key> option supports the I<fd=> parameter.
+
+=back
+
 =back
 
 =head1 EXAMPLES
