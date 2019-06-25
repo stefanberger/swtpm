@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+cd "$(dirname "$0")"
+
+export SWTPM_IFACE=cuse
+bash _test_print_capabilities
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_IFACE=socket
+bash _test_print_capabilities
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+exit 0

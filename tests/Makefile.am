@@ -40,7 +40,9 @@ TESTS += \
 	test_swtpm_bios \
 	test_tpm_probe \
 	test_tpm12 \
-	test_wrongorder
+	test_wrongorder \
+	\
+	test_print_capabilities
 
 TESTS += \
 	test_tpm2_derived_keys \
@@ -149,6 +151,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_locality \
 	_test_migration_key \
 	_test_migration_key_2 \
+	_test_print_capabilities \
 	_test_resume_volatile \
 	_test_save_load_encrypted_state \
 	_test_save_load_state \
