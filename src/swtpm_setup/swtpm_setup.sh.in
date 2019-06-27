@@ -2046,12 +2046,18 @@ The following options are supported:
                    This parameter will be passed to the TPM using
                    '--key file=<file>'.
 
+--keyfile-fd <fd>: Like --keyfile but file descriptor is given to read
+                   encryption key from.
+
 --pwdfile <pwdfile>
                  : Path to a file containing a passphrase from which the
                    TPM will derive the 128bit AES key. The passphrase can be
                    32 bytes long.
                    This parameter will be passed to the TPM using
                    '--key pwdfile=<file>'.
+
+--pwdfile-fd <fd>: Like --pwdfile but file descriptor to read passphrase
+                   from is given.
 
 --cipher <cipher>: The cipher to use; either aes-128-cbc or aes-256-cbc;
                    the default is aes-128-cbc; the same cipher must be
@@ -2085,6 +2091,7 @@ main()
 	local vmid=""
 	local ret
 	local keyfile pwdfile cipher="aes-128-cbc"
+	local keyfile_fd pwdfile_fd
 	local got_ownerpass=0 got_srkpass=0
 	local pcr_banks=""
 	local tcsd_system_ps_file=""
@@ -2113,7 +2120,9 @@ main()
 		--config) shift; config_file="$1";;
 		--vmid) shift; vmid="$1";;
 		--keyfile) shift; keyfile="$1";;
+		--keyfile-fd) shift; keyfile_fd="$1";;
 		--pwdfile) shift; pwdfile="$1";;
+		--pwdfile-fd) shift; pwdfile_fd="$1";;
 		--cipher) shift; cipher="$1";;
 		--runas) shift;; # ignore here
 		--logfile) shift; LOGFILE="$1";;
@@ -2282,6 +2291,18 @@ main()
 		fi
 		SWTPM="$SWTPM --key pwdfile=${pwdfile}${cipher}"
 		logit "  The TPM's state will be encrypted using a key derived from a passphrase."
+	elif [ -n "$keyfile_fd" ]; then
+		if ! [[ "$keyfile_fd" =~ ^[0-9]+$ ]]; then
+			logerr "--keyfile-fd parameter $keyfile_fd is not a valid file descriptor"
+			exit 1
+		fi
+		SWTPM="$SWTPM --key fd=${keyfile_fd}${cipher}"
+	elif [ -n "$pwdfile_fd" ]; then
+		if ! [[ "$pwdfile_fd" =~ ^[0-9]+$ ]]; then
+			logerr "--keyfile-fd parameter $keyfile_fd is not a valid file descriptor"
+			exit 1
+		fi
+		SWTPM="$SWTPM --key pwdfd=${pwdfile_fd}${cipher}"
 	fi
 
 	# tcsd only runs as tss, so we have to be root or tss here; TPM 1.2 only
