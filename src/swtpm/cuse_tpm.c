@@ -193,7 +193,7 @@ static const char *usage =
 "                       the key is to be provided as a hex string or in binary\n"
 "                       format; the keyfile can be automatically removed using\n"
 "                       the remove parameter\n"
-"--key pwdfile=<path>[,mode=aes-cbc|aes-256-cbc][,remove=[true|false]][,kdf=sha512|pbkdf2]\n"
+"--key pwdfile=<path>|pwdfd=<fd>[,mode=aes-cbc|aes-256-cbc][,remove=[true|false]][,kdf=sha512|pbkdf2]\n"
 "                    :  provide a passphrase in a file; the AES key will be\n"
 "                       derived from this passphrase; default kdf is PBKDF2\n"
 "--locality [reject-locality-4][,allow-set-locality]\n"
