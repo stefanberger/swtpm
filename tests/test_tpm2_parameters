@@ -93,6 +93,24 @@ for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 		exit 1
 	fi
 
+	# Make sure the state is encrypted when a key was given.
+	# We expect sequences of 4 0-bytes in unencrypted state
+	# and no such sequences in encrypted state.
+	nullseq="$(cat $TPMDIR/tpm2-00.permall | \
+			od -t x1 -A n | tr -d '\n' |
+			grep "00 00 00 00")"
+	if [[ "${PARAMETERS[$i]}" =~ (keyfile|pwdfile) ]]; then
+		if [ -n "${nullseq}" ]; then
+			echo "ERROR: State file is not encrypted with" \
+			     "parameters '${PARAMETERS[$i]}'"
+		fi
+	else
+		if [ -z "${nullseq}" ]; then
+			echo "ERROR: State must not be encrypted with" \
+			     "parameters '${PARAMETERS[$i]}'"
+		fi
+	fi
+
 	echo "SUCCESS with parameters '${PARAMETERS[$i]}'."
 done
 
