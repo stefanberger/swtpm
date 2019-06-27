@@ -117,11 +117,19 @@ The key file contains an ASCII hex key consisting of 32 hex digits with an
 optional leading '0x'. This is the key to be used by the TPM emulator
 for encrypting the state of the TPM. 
 
+=item B<--keyfile <file descriptor>>
+
+Like B<--keygfile> but the key will be read from the file descriptor.
+
 =item B<--pwdfile <passphrase file>>
 
-The passpharse file contains a passphrase from which the TPM emulator
+The passphrase file contains a passphrase from which the TPM emulator
 will derive the encyrption key from and use the key for encrypting the TPM
 state.
+
+=item B<--pwdfile-fd <file descriptor>>
+
+Like B<--pwdfile> but the passphrase will be read from the file descriptor.
 
 =item B<--ciper <cipher>>
 
