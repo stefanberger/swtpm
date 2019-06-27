@@ -28,7 +28,13 @@ PARAMETERS=(
 	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
 	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc"
 	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc"
+	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile-fd 100 --cipher aes-256-cbc"
+	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile-fd 101 --cipher aes-256-cbc"
 )
+
+# Open read-only file descriptors referenced in test cases
+exec 100<${TESTDIR}/data/keyfile256bit.txt
+exec 101<${TESTDIR}/data/pwdfile.txt
 
 # produced file size is always the same with TPM2
 
@@ -89,3 +95,6 @@ for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 
 	echo "SUCCESS with parameters '${PARAMETERS[$i]}'."
 done
+
+exec 100>&-
+exec 101>&-
