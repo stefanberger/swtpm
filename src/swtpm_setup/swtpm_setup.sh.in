@@ -1974,6 +1974,13 @@ TPM emulator setup tool version @SWTPM_VER_MAJOR@.@SWTPM_VER_MINOR@.@SWTPM_VER_M
 EOF
 }
 
+print_capabilities()
+{
+	echo '{ "type": "swtpm_setup",' \
+		'"features": [ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd" ]'\
+	'}'
+}
+
 usage()
 {
 	versioninfo
@@ -2134,6 +2141,7 @@ main()
 		--pcr-banks) shift; pcr_banks="${pcr_banks},$1";;
 		--tcsd-system-ps-file) shift; tcsd_system_ps_file="$1";;
 		--version) versioninfo $0; exit 0;;
+		--print-capabilities) print_capabilities; exit 0;;
 		--help|-h|-?) usage $0; exit 0;;
 		*) logerr "Unknown option $1"; usage $0; exit 1;;
 		esac
