@@ -173,6 +173,33 @@ needed by TCSD for key related functions.
 
 This option is only useful with TPM 1.2 and in if ownership is taken.
 
+=item B<--print-capabilities> (since v0.2)
+
+Print capabilities that were added to swtpm_setup after version 0.1. The output
+contains the following:
+
+    {
+      "type": "swtpm_setup",
+      "features": [
+        "cmdarg-keyfile-fd",
+        "cmdarg-pwdfile-fd"
+      ]
+    }
+
+The meaning of the feature verbs is as follows:
+
+=over 4
+
+=item B<cmdarg-key-fd>
+
+The I<--keyfile-fd> option is supported.
+
+=item B<cmdarg-pwd-fd>
+
+The I<--pwdfile-fd> option is supported.
+
+=back
+
 =item B<--help, -h>
 
 Display the help screen

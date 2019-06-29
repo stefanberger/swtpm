@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_setup 8"
-.TH swtpm_setup 8 "2019-07-01" "swtpm" ""
+.TH swtpm_setup 8 "2019-07-09" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -277,6 +277,32 @@ A file to copy \s-1TCSD\s0's system_ps_file to. The system_ps_file contains the
 needed by \s-1TCSD\s0 for key related functions.
 .Sp
 This option is only useful with \s-1TPM 1.2\s0 and in if ownership is taken.
+.IP "\fB\-\-print\-capabilities\fR (since v0.2)" 4
+.IX Item "--print-capabilities (since v0.2)"
+Print capabilities that were added to swtpm_setup after version 0.1. The output
+contains the following:
+.Sp
+.Vb 7
+\&    {
+\&      "type": "swtpm_setup",
+\&      "features": [
+\&        "cmdarg\-keyfile\-fd",
+\&        "cmdarg\-pwdfile\-fd"
+\&      ]
+\&    }
+.Ve
+.Sp
+The meaning of the feature verbs is as follows:
+.RS 4
+.IP "\fBcmdarg-key-fd\fR" 4
+.IX Item "cmdarg-key-fd"
+The \fI\-\-keyfile\-fd\fR option is supported.
+.IP "\fBcmdarg-pwd-fd\fR" 4
+.IX Item "cmdarg-pwd-fd"
+The \fI\-\-pwdfile\-fd\fR option is supported.
+.RE
+.RS 4
+.RE
 .IP "\fB\-\-help, \-h\fR" 4
 .IX Item "--help, -h"
 Display the help screen
