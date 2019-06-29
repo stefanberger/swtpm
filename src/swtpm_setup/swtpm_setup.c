@@ -152,6 +152,8 @@ int main(int argc, char *argv[])
             change_user = false;
         } else if (!strcmp("--version", argv[i])) {
             change_user = false;
+        } else if (!strcmp("--print-capabilities", argv[i])) {
+            change_user = false;
         } else if (!strcmp("--tpm2", argv[i])) {
             use_tpm2 = true;
         }
