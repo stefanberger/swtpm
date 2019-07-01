@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_setup 8"
-.TH swtpm_setup 8 "2019-06-27" "swtpm" ""
+.TH swtpm_setup 8 "2019-07-01" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -231,9 +231,9 @@ The logfile to log to. By default logging goes to stdout and stderr.
 The key file contains an \s-1ASCII\s0 hex key consisting of 32 hex digits with an
 optional leading '0x'. This is the key to be used by the \s-1TPM\s0 emulator
 for encrypting the state of the \s-1TPM.\s0
-.IP "\fB\-\-keyfile <file descriptor\fR>" 4
-.IX Item "--keyfile <file descriptor>"
-Like \fB\-\-keygfile\fR but the key will be read from the file descriptor.
+.IP "\fB\-\-keyfile\-fd <file descriptor\fR>" 4
+.IX Item "--keyfile-fd <file descriptor>"
+Like \fB\-\-keyfile\fR but the key will be read from the file descriptor.
 .IP "\fB\-\-pwdfile <passphrase file\fR>" 4
 .IX Item "--pwdfile <passphrase file>"
 The passphrase file contains a passphrase from which the \s-1TPM\s0 emulator
