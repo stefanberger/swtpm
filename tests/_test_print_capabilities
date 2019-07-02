@@ -31,6 +31,23 @@ if [ "${msg}" != "${exp}" ]; then
 	exit 1
 fi
 
-echo "OK"
+echo "Test 1: OK"
+
+msg="$(${SWTPM_SETUP} --print-capabilities 2>&1)"
+if [ $? -ne 0 ]; then
+	echo "Error: Could not pass --print-capabilities"
+	echo "${msg}"
+	exit 1
+fi
+
+exp='{ "type": "swtpm_setup", "features": [ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd" ] }'
+if [ "${msg}" != "${exp}" ]; then
+	echo "Unexpected response from ${SWTPM_SETUP} to --print-capabilities:"
+	echo "Actual   : ${msg}"
+	echo "Expected : ${exp}"
+	exit 1
+fi
+
+echo "Test 2: OK"
 
 exit 0
