@@ -882,9 +882,9 @@ init_tpm()
 		fi
 
 		TCSD_TCP_DEVICE_PORT=$TPM_PORT
-		output="$(swtpm_bios -c)"
+		output="$(swtpm_bios -c 2>&1)"
 		if [ $? -ne 0 ]; then
-			logerr "swtpm_bios -c -o failed: $output"
+			logerr "swtpm_bios -c failed: $output"
 			return 1
 		fi
 		logit "Successfully enabled and activated the TPM"
