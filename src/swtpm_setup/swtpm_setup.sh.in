@@ -873,11 +873,9 @@ init_tpm()
 		logit "Successfully gave up ownership of the TPM."
 
 		# TPM is now disabled and deactivated; enable and activate it
-		stop_tpm 1
-		start_tpm "$SWTPM" "$tpm_state_path"
-
+		output="$($SWTPM_IOCTL --tcp :$((TPM_PORT+1)) -i 2>&1)"
 		if [ $? -ne 0 ]; then
-			logerr "Could not re-start TPM."
+			logerr "Could not re-init TPM."
 			return 1
 		fi
 
