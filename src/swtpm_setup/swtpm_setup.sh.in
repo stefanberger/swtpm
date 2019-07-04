@@ -569,7 +569,10 @@ cleanup()
 	# Make sure they are gone for good
 	stop_tpm 1
 	stop_tcsd 1
-	rm -rf "$TCSD_CONFIG" "$TCSD_DATA_FILE" "$TCSD_DATA_DIR"
+	for f in "$TCSD_CONFIG" "$TCSD_DATA_FILE" "$TCSD_DATA_DIR"; do
+		[ -z "${f}" ] && continue
+		rm -rf "${f}"
+	done
 }
 
 # Read hex data passed to this function via a pipe and convert them to a
