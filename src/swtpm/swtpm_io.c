@@ -5,7 +5,7 @@
 /*                     IBM Thomas J. Watson Research Center                     */
 /*            $Id: tpm_io.c 4564 2011-04-13 19:33:38Z stefanb $                */
 /*                                                                              */
-/* (c) Copyright IBM Corporation 2006, 2010.					*/
+/* (c) Copyright IBM Corporation 2006, 2010, 2019				*/
 /*										*/
 /* All rights reserved.								*/
 /* 										*/
@@ -53,12 +53,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <arpa/inet.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <sys/un.h>
-#include <sys/time.h>
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_error.h>
@@ -205,40 +199,34 @@ TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write 
                           const unsigned char *buffer,
                           size_t buffer_length)
 {
-    TPM_RESULT  rc = 0;
     ssize_t     nwritten = 0;
 
-    if (rc == 0) {
-        TPM_PrintAll(" SWTPM_IO_Write:", " ", buffer, buffer_length);
-    }
+    TPM_PrintAll(" SWTPM_IO_Write:", " ", buffer, buffer_length);
     /* write() is unspecified with buffer_length too large */
-    if (rc == 0) {
-        if (buffer_length > SSIZE_MAX) {
-            rc = TPM_BAD_PARAMETER;
-        }
-    }
+    if (buffer_length > SSIZE_MAX)
+        return TPM_BAD_PARAMETER;
+
     /* test that connection is open to write */
-    if (rc == 0) {
-        if (connection_fd->fd < 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_IO_Write: Error, connection not open, fd %d\n",
-                      connection_fd->fd);
-            rc = TPM_IOERROR;
-        }
+    if (connection_fd->fd < 0) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_IO_Write: Error, connection not open, fd %d\n",
+                  connection_fd->fd);
+        return TPM_IOERROR;
     }
-    while ((rc == 0) && (buffer_length > 0)) {
+    while (buffer_length > 0) {
         nwritten = write(connection_fd->fd, buffer, buffer_length);
+        if (nwritten < 0 && errno == EINTR)
+            continue;
         if (nwritten >= 0) {
             buffer_length -= nwritten;
             buffer += nwritten;
-        }
-        else {
+        } else {
             logprintf(STDERR_FILENO, "SWTPM_IO_Write: Error, write() %d %s\n",
                       errno, strerror(errno));
-            rc = TPM_IOERROR;
+            return TPM_IOERROR;
         }
     }
-    return rc;
+    return 0;
 }
 
 /* SWTPM_IO_Disconnect() breaks the connection between the TPM server and the host client
@@ -248,14 +236,11 @@ TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write 
 
 TPM_RESULT SWTPM_IO_Disconnect(TPM_CONNECTION_FD *connection_fd)
 {
-    TPM_RESULT  rc = 0;
-
     /* close the connection to the client */
     if (connection_fd->fd >= 0) {
         close(connection_fd->fd);
         connection_fd->fd = -1;     /* mark the connection closed */
     }
 
-    return rc;
+    return 0;
 }
-
