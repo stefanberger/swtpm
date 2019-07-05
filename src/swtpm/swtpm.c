@@ -226,8 +226,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *flagsdata = NULL;
     char *seccompdata = NULL;
     char *runas = NULL;
-    int sock_type = 0;
-    socklen_t len = 0;
     bool need_init_cmd = true;
 #ifdef DEBUG
     time_t              start_time;
@@ -317,10 +315,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
                          MAIN_LOOP_FLAG_KEEP_CONNECTION;
-
-            if (!getsockopt(mlp.fd, SOL_SOCKET, SO_TYPE, &sock_type, &len) &&
-                           sock_type != SOCK_STREAM)
-                mlp.flags |= MAIN_LOOP_FLAG_READALL;
 
             SWTPM_IO_SetSocketFD(mlp.fd);
 
@@ -447,11 +441,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
         if ((server_get_flags(server) & SERVER_FLAG_FD_GIVEN))
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
-
-        if (mlp.fd >= 0 &&
-            !getsockopt(mlp.fd, SOL_SOCKET, SO_TYPE, &sock_type, &len) &&
-                        sock_type != SOCK_STREAM)
-            mlp.flags |= MAIN_LOOP_FLAG_READALL;
     }
 
     if (daemonize) {
