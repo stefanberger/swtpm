@@ -70,14 +70,6 @@
 
 
 /*
-  local prototypes
-*/
-
-static TPM_RESULT SWTPM_IO_ReadBytes(TPM_CONNECTION_FD *connection_fd,
-                                     unsigned char *buffer,
-                                     size_t nbytes);
-
-/*
   global variables
 */
 
@@ -98,66 +90,30 @@ static int      sock_fd = -1;
 TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file descriptor */
                          unsigned char *buffer,   /* output: command stream */
                          uint32_t *bufferLength,  /* output: command stream length */
-                         size_t bufferSize,       /* input: max size of output buffer */
-                         bool readall)
+                         size_t bufferSize)       /* input: max size of output buffer */
 {
-    TPM_RESULT          rc = 0;
-    uint32_t            headerSize;     /* minimum required bytes in command through paramSize */
-    uint32_t            paramSize;      /* from command stream */
     ssize_t             n;
 
-    if (rc == 0) {
-        if (connection_fd->fd < 0) {
-            TPM_DEBUG("SWTPM_IO_Read: Passed file descriptor is invalid\n");
-            rc = TPM_IOERROR;
-        }
+    if (connection_fd->fd < 0) {
+        TPM_DEBUG("SWTPM_IO_Read: Passed file descriptor is invalid\n");
+        return TPM_IOERROR;
     }
 
-    /* check that the buffer can at least fit the command through the paramSize */
-    if (rc == 0) {
-        headerSize = sizeof(TPM_TAG) + sizeof(uint32_t);
-        if (bufferSize < headerSize) {
-            TPM_DEBUG("SWTPM_IO_Read: Error, buffer size %lu less than minimum %u\n",
-                   (unsigned long)bufferSize, headerSize);
-            rc = TPM_SIZE;
-        }
-    }
-    if (rc == 0 && readall) {
+    while (true) {
         n = read(connection_fd->fd, buffer, bufferSize);
-        if (n > 0)
+        if (n < 0 && errno == EINTR)
+            continue;
+        if (n > 0) {
             *bufferLength = n;
-        else
-            rc = TPM_IOERROR;
-        goto out;
-    }
-    /* read the command through the paramSize from the socket stream */
-    if (rc == 0) {
-        rc = SWTPM_IO_ReadBytes(connection_fd, buffer, headerSize);
-    }
-    if (rc == 0) {
-        TPM_PrintAll("  SWTPM_IO_Read: through paramSize", "  ",
-                     buffer, headerSize);
-        /* extract the paramSize value, last field in header */
-        paramSize = LOAD32(buffer, headerSize - sizeof(uint32_t));
-        *bufferLength = headerSize + paramSize - (sizeof(TPM_TAG) + sizeof(uint32_t));
-        if (bufferSize < *bufferLength) {
-            TPM_DEBUG("SWTPM_IO_Read: Error, buffer size %lu is less than required %u\n",
-                   (unsigned long)bufferSize, *bufferLength);
-            rc = TPM_SIZE;
+            break;
+        } else {
+           return TPM_IOERROR;
         }
     }
-    /* read the rest of the command (already read tag and paramSize) */
-    if (rc == 0) {
-        rc = SWTPM_IO_ReadBytes(connection_fd,
-                                buffer + headerSize,
-                                paramSize - (sizeof(TPM_TAG) + sizeof(uint32_t)));
-    }
 
-out:
-    if (rc == 0) {
-        TPM_PrintAll(" SWTPM_IO_Read:", " ", buffer, *bufferLength);
-    }
-    return rc;
+    TPM_PrintAll(" SWTPM_IO_Read:", " ", buffer, *bufferLength);
+
+    return 0;
 }
 
 
@@ -235,55 +191,6 @@ TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write 
             }
             break;
         }
-    }
-
-    return rc;
-}
-
-/* SWTPM_IO_ReadBytes() reads nbytes from connection_fd and puts them in buffer.
-
-   The buffer has already been checked for sufficient size.
-
-   This is the Unix platform dependent socket version.
-*/
-
-static TPM_RESULT SWTPM_IO_ReadBytes(TPM_CONNECTION_FD *connection_fd,    /* read/write file descriptor */
-                                     unsigned char *buffer,
-                                     size_t nbytes)
-{
-    TPM_RESULT rc = 0;
-    ssize_t nread = 0;
-    size_t nleft = nbytes;
-    unsigned char *start = buffer;
-
-    TPM_DEBUG("  SWTPM_IO_ReadBytes: Reading %lu bytes\n",
-              (unsigned long)nbytes);
-    /* read() is unspecified with nbytes too large */
-    if (rc == 0) {
-        if (nleft > SSIZE_MAX) {
-            rc = TPM_BAD_PARAMETER;
-        }
-    }
-    while ((rc == 0) && (nleft > 0)) {
-        nread = read(connection_fd->fd, buffer, nleft);
-        if (nread > 0) {
-            nleft -= nread;
-            buffer += nread;
-        }
-        else if (nread < 0) {       /* error */
-            TPM_DEBUG("SWTPM_IO_ReadBytes: Error, read() error %d %s\n",
-                   errno, strerror(errno));
-            rc = TPM_IOERROR;
-        }
-        else if (nread == 0) {          /* EOF */
-            TPM_DEBUG("SWTPM_IO_ReadBytes: Error, read EOF, read %lu bytes\n",
-                   (unsigned long)(nbytes - nleft));
-            rc = TPM_IOERROR;
-        }
-    }
-
-    if (rc == 0) {
-        TPM_PrintAll(" SWTPM_IO_ReadBytes:", " ", start, nbytes - nleft);
     }
 
     return rc;
