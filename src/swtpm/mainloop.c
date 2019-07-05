@@ -92,7 +92,6 @@ int mainLoop(struct mainLoopParams *mlp,
     uint32_t            rTotal = 0;                /* total allocated bytes */
     int                 ctrlfd;
     int                 ctrlclntfd;
-    bool                readall;
     int                 sockfd;
     int                 ready;
 
@@ -204,9 +203,8 @@ int mainLoop(struct mainLoopParams *mlp,
 
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
             if (rc == 0) {
-                readall = (mlp->flags & MAIN_LOOP_FLAG_READALL);
                 rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
-                                   max_command_length, readall);
+                                   max_command_length);
                 if (rc != 0) {
                     /* connection broke */
                     SWTPM_IO_Disconnect(&connection_fd);
