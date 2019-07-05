@@ -53,6 +53,9 @@
 #include <errno.h>
 #include <limits.h>
 #include <arpa/inet.h>
+#include <netinet/in.h> /* BSD: sockaddr_in */
+#include <sys/socket.h> /* BSD: accept() */
+#include <sys/select.h> /* BSD: select() */
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_error.h>
