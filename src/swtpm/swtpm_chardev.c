@@ -296,7 +296,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             if (mlp.fd < 0) {
                 logprintf(STDERR_FILENO, "Cannot open %s: %s\n",
                           optarg, strerror(errno));
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
                          MAIN_LOOP_FLAG_READALL;
@@ -312,13 +312,13 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             if (val != (unsigned int)val || errno || end_ptr[0] != '\0') {
                 logprintf(STDERR_FILENO,
                           "Cannot parse character device file descriptor.\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             mlp.fd = val;
             if (fstat(mlp.fd, &statbuf) != 0) {
                 logprintf(STDERR_FILENO, "Cannot stat file descriptor: %s\n",
                           strerror(errno));
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             /*
              * test for wrong file types; anonymous fd's do not seem to be any of the wrong
@@ -328,7 +328,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                 || S_ISLNK(statbuf.st_mode)) {
                 logprintf(STDERR_FILENO,
                           "Given file descriptor type is not supported.\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
                          MAIN_LOOP_FLAG_READALL;
@@ -399,11 +399,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if (optind < argc) {
         logprintf(STDERR_FILENO,
                   "Unknown parameter '%s'\n", argv[optind]);
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
     if (handle_locality_options(localitydata, &mlp.locality_flags) < 0)
-        exit(1);
+        exit(EXIT_FAILURE);
 
 #ifdef WITH_VTPM_PROXY
     if (use_vtpm_proxy) {
@@ -418,11 +418,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         if (mlp.fd >= 0) {
             logprintf(STDERR_FILENO,
                       "Cannot use vTPM proxy with a provided device.\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         if (create_vtpm_proxy(&vtpm_new_dev, &_errno))
-            exit(1);
+            exit(EXIT_FAILURE);
 
         mlp.fd = vtpm_new_dev.fd;
 
@@ -440,12 +440,12 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if (mlp.fd < 0) {
         logprintf(STDERR_FILENO,
                   "Error: Missing character device or file descriptor\n");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     } else if (mlp.fd < 3) {
         /* no std{in,out,err} */
         logprintf(STDERR_FILENO,
             "Error: Cannot accept file descriptors with values 0, 1, or 2\n");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
     /*
@@ -455,7 +455,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if (TPMLIB_ChooseTPMVersion(mlp.tpmversion) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,
                   "Error: Could not choose TPM version.\n");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
     SWTPM_NVRAM_Set_TPMVersion(mlp.tpmversion);
@@ -547,15 +547,15 @@ error_no_tpm:
 
     /* Fatal initialization errors cause the program to abort */
     if (rc == 0) {
-        return EXIT_SUCCESS;
+        exit(EXIT_SUCCESS);
     }
     else {
         TPM_DEBUG("main: TPM initialization failure %08x, exiting\n", rc);
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
 exit_failure:
     swtpm_cleanup(mlp.cc);
 
-    return EXIT_FAILURE;
+    exit(EXIT_FAILURE);
 }

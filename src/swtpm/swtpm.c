@@ -276,17 +276,17 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
                 logprintf(STDERR_FILENO,
                           "Cannot parse socket port number '%s'.\n",
                           optarg);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             if (val >= 0x10000) {
                 logprintf(STDERR_FILENO, "Port is outside valid range.\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             snprintf(buf, sizeof(buf), "%lu", val);
             if (setenv("TPM_PORT", buf, 1) != 0) {
                 logprintf(STDERR_FILENO,
                           "Could not set port: %s\n", strerror(errno));
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             serverdata = "type=tcp,disconnect";
             break;
@@ -297,13 +297,13 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             if (val != (unsigned int)val || errno || end_ptr[0] != '\0') {
                 logprintf(STDERR_FILENO,
                           "Cannot parse socket file descriptor.\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             mlp.fd = val;
             if (fstat(mlp.fd, &statbuf) != 0) {
                 logprintf(STDERR_FILENO, "Cannot stat file descriptor: %s\n", 
                           strerror(errno));
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             /*
              * test for wrong file types; anonymous fd's do not seem to be any of the wrong
@@ -313,7 +313,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
                 S_ISBLK(statbuf.st_mode) || S_ISLNK(statbuf.st_mode)) {
                 logprintf(STDERR_FILENO,
                           "Given file descriptor type is not supported.\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
                          MAIN_LOOP_FLAG_KEEP_CONNECTION;
@@ -391,14 +391,14 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (optind < argc) {
         logprintf(STDERR_FILENO,
                   "Unknown parameter '%s'\n", argv[optind]);
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
     if (mlp.fd >= 0 && mlp.fd < 3) {
         /* no std{in,out,err} */
         logprintf(STDERR_FILENO,
             "Error: Cannot accept file descriptors with values 0, 1, or 2\n");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
     /*
@@ -408,7 +408,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (TPMLIB_ChooseTPMVersion(mlp.tpmversion) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,
                   "Error: Could not choose TPM version.\n");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
     if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
@@ -513,15 +513,15 @@ error_no_tpm:
 
     /* Fatal initialization errors cause the program to abort */
     if (rc == 0) {
-        return EXIT_SUCCESS;
+        exit(EXIT_SUCCESS);
     }
     else {
         TPM_DEBUG("main: TPM initialization failure %08x, exiting\n", rc);
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
 exit_failure:
     swtpm_cleanup(mlp.cc, server);
 
-    return EXIT_FAILURE;
+    exit(EXIT_FAILURE);
 }
