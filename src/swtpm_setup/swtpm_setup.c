@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
      * In case of TPM 1.2 we allow running this program as 'tss'
      * (E_USER_ID).
      */
-    if (!use_tpm2) {
+    if (!use_tpm2 && change_user) {
         passwd = getpwnam(E_USER_ID);
         if (!passwd) {
             fprintf(stderr, "Could not get account data of user %s.\n", E_USER_ID);
