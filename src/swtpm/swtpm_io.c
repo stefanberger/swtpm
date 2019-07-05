@@ -64,7 +64,7 @@
 #include "logging.h"
 #include "swtpm_debug.h"
 #include "swtpm_io.h"
-
+#include "tpmlib.h"
 
 /*
   global variables
@@ -90,6 +90,7 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
                          size_t bufferSize)       /* input: max size of output buffer */
 {
     ssize_t             n;
+    size_t              offset = 0;
 
     if (connection_fd->fd < 0) {
         TPM_DEBUG("SWTPM_IO_Read: Passed file descriptor is invalid\n");
@@ -97,17 +98,20 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
     }
 
     while (true) {
-        n = read(connection_fd->fd, buffer, bufferSize);
+        n = read(connection_fd->fd, &buffer[offset], bufferSize - offset);
         if (n < 0 && errno == EINTR)
             continue;
         if (n > 0) {
-            *bufferLength = n;
+            offset += n;
+            if (offset < sizeof(struct tpm_req_header))
+                continue;
             break;
         } else {
            return TPM_IOERROR;
         }
     }
 
+    *bufferLength = offset;
     TPM_PrintAll(" SWTPM_IO_Read:", " ", buffer, *bufferLength);
 
     return 0;
