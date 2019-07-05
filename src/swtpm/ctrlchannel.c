@@ -466,8 +466,6 @@ int ctrlchannel_process_fd(int fd,
         .msg_controllen = sizeof(control),
     };
     struct cmsghdr *cmsg = NULL;
-    int sock_type = 0;
-    socklen_t len = 0;
     int *data_fd = NULL;
 
     /* Write-only */
@@ -781,9 +779,6 @@ int ctrlchannel_process_fd(int fd,
 
         mlp->flags = MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION |
                        MAIN_LOOP_FLAG_END_ON_HUP;
-        if (!getsockopt(*data_fd, SOL_SOCKET, SO_TYPE, &sock_type, &len)
-            && sock_type != SOCK_STREAM)
-            mlp->flags |= MAIN_LOOP_FLAG_READALL;
         mlp->fd = *data_fd;
 
         *res_p = htobe32(TPM_SUCCESS);

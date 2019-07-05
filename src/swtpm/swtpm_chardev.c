@@ -298,8 +298,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                           optarg, strerror(errno));
                 exit(EXIT_FAILURE);
             }
-            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
-                         MAIN_LOOP_FLAG_READALL;
+            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
             SWTPM_IO_SetSocketFD(mlp.fd);
             break;
 
@@ -330,8 +329,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                           "Given file descriptor type is not supported.\n");
                 exit(EXIT_FAILURE);
             }
-            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
-                         MAIN_LOOP_FLAG_READALL;
+            mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
             SWTPM_IO_SetSocketFD(mlp.fd);
 
             break;
@@ -426,8 +424,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
         mlp.fd = vtpm_new_dev.fd;
 
-        mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
-                     MAIN_LOOP_FLAG_READALL;
+        mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
         SWTPM_IO_SetSocketFD(mlp.fd);
 
         fprintf(stdout, "New TPM device: /dev/tpm%u (major/minor = %u/%u)\n",
