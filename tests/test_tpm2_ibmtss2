@@ -55,7 +55,6 @@ pushd utils
 sed -i 's/export CRYPTOLIBRARY.*/export CRYPTOLIBRARY=openssl/' reg.sh
 
 export TPM_SERVER_NAME=localhost
-export TPM_SERVER_TYPE=raw
 export TPM_INTERFACE_TYPE=socsim
 export TPM_COMMAND_PORT=${SWTPM_SERVER_PORT}
 export TPM_PLATFORM_PORT=${SWTPM_CTRL_PORT}
