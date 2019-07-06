@@ -62,6 +62,8 @@
 #include "logging.h"
 #include "ctrlchannel.h"
 #include "mainloop.h"
+#include "utils.h"
+#include "sys_dependencies.h"
 
 /* local variables */
 static TPM_MODIFIER_INDICATOR locality;
@@ -86,6 +88,7 @@ int mainLoop(struct mainLoopParams *mlp,
     unsigned char       *command = NULL;           /* command buffer */
     uint32_t            command_length;            /* actual length of command bytes */
     uint32_t            max_command_length;        /* command buffer size */
+    off_t               cmd_offset;
     /* The response buffer is reused for each command. Thus it can grow but never shrink */
     unsigned char       *rbuffer = NULL;           /* actual response bytes */
     uint32_t            rlength = 0;               /* bytes in response buffer */
@@ -94,6 +97,9 @@ int mainLoop(struct mainLoopParams *mlp,
     int                 ctrlclntfd;
     int                 sockfd;
     int                 ready;
+    struct iovec        iov[3];
+    uint32_t            ack = htobe32(0);
+    struct tpm2_resp_prefix respprefix;
 
     /* poolfd[] indexes */
     enum {
@@ -106,7 +112,8 @@ int mainLoop(struct mainLoopParams *mlp,
 
     TPM_DEBUG("mainLoop:\n");
 
-    max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX);
+    max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX) +
+                         sizeof(struct tpm2_send_command_prefix);
 
     command = malloc(max_command_length);
     if (!command) {
@@ -114,6 +121,12 @@ int mainLoop(struct mainLoopParams *mlp,
                   max_command_length);
         return TPM_FAIL;
     }
+
+    /* header and trailer that we may send by setting iov_len */
+    iov[0].iov_base = &respprefix;
+    iov[0].iov_len = 0;
+    iov[2].iov_base = &ack;
+    iov[2].iov_len = 0;
 
     connection_fd.fd = -1;
     ctrlfd = ctrlchannel_get_fd(mlp->cc);
@@ -211,6 +224,22 @@ int mainLoop(struct mainLoopParams *mlp,
                 }
             }
 
+            cmd_offset = 0;
+            /* Handle optional TCG Header in front of TPM 2 Command */
+            if (rc == 0 && mlp->tpmversion == TPMLIB_TPM_VERSION_2) {
+                cmd_offset = tpmlib_handle_tcg_tpm2_cmd_header(command,
+                                                               command_length,
+                                                               &locality);
+                if (cmd_offset > 0) {
+                    /* send header and trailer */
+                    iov[0].iov_len = sizeof(respprefix);
+                    iov[2].iov_len = sizeof(ack);
+                } else {
+                    iov[0].iov_len = 0;
+                    iov[2].iov_len = 0;
+                }
+            }
+
             if (rc == 0) {
                 if (!tpm_running) {
                     tpmlib_write_fatal_error_response(&rbuffer, &rlength,
@@ -225,8 +254,8 @@ int mainLoop(struct mainLoopParams *mlp,
                 rc = tpmlib_process(&rbuffer,
                                     &rlength,
                                     &rTotal,
-                                    command,                /* complete command array */
-                                    command_length,         /* actual bytes in command */
+                                    &command[cmd_offset],
+                                    command_length - cmd_offset,
                                     mlp->locality_flags,
                                     &locality,
                                     mlp->tpmversion);
@@ -239,14 +268,18 @@ int mainLoop(struct mainLoopParams *mlp,
                 rc = TPMLIB_Process(&rbuffer,
                                     &rlength,
                                     &rTotal,
-                                    command,                /* complete command array */
-                                    command_length);        /* actual bytes in command */
+                                    &command[cmd_offset],
+                                    command_length - cmd_offset);
             }
 
 skip_process:
             /* write the results */
             if (rc == 0) {
-                SWTPM_IO_Write(&connection_fd, rbuffer, rlength);
+                respprefix.size = htobe32(rlength);
+                iov[1].iov_base = rbuffer;
+                iov[1].iov_len  = rlength;
+
+                SWTPM_IO_Write(&connection_fd, iov, ARRAY_LEN(iov));
             }
 
             if (!(mlp->flags & MAIN_LOOP_FLAG_KEEP_CONNECTION)) {

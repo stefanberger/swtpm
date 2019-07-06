@@ -56,6 +56,7 @@
 #include <netinet/in.h> /* BSD: sockaddr_in */
 #include <sys/socket.h> /* BSD: accept() */
 #include <sys/select.h> /* BSD: select() */
+#include <sys/uio.h>
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_error.h>
@@ -203,15 +204,15 @@ TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write 
 */
 
 TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write file descriptor */
-                          const unsigned char *buffer,
-                          size_t buffer_length)
+                          const struct iovec *iovec,
+                          int iovcnt)
 {
     ssize_t     nwritten = 0;
+    size_t      totlen = 0;
+    int         i;
 
-    TPM_PrintAll(" SWTPM_IO_Write:", " ", buffer, buffer_length);
-    /* write() is unspecified with buffer_length too large */
-    if (buffer_length > SSIZE_MAX)
-        return TPM_BAD_PARAMETER;
+    TPM_PrintAll(" SWTPM_IO_Write:", " ",
+                 iovec[1].iov_base, iovec[1].iov_len);
 
     /* test that connection is open to write */
     if (connection_fd->fd < 0) {
@@ -220,18 +221,21 @@ TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write 
                   connection_fd->fd);
         return TPM_IOERROR;
     }
-    while (buffer_length > 0) {
-        nwritten = write(connection_fd->fd, buffer, buffer_length);
-        if (nwritten < 0 && errno == EINTR)
-            continue;
-        if (nwritten >= 0) {
-            buffer_length -= nwritten;
-            buffer += nwritten;
-        } else {
-            logprintf(STDERR_FILENO, "SWTPM_IO_Write: Error, write() %d %s\n",
-                      errno, strerror(errno));
-            return TPM_IOERROR;
-        }
+
+    for (i = 0; i < iovcnt; i++)
+        totlen += iovec[i].iov_len;
+
+    nwritten = writev(connection_fd->fd, iovec, iovcnt);
+    if (nwritten < 0) {
+        logprintf(STDERR_FILENO, "SWTPM_IO_Write: Error, writev() %d %s\n",
+                  errno, strerror(errno));
+        return TPM_IOERROR;
+    }
+    if ((size_t)nwritten < totlen) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_IO_Write: Failed to write all bytes %zu != %zu\n",
+                  nwritten, totlen);
+        return TPM_IOERROR;
     }
     return 0;
 }

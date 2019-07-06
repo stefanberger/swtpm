@@ -70,6 +70,9 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer, uint32_t *rlength,
                           TPM_MODIFIER_INDICATOR *locality,
                           TPMLIB_TPMVersion tpmversion);
 
+off_t tpmlib_handle_tcg_tpm2_cmd_header(const unsigned char *command,
+                                        uint32_t command_length,
+                                        TPM_MODIFIER_INDICATOR *locality);
 
 struct tpm_req_header {
     uint16_t tag;
@@ -82,6 +85,23 @@ struct tpm_resp_header {
     uint32_t size;
     uint32_t errcode;
 } __attribute__((packed));
+
+struct tpm2_send_command_prefix {
+    uint32_t cmd;
+    uint8_t  locality;
+    uint32_t size; /* size of the following TPM request */
+} __attribute__((packed));
+
+struct tpm2_resp_prefix {
+    uint32_t size; /* size of the following TPM response */
+} __attribute__((packed));
+
+/* Commands in tcg_tpm2_cmd_header 'cmd' */
+#define TPM2_SEND_COMMAND   8
+
+/* Tags supported by TPM2 */
+#define TPM2_ST_NO_SESSION             0x8001
+#define TPM2_ST_SESSIONS               0x8002
 
 /* TPM 1.2 ordinals */
 #define TPMLIB_TPM_ORD_TakeOwnership   0x0000000d

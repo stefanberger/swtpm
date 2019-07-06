@@ -348,3 +348,35 @@ enum TPMLIB_StateType tpmlib_blobtype_to_statetype(uint32_t blobtype)
     }
     return 0;
 }
+
+/*
+ * tpmlib_handle_tcg_tpm2_cmd_header
+ *
+ * Determine whether the given byte stream is a raw TPM 2 command or
+ * whether it has a tcg_tpm2_cmd_header prefixed and if so return
+ * the offset after the header where the actual command is. In all
+ * other cases return 0.
+ */
+off_t tpmlib_handle_tcg_tpm2_cmd_header(const unsigned char *command,
+                                        uint32_t command_length,
+                                        TPM_MODIFIER_INDICATOR *locality)
+{
+    struct tpm_req_header *hdr = (struct tpm_req_header *)command;
+    struct tpm2_send_command_prefix *tcgprefix;
+    off_t ret = 0;
+
+    /* return 0 for short packets or plain TPM 2 command */
+    if (command_length < sizeof(*hdr) ||
+        be16toh(hdr->tag) == TPM2_ST_NO_SESSION ||
+        be16toh(hdr->tag) == TPM2_ST_SESSIONS ||
+        command_length < sizeof(*tcgprefix))
+        return 0;
+
+    tcgprefix = (struct tpm2_send_command_prefix *)command;
+    if (be32toh(tcgprefix->cmd) == TPM2_SEND_COMMAND) {
+        ret = sizeof(*tcgprefix);
+        *locality = tcgprefix->locality;
+    }
+
+    return ret;
+}

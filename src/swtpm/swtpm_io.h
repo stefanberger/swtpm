@@ -52,8 +52,8 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,
                          uint32_t *paramSize,
                          size_t buffer_size);
 TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,
-                          const unsigned char *buffer,
-                          size_t buffer_length);
+                          const struct iovec *iovec,
+                          int iovcnt);
 TPM_RESULT SWTPM_IO_Disconnect(TPM_CONNECTION_FD *connection_fd);
 TPM_RESULT SWTPM_IO_SetSocketFD(int fd);
 int SWTPM_IO_GetSocketFD(void);
