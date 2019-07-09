@@ -424,9 +424,10 @@ wait_chunk:
     return recvd;
 }
 
-static uint64_t get_ptm_caps_supported(void)
+static uint64_t get_ptm_caps_supported(TPMLIB_TPMVersion tpmversion)
 {
-    return PTM_CAP_INIT
+    uint64_t caps =
+              PTM_CAP_INIT
             | PTM_CAP_SHUTDOWN
             | PTM_CAP_GET_TPMESTABLISHED
             | PTM_CAP_SET_LOCALITY
@@ -443,6 +444,10 @@ static uint64_t get_ptm_caps_supported(void)
 #endif
             | PTM_CAP_SET_BUFFERSIZE
             | PTM_CAP_GET_INFO;
+    if (tpmversion == TPMLIB_TPM_VERSION_2)
+        caps |= PTM_CAP_SEND_COMMAND_HEADER;
+
+    return caps;
 }
 
 /*
@@ -532,7 +537,7 @@ int ctrlchannel_process_fd(int fd,
 
     switch (be32toh(input.cmd)) {
     case CMD_GET_CAPABILITY:
-        *ptm_caps = htobe64(get_ptm_caps_supported());
+        *ptm_caps = htobe64(get_ptm_caps_supported(mlp->tpmversion));
 
         out_len = sizeof(*ptm_caps);
         break;

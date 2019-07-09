@@ -245,6 +245,7 @@ typedef struct ptm_getinfo ptm_getinfo;
 #define PTM_CAP_SET_DATAFD         (1 << 12)
 #define PTM_CAP_SET_BUFFERSIZE     (1 << 13)
 #define PTM_CAP_GET_INFO           (1 << 14)
+#define PTM_CAP_SEND_COMMAND_HEADER (1 << 15)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
