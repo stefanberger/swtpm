@@ -144,7 +144,7 @@ This options allows to set the name of file where the process ID (pid) of the CU
 will be written into. The file will be written by the root user. It is also possible to
 pass a file descriptor to a file that has been opened for writing.
 
-=item B<--seccomp action=none|log|kill>
+=item B<--seccomp action=none|log|kill> (since v0.2)
 
 This option allows to select the action to take by the seccomp profile when
 a syscall is executed that is not allowed. The default is I<kill>. To disable

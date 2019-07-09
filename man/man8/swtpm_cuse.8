@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_cuse 8"
-.TH swtpm_cuse 8 "2019-06-21" "swtpm" ""
+.TH swtpm_cuse 8 "2019-07-09" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -264,8 +264,8 @@ or \s-1PBKDF2.\s0 By default \s-1PBKDF2\s0 is used.
 This options allows to set the name of file where the process \s-1ID\s0 (pid) of the \s-1CUSE TPM\s0
 will be written into. The file will be written by the root user. It is also possible to
 pass a file descriptor to a file that has been opened for writing.
-.IP "\fB\-\-seccomp action=none|log|kill\fR" 4
-.IX Item "--seccomp action=none|log|kill"
+.IP "\fB\-\-seccomp action=none|log|kill\fR (since v0.2)" 4
+.IX Item "--seccomp action=none|log|kill (since v0.2)"
 This option allows to select the action to take by the seccomp profile when
 a syscall is executed that is not allowed. The default is \fIkill\fR. To disable
 the seccomp profile, choose \fInone\fR. The \fIlog\fR action logs offending syscalls.
