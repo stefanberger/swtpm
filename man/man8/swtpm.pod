@@ -264,7 +264,7 @@ has been opened for writing.
 
 Switch to the given user. This option can only be used when swtpm is started as root.
 
-=item B<--seccomp action=none|log|kill>
+=item B<--seccomp action=none|log|kill> (since v0.2)
 
 This option allows to select the action to take by the seccomp profile when
 a syscall is executed that is not allowed. The default is I<kill>. To disable
