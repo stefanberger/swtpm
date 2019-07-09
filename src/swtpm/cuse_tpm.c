@@ -971,7 +971,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                     | PTM_CAP_SET_STATEBLOB
                     | PTM_CAP_STOP
                     | PTM_CAP_GET_CONFIG
-                    | PTM_CAP_SET_BUFFERSIZE;
+                    | PTM_CAP_SET_BUFFERSIZE
+                    | PTM_CAP_GET_INFO;
                 break;
             case TPMLIB_TPM_VERSION_1_2:
                 ptm_caps = PTM_CAP_INIT | PTM_CAP_SHUTDOWN
@@ -985,7 +986,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                     | PTM_CAP_SET_STATEBLOB
                     | PTM_CAP_STOP
                     | PTM_CAP_GET_CONFIG
-                    | PTM_CAP_SET_BUFFERSIZE;
+                    | PTM_CAP_SET_BUFFERSIZE
+                    | PTM_CAP_GET_INFO;
                 break;
             }
             fuse_reply_ioctl(req, 0, &ptm_caps, sizeof(ptm_caps));
