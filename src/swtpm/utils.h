@@ -41,6 +41,7 @@
 #include "config.h"
 
 #include <signal.h>
+#include <sys/uio.h>
 
 #include <libtpms/tpm_library.h>
 
@@ -56,5 +57,8 @@ int change_process_owner(const char *owner);
 void tpmlib_debug_libtpms_parameters(TPMLIB_TPMVersion);
 
 char *fd_to_filename(int fd);
+
+ssize_t write_full(int fd, const void *buffer, size_t buflen);
+ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt);
 
 #endif /* _SWTPM_UTILS_H_ */
