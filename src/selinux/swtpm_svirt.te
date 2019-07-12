@@ -20,7 +20,7 @@ allow svirt_t swtpm_exec_t:file { entrypoint map };
 # libvirt specific rules needed on F28
 allow svirt_t virtd_t:unix_stream_socket { read write getopt getattr accept };
 
-allow svirt_tcg_t virtd_t:fifo_file write;
+allow svirt_tcg_t virtd_t:fifo_file { write read };
 allow svirt_tcg_t virt_var_run_t:sock_file { create setattr };
 allow svirt_tcg_t virt_var_run_t:file { create open read write };
 allow svirt_tcg_t virt_var_run_t:dir { write add_name remove_name };
