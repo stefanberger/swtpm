@@ -718,3 +718,19 @@ function check_seccomp_profile()
 	fi
 	return 0
 }
+
+# Validate the content of the pid file
+# @1: Expected PID
+# @2: pid file filename
+function validate_pidfile()
+{
+	local pid="$1"
+	local pidfile="$2"
+
+	if [ "$PID" != "$(cat $PID_FILE)" ]; then
+		echo "Error: pid file contains unexpected PID value."
+		echo "expected: $pid"
+		echo "actual  : $(cat $pidfile)"
+		exit 1
+	fi
+}

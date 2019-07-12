@@ -32,14 +32,14 @@ function cleanup()
 # use a pseudo terminal
 exec 100<>/dev/ptmx
 $SWTPM_EXE chardev --fd 100 --tpmstate dir=$TPMDIR --pid file=$PID_FILE --ctrl type=unixio,path=$SOCK_PATH &
+PID=$!
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Chardev TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
-
+validate_pidfile $PID $PID_FILE
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
@@ -130,13 +130,14 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH &
+PID=$!
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+validate_pidfile $PID $PID_FILE
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
@@ -316,14 +317,14 @@ $SWTPM_EXE socket \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512 \
 	--flags not-need-init &
+PID=$!
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
-
+validate_pidfile $PID $PID_FILE
 
 # Read PCR 10
 exec 100<>/dev/tcp/localhost/65431
@@ -372,14 +373,14 @@ $SWTPM_EXE socket \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512 \
 	--flags not-need-init &
+PID=$!
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
-
+validate_pidfile $PID $PID_FILE
 
 # Read PCR 10 -- this should fail now
 exec 100<>/dev/tcp/localhost/65431
