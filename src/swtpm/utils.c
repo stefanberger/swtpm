@@ -304,3 +304,28 @@ ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt)
 
     return n;
 }
+
+/*
+ * read_einter: Read bytes from a file descriptor into a buffer
+ *              and handle EINTR. Perform one read().
+ *
+ * @fd: file descriptor to read from
+ * @buffer: buffer
+ * @buflen: length of buffer
+ *
+ * Returns -1 in case an error occurred, number of bytes read otherwise.
+ */
+ssize_t read_eintr(int fd, void *buffer, size_t buflen)
+{
+    ssize_t n;
+
+    while (true) {
+        n = read(fd, buffer, buflen);
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+        return n;
+    }
+}
