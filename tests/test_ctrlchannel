@@ -82,7 +82,7 @@ $SWTPM_EXE socket \
 	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH,mode=${FILEMODE}${FOWNER} \
 	--log file=$LOG_FILE,level=20 \
 	$RUNAS &
-
+PID=$!
 exec 100>&-
 exec 101>&-
 
@@ -91,7 +91,7 @@ if wait_for_file $PID_FILE 3; then
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+validate_pidfile $PID $PID_FILE
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
@@ -219,6 +219,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--pid file=$PID_FILE \
 	--log file=$LOG_FILE \
 	$RUNAS
+PID=$SWTPM_PID
 
 if wait_for_file ${PID_FILE} 4; then
 	echo "Error: Socket TPM did not write pidfile."
@@ -226,7 +227,7 @@ if wait_for_file ${PID_FILE} 4; then
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+validate_pidfile $PID $PID_FILE
 
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 
@@ -456,13 +457,14 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512 \
 	--log file=$LOG_FILE,level=20 \
 	--flags not-need-init
+PID=$SWTPM_PID
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+validate_pidfile $PID $PID_FILE
 
 # Read PCR 10
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
@@ -521,13 +523,14 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512 \
 	--log file=$LOG_FILE \
 	--flags not-need-init
+PID=$SWTPM_PID
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+validate_pidfile $PID $PID_FILE
 
 # Read PCR 10 -- this should fail now
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100

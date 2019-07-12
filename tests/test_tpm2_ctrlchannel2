@@ -44,13 +44,14 @@ $SWTPM_EXE chardev \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH,mode=${FILEMODE}${FOWNER} \
 	--tpm2 &
+PID=$!
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Chardev TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+validate_pidfile $PID $PID_FILE
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
@@ -151,13 +152,14 @@ $SWTPM_EXE socket \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
 	--tpm2 &
+PID=$!
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+validate_pidfile $PID $PID_FILE
 
 exec 100<>/dev/tcp/localhost/65532
 
@@ -346,13 +348,14 @@ $SWTPM_EXE socket \
 	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512 \
 	--tpm2 \
 	--flags not-need-init &
+PID=$!
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+vaidate_pidfile $PID $PID_FILE
 
 # Read PCR 10
 exec 100<>/dev/tcp/localhost/65532
@@ -403,13 +406,14 @@ $SWTPM_EXE socket \
 	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512 \
 	--tpm2 \
 	--flags not-need-init &
+PID=$!
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-PID="$(cat $PID_FILE)"
+validate_pidfile $PID $PID_FILE
 
 # Read PCR 10 -- this should fail now
 exec 100<>/dev/tcp/localhost/65532
