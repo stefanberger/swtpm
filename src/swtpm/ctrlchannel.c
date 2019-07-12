@@ -183,7 +183,7 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
                      iov[1].iov_base, min(iov[1].iov_len, 1024));
     }
 
-    n = writev(fd, iov, iovcnt);
+    n = writev_full(fd, iov, iovcnt);
     if (n < 0) {
         logprintf(STDERR_FILENO,
                   "Error: Could not send response: %s\n", strerror(errno));
@@ -247,7 +247,7 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
 
 err_send_resp:
     pss->u.resp.tpm_result = htobe32(res);
-    n = write(fd, pss, sizeof(pss->u.resp.tpm_result));
+    n = write_full(fd, pss, sizeof(pss->u.resp.tpm_result));
     if (n < 0) {
         logprintf(STDERR_FILENO,
                   "Error: Could not send response: %s\n", strerror(errno));
@@ -864,15 +864,10 @@ int ctrlchannel_process_fd(int fd,
 send_resp:
     TPM_PrintAll(" Ctrl Rsp:", " ", output.body, min(out_len, 1024));
 
-    n = write(fd, output.body, out_len);
+    n = write_full(fd, output.body, out_len);
     if (n < 0) {
         logprintf(STDERR_FILENO,
                   "Error: Could not send response: %s\n", strerror(errno));
-        close(fd);
-        fd = -1;
-    } else if ((size_t)n != out_len) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not send complete response\n");
         close(fd);
         fd = -1;
     }

@@ -51,6 +51,7 @@
 #include <stdbool.h>
 
 #include "logging.h"
+#include "utils.h"
 
 #include <libtpms/tpm_library.h>
 
@@ -245,12 +246,12 @@ static int _logprintf(int fd, const char *format, va_list ap, bool check_indent)
 
     if (!check_indent || log_check_string(buf) >= 0) {
         if (log_prefix) {
-            ret = write(fd, log_prefix, strlen(log_prefix));
+            ret = write_full(fd, log_prefix, strlen(log_prefix));
             if (ret < 0)
                 goto err_exit;
             len = ret;
         }
-        ret = write(fd, buf, strlen(buf));
+        ret = write_full(fd, buf, strlen(buf));
         if (ret < 0)
             goto err_exit;
         ret += len;
