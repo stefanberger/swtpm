@@ -416,9 +416,14 @@ wait_chunk:
         to = timeout.tv_sec * 1000 + timeout.tv_nsec / 1E6;
 
         /* wait for the next chunk */
-        n = poll(&pollfd, 1, to);
-        if (n <= 0)
-            return n;
+        while (true) {
+            n = poll(&pollfd, 1, to);
+            if (n < 0 && errno == EINTR)
+                continue;
+            if (n <= 0)
+                return n;
+            break;
+        }
         /* we should have data now */
     }
     return recvd;
