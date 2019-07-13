@@ -51,6 +51,7 @@
 
 #include "key.h"
 #include "logging.h"
+#include "utils.h"
 
 /*
  * key_format_from_string:
@@ -212,7 +213,7 @@ key_load_key_fd(int fd, enum key_format keyformat,
     char filebuffer[2 + 256/4 + 1 + 1];
     ssize_t len;
 
-    len = read(fd, filebuffer, sizeof(filebuffer) - 1);
+    len = read_eintr(fd, filebuffer, sizeof(filebuffer) - 1);
     if (len < 0) {
         logprintf(STDERR_FILENO, "Unable to read key: %s\n",
                   strerror(errno));
@@ -316,7 +317,7 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
             goto exit;
         }
 
-        len = read(fd, &filebuffer[offset], filelen - offset);
+        len = read_eintr(fd, &filebuffer[offset], filelen - offset);
         if (len < 0) {
             logprintf(STDERR_FILENO,
                       "Unable to read passphrase: %s\n",

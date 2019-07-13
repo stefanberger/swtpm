@@ -227,7 +227,7 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
         offset += n;
         remain -= n;
         if (remain) {
-            n = read(fd, pss->u.req.data, sizeof(pss->u.req.data));
+            n = read_eintr(fd, pss->u.req.data, sizeof(pss->u.req.data));
             if (n < 0) {
                 res = TPM_IOERROR;
                 close(fd);
@@ -341,7 +341,7 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
                 msg->msg_iov[0].iov_len > buffer_len)
                 return -1;
         } else
-            n = read(fd, msg->msg_iov[0].iov_base + recvd, buffer_len - recvd);
+            n = read_eintr(fd, msg->msg_iov[0].iov_base + recvd, buffer_len - recvd);
         if (n <= 0)
             return n;
         recvd += n;
@@ -677,7 +677,7 @@ int ctrlchannel_process_fd(int fd,
             if (!remain)
                 break;
 
-            n = read(fd, &data->u.req.data, sizeof(data->u.req.data));
+            n = read_eintr(fd, &data->u.req.data, sizeof(data->u.req.data));
             if (n <= 0) {
                 res = TPM_IOERROR;
                 break;
