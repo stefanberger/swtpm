@@ -43,7 +43,7 @@ addons:
 before_install:
   - test $TRAVIS_BRANCH != coverity_scan -o ${TRAVIS_JOB_NUMBER##*.} = 1 || exit 0
 script:
-  - git clone https://github.com/stefanberger/libtpms
+  - [ ! -d libtpms ] && git clone https://github.com/stefanberger/libtpms
   - cd libtpms
   - CFLAGS="${LIBTPMS_CFLAGS:--g -O2}" LDFLAGS="${LIBTPMS_LDFLAGS}"
        ./autogen.sh --with-openssl --prefix=${LIBTPMS_PREFIX:-/usr} --with-tpm2
