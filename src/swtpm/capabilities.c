@@ -50,9 +50,9 @@ int capabilities_print_json(bool cusetpm)
     int ret = -1;
     int n;
 #ifdef WITH_SECCOMP
-    bool with_seccomp = 1;
+    const char *cmdarg_seccomp = "\"cmdarg-seccomp\", ";
 #else
-    bool with_seccomp = 0;
+    const char *cmdarg_seccomp = "";
 #endif
 
     n =  asprintf(&string,
@@ -63,7 +63,7 @@ int capabilities_print_json(bool cusetpm)
           " ] "
          "}",
          !cusetpm     ? "\"tpm-send-command-header\", ": "",
-         with_seccomp ? "\"cmdarg-seccomp\", "         : "",
+         cmdarg_seccomp,
          true         ? "\"cmdarg-key-fd\", "          : "",
          true         ? "\"cmdarg-pwd-fd\""            : ""
     );
