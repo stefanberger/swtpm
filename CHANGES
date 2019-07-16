@@ -1,6 +1,11 @@
 version 0.2.0:
   - Linux: swtpm now runs with a seccomp profile (blacklist) if compiled with
            libseccomp support
+  - Added subpport for passing key and passphrase via file descriptor
+  - TPM 2 commands can now be prefixed by 'the TCG header' and responses will
+    have a 4-byte prefix and 4-byte suffix.
+  - Added --print-capabilities command line option
+  - Proper handling on EINTR on read, poll, and write
 
 version 0.1.0:
   first public release
