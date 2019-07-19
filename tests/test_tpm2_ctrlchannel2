@@ -355,7 +355,7 @@ if wait_for_file $PID_FILE 3; then
 	exit 1
 fi
 
-vaidate_pidfile $PID $PID_FILE
+validate_pidfile $PID $PID_FILE
 
 # Read PCR 10
 exec 100<>/dev/tcp/localhost/65532
