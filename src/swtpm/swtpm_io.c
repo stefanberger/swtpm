@@ -66,6 +66,7 @@
 #include "swtpm_debug.h"
 #include "swtpm_io.h"
 #include "tpmlib.h"
+#include "utils.h"
 
 /*
   global variables
@@ -225,7 +226,7 @@ TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write 
     for (i = 0; i < iovcnt; i++)
         totlen += iovec[i].iov_len;
 
-    nwritten = writev(connection_fd->fd, iovec, iovcnt);
+    nwritten = writev_full(connection_fd->fd, iovec, iovcnt);
     if (nwritten < 0) {
         logprintf(STDERR_FILENO, "SWTPM_IO_Write: Error, writev() %d %s\n",
                   errno, strerror(errno));
