@@ -932,7 +932,7 @@ SWTPM_CheckHMAC(tlv_data *hmac, tlv_data *encrypted_data,
     }
 
     if (memcmp(hmac->u.ptr, md, md_len)) {
-        logprintf(STDOUT_FILENO, "Verification of hash failed. "
+        logprintf(STDOUT_FILENO, "Verification of HMAC failed. "
                   "Data integrity is compromised\n");
         /* TPM_DECRYPT_ERROR indicates (to libtpms) that something
            exists but we have the wrong key. */
