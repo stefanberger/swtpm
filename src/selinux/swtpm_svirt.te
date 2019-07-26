@@ -13,7 +13,7 @@ swtpm_domtrans(svirt_t)
 swtpm_domtrans(svirt_tcg_t)
 
 #============= svirt_t ==============
-allow svirt_t virtd_t:fifo_file write;
+allow svirt_t virtd_t:fifo_file { read write };
 allow svirt_t virtd_t:process sigchld;
 allow svirt_t user_tmp_t:sock_file { create setattr };
 allow svirt_t swtpm_exec_t:file { entrypoint map };
@@ -26,7 +26,7 @@ allow svirt_t virt_var_run_t:sock_file { create setattr };
 
 allow svirt_tcg_t virtd_t:fifo_file { write read };
 allow svirt_tcg_t virt_var_run_t:sock_file { create setattr };
-allow svirt_tcg_t virt_var_run_t:file { create open read write };
+allow svirt_tcg_t virt_var_run_t:file { create getattr open read unlink write };
 allow svirt_tcg_t virt_var_run_t:dir { write add_name remove_name };
 allow svirt_tcg_t swtpm_exec_t:file { entrypoint map };
 # libvirt specific rules needed on F28
