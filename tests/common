@@ -707,6 +707,15 @@ function check_seccomp_profile()
 		return 0
 	fi
 
+	tmp=$(grep -E "^Seccomp" /proc/self/status |
+		cut -d":" -f2 |
+		tr -d '\t')
+	if [ "${tmp}" != "0" ]; then
+		echo "check_seccomp_profile: skipping check since test env." \
+		"runs with in a seccomp profile overriding --seccomp"
+		return 0
+	fi
+
 	tmp=$(grep -E "^Seccomp" /proc/${swtpm_pid}/status |
 		cut -d":" -f2 |
 		tr -d '\t')
