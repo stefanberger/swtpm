@@ -452,7 +452,8 @@ static int
 build_platf_manufacturer_info(ASN1_TYPE *at,
                               const char *manufacturer,
                               const char *platf_model,
-                              const char *platf_version)
+                              const char *platf_version,
+                              bool forTPM2)
 {
     int err;
 
@@ -470,7 +471,9 @@ build_platf_manufacturer_info(ASN1_TYPE *at,
     }
 
     err = asn1_write_value(*at, "platformManufacturerSet.platformManufacturer.id",
-                           "2.23.133.2.4", 0);
+                           forTPM2 ? "2.23.133.5.1.1"
+                                   : "2.23.133.2.4",
+                           0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "b1b. asn1_write_value error: %d\n", err);
         goto cleanup;
@@ -491,7 +494,9 @@ build_platf_manufacturer_info(ASN1_TYPE *at,
     }
 
     err = asn1_write_value(*at, "platformModelSet.platformModel.id",
-                           "2.23.133.2.5", 0);
+                           forTPM2 ? "2.23.133.5.1.4"
+                                   : "2.23.133.2.5",
+                           0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "b3b. asn1_write_value error: %d\n", err);
         goto cleanup;
@@ -512,7 +517,9 @@ build_platf_manufacturer_info(ASN1_TYPE *at,
     }
 
     err = asn1_write_value(*at, "platformVersionSet.platformVersion.id",
-                           "2.23.133.2.6", 0);
+                           forTPM2 ? "2.23.133.5.1.5"
+                                   : "2.23.133.2.6",
+                           0);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "b5b. asn1_write_value error: %d\n", err);
         goto cleanup;
@@ -533,7 +540,8 @@ static int
 create_platf_manufacturer_info(const char *manufacturer,
                                const char *platf_model,
                                const char *platf_version,
-                               gnutls_datum_t *asn1)
+                               gnutls_datum_t *asn1,
+                               bool forTPM2)
 {
     ASN1_TYPE at = ASN1_TYPE_EMPTY;
     int err;
@@ -544,7 +552,8 @@ create_platf_manufacturer_info(const char *manufacturer,
     }
 
     err = build_platf_manufacturer_info(&at, manufacturer,
-                                        platf_model, platf_version);
+                                        platf_model, platf_version,
+                                        forTPM2);
     if (err != ASN1_SUCCESS) {
         goto cleanup;
     }
@@ -574,7 +583,8 @@ create_tpm_and_platform_manuf_info(
                                const char *platf_manufacturer,
                                const char *platf_model,
                                const char *platf_version,
-                               gnutls_datum_t *asn1)
+                               gnutls_datum_t *asn1,
+                               bool forTPM2)
 {
     ASN1_TYPE at = ASN1_TYPE_EMPTY;
     ASN1_TYPE tpm_at = ASN1_TYPE_EMPTY;
@@ -631,7 +641,8 @@ create_tpm_and_platform_manuf_info(
 
     /* build the platform manufacturer data */
     err = build_platf_manufacturer_info(&platf_at, platf_manufacturer,
-                                        platf_model, platf_version);
+                                        platf_model, platf_version,
+                                        forTPM2);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "%s: %d: Could not build platform manufacturer info: %s\n",
                 __func__, __LINE__, asn1_strerror(err));
@@ -1403,7 +1414,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
             err = create_platf_manufacturer_info(platf_manufacturer,
                                                  platf_model,
                                                  platf_version,
-                                                 &datum);
+                                                 &datum, true);
             if (err) {
                 fprintf(stderr, "Could not create platform manufacturer "
                         "info");
@@ -1416,7 +1427,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                                                      platf_manufacturer,
                                                      platf_model,
                                                      platf_version,
-                                                     &datum);
+                                                     &datum, false);
             if (err) {
                 fprintf(stderr, "Could not create TPM and platform "
                         "manufacturer info");
