@@ -86,7 +86,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
     if (rc == 0) {
         if (u_ivec != NULL && u_ivec_length != userKeyLength) {
             printf("TPM_SymmetricKeyData_Encrypt: IV is %u bytes, "
-                   "but expected %u bytes\n", ivec_length,
+                   "but expected %u bytes\n", u_ivec_length,
                    tpm_symmetric_key_token->userKeyLength);
             rc = TPM_ENCRYPT_ERROR;
         } else {
@@ -189,7 +189,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
     if (rc == 0) {
         if (u_ivec != NULL && u_ivec_length != userKeyLength) {
             printf("TPM_SymmetricKeyData_Decrypt: IV is %u bytes, "
-                   "but expected %u bytes\n", ivec_length, userKeyLength);
+                   "but expected %u bytes\n", u_ivec_length, userKeyLength);
             rc = TPM_DECRYPT_ERROR;
         } else {
             if (u_ivec) {
