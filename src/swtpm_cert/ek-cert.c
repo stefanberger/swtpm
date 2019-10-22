@@ -1493,7 +1493,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     datum.data = NULL;
 
     /* 3.5.12 Authority Key Id */
-    err = gnutls_x509_crt_get_key_id(sigcert, 0, id, &id_size);
+    err = gnutls_x509_crt_get_subject_key_id(sigcert, id, &id_size, NULL);
     if (err == GNUTLS_E_SUCCESS && id_size > 0) {
         err = gnutls_x509_crt_set_authority_key_id(crt, id, id_size);
         CHECK_GNUTLS_ERROR(err, "Could not set the authority key id: %s\n",
