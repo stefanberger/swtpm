@@ -109,14 +109,14 @@ matrix:
       os: osx
       compiler: clang
       before_script:
-      - brew upgrade gnutls
-      - brew install expect
-      - brew install libtasn
-      - brew install glib
-      - brew install gawk
-      - brew install gmp
-      - brew tap discoteq/discoteq
-      - brew install flock
-      - brew install socat
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade gnutls || true
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew install expect
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew install libtasn
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew install glib
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew install gawk
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew install gmp
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew tap discoteq/discoteq
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew install flock
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew install socat
       # To run the pkcs11 test with softhsm we need SUDO (above)
-      - brew install softhsm
+      - HOMEBREW_NO_AUTO_UPDATE=1 brew install softhsm
