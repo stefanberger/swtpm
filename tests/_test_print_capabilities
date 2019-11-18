@@ -16,7 +16,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if has_seccomp_support ${SWTPM_EXE}; then
+if has_seccomp_support "${SWTPM_EXE}"; then
 	seccomp='"cmdarg-seccomp", '
 fi
 if [ "${SWTPM_IFACE}" != "cuse" ]; then
