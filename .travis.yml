@@ -46,7 +46,7 @@ script:
   - if [ ! -d libtpms ]; then git clone https://github.com/stefanberger/libtpms; fi
   - cd libtpms
   - CFLAGS="${LIBTPMS_CFLAGS:--g -O2}" LDFLAGS="${LIBTPMS_LDFLAGS}"
-       ./autogen.sh --with-openssl --prefix=${LIBTPMS_PREFIX:-/usr} --with-tpm2
+       ./autogen.sh --with-openssl --prefix=${LIBTPMS_PREFIX:-/usr} --with-tpm2 ${LIBTPMS_CONFIG}
        && make -j$(${NPROC:-nproc})
        && sudo make install
   - cd ..
@@ -86,6 +86,18 @@ matrix:
           cpp-coveralls --gcov-options '\-lp' -e libtpms
     - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
+           LIBS="-lasan"
+           ASAN_OPTIONS="halt_on_error=1"
+           PREFIX="/usr"
+           CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
+           SUDO="sudo"
+           CHECK="check"
+      before_script:
+        # Tspi_NV_WriteValue has an I/O error when using asan
+        - echo -e '#!/usr/bin/env bash\nexit 0' > tests/test_parameters
+    - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
+           LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
+           LIBTPMS_CONFIG="--disable-use-openssl-functions"
            LIBS="-lasan"
            ASAN_OPTIONS="halt_on_error=1"
            PREFIX="/usr"
