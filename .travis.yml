@@ -47,6 +47,7 @@ script:
   - cd libtpms
   - CFLAGS="${LIBTPMS_CFLAGS:--g -O2}" LDFLAGS="${LIBTPMS_LDFLAGS}"
        ./autogen.sh --with-openssl --prefix=${LIBTPMS_PREFIX:-/usr} --with-tpm2 ${LIBTPMS_CONFIG}
+       && git checkout rev159
        && make -j$(${NPROC:-nproc})
        && sudo make install
   - cd ..
