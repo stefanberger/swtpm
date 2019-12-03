@@ -65,5 +65,5 @@ rpmbuild -ba dist/swtpm.spec
 
 To build a Debian package on a Debian compatible host do:
 
-echo "libtpms 0 libtpms" > ./debian/shlibs.local
+echo "libtpms0 libtpms" > ./debian/shlibs.local
 debuild -us -uc
