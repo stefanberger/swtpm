@@ -1204,6 +1204,7 @@ int main(int argc, char *argv[])
                devtoh32(is_chardev, psbs.u.resp.minsize),
                devtoh32(is_chardev, psbs.u.resp.maxsize));
     } else if (!strcmp(command, "--info")) {
+        memset(&pgi, 0, sizeof(pgi));
         pgi.u.req.flags = htodev64(is_chardev, info_flags);
         pgi.u.req.offset = htodev64(is_chardev, 0);
         n = ctrlcmd(fd, PTM_GET_INFO, &pgi,
