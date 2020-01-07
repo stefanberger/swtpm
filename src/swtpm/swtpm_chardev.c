@@ -207,6 +207,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : Choose the action of the seccomp profile when a\n"
     "                   blacklisted syscall is executed; default is kill\n"
 #endif
+    "--print-capabilites\n"
+    "                 : print capabilities and terminate\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
