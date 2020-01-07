@@ -2306,12 +2306,14 @@ main()
 			exit 1
 		fi
 		SWTPM="$SWTPM --key fd=${keyfile_fd}${cipher}"
+		logit "  The TPM's state will be encrypted with a provided key (fd)."
 	elif [ -n "$pwdfile_fd" ]; then
 		if ! [[ "$pwdfile_fd" =~ ^[0-9]+$ ]]; then
-			logerr "--keyfile-fd parameter $keyfile_fd is not a valid file descriptor"
+			logerr "--pwdfile-fd parameter $pwdfile_fd is not a valid file descriptor"
 			exit 1
 		fi
 		SWTPM="$SWTPM --key pwdfd=${pwdfile_fd}${cipher}"
+		logit "  The TPM's state will be encrypted using a key derived from a passphrase (fd)."
 	fi
 
 	# tcsd only runs as tss, so we have to be root or tss here; TPM 1.2 only
