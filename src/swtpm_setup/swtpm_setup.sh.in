@@ -45,6 +45,12 @@
 # - tcsd      (trousers package with tcsd with -c <configfile> option)
 # - expect    (expect package)
 
+# Note about file descriptor usage:
+#
+# This script may use any file descriptors in the range [100-109].
+# The launcher 'swtpm_setup' ensures that this range is not used by
+# any valid file descriptors passed as parameters.
+
 SWTPM=`type -P swtpm`
 if [ -n "$SWTPM" ]; then
     SWTPM="$SWTPM socket"
