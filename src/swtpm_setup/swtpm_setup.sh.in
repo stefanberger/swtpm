@@ -2102,7 +2102,7 @@ main()
 	local flags=0
 	local tpm_state_path=""
 	local config_file="$DEFAULT_CONFIG_FILE"
-	local vmid=""
+	local vmid="" tmp
 	local ret
 	local keyfile pwdfile cipher="aes-128-cbc"
 	local keyfile_fd pwdfile_fd
@@ -2251,7 +2251,8 @@ main()
 		exit 1
 	fi
 
-	if [ ! -x "$(echo $SWTPM | cut -d " " -f1)" ]; then
+	tmp="$(echo $SWTPM | cut -d" " -f1)"
+	if [ ! -x "$(type -P $tmp)" ]; then
 		logerr "TPM at $SWTPM is not an executable."
 		exit 1
 	fi
@@ -2273,7 +2274,8 @@ main()
 		exit 1
 	fi
 
-	if [ ! -x "$(echo $SWTPM_IOCTL | cut -d " " -f1)" ]; then
+	tmp="$(echo $SWTPM_IOCTL | cut -d" " -f1)"
+	if [ ! -x "$(type -P $tmp)" ]; then
 		logerr "swtpm_ioctl at $SWTPM_IOCTL is not an executable."
 		exit 1
 	fi
