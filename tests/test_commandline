@@ -86,16 +86,12 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if [ ! -r $PID_FILE ]; then
-	echo "Error: CUSE TPM did not write pidfile."
+if wait_for_file $PID_FILE 3; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not write pidfile."
 	exit 1
 fi
 
-PIDF="$(cat $PID_FILE)"
-if [ "$PIDF" != "$PID" ]; then
-	echo "Error: CUSE TPM wrote pid $PIDF, but found $PID."
-	exit 1
-fi
+validate_pidfile $PID $PID_FILE
 
 ${SWTPM_BIOS} &>/dev/null
 if [ $? -ne 0 ]; then
@@ -160,7 +156,7 @@ exec 100>&-
 
 wait_port_closed $PORT $PID
 # Give it time to fully shut down
-wait_process_gone $PID 2
+wait_process_gone $PID 6
 
 exec 20<&1-; exec 21<&2-
 kill_quiet -0 $PID
