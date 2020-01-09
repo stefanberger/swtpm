@@ -735,8 +735,14 @@ function validate_pidfile()
 {
 	local pid="$1"
 	local pidfile="$2"
+	local rpid="$(cat $pidfile)"
 
-	if [ "$PID" != "$(cat $PID_FILE)" ]; then
+	if [ -z "$rpid" ]; then
+		sleep 0.1
+		rpid="$(cat $pidfile)"
+	fi
+
+	if [ "$pid" != "$rpid" ]; then
 		echo "Error: pid file contains unexpected PID value."
 		echo "expected: $pid"
 		echo "actual  : $(cat $pidfile)"
