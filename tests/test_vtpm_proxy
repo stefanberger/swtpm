@@ -38,7 +38,10 @@ source ${TESTDIR}/load_vtpm_proxy
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
-$SWTPM_EXE chardev --vtpm-proxy --tpmstate dir=$TPM_PATH --ctrl type=unixio,path=$SOCK_PATH --pid file=$PID_FILE &>$LOGFILE &
+$SWTPM_EXE chardev --vtpm-proxy \
+	--tpmstate dir=$TPM_PATH \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--pid file=$PID_FILE &>$LOGFILE &
 sleep 0.5
 PID=$(ps aux | grep $SWTPM | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
 
@@ -50,12 +53,23 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-TPM_DEVICE=$(sed -n 's,.*\(/dev/tpm[0-9]\+\).*,\1,p' $LOGFILE)
-echo "Using ${TPM_DEVICE}."
+if wait_for_file $PID_FILE 3; then
+	echo "Error: Chardev TPM did not write pidfile."
+	exit 1
+fi
 
-# Wait for chardev to appear
-for ((i = 0; i < 10; i ++)); do
-	[ -c "${TPM_DEVICE}" ] && break
+# Wait for chardev to appear; TPM 1.2 may take a long time to self-test
+# with valgrind
+for ((i = 0; i < 200; i ++)); do
+	if [ -z "${TPM_DEVICE}" ]; then
+		TPM_DEVICE=$(sed -n 's,.*\(/dev/tpm[0-9]\+\).*,\1,p' $LOGFILE)
+		if [ -n "${TPM_DEVICE}" ]; then
+			echo "Using ${TPM_DEVICE}."
+		fi
+	fi
+	if [ -n "${TPM_DEVICE}" ]; then
+		[ -c "${TPM_DEVICE}" ] && break
+	fi
 	sleep 0.1
 done
 if ! [ -c "${TPM_DEVICE}" ]; then
