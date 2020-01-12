@@ -30,41 +30,6 @@ export TCSD_TCP_DEVICE_HOSTNAME=localhost
 export TCSD_TCP_DEVICE_PORT=$PORT
 export TCSD_USE_TCP_DEVICE=1
 
-function wait_port_open()
-{
-	local port=$1
-	local pid=$2
-
-	sleep 0.2
-	for ((i = 0; i < 20; i++)); do
-		if [ -n "$(netstat -naptl 2>/dev/null |
-			   grep "LISTEN" |
-			   grep " $pid/" |
-			   grep ":$port ")" ]; then
-			return 0
-		fi
-		sleep 0.2
-	done
-	return 1
-}
-
-function wait_port_closed()
-{
-	local port=$1
-	local pid=$2
-
-	for ((i = 0; i < 20; i++)); do
-		if [ -z "$(netstat -naptl 2>/dev/null |
-			   grep "LISTEN" |
-			   grep " $pid/" |
-			   grep ":$port ")" ]; then
-			return 0
-		fi
-		sleep 0.2
-	done
-	return 1
-}
-
 # Test 1: test port and directory command line parameters; use log level 20
 FILEMODE=641
 exec 100<>$LOG_FILE
@@ -78,7 +43,10 @@ $SWTPM_EXE socket \
 PID=$!
 exec 100>&-
 
-wait_port_open $PORT $PID
+if wait_port_open $PORT $PID 4; then
+	echo "Test 1 failed: TPM did not open port $PORT"
+	exit 1
+fi
 
 kill_quiet -0 $PID
 if [ $? -ne 0 ]; then
@@ -134,7 +102,10 @@ TPMDIR=`mktemp -d`
 $SWTPM_EXE socket --flags not-need-init -p $PORT --tpmstate dir=$TPMDIR -t &>/dev/null &
 PID=$!
 
-wait_port_open $PORT $PID
+if wait_port_open $PORT $PID 4; then
+	echo "Test 1 failed: TPM did not open port $PORT"
+	exit
+fi
 
 exec 20<&1-; exec 21<&2-
 kill_quiet -0 $PID
@@ -154,9 +125,15 @@ fi
 
 exec 100>&-
 
-wait_port_closed $PORT $PID
-# Give it time to fully shut down
-wait_process_gone $PID 6
+if wait_port_closed $PORT $PID 4; then
+	echo "Test 2 failed: TPM did not close port"
+	exit 1
+fi
+
+if wait_process_gone $PID 4; then
+	echo "Test 2 failed: TPM process did not shut down"
+	exit 1
+fi
 
 exec 20<&1-; exec 21<&2-
 kill_quiet -0 $PID
