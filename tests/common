@@ -190,6 +190,54 @@ function wait_serversocket_gone()
   return 0
 }
 
+# Wait for a TCP port to open for listening
+# @1: port
+# @2: id of process to open port
+# @3: timeout in seconds
+function wait_port_open()
+{
+	local port=$1
+	local pid=$2
+	local timeout=$3
+
+	local loops=$((timeout * 10)) loop
+
+	for ((loop = 0; loop < loops; loop++)); do
+		if [ -n "$(netstat -naptl 2>/dev/null |
+			   grep "LISTEN" |
+			   grep " $pid/" |
+			   grep ":$port ")" ]; then
+			return 1
+		fi
+		sleep 0.1
+	done
+	return 0
+}
+
+# Wait for a TCP listening port to close
+# @1: port
+# @2: id of process to close port
+# @3: timeout in seconds
+function wait_port_closed()
+{
+	local port=$1
+	local pid=$2
+	local timeout=$3
+
+	local loops=$((timeout * 10)) loop
+
+	for ((loop = 0; loop < loops; loop++)); do
+		if [ -z "$(netstat -naptl 2>/dev/null |
+			   grep "LISTEN" |
+			   grep " $pid/" |
+			   grep ":$port ")" ]; then
+			return 1
+		fi
+		sleep 0.1
+	done
+	return 0
+}
+
 # Run the swtpm_ioctl command
 #
 # @param1: type of interface
