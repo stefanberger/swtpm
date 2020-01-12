@@ -31,7 +31,7 @@ source ${TESTDIR}/common
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
-if has_seccomp_support ${SWTPM_EXE}; then
+if has_seccomp_support "${SWTPM_EXE}"; then
 	seccomp_params="--seccomp action=none"
 fi
 
@@ -93,7 +93,7 @@ if [ "$(id -u)" != "0" ]; then
 	fi
 fi
 
-check_seccomp_profile ${SWTPM_EXE} ${SWTPM_PID} 0
+check_seccomp_profile "${SWTPM_EXE}" ${SWTPM_PID} 0
 if [ $? -ne 0 ]; then
 	exit 1
 fi
