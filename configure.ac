@@ -446,8 +446,9 @@ AC_MSG_CHECKING([for whether to build with seccomp profile])
 AC_ARG_WITH([seccomp],
   AC_HELP_STRING([--with-seccomp],
                  [build with seccomp profile]),
-  [],
+  AC_MSG_RESULT([$with_seccomp]),
   [with_seccomp=$with_seccomp_default]
+  AC_MSG_RESULT([$with_seccomp])
 )
 
 if test "$with_seccomp" != "no"; then
