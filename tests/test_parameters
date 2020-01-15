@@ -107,7 +107,7 @@ for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 	echo -n "Test $i: "
 	$TPMAUTHORING \
 		--tpm-state $TPMDIR \
-		--tpm "$SWTPM_EXE socket" \
+		--tpm "$SWTPM_EXE socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--swtpm_ioctl "$SWTPM_IOCTL" \
 		${PARAMETERS[$i]} 2>&1 >/dev/null
 	

@@ -81,7 +81,8 @@ $SWTPM_EXE socket \
 	--pid $PIDPARAM \
 	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH,mode=${FILEMODE}${FOWNER} \
 	--log file=$LOG_FILE,level=20 \
-	$RUNAS &
+	$RUNAS \
+	${SWTPM_TEST_SECCOMP_OPT} &
 PID=$!
 exec 100>&-
 exec 101>&-
