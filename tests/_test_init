@@ -33,13 +33,12 @@ source ${TESTDIR}/common
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
 if has_seccomp_support ${SWTPM_EXE}; then
-	seccomp_params="--seccomp action=none"
+	SWTPM_TEST_SECCOMP_OPT="--seccomp action=none"
 fi
 
 run_swtpm ${SWTPM_INTERFACE} \
 	--tpmstate dir=$TPM_PATH \
-	--pid file=$PID_FILE \
-	${seccomp_params}
+	--pid file=$PID_FILE
 
 display_processes_by_name "$SWTPM"
 

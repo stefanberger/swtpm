@@ -74,7 +74,8 @@ $SWTPM_EXE socket \
 	--tpmstate dir=$TPMDIR,mode=$FILEMODE \
 	--pid file=$PID_FILE \
 	--log fd=100,level=20 \
-	--flags not-need-init &
+	--flags not-need-init \
+	${SWTPM_TEST_SECCOMP_OPT} &
 PID=$!
 exec 100>&-
 
@@ -135,7 +136,12 @@ cleanup
 #         that causes the swtpm process to exit upon connection close
 TPMDIR=`mktemp -d`
 
-$SWTPM_EXE socket --flags not-need-init -p $PORT --tpmstate dir=$TPMDIR -t &>/dev/null &
+$SWTPM_EXE socket \
+	--flags not-need-init \
+	-p $PORT \
+	--tpmstate dir=$TPMDIR \
+	-t \
+	${SWTPM_TEST_SECCOMP_OPT} &>/dev/null &
 PID=$!
 
 wait_port_open $PORT $PID

@@ -259,7 +259,8 @@ function run_swtpm()
 			exit 1
 		fi
 
-		${SWTPM_EXE} cuse $@ -n ${SWTPM_DEV_NAME##*/}
+		${SWTPM_EXE} cuse $@ ${SWTPM_TEST_SECCOMP_OPT} \
+			-n ${SWTPM_DEV_NAME##*/}
 		rc=$?
 		if [ $rc -ne 0 ]; then
 			echo "Could not run ${SWTPM_EXE} using ${iface}"
@@ -297,6 +298,7 @@ function run_swtpm()
 		fi
 
 		${SWTPM_EXE} socket $@ \
+			${SWTPM_TEST_SECCOMP_OPT} \
 			--server type=tcp,port=${SWTPM_SERVER_PORT}${swtpm_server_disconnect} \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
 		rc=$?
@@ -337,6 +339,7 @@ function run_swtpm()
 		fi
 
 		${SWTPM_EXE} socket $@ \
+			${SWTPM_TEST_SECCOMP_OPT} \
 			--server type=tcp,port=${SWTPM_SERVER_PORT}${swtpm_server_disconnect} \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
 		rc=$?
@@ -378,6 +381,7 @@ function run_swtpm()
 		fi
 
 		${SWTPM_EXE} socket $@ \
+			${SWTPM_TEST_SECCOMP_OPT} \
 			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
 		rc=$?
@@ -418,6 +422,7 @@ function run_swtpm()
 		fi
 
 		${SWTPM_EXE} socket $@ \
+			${SWTPM_TEST_SECCOMP_OPT} \
 			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
 		rc=$?
@@ -704,6 +709,9 @@ function check_seccomp_profile()
 	local tmp
 
 	if ! has_seccomp_support "${swtpm_exe}"; then
+		return 0
+	fi
+	if [ -n "${SWTPM_TEST_SECCOMP_OPT}" ]; then
 		return 0
 	fi
 

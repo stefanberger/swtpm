@@ -43,7 +43,8 @@ $SWTPM_EXE chardev \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH,mode=${FILEMODE}${FOWNER} \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 PID=$!
 
 if wait_for_file $PID_FILE 3; then
@@ -151,7 +152,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 PID=$!
 
 if wait_for_file $PID_FILE 3; then
@@ -347,7 +349,8 @@ $SWTPM_EXE socket \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512 \
 	--tpm2 \
-	--flags not-need-init &
+	--flags not-need-init \
+	${SWTPM_TEST_SECCOMP_OPT} &
 PID=$!
 
 if wait_for_file $PID_FILE 3; then
@@ -405,7 +408,8 @@ $SWTPM_EXE socket \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512 \
 	--tpm2 \
-	--flags not-need-init &
+	--flags not-need-init \
+	${SWTPM_TEST_SECCOMP_OPT} &
 PID=$!
 
 if wait_for_file $PID_FILE 3; then
