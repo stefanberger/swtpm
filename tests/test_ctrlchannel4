@@ -33,7 +33,8 @@ $SWTPM_EXE chardev \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH \
-	--log file=$LOG_FILE,level=20 &
+	--log file=$LOG_FILE,level=20 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 exec 100>&-
 

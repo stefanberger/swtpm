@@ -681,7 +681,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (1) Socket TPM did not write pidfile."
@@ -739,7 +740,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (2) Socket TPM did not write pidfile."
@@ -799,7 +801,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -859,7 +862,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -920,7 +924,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -969,7 +974,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -1014,7 +1020,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -1075,7 +1082,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -1124,7 +1132,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -1168,7 +1177,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -1229,7 +1239,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."
@@ -1275,7 +1286,8 @@ $SWTPM_EXE socket \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
-	--tpm2 &
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
 
 if wait_for_file $PID_FILE 3; then
 	echo "Error: (3) Socket TPM did not write pidfile."

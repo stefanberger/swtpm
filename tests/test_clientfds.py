@@ -40,6 +40,8 @@ def spawn_swtpm():
     cmd = swtpm_exe + " socket --fd=" + str(_fd.fileno())
     cmd += " --ctrl type=unixio,clientfd=" + str(_ctrlfd.fileno())
     cmd += " --pid file=" + pidfile + " --tpmstate dir=" + tpmpath
+    if os.getenv('SWTPM_TEST_SECCOMP_OPT'):
+        cmd += " " + os.getenv('SWTPM_TEST_SECCOMP_OPT')
     print("Running child cmd: %s" % cmd)
     try:
         if sys.version_info[0] >= 3:

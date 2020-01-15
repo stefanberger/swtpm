@@ -70,7 +70,7 @@ $SWTPM_SETUP \
 	--create-ek-cert \
 	--config ${workdir}/swtpm_setup.conf \
 	--logfile ${workdir}/logfile \
-	--tpm "${SWTPM} socket" \
+	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 	--swtpm_ioctl ${SWTPM_IOCTL}
 
 if [ $? -ne 0 ]; then
