@@ -104,7 +104,7 @@ _EOF_
 		--tpm-state ${workdir} \
 		--logfile ${workdir}/logfile \
 		--config ${workdir}/swtpm_setup.conf \
-		--tpm "${SWTPM_EXE} socket" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--swtpm_ioctl ${SWTPM_IOCTL} \
 		--take-ownership \
 		${params} \
