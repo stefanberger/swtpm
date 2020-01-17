@@ -1597,9 +1597,11 @@ function tpm2_get_all_pcr_banks()
 		" 00 0c") banks="$banks,sha384";;
 		" 00 0d") banks="$banks,sha512";;
 		" 00 12") banks="$banks,sm3-256";;
+		" 00 27") banks="$banks,sha3-256";;
+		" 00 28") banks="$banks,sha3-384";;
+		" 00 29") banks="$banks,sha3-512";;
 		*)
-			logerr "Unsupported hash algorithm id ${bank}"
-			return 1
+			banks="$banks,0x${bank:1:2}${bank:4:2}"
 		esac
 		o=$((o + 6))
 		l=$((0x${rsp:o+1:2}))
@@ -1640,9 +1642,13 @@ function tpm2_set_active_pcr_banks()
 		sha384)  active="sha384,$active";  req+='\x00\x0c\x03\xff\xff\xff';;
 		sha512)  active="sha512,$active";  req+='\x00\x0d\x03\xff\xff\xff';;
 		sm3-256) active="sm3-256,$active"; req+='\x00\x12\x03\xff\xff\xff';;
+		sha3-256) active="sha3-256,$active";req+='\x00\x27\x03\xff\xff\xff';;
+		sha3-384) active="sha3-384,$active";req+='\x00\x28\x03\xff\xff\xff';;
+		sha3-512) active="sha3-512,$active";req+='\x00\x29\x03\xff\xff\xff';;
 		*)
-			logerr "Unsupported PCR bank ${pcr_bank}."
-			return 1
+			active="${pcr_bank},$active"
+			# pcr_bank has format 0x<4 hex digits>
+			req+="\x${pcr_bank:2:2}\x${pcr_bank:4:2}\x03\xff\xff\xff"
 		esac
 		count=$((count + 1))
 	done
@@ -1664,9 +1670,12 @@ function tpm2_set_active_pcr_banks()
 		sha384) req+='\x00\x0c\x03\x00\x00\x00';;
 		sha512) req+='\x00\x0d\x03\x00\x00\x00';;
 		sm3-256) req+='\x00\x12\x03\x00\x00\x00';;
+		sha3-256) req+='\x00\x27\x03\x00\x00\x00';;
+		sha3-384) req+='\x00\x28\x03\x00\x00\x00';;
+		sha3-512) req+='\x00\x29\x03\x00\x00\x00';;
 		*)
-			logerr "Unsupported PCR bank ${pcr_bank}."
-			return 1
+			# pcr_bank has format 0x<4 hex digits>
+			req+="\x${pcr_bank:2:2}\x${pcr_bank:4:2}\x03\x00\x00\x00";;
 		esac
 		count=$((count + 1))
 	done
