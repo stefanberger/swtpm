@@ -66,6 +66,7 @@
 #include <sys/stat.h>
 #include <netdb.h>
 #include <sys/param.h>
+#include <signal.h>
 
 #include <swtpm/tpm_ioctl.h>
 
@@ -1001,6 +1002,11 @@ int main(int argc, char *argv[])
         if (tmp) {
             if (sscanf(tmp, "%zu", &buffersize) != 1 || buffersize < 1)
                 buffersize = 1;
+        }
+    } else {
+        if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+            fprintf(stderr, "Could not install signal handler for SIGPIPE.");
+            goto exit;
         }
     }
 
