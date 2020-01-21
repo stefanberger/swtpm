@@ -47,6 +47,7 @@
 #include <netdb.h>
 #include <sys/un.h>
 #include <getopt.h>
+#include <signal.h>
 
 #include "sys_dependencies.h"
 #include "swtpm.h"
@@ -771,6 +772,11 @@ int main(int argc, char *argv[])
 			print_usage(argv[0]);
 			return EXIT_FAILURE;
 		}
+	}
+
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+		fprintf(stderr, "Could not install signal handler for SIGPIPE.");
+		return EXIT_FAILURE;
 	}
 
 	if (tpm2) {
