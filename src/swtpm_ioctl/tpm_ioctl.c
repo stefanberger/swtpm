@@ -153,6 +153,7 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
     int n;
     size_t idx;
     ptm_hdata hdata;
+    size_t inputlen;
 
     memset(&hdata, 0, sizeof(hdata));
 
@@ -176,7 +177,9 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
                 devtoh32(is_chardev, res));
         return 1;
     }
-    if (strlen(input) == 1 && input[0] == '-') {
+    inputlen = strlen(input);
+
+    if (inputlen == 1 && input[0] == '-') {
         /* read data from stdin */
         while (1) {
             idx = 0;
@@ -202,8 +205,8 @@ static int do_hash_start_data_end(int fd, bool is_chardev, const char *input)
         }
     } else {
         idx = 0;
-        while (idx < strlen(input)) {
-            size_t tocopy = strlen(input) - idx;
+        while (idx < inputlen) {
+            size_t tocopy = inputlen - idx;
 
             if (tocopy > sizeof(hdata.u.req.data))
                 tocopy = sizeof(hdata.u.req.data);
