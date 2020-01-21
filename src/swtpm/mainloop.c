@@ -150,7 +150,7 @@ int mainLoop(struct mainLoopParams *mlp,
                     .events = POLLIN,
                     .revents = 0,
                 }, {
-                    .fd = ctrlfd,
+                    .fd = -1,
                     .events = POLLIN,
                     .revents = 0,
                 } , {
@@ -168,6 +168,8 @@ int mainLoop(struct mainLoopParams *mlp,
             /* only listend for clients if we don't have one */
             if (connection_fd.fd < 0)
                 pollfds[DATA_SERVER_FD].fd = sockfd;
+            if (ctrlclntfd < 0)
+                pollfds[CTRL_SERVER_FD].fd = ctrlfd;
 
             ready = poll(pollfds, 5, -1);
             if (ready < 0 && errno == EINTR)
