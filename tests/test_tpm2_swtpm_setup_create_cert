@@ -11,7 +11,7 @@ SWTPM_LOCALCA=${TOPSRC}/samples/swtpm-localca
 SWTPM=${TOPBUILD}/src/swtpm/swtpm
 SWTPM_IOCTL=${TOPBUILD}/src/swtpm_ioctl/swtpm_ioctl
 
-workdir=$(mktemp -d)
+workdir=$(mktemp -d "/tmp/path with spaces.XXXXXX")
 
 SIGNINGKEY=${workdir}/signingkey.pem
 ISSUERCERT=${workdir}/issuercert.pem
@@ -23,7 +23,7 @@ trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf ${workdir}
+	rm -rf "${workdir}"
 }
 
 # Quirk for Cygwin
@@ -36,23 +36,23 @@ fi
 # local CA script automatically creates a signingkey and
 # self-signed certificate
 
-cat <<_EOF_ > ${workdir}/swtpm-localca.conf
+cat <<_EOF_ > "${workdir}/swtpm-localca.conf"
 statedir=${workdir}
 signingkey = ${SIGNINGKEY}
 issuercert = ${ISSUERCERT}
 certserial = ${CERTSERIAL}
 _EOF_
 
-cat <<_EOF_ > ${workdir}/swtpm-localca.options
+cat <<_EOF_ > "${workdir}/swtpm-localca.options"
 --tpm-manufacturer IBM
 --tpm-model swtpm-libtpms
 --tpm-version 2
---platform-manufacturer Fedora
+--platform-manufacturer "Fedora XYZ"
 --platform-version 2.1
---platform-model QEMU
+--platform-model "QEMU A.B"
 _EOF_
 
-cat <<_EOF_ > ${workdir}/swtpm_setup.conf
+cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
 create_certs_tool=${SWTPM_LOCALCA}
 create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=${workdir}/swtpm-localca.options
@@ -65,18 +65,18 @@ export PATH=${TOPBUILD}/src/swtpm_cert:${PATH}
 $SWTPM_SETUP \
 	--tpm2 \
 	--allow-signing \
-	--tpm-state ${workdir} \
+	--tpm-state "${workdir}" \
 	--create-ek-cert \
 	--create-platform-cert \
-	--config ${workdir}/swtpm_setup.conf \
-	--logfile ${workdir}/logfile \
+	--config "${workdir}/swtpm_setup.conf" \
+	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--swtpm_ioctl ${SWTPM_IOCTL}
+	--swtpm_ioctl "${SWTPM_IOCTL}"
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."
 	echo "Logfile output:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
@@ -103,18 +103,18 @@ rm -rf ${SIGNINGKEY} ${ISSUERCERT} ${CERTSERIAL}
 $SWTPM_SETUP \
 	--tpm2 \
 	--ecc \
-	--tpm-state ${workdir} \
+	--tpm-state "${workdir}" \
 	--create-ek-cert \
-	--config ${workdir}/swtpm_setup.conf \
-	--logfile ${workdir}/logfile \
+	--config "${workdir}/swtpm_setup.conf" \
+	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--swtpm_ioctl ${SWTPM_IOCTL} \
+	--swtpm_ioctl "${SWTPM_IOCTL}" \
 	--overwrite
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."
 	echo "Logfile output:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 

@@ -51,13 +51,13 @@
 # The launcher 'swtpm_setup' ensures that this range is not used by
 # any valid file descriptors passed as parameters.
 
-SWTPM=`type -P swtpm`
+SWTPM=$(type -P swtpm)
 if [ -n "$SWTPM" ]; then
     SWTPM="$SWTPM socket"
 fi
-SWTPM_IOCTL=`type -P swtpm_ioctl`
+SWTPM_IOCTL=$(type -P swtpm_ioctl)
 
-ECHO=`which echo`
+ECHO=$(which echo)
 if [ -z "$ECHO" ]; then
     echo "Error: external echo program not found."
     exit 1
@@ -107,13 +107,13 @@ TPM_NV_INDEX_LOCK=$((0xFFFFFFFF))
 
 # TPM 2 constants
 TPMA_NV_PLATFORMCREATE=$((0x40000000))
-TPMA_NV_AUTHWRITE=$((0x4))
+#TPMA_NV_AUTHWRITE=$((0x4))
 TPMA_NV_AUTHREAD=$((0x40000))
 TPMA_NV_NO_DA=$((0x2000000))
 TPMA_NV_PPWRITE=$((0x1))
 TPMA_NV_PPREAD=$((0x10000))
 TPMA_NV_OWNERREAD=$((0x20000))
-TPMA_NV_POLICY_DELETE=$((0x400))
+#TPMA_NV_POLICY_DELETE=$((0x400))
 TPMA_NV_WRITEDEFINE=$((0x2000))
 
 # Use standard EK Cert NVRAM, EK and SRK handles per IWG spec.
@@ -153,7 +153,7 @@ logit()
 	if [ -z "$LOGFILE" ]; then
 		echo "$@" >&1
 	else
-		echo "$@" >> $LOGFILE
+		echo "$@" >> "$LOGFILE"
 	fi
 }
 
@@ -162,17 +162,34 @@ logit_cmd()
 	if [ -z "$LOGFILE" ]; then
 		eval "$@" >&1
 	else
-		eval "$@" >> $LOGFILE
+		eval "$@" >> "$LOGFILE"
 	fi
 }
 
 logerr()
 {
 	if [ -z "$LOGFILE" ]; then
-		echo "Error: $@" >&2
+		echo "Error: $*" >&2
 	else
-		echo "Error: $@" >> $LOGFILE
+		echo "Error: $*" >> "$LOGFILE"
 	fi
+}
+
+# Check a variable value for spaces and if it has spaces log an error
+# message and return 1, 0 otherwise
+# @param1: value to check for spaces
+# @param2: description to print in case space is found
+check_spaces()
+{
+	local var="$1"
+	local desc="$2"
+
+	if ! [[ "$var" = "${var%[[:space:]]*}" ]]; then
+		logerr "No spaces allowed in ${desc}: '$var'"
+		return 0
+	fi
+
+	return 1
 }
 
 # Get the size of a file
@@ -182,10 +199,10 @@ get_filesize()
 {
 	case "${UNAME_S}" in
 	OpenBSD|FreeBSD|NetBSD|Darwin|DragonFly)
-		stat -f%z $1
+		stat -f%z "$1"
 		;;
 	*)
-		stat -c%s $1
+		stat -c%s "$1"
 		;;
 	esac
 }
@@ -257,7 +274,7 @@ call_create_certs()
 	local ek="$4"
 	local vmid="$5"
 
-	local logparam tmp
+	local logparam tmp fn
 	local params="" cmd
 
 	if [ -n "$vmid" ]; then
@@ -265,7 +282,7 @@ call_create_certs()
 	fi
 
 	if [ -n "$LOGFILE" ]; then
-		logparam="--logfile $LOGFILE"
+		logparam="--logfile \"$LOGFILE\""
 	fi
 
 	params="${params} $(get_tpm_parameters)"
@@ -305,16 +322,16 @@ call_create_certs()
 	fi
 
 	if [ -n "$create_certs_tool" ]; then
-		local fn=$(basename "${create_certs_tool}")
+		fn=$(basename "${create_certs_tool}")
 
 		if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ]; then
 			cmd="$create_certs_tool \
 				--type ek \
-				--ek "$ek" \
-				--dir "$certdir" \
+				--ek \"$ek\" \
+				--dir \"$certdir\" \
 				${logparam} ${params}"
 			logit "  Invoking: $(echo $cmd | tr -s " ")"
-			tmp="$(eval $cmd 2>&1)"
+			tmp="$(eval "$cmd" 2>&1)"
 			ret=$?
 			logit "$(echo "${tmp}" | sed -e "s/^/$fn: /")"
 			if [ $ret -ne 0 ]; then
@@ -325,11 +342,11 @@ call_create_certs()
 		if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ]; then
 			cmd="$create_certs_tool \
 				--type platform \
-				--ek "$ek" \
-				--dir "$certdir" \
+				--ek \"$ek\" \
+				--dir \"$(echo $certdir)\" \
 				${logparam} ${params}"
 			logit "  Invoking: $(echo $cmd | tr -s " ")"
-			tmp="$(eval $cmd 2>&1)"
+			tmp="$(eval "$cmd" 2>&1)"
 			ret=$?
 			logit "$(echo "${tmp}" | sed -e "s/^/$fn: /")"
 			if [ $ret -ne 0 ]; then
@@ -346,10 +363,12 @@ call_create_certs()
 #
 # @param1: full path to the TPM executable to use
 # @param2: the directory where the TPM is supposed to write its state to
+# @param3: The --key option parameter to start swtpm with
 start_tpm()
 {
 	local swtpm="$1"
 	local swtpm_state="$2"
+	local swtpm_keyopt="$3"
 
 	local ctr=0 ctr2 ctr3
 	local pidfile="${swtpm_state}/.swtpm_setup.pidfile"
@@ -360,21 +379,22 @@ start_tpm()
 		# kill swtpm if still alive
 		stop_tpm 1
 
-		rm -f $pidfile &>/dev/null
+		rm -f "$pidfile" &>/dev/null
 		$swtpm \
+			${swtpm_keyopt:+--key "${swtpm_keyopt}"} \
 			--flags not-need-init \
-			-p $TPM_PORT \
-			--tpmstate dir=$swtpm_state \
+			-p "$TPM_PORT" \
+			--tpmstate "dir=$swtpm_state" \
 			--ctrl type=tcp,port=$((TPM_PORT+1)) \
-			--pid file=$pidfile \
-			2>&1 1>/dev/null &
+			--pid "file=$pidfile" \
+			&>/dev/null &
 		SWTPM_PID=$!
 
 		# poll for open port (good) or the process to have
 		# disappeared (bad); whatever happens first
 		ctr3=0
 		while :; do
-			kill -0 $SWTPM_PID 2>/dev/null
+			kill -0 "$SWTPM_PID" 2>/dev/null
 			if [ $? -ne 0 ]; then
 				# process dead; try next socket
 				break
@@ -384,16 +404,16 @@ start_tpm()
 			# testing swtpm's port rather than some other
 			# process's
 			ctr2=0
-			while [ -f ${pidfile} ]; do
+			while [ -f "${pidfile}" ]; do
 			        # test the connection to swtpm
-				(exec 100<>/dev/tcp/localhost/$TPM_PORT) 2>/dev/null
+				(exec 100<>"/dev/tcp/localhost/$TPM_PORT") 2>/dev/null
 				if [ $? -ne 0 ]; then
 					if [ $ctr2 -eq 40 ]; then
 						stop_tpm 0
 						break
 					fi
 					sleep 0.05
-					let ctr2=ctr2+1
+					ctr2=$((ctr2 + 1))
 					continue
 				fi
 				exec 100>&-
@@ -402,15 +422,15 @@ start_tpm()
 			done
 			sleep 0.05
 
-			let ctr3=ctr3+1
+			ctr3=$((ctr3 + 1))
 			# at some point the pid file must appear...
-			if [ $ctr3 -eq 40 ] && [ ! -f ${pidfile} ]; then
+			if [ $ctr3 -eq 40 ] && [ ! -f "${pidfile}" ]; then
 				stop_tpm 0
 				break
 			fi
 		done
 
-		let ctr=$ctr+1
+		ctr=$((ctr + 1))
 	done
 
 	return 1
@@ -430,19 +450,19 @@ terminate_proc()
 
 	local c
 
-	kill -0 $pid &>/dev/null
+	kill -0 "$pid" &>/dev/null
 	[ $? -ne 0 ] && return
 
-	kill -SIGTERM $pid &>/dev/null
+	kill -SIGTERM "$pid" &>/dev/null
 	[ $sync -eq 0 ] && return
 
 	# kill hard if necessary
 	for ((c=0; c<50; c++)); do
-		kill -0 $pid &>/dev/null
+		kill -0 "$pid" &>/dev/null
 		[ $? -ne 0 ] && return
 		sleep 0.02
 	done
-	kill -SIGKILL $pid
+	kill -SIGKILL "$pid"
 	logerr "Had to use SIGKILL on $name"
 }
 
@@ -465,11 +485,17 @@ stop_tpm()
 start_tcsd()
 {
 	local TCSD=$1
-	local user=$(id -u -n)
-	local group=$(id -g -n)
-	local ctr=0 ctr2
+
+	local user group ctr=0 ctr2
+
+	user=$(id -u -n)
+	group=$(id -g -n)
 
 	export TSS_TCSD_PORT
+
+	if check_spaces "$TMPDIR" "TMPDIR environment variable"; then
+		return 1
+	fi
 
 	TCSD_CONFIG="$(mktemp)"
 	TCSD_DATA_DIR="$(mktemp -d)"
@@ -484,21 +510,21 @@ start_tcsd()
 	while [ $ctr -lt 100 ]; do
 		TSS_TCSD_PORT=$(get_random 30000 65535)
 
-		cat << EOF >$TCSD_CONFIG
+		cat << EOF >"$TCSD_CONFIG"
 port = $TSS_TCSD_PORT
 system_ps_file = $TCSD_DATA_FILE
 EOF
 		# tcsd requires @TSS_USER@:@TSS_GROUP@ and 0600 on TCSD_CONFIG
 		# -> only root can start
-		chmod 600 $TCSD_CONFIG
+		chmod 600 "$TCSD_CONFIG"
 		if [ $(id -u) -eq 0 ]; then
-			chown @TSS_USER@:@TSS_GROUP@ $TCSD_CONFIG 2>/dev/null
-			chown @TSS_USER@:@TSS_GROUP@ $TCSD_DATA_DIR 2>/dev/null
-			chown @TSS_USER@:@TSS_GROUP@ $TCSD_DATA_FILE 2>/dev/null
+			chown "@TSS_USER@:@TSS_GROUP@" "$TCSD_CONFIG" 2>/dev/null
+			chown "@TSS_USER@:@TSS_GROUP@" "$TCSD_DATA_DIR" 2>/dev/null
+			chown "@TSS_USER@:@TSS_GROUP@" "$TCSD_DATA_FILE" 2>/dev/null
 		fi
 		if [ $? -ne 0 ]; then
 			logerr "Could not change ownership on $TCSD_CONFIG to ${user}:${group}."
-			ls -l $TCSD_CONFIG
+			ls -l "$TCSD_CONFIG"
 			return 1
 		fi
 
@@ -506,14 +532,14 @@ EOF
 		stop_tcsd 1
 		case "$(id -u)" in
 		0)
-			$TCSD -c $TCSD_CONFIG -e -f 2>&1 1>/dev/null &
+			$TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
 			TCSD_PID=$!
 			;;
 		*)
 			# for tss user, use the wrapper
-			$TCSD -c $TCSD_CONFIG -e -f 2>&1 1>/dev/null &
+			$TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
 			#if [ $? -ne  0]; then
-			#	swtpm_tcsd_launcher -c $TCSD_CONFIG -e -f 2>&1 1>/dev/null &
+			#	swtpm_tcsd_launcher -c $TCSD_CONFIG -e -f &>/dev/null &
 			#fi
 			TCSD_PID=$!
 			;;
@@ -523,7 +549,7 @@ EOF
 		# disappeared (bad); whatever happens first
 	        ctr2=0
 	        while :; do
-			(exec 100<>/dev/tcp/localhost/$TSS_TCSD_PORT) 2>/dev/null
+			(exec 100<>"/dev/tcp/localhost/$TSS_TCSD_PORT") 2>/dev/null
 			if [ $? -ne 0 ]; then
 				if [ $ctr2 -eq 40 ]; then
 					stop_tcsd 0
@@ -536,7 +562,7 @@ EOF
 					break
 				fi
 				# process still alive
-				let ctr2=ctr2+1
+				ctr2=$((ctr2 + 1))
 				sleep 0.05
 				continue
 			fi
@@ -545,7 +571,7 @@ EOF
 			return 0
 		done
 
-		let ctr=$ctr+1
+		ctr=$((ctr + 1))
 	done
 
 	return 1
@@ -622,7 +648,7 @@ send_hex_data()
 # @param1: The request to send
 tpm_transfer()
 {
-	exec 100<>/dev/tcp/127.0.0.1/${TPM_PORT}
+	exec 100<>"/dev/tcp/127.0.0.1/${TPM_PORT}"
 	send_hex_data "$1" >&100
 
 	read_hex_data <&100
@@ -663,6 +689,7 @@ tpm_createendorsementkeypair()
 # @param5: The SRK password to use
 # @param6: The ID of the VM
 # @param7: The filename to copy the TCSD system_ps_file to; optional
+# @param8: The --key option parameter to start swtpm with
 init_tpm()
 {
 	local flags="$1"
@@ -672,16 +699,17 @@ init_tpm()
 	local srkpass="$5"
 	local vmid="$6"
 	local tcsd_system_ps_file="$7"
+	local swtpm_keyopt="$8"
 
 	# where external app writes certs into
 	local certsdir="$tpm_state_path"
-	local ek tmp output
+	local ek tmp output nvidxs passparam
 
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
 	local nvramauth="OWNERREAD|OWNERWRITE"
 
-	start_tpm "$SWTPM" "$tpm_state_path"
+	start_tpm "$SWTPM" "$tpm_state_path" "$swtpm_keyopt"
 	if [ $? -ne 0 ]; then
 		logerr "Could not start the TPM."
 		return 1
@@ -697,7 +725,7 @@ init_tpm()
 	fi
 
 	# Creating EK is simple enough to do without the tcsd
-	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
+	if [ $((flags & SETUP_CREATE_EK_F)) -ne 0 ]; then
 		ek="$(tpm_createendorsementkeypair)"
 		if [ $? -ne 0 ]; then
 			logerr "tpm_createendorsementkeypair failed."
@@ -705,26 +733,26 @@ init_tpm()
 		fi
 		logit "Successfully created EK."
 
-		if [ $((flags & ~$SETUP_CREATE_EK_F)) -eq 0 ]; then
+		if [ $((flags & ~SETUP_CREATE_EK_F)) -eq 0 ]; then
 			return 0
 		fi
 	fi
 
 	# TPM is enabled and activated upon first start
 
-	start_tcsd $TCSD
+	start_tcsd "$TCSD"
 	if [ $? -ne 0 ]; then
 		return 1
 	fi
 
 	# temporarily take ownership if an EK was created
-	if [  $((flags & $SETUP_CREATE_EK_F)) -ne 0 ] ; then
+	if [  $((flags & SETUP_CREATE_EK_F)) -ne 0 ] ; then
 		local parm_z=""
 		local parm_y=""
-		if [ $((flags & $SETUP_SRKPASS_ZEROS_F)) -ne 0 ]; then
+		if [ $((flags & SETUP_SRKPASS_ZEROS_F)) -ne 0 ]; then
 			parm_z="-z"
 		fi
-		if [ $((flags & $SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
+		if [ $((flags & SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
 			parm_y="-y"
 		fi
 		if [ -n "${parm_y}" ] && [ -n "${parm_z}" ]; then
@@ -735,7 +763,7 @@ init_tpm()
 				       "ownership with non-standard password."
 				return 1
 			fi
-			a=$(expect -c "
+			tmp=$(expect -c "
 				set parm_z \"$parm_z\"
 				set parm_y \"$parm_y\"
 				spawn tpm_takeownership \$parm_z \$parm_y
@@ -789,7 +817,7 @@ init_tpm()
 		output="$(tpm_nvdefine \
 			-i $((TPM_NV_INDEX_EKCert|TPM_NV_INDEX_D_BIT)) \
 			-p "${nvramauth}" \
-			-s $(get_filesize "${EK_CERT_FILE}") 2>&1)"
+			-s "$(get_filesize "${EK_CERT_FILE}")" 2>&1)"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area for EK certificate."
 			return 1
@@ -801,7 +829,7 @@ init_tpm()
 			return 1
 		fi
 		logit "Successfully created NVRAM area for EK certificate."
-		rm -f ${EK_CERT_FILE}
+		rm -f "${EK_CERT_FILE}"
 	fi
 
 	if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ] && \
@@ -809,7 +837,7 @@ init_tpm()
 		output="$(tpm_nvdefine \
 			-i $((TPM_NV_INDEX_PlatformCert|TPM_NV_INDEX_D_BIT)) \
 			-p "${nvramauth}" \
-			-s $(get_filesize "${PLATFORM_CERT_FILE}") 2>&1)"
+			-s "$(get_filesize "${PLATFORM_CERT_FILE}")" 2>&1)"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area for platform" \
 			       "certificate."
@@ -824,14 +852,13 @@ init_tpm()
 		fi
 		logit "Successfully created NVRAM area for platform" \
 		       "certificate."
-		rm -f ${PLATFORM_CERT_FILE}
+		rm -f "${PLATFORM_CERT_FILE}"
 	fi
 
 	if [ $((flags & SETUP_DISPLAY_RESULTS_F)) -ne 0 ]; then
-		local nvidxs=`tpm_nvinfo -n | grep 0x | gawk '{print $1}'`
-		local passparam
+		nvidxs=$(tpm_nvinfo -n | grep 0x | gawk '{print $1}')
 
-		if [ $((flags & $SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
+		if [ $((flags & SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
 			passparam="-z"
 		else
 			passparam="--password=$ownerpass"
@@ -839,7 +866,7 @@ init_tpm()
 
 		for i in $nvidxs; do
 			logit "Content of NVRAM area $i:"
-			tmp="tpm_nvread -i $i $passparam"
+			tmp="$(tpm_nvread -i "$i" "$passparam")"
 			logit_cmd "$cmd"
 		done
 	fi
@@ -855,9 +882,9 @@ init_tpm()
 	fi
 
 	# give up ownership if not wanted
-	if [ $((flags & SETUP_TAKEOWN_F))   -eq 0 -a \
-	     $((flags & SETUP_CREATE_EK_F)) -ne 0 ] ; then
-		if [ $((flags & $SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
+	if [ $((flags & SETUP_TAKEOWN_F))   -eq 0 ] && \
+	   [ $((flags & SETUP_CREATE_EK_F)) -ne 0 ] ; then
+		if [ $((flags & SETUP_OWNERPASS_ZEROS_F)) -ne 0 ]; then
 			tpm_clear -z &>/dev/null
 		else
 			if [ -z "$(type -p expect)" ]; then
@@ -865,7 +892,7 @@ init_tpm()
 				       "ownership with non-standard password."
 				return 1
 			fi
-			a=$(expect -c "
+			tmp=$(expect -c "
 				spawn tpm_clear
 				expect {
 					\"Enter owner password:\" { send \"$ownerpass\n\" }
@@ -1111,15 +1138,15 @@ function tpm2_createprimary_rsa_params()
 		return 1
 	fi
 
-	let off=off+6
+	off=$((off + 6))
 
 	# output: handle,ek
 	res="$(echo "0x${rsp:30:12}" | sed -n 's/ //pg'),"
 	res+="$(echo "${rsp:$off:768}" | sed -n 's/ //pg')"
-	echo $res
+	echo "$res"
 
 	if [ -n "${templatefile}" ]; then
-		$ECHO -en ${temp} > ${templatefile}
+		$ECHO -en "${temp}" > "${templatefile}"
 	fi
 
 	return 0
@@ -1292,16 +1319,16 @@ tpm2_createprimary_ecc_params()
 		return 1
 	fi
 
-	let off1=off1+6
-	let off2=off2+6
+	off1=$((off1 + 6))
+	off2=$((off2 + 6))
 
 	# output: handle,ek
 	res="$(echo "0x${rsp:30:12}" | sed -n 's/ //pg'),"
 	res+="$(echo x=${rsp:$off1:96},y=${rsp:$off2:96} | sed -n 's/ //pg')"
-	echo $res
+	echo "$res"
 
 	if [ -n "${templatefile}" ]; then
-		$ECHO -en ${temp} > ${templatefile}
+		$ECHO -en "${temp}" > "${templatefile}"
 	fi
 
 	return 0
@@ -1365,7 +1392,7 @@ tpm2_create_ek()
 	fi
 	[ $? -ne 0 ] && return 1
 
-	handle=$(echo $res | cut -d "," -f1)
+	handle=$(echo "$res" | cut -d "," -f1)
 
 	# make key permanent
 	if [ -n "$nehandle" ]; then
@@ -1374,7 +1401,7 @@ tpm2_create_ek()
 	fi
 
 	# ek
-	echo $res | cut -d "," -f2-
+	echo "$res" | cut -d "," -f2-
 
 	return 0
 }
@@ -1411,7 +1438,7 @@ tpm2_create_spk()
 	fi
 
 	# ek
-	echo $res | cut -d "," -f2-
+	echo "$res" | cut -d "," -f2-
 
 	return 0
 }
@@ -1433,13 +1460,13 @@ _format()
 	4) f="%08x"; num=$((num & 0xffffffff));;
 	esac
 
-	r="$(printf $f $num)"
+	r="$(printf "$f" "$num")"
 	for ((i = 0; i < ${#r}; i+=2 )); do
 		# prepare for usage with sed -> extra backslashes
 		res+="\\\x${r:$i:2}"
 	done
 
-	echo $res
+	echo "$res"
 }
 
 # Define an NVRAM space
@@ -1502,7 +1529,7 @@ tpm2_nv_write()
 
 	while :; do
 		# read data from file
-		data=$(dd bs=1 skip=${offset} count=${step} if=$fil \
+		data=$(dd bs=1 skip=${offset} count=${step} "if=$fil" \
 		          2>/dev/null| \
 	               read_hex_data | \
 	               sed -n 's/ /\\\\x/pg')
@@ -1519,7 +1546,7 @@ tpm2_nv_write()
 		          -e "s/@DATA@/${data}/" \
 		          -e "s/@OFFSET-2@/$(_format $offset 2)/")
 		totlen=$(( (${#req} / 4) + 10))
-		req=$(echo ${reqhdr}${req} | \
+		req=$(echo "${reqhdr}${req}" | \
 		      sed -e "s/@TOTLEN-4@/$(_format $totlen 4)/")
 
 		rsp="$(tpm_transfer "$req")"
@@ -1532,7 +1559,7 @@ tpm2_nv_write()
 			break
 		fi
 
-	        let offset=$offset+step
+	        offset=$((offset + step))
 	done
 
 	return $rc
@@ -1622,7 +1649,7 @@ function tpm2_set_active_pcr_banks()
 	local all_pcr_banks="$2"
 
 	local req rsp exp pcr_bank totlen count
-	local OIFS="$IFS" active=""
+	local active=""
 
 	req='\x80\x02@TOTLEN-4@\x00\x00\x01\x2b'
 	req+='\x40\x00\00\x0c'
@@ -1633,7 +1660,7 @@ function tpm2_set_active_pcr_banks()
 	count=0
 
 	# enable the ones the user wants
-	for pcr_bank in $(echo ${pcr_banks} | tr "," "\n"); do
+	for pcr_bank in $(echo "${pcr_banks}" | tr "," "\n"); do
 		# skip if not even available
 		! [[ ",${all_pcr_banks}," =~ ",${pcr_bank}," ]] && continue
 		case "${pcr_bank}" in
@@ -1660,7 +1687,7 @@ function tpm2_set_active_pcr_banks()
 	fi
 
 	# disable the rest
-	for pcr_bank in $(echo ${all_pcr_banks} | tr "," "\n"); do
+	for pcr_bank in $(echo "${all_pcr_banks}" | tr "," "\n"); do
 		# skip over those to activate
 		[[ ",${pcr_banks}," =~ ",${pcr_bank}," ]] && continue
 
@@ -1682,7 +1709,7 @@ function tpm2_set_active_pcr_banks()
 
 	totlen=$((totlen + count * 6))
 
-	req=$(echo $req | \
+	req=$(echo "$req" | \
 	      sed -e "s/@TOTLEN-4@/$(_format "$totlen" 4)/" \
 	          -e "s/@COUNT-4@/$(_format "$count" 4)/")
 
@@ -1730,6 +1757,7 @@ function tpm2_shutdown
 # @param5: The SRK password to use
 # @param6: The ID of the VM
 # @param7: The set of PCR banks to activate
+# @param8: The --key option parameter to start swtpm with
 init_tpm2()
 {
 	local flags="$1"
@@ -1739,17 +1767,18 @@ init_tpm2()
 	local srkpass="$5"
 	local vmid="$6"
 	local pcr_banks="$7"
+	local swtpm_keyopt="$8"
 
 	# where external app writes certs into
 	local certsdir="$tpm2_state_path"
-	local ek tmp output nvindex nxindex_str
+	local ek tmp output nvindex nvindex_str
 	local all_pcr_banks active_pcr_banks
 
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
 	local EK_TEMP_FILE="$certsdir/ektemplate"
 
-	start_tpm "$SWTPM" "$tpm2_state_path"
+	start_tpm "$SWTPM" "$tpm2_state_path" "$swtpm_keyopt"
 	if [ $? -ne 0 ]; then
 		logerr "Could not start the TPM 2."
 		return 1
@@ -1764,17 +1793,17 @@ init_tpm2()
 		return 1
 	fi
 
-	if [ $((flags & $SETUP_CREATE_SPK_F)) -ne 0 ]; then
+	if [ $((flags & SETUP_CREATE_SPK_F)) -ne 0 ]; then
 		pk=$(tpm2_create_spk "$flags" "${TPM2_SPK_HANDLE}")
 		if [ $? -ne 0 ]; then
-			logerr "tpm2_create_spk failed"
+			logerr "tpm2_create_spk failed: $pk"
 			return 1
 		fi
 		logit "Successfully created storage primary key with " \
 		      "handle $(printf "0x%08x" ${TPM2_SPK_HANDLE})."
 	fi
 
-	if [ $((flags & $SETUP_CREATE_EK_F)) -ne 0 ]; then
+	if [ $((flags & SETUP_CREATE_EK_F)) -ne 0 ]; then
 		ek=$(tpm2_create_ek "$flags" "${TPM2_EK_HANDLE}" \
 		     "${EK_TEMP_FILE}")
 		if [ $? -ne 0 ]; then
@@ -1791,7 +1820,7 @@ init_tpm2()
 		fi
 		nvindex_str="$(printf "0x%08x" ${nvindex})"
 
-		if [ $((flags & $SETUP_ALLOW_SIGNING_F )) -ne 0 ]; then
+		if [ $((flags & SETUP_ALLOW_SIGNING_F )) -ne 0 ]; then
 			tpm2_nv_define \
 				${nvindex} \
 				$((TPMA_NV_PLATFORMCREATE | \
@@ -1801,7 +1830,7 @@ init_tpm2()
 				   TPMA_NV_PPWRITE | \
 				   TPMA_NV_NO_DA | \
 				   TPMA_NV_WRITEDEFINE)) \
-				$(get_filesize "${EK_TEMP_FILE}")
+				"$(get_filesize "${EK_TEMP_FILE}")"
 			if [ $? -ne 0 ]; then
 				logerr "Could not create NVRAM area ${nvindex_str}" \
 				       "for EK template."
@@ -1826,7 +1855,7 @@ init_tpm2()
 			fi
 			logit "Successfully created NVRAM area ${nvindex_str} for EK template."
 		fi
-		rm -f ${EK_TEMP_FILE}
+		rm -f "${EK_TEMP_FILE}"
 	fi
 
 	# have external program create the certificates now
@@ -1854,7 +1883,7 @@ init_tpm2()
 			   TPMA_NV_PPWRITE | \
 			   TPMA_NV_NO_DA | \
 			   TPMA_NV_WRITEDEFINE)) \
-			$(get_filesize "${EK_CERT_FILE}")
+			"$(get_filesize "${EK_CERT_FILE}")"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area ${nvindex_str}" \
 			       "for EK certificate."
@@ -1878,7 +1907,7 @@ init_tpm2()
 			fi
 		fi
 		logit "Successfully created NVRAM area ${nvindex_str} for EK certificate."
-		rm -f ${EK_CERT_FILE}
+		rm -f "${EK_CERT_FILE}"
 	fi
 
 	if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ] && \
@@ -1896,7 +1925,7 @@ init_tpm2()
 			   TPMA_NV_PPWRITE | \
 			   TPMA_NV_NO_DA | \
 			   TPMA_NV_WRITEDEFINE)) \
-			$(get_filesize "${PLATFORM_CERT_FILE}")
+			"$(get_filesize "${PLATFORM_CERT_FILE}")"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create NVRAM area ${nvindex_str}" \
 			       "for platform certificate."
@@ -1921,7 +1950,7 @@ init_tpm2()
 		fi
 		logit "Successfully created NVRAM area ${nvindex_str}" \
 		      "for platform certificate."
-		rm -f ${PLATFORM_CERT_FILE}
+		rm -f "${PLATFORM_CERT_FILE}"
 	fi
 
 	if [ "$pcr_banks" != "-" ]; then
@@ -2116,7 +2145,7 @@ main()
 	local keyfile pwdfile cipher="aes-128-cbc"
 	local keyfile_fd pwdfile_fd
 	local got_ownerpass=0 got_srkpass=0
-	local pcr_banks=""
+	local pcr_banks="" swtpm_keyopt=""
 	local tcsd_system_ps_file=""
 
 	while [ $# -ne 0 ]; do
@@ -2155,10 +2184,10 @@ main()
 		--decryption) flags=$((flags | SETUP_DECRYPTION_F));;
 		--pcr-banks) shift; pcr_banks="${pcr_banks},$1";;
 		--tcsd-system-ps-file) shift; tcsd_system_ps_file="$1";;
-		--version) versioninfo $0; exit 0;;
+		--version) versioninfo "$0"; exit 0;;
 		--print-capabilities) print_capabilities; exit 0;;
-		--help|-h|-?) usage $0; exit 0;;
-		*) logerr "Unknown option $1"; usage $0; exit 1;;
+		--help|-h|-?) usage "$0"; exit 0;;
+		*) logerr "Unknown option $1"; usage "$0"; exit 1;;
 		esac
 		shift
 	done
@@ -2166,7 +2195,7 @@ main()
 	[ $got_ownerpass -eq 0 ] && flags=$((flags | SETUP_OWNERPASS_ZEROS_F))
 	[ $got_srkpass -eq 0 ] && flags=$((flags | SETUP_SRKPASS_ZEROS_F))
 
-	pcr_banks="$(echo $pcr_banks |
+	pcr_banks="$(echo "$pcr_banks" |
 	             tr -s ',' |
 	             sed -e 's/^,//' -e 's/,$//' |
 	             tr '[:upper:]' '[:lower:]')"
@@ -2189,7 +2218,7 @@ main()
 	fi
 
 	if [ -n "$LOGFILE" ]; then
-		touch $LOGFILE &>/dev/null
+		touch "$LOGFILE" &>/dev/null
 		if [ ! -w "$LOGFILE" ]; then
 			echo "Cannot write to logfile ${LOGFILE}." >&2
 			exit 1
@@ -2229,12 +2258,12 @@ main()
 			exit 1
 		fi
 		if [ -n "${tcsd_system_ps_file}" ]; then
-			touch ${tcsd_system_ps_file} &>/dev/null
+			touch "${tcsd_system_ps_file}" &>/dev/null
 			if [ $? -ne 0 ]; then
 				logerr "Cannot write to	${tcsd_system_ps_file}"
 				exit 1
 			fi
-			rm -f ${tcsd_system_ps_file}
+			rm -f "${tcsd_system_ps_file}"
 		fi
 	fi
 
@@ -2260,14 +2289,14 @@ main()
 		exit 1
 	fi
 
-	tmp="$(echo $SWTPM | cut -d" " -f1)"
-	if [ ! -x "$(type -P $tmp)" ]; then
+	tmp="$(echo "$SWTPM" | cut -d" " -f1)"
+	if [ ! -x "$(type -P "$tmp")" ]; then
 		logerr "TPM at $SWTPM is not an executable."
 		exit 1
 	fi
 
 	if [ $((flags & SETUP_TPM2_F)) -eq 0 ]; then
-		TCSD=`type -P tcsd`
+		TCSD=$(type -P tcsd)
 		if [ -z "$TCSD" ]; then
 			logerr "tcsd program not found. (PATH=$PATH)"
 			exit 1
@@ -2283,8 +2312,8 @@ main()
 		exit 1
 	fi
 
-	tmp="$(echo $SWTPM_IOCTL | cut -d" " -f1)"
-	if [ ! -x "$(type -P $tmp)" ]; then
+	tmp="$(echo "$SWTPM_IOCTL" | cut -d" " -f1)"
+	if [ ! -x "$(type -P "$tmp")" ]; then
 		logerr "swtpm_ioctl at $SWTPM_IOCTL is not an executable."
 		exit 1
 	fi
@@ -2308,28 +2337,28 @@ main()
 			logerr "Cannot access keyfile $keyfile."
 			exit 1
 		fi
-		SWTPM="$SWTPM --key file=${keyfile}${cipher}"
+		swtpm_keyopt="file=${keyfile}${cipher}"
 		logit "  The TPM's state will be encrypted with a provided key."
 	elif [ -n "$pwdfile" ]; then
 		if [ ! -r "$pwdfile" ]; then
 			logerr "Cannot access passphrase file $pwdfile."
 			exit 1
 		fi
-		SWTPM="$SWTPM --key pwdfile=${pwdfile}${cipher}"
+		swtpm_keyopt="pwdfile=${pwdfile}${cipher}"
 		logit "  The TPM's state will be encrypted using a key derived from a passphrase."
 	elif [ -n "$keyfile_fd" ]; then
 		if ! [[ "$keyfile_fd" =~ ^[0-9]+$ ]]; then
 			logerr "--keyfile-fd parameter $keyfile_fd is not a valid file descriptor"
 			exit 1
 		fi
-		SWTPM="$SWTPM --key fd=${keyfile_fd}${cipher}"
+		swtpm_keyopt="fd=${keyfile_fd}${cipher}"
 		logit "  The TPM's state will be encrypted with a provided key (fd)."
 	elif [ -n "$pwdfile_fd" ]; then
 		if ! [[ "$pwdfile_fd" =~ ^[0-9]+$ ]]; then
 			logerr "--pwdfile-fd parameter $pwdfile_fd is not a valid file descriptor"
 			exit 1
 		fi
-		SWTPM="$SWTPM --key pwdfd=${pwdfile_fd}${cipher}"
+		swtpm_keyopt="pwdfd=${pwdfile_fd}${cipher}"
 		logit "  The TPM's state will be encrypted using a key derived from a passphrase (fd)."
 	fi
 
@@ -2346,11 +2375,13 @@ main()
 
 	if [ $((flags & SETUP_TPM2_F)) -eq 0 ]; then
 		init_tpm $flags "$config_file" "$tpm_state_path" \
-		        "$ownerpass" "$srkpass" "$vmid" "$tcsd_system_ps_file"
+		        "$ownerpass" "$srkpass" "$vmid" \
+			"$tcsd_system_ps_file" "$swtpm_keyopt"
 	else
 		SWTPM="$SWTPM --tpm2"
 		init_tpm2 $flags "$config_file" "$tpm_state_path" \
-		        "$ownerpass" "$srkpass" "$vmid" "$pcr_banks"
+		        "$ownerpass" "$srkpass" "$vmid" "$pcr_banks" \
+			"$swtpm_keyopt"
 	fi
 	ret=$?
 	if [ $ret -eq 0 ]; then
