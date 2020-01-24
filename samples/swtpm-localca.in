@@ -71,16 +71,16 @@ logit()
 	if [ -z "$LOGFILE" ]; then
 		echo "$@" >&1
 	else
-		echo "$@" >> $LOGFILE
+		echo "$@" >> "$LOGFILE"
 	fi
 }
 
 logerr()
 {
 	if [ -z "$LOGFILE" ]; then
-		echo "Error: $@" >&2
+		echo "Error: $*" >&2
 	else
-		echo "Error: $@" >> $LOGFILE
+		echo "Error: $*" >> "$LOGFILE"
 	fi
 }
 
@@ -90,9 +90,9 @@ flock_fd()
 
 	case "${UNAME_S}" in
 	Darwin)
-		flock $fd;;
+		flock "$fd";;
 	*)
-		flock -x $fd;;
+		flock -x "$fd";;
 	esac
 }
 
@@ -105,13 +105,13 @@ get_config_value() {
 	local defaultvalue="$3"
 	local tmp
 
-	if [ ! -r $configfile ]; then
+	if [ ! -r "$configfile" ]; then
 		logerr "Cannot read config file $configfile"
 		return 1
 	fi
 
 	tmp=$(sed -n "s/^${configname}[[:space:]]*=[[:space:]]*//p" \
-		$configfile)
+		"$configfile")
 	tmp=${tmp%% }
 	if [ -z "$tmp" ]; then
 		if [ -n "$defaultvalue" ]; then
@@ -123,7 +123,7 @@ get_config_value() {
 		# don't let eval execute subshells: removed '`' and
 		# convert '$(' to '('
 		tmp=$(echo "$tmp" | sed -e 's/\$(/(/g' -e 's/`\(.*\)`/\1/g')
-		echo $(eval echo "$tmp")
+		echo "$(eval echo "$tmp")"
 	fi
 
 	return 0
@@ -155,7 +155,7 @@ make_dir() {
 get_next_cert_serial() {
 	local serial
 
-	touch ${LOCK}
+	touch "${LOCK}"
 	(
 		# Avoid concurrent creation of next serial
 		flock_fd 100
@@ -163,22 +163,22 @@ get_next_cert_serial() {
 			logerr "Could not get lock ${LOCK}"
 			return 1
 		fi
-		if [ ! -r ${CERTSERIAL} ]; then
-			echo -n "0" > ${CERTSERIAL}
+		if [ ! -r "${CERTSERIAL}" ]; then
+			echo -n "0" > "${CERTSERIAL}"
 		fi
-		serial=$(cat ${CERTSERIAL})
+		serial=$(cat "${CERTSERIAL}")
 		if ! [[ "$serial" =~ ^[0-9]+$ ]]; then
 			serial=1
 		else
 			serial=$((serial+1))
 		fi
-		echo -n $serial > ${CERTSERIAL}
+		echo -n $serial > "${CERTSERIAL}"
 		if [ $? -ne 0 ]; then
 			logerr "Could not write cert serial number file"
 			return 1
 		fi
 		echo $serial
-	) 100>${LOCK}
+	) 100>"${LOCK}"
 
 	return 0
 }
@@ -192,19 +192,19 @@ create_cert() {
 	local tpm_spec_params="$6"
 	local tpm_attr_params="$7"
 
-	local serial=$(get_next_cert_serial)
-	local options="" rc=0 keyparms=""
+	local options="" rc=0 keyparms="" serial skfile skpkcs
 
+	serial=$(get_next_cert_serial)
 	if [ -z "$serial" ]; then
 		return 1
 	fi
 
 	if [ -r "${LOCALCA_OPTIONS}" ]; then
-		options=$(cat ${LOCALCA_OPTIONS})
+		options=$(cat "${LOCALCA_OPTIONS}")
 	fi
 
 	if [ -n "${SIGNKEY_PASSWORD}" ]; then
-		options="$options --signkey-password ${SIGNKEY_PASSWORD}"
+		options="$options --signkey-password \"${SIGNKEY_PASSWORD}\""
 	fi
 
 	if [ -n "${PARENTKEY_PASSWORD}" ]; then
@@ -235,12 +235,19 @@ create_cert() {
 
 	# if ek contains x=..,y=... it's an ECC key
 	if [[ "$ek" =~ x=.*,y=.* ]]; then
-		keyparms="--ecc-x \"$(echo $ek | \
+		keyparms="--ecc-x \"$(echo "$ek" | \
 		                sed -n 's/x=\([[:xdigit:]]*\),.*/\1/p')\" "
-		keyparms+="--ecc-y \"$(echo $ek | \
+		keyparms+="--ecc-y \"$(echo "$ek" | \
 		                sed -n 's/.*y=\([[:xdigit:]]*\)/\1/p')\""
 	else
 		keyparms="--modulus \"${ek}\""
+	fi
+
+	# we need to escape it if string contains ';'
+	if [[ "$SIGNKEY" = "${SIGNKEY%;*}" ]]; then
+		skfile="${SIGNKEY}"
+	else
+		skpkcs="$(escape_pkcs11_url "${SIGNKEY}")"
 	fi
 
 	case "$typ" in
@@ -253,12 +260,13 @@ create_cert() {
 			$options \
 			$tpm_spec_params \
 			$tpm_attr_params \
-			--signkey "$(escape_pkcs11_url ${SIGNKEY})" \
-			--issuercert ${ISSUERCERT} \
-			--out-cert ${dir}/ek.cert \
+			${skpkcs:+--signkey "$skpkcs"} \
+			${skfile:+--signkey \"$skfile\"} \
+			--issuercert \"${ISSUERCERT}\" \
+			--out-cert \"${dir}/ek.cert\" \
 			$keyparms \
 			--days $((10*365)) \
-			--serial $serial
+			--serial \"$serial\"
 			if [ $? -eq 0 ]; then
 				logit "Successfully created EK certificate locally."
 			else
@@ -276,12 +284,13 @@ create_cert() {
 			$options \
 			$tpm_attr_params \
 			--type platform \
-			--signkey ${SIGNKEY} \
-			--issuercert ${ISSUERCERT} \
-			--out-cert ${dir}/platform.cert \
+			${skpkcs:+--signkey "$skpkcs"} \
+			${skfile:+--signkey \"$skfile\"} \
+			--issuercert \"${ISSUERCERT}\" \
+			--out-cert \"${dir}/platform.cert\" \
 			$keyparms \
 			--days $((10*365)) \
-			--serial $serial
+			--serial \"$serial\"
 			if [ $? -eq 0 ]; then
 				logit "Successfully created platform certificate locally."
 			else
@@ -300,7 +309,7 @@ create_cert() {
 # here as well so that we get an Authority Key Id in our EK cert.
 #
 create_localca_cert() {
-	touch ${LOCK}
+	touch "${LOCK}"
 	(
 		# Avoid concurrent creation of keys and certs
 		flock_fd 100
@@ -308,50 +317,46 @@ create_localca_cert() {
 			logerr "Could not get lock ${LOCK}"
 			return 1
 		fi
-		if [ ! -d ${STATEDIR} ]; then
+		if [ ! -d "${STATEDIR}" ]; then
 			# RPM installation must have created this already ...
 			# so user tss can use it (user tss cannot create it)
-			mkdir -p ${STATEDIR}
+			mkdir -p "${STATEDIR}"
 		fi
-		if [ ! -r ${SIGNKEY} ]; then
-			local dir=$(dirname ${SIGNKEY})
+		if [ ! -r "${SIGNKEY}" ]; then
+			local dir=$(dirname "${SIGNKEY}")
 			local cakey=${dir}/swtpm-localca-rootca-privkey.pem
 			local cacert=${dir}/swtpm-localca-rootca-cert.pem
-			local msg passparam
-
-			if [ -n "${SWTPM_ROOTCA_PASSWORD}" ]; then
-				passparam="--password ${SWTPM_ROOTCA_PASSWORD}"
-			fi
+			local msg
 
 			# create a CA first
-			msg=$(${CERTTOOL} \
+			msg=$("${CERTTOOL}" \
 				--generate-privkey \
-				--outfile ${cakey} \
-				${passparam} \
+				${SWTPM_ROOTCA_PASSWORD:+--password "${SWTPM_ROOTCA_PASSWORD}"} \
+				--outfile "${cakey}" \
 				2>&1)
 			[ $? -ne 0 ] && {
 				logerr "Could not create root-CA key ${cakey}."
 				logerr "${msg}"
 				return 1
 			}
-			chmod 640 ${cakey}
+			chmod 640 "${cakey}"
 
 			local tmp=$(mktemp)
-			echo "cn=swtpm-localca-rootca" > ${tmp}
-			echo "ca" >> ${tmp}
-			echo "cert_signing_key" >> ${tmp}
-			echo "expiration_days = 3650" >> ${tmp}
+			echo "cn=swtpm-localca-rootca" > "${tmp}"
+			echo "ca" >> "${tmp}"
+			echo "cert_signing_key" >> "${tmp}"
+			echo "expiration_days = 3650" >> "${tmp}"
 
-			msg=$(GNUTLS_PIN=${SWTPM_ROOTCA_PASSWORD} ${CERTTOOL} \
+			msg=$(GNUTLS_PIN="${SWTPM_ROOTCA_PASSWORD}" "${CERTTOOL}" \
 				--generate-self-signed \
-				--template ${tmp} \
-				--outfile ${cacert} \
-				--load-privkey ${cakey} \
+				--template "${tmp}" \
+				--outfile "${cacert}" \
+				--load-privkey "${cakey}" \
 				2>&1)
 			[ $? -ne 0 ] && {
 				logerr "Could not create root CA."
 				logerr "${msg}"
-				rm -f ${cakey}
+				rm -f "${cakey}"
 				return 1
 			}
 
@@ -360,47 +365,47 @@ create_localca_cert() {
 				export GNUTLS_PIN=${SIGNKEY_PASSWORD}
 			fi
 
-			msg=$(${CERTTOOL} \
+			msg=$("${CERTTOOL}" \
 				--generate-privkey \
-				--outfile ${SIGNKEY} \
+				--outfile "${SIGNKEY}" \
 				2>&1)
 			[ $? -ne 0 ] && {
-				rm -f ${cakey} ${cacert}
+				rm -f "${cakey}" "${cacert}"
 				logerr "Could not create local-CA key ${SIGNKEY}."
 				logerr "${msg}"
 				return 1
 			}
-			chmod 640 ${SIGNKEY}
+			chmod 640 "${SIGNKEY}"
 
-			echo "cn=swtpm-localca" > ${tmp}
-			echo "ca" >> ${tmp}
-			echo "cert_signing_key" >> ${tmp}
-			echo "expiration_days = 3650" >> ${tmp}
+			echo "cn=swtpm-localca" > "${tmp}"
+			echo "ca" >> "${tmp}"
+			echo "cert_signing_key" >> "${tmp}"
+			echo "expiration_days = 3650" >> "${tmp}"
 
-			msg=$(GNUTLS_PIN=${SWTPM_ROOTCA_PASSWORD} ${CERTTOOL} \
+			msg=$(GNUTLS_PIN="${SWTPM_ROOTCA_PASSWORD}" "${CERTTOOL}" \
 				--generate-certificate \
-				--template ${tmp} \
-				--outfile ${ISSUERCERT} \
-				--load-privkey ${SIGNKEY} \
-				--load-ca-privkey ${cakey} \
-				--load-ca-certificate ${cacert} \
+				--template "${tmp}" \
+				--outfile "${ISSUERCERT}" \
+				--load-privkey "${SIGNKEY}" \
+				--load-ca-privkey "${cakey}" \
+				--load-ca-certificate "${cacert}" \
 				2>&1)
 			[ $? -ne 0 ] && {
-				rm -f ${cakey} ${cacert} ${SIGNKEY}
+				rm -f "${cakey}" "${cacert}" "${SIGNKEY}"
 				logerr "Could not create local CA."
 				logerr "${msg}"
 				return 1
 			}
-			rm -f ${tmp}
+			rm -f "${tmp}"
 		fi
-	) 100>${LOCK}
+	) 100>"${LOCK}"
 
 	return 0
 }
 
 usage() {
        cat <<_EOF_
-Usage: $(basename $1) [options]
+Usage: $(basename "$1") [options]
 
 The following options are supported:
 
@@ -513,7 +518,7 @@ main() {
 	done
 
 	if [ -n "$LOGFILE" ]; then
-		touch $LOGFILE &>/dev/null
+		touch "$LOGFILE" &>/dev/null
 		if [ ! -w "$LOGFILE" ]; then
 			logerr "Cannot write to logfile ${LOGFILE}."
 			exit 1
@@ -538,9 +543,9 @@ main() {
 	STATEDIR="$tmp"
 	make_dir "$STATEDIR"
 	LOCK="${STATEDIR}/.lock.swtpm-localca"
-	if [ ! -w ${LOCK} ]; then
-		touch $LOCK
-		if [ ! -w ${LOCK} ]; then
+	if [ ! -w "${LOCK}" ]; then
+		touch "$LOCK"
+		if [ ! -w "${LOCK}" ]; then
 			logerr "Could not create lock file ${LOCK}."
 			exit 1
 		fi
@@ -553,7 +558,7 @@ main() {
 	fi
 	# SIGNKEY may be a GNUTLS url like tpmkey:file= or tpmkey:uuid=
 	if ! [[ "${SIGNKEY}" =~ ^tpmkey:(file|uuid)= ]]; then
-		make_dir $(dirname "$SIGNKEY")
+		make_dir "$(dirname "$SIGNKEY")"
 	fi
 	SIGNKEY_PASSWORD=$(get_config_value "$LOCALCA_CONFIG" "signingkey_password")
 	PARENTKEY_PASSWORD=$(get_config_value "$LOCALCA_CONFIG" "parentkey_password")
@@ -563,7 +568,7 @@ main() {
 		logerr "Missing issuercert variable in config file $LOCALCA_CONFIG."
 		exit 1
 	fi
-	make_dir $(dirname "$ISSUERCERT")
+	make_dir "$(dirname "$ISSUERCERT")"
 
 	# set global CERTTOOL to gnutls's certtool
 	case "${UNAME_S}" in
@@ -614,7 +619,7 @@ main() {
 
 	CERTSERIAL=$(get_config_value "$LOCALCA_CONFIG" "certserial" \
 	    "${STATEDIR}/certserial")
-	make_dir $(dirname "$CERTSERIAL")
+	make_dir "$(dirname "$CERTSERIAL")"
 
 	create_cert "$flags" "$typ" "$dir" "$ek" "$vmid" "$tpm_spec_params" \
 		"$tpm_attr_params"
