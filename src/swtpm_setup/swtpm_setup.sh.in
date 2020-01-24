@@ -175,6 +175,23 @@ logerr()
 	fi
 }
 
+# Check a variable value for spaces and if it has spaces log an error
+# message and return 1, 0 otherwise
+# @param1: value to check for spaces
+# @param2: description to print in case space is found
+check_spaces()
+{
+	local var="$1"
+	local desc="$2"
+
+	if ! [[ "$var" = "${var%[[:space:]]*}" ]]; then
+		logerr "No spaces allowed in ${desc}: '$var'"
+		return 0
+	fi
+
+	return 1
+}
+
 # Get the size of a file
 #
 # @param1: filename
@@ -470,6 +487,10 @@ start_tcsd()
 	local ctr=0 ctr2
 
 	export TSS_TCSD_PORT
+
+	if check_spaces "$TMPDIR" "TMPDIR environment variable"; then
+		return 1
+	fi
 
 	TCSD_CONFIG="$(mktemp)"
 	TCSD_DATA_DIR="$(mktemp -d)"
@@ -2188,6 +2209,9 @@ main()
 		srkpass=$DEFAULT_SRK_PASSWORD
 	fi
 
+	if check_spaces "$LOGFILE" "logfile"; then
+		exit 1
+	fi
 	if [ -n "$LOGFILE" ]; then
 		touch "$LOGFILE" &>/dev/null
 		if [ ! -w "$LOGFILE" ]; then
@@ -2197,6 +2221,9 @@ main()
 	fi
 	if [ "$tpm_state_path" == "" ]; then
 		logerr "--tpm-state must be provided"
+		exit 1
+	fi
+	if check_spaces "$tpm_state_path" "TPM state path"; then
 		exit 1
 	fi
 	if [ ! -d "$tpm_state_path" ]; then
@@ -2226,6 +2253,9 @@ main()
 		fi
 		if [ $((flags & SETUP_CREATE_SPK_F)) -ne 0 ]; then
 			logerr "--create-spk requires --tpm2."
+			exit 1
+		fi
+		if check_spaces "$tsd_system_ps_file" "TCSD's system_ps_file"; then
 			exit 1
 		fi
 		if [ -n "${tcsd_system_ps_file}" ]; then
@@ -2289,6 +2319,9 @@ main()
 		exit 1
 	fi
 
+	if check_spaces "$config_file" "config file path"; then
+		exit 1
+	fi
 	if [ ! -r "$config_file" ]; then
 		logerr "Cannot access config file ${config_file}."
 		exit 1
@@ -2304,6 +2337,9 @@ main()
 	fi
 
 	if [ -n "$keyfile" ]; then
+		if check_spaces "$keyfile" "keyfile path"; then
+			exit 1
+		fi
 		if [ ! -r "$keyfile" ]; then
 			logerr "Cannot access keyfile $keyfile."
 			exit 1
@@ -2311,6 +2347,9 @@ main()
 		SWTPM="$SWTPM --key file=${keyfile}${cipher}"
 		logit "  The TPM's state will be encrypted with a provided key."
 	elif [ -n "$pwdfile" ]; then
+		if check_spaces "$pwdfile" "pwdfile path"; then
+			exit 1
+		fi
 		if [ ! -r "$pwdfile" ]; then
 			logerr "Cannot access passphrase file $pwdfile."
 			exit 1
