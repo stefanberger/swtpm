@@ -307,7 +307,7 @@ function run_swtpm()
 			exit 1
 		fi
 
-		${SWTPM_EXE} cuse $@ ${SWTPM_TEST_SECCOMP_OPT} \
+		${SWTPM_EXE} cuse "$@" ${SWTPM_TEST_SECCOMP_OPT} \
 			-n ${SWTPM_DEV_NAME##*/}
 		rc=$?
 		if [ $rc -ne 0 ]; then
@@ -345,7 +345,7 @@ function run_swtpm()
 			exit 1
 		fi
 
-		${SWTPM_EXE} socket $@ \
+		${SWTPM_EXE} socket "$@" \
 			${SWTPM_TEST_SECCOMP_OPT} \
 			--server type=tcp,port=${SWTPM_SERVER_PORT}${swtpm_server_disconnect} \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
@@ -386,7 +386,7 @@ function run_swtpm()
 			exit 1
 		fi
 
-		${SWTPM_EXE} socket $@ \
+		${SWTPM_EXE} socket "$@" \
 			${SWTPM_TEST_SECCOMP_OPT} \
 			--server type=tcp,port=${SWTPM_SERVER_PORT}${swtpm_server_disconnect} \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &
@@ -428,7 +428,7 @@ function run_swtpm()
 			exit 1
 		fi
 
-		${SWTPM_EXE} socket $@ \
+		${SWTPM_EXE} socket "$@" \
 			${SWTPM_TEST_SECCOMP_OPT} \
 			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
 			--ctrl type=tcp,port=${SWTPM_CTRL_PORT} &
@@ -469,7 +469,7 @@ function run_swtpm()
 			exit 1
 		fi
 
-		${SWTPM_EXE} socket $@ \
+		${SWTPM_EXE} socket "$@" \
 			${SWTPM_TEST_SECCOMP_OPT} \
 			--server type=unixio,path=${SWTPM_CMD_UNIX_PATH} \
 			--ctrl type=unixio,path=${SWTPM_CTRL_UNIX_PATH} &

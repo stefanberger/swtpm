@@ -13,16 +13,16 @@ logit()
 	if [ -z "$LOGFILE" ]; then
 		echo "$@" >&1
 	else
-		echo "$@" >> $LOGFILE
+		echo "$@" >> "$LOGFILE"
 	fi
 }
 
 logerr()
 {
 	if [ -z "$LOGFILE" ]; then
-		echo "Error: $@" >&2
+		echo "Error: $*" >&2
 	else
-		echo "Error: $@" >> $LOGFILE
+		echo "Error: $*" >> "$LOGFILE"
 	fi
 }
 
@@ -32,10 +32,10 @@ logerr()
 function get_filesize()
 {
 	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
-		stat -c%s $1
+		stat -c%s "$1"
 	else
 		# OpenBSD
-		stat -f%z $1
+		stat -f%z "$1"
 	fi
 }
 
@@ -48,7 +48,7 @@ function get_filesize()
 run_tpmtool() {
 	local prg out rc
 
-	prg="spawn tpmtool $@
+	prg="spawn tpmtool "$@"
 		expect {
 			\"Enter SRK password:\" {
 				send \"${TPM_SRK_PASSWORD}\n\"
@@ -89,47 +89,42 @@ create_localca_cert() {
 	local tpmkeyurl params
 	local msg output
 
-	if ! [ -r "${cakey}" ] || ! [ -r ${cacert} ]; then
-		local passparam
-
-		if [ -n "${SWTPM_ROOTCA_PASSWORD}" ]; then
-			passparam="--password ${SWTPM_ROOTCA_PASSWORD}"
-		fi
-		msg=$(${CERTTOOL} \
+	if ! [ -r "${cakey}" ] || ! [ -r "${cacert}" ]; then
+		msg=$("${CERTTOOL}" \
 			--generate-privkey \
-			--outfile ${cakey} \
-			${passparam} \
+			${SWTPM_ROOTCA_PASSWORD:+--password "${SWTPM_ROOTCA_PASSWORD}"} \
+			--outfile "${cakey}" \
 			2>&1)
 		[ $? -ne 0 ] && {
 			logerr "Could not create root-CA key ${cakey}."
 			logerr "${msg}"
 			return 1
 		}
-		chmod 640 ${cakey}
+		chmod 640 "${cakey}"
 
-		echo "cn=swtpm-localca-rootca" > ${template}
-		echo "ca" >> ${template}
-		echo "cert_signing_key" >> ${template}
-		echo "expiration_days = 3650" >> ${template}
+		echo "cn=swtpm-localca-rootca" > "${template}"
+		echo "ca" >> "${template}"
+		echo "cert_signing_key" >> "${template}"
+		echo "expiration_days = 3650" >> "${template}"
 
-		msg=$(GNUTLS_PIN=${SWTPM_ROOTCA_PASSWORD} ${CERTTOOL} \
+		msg=$(GNUTLS_PIN="${SWTPM_ROOTCA_PASSWORD}" ${CERTTOOL} \
 			--generate-self-signed \
-			--template ${template} \
-			--outfile ${cacert} \
-			--load-privkey ${cakey} \
+			--template "${template}" \
+			--outfile "${cacert}" \
+			--load-privkey "${cakey}" \
 			2>&1)
 
 		if [ $? -ne 0 ]; then
 			logerr "Could not create root CA."
 			logerr "${msg}"
-			rm -f ${cakey} ${template}
+			rm -f "${cakey}" "${template}"
 			return 1
 		fi
 	else
 		logit "Reusing existing root CA"
 	fi
 
-	rm -f ${tpmkey} ${tpmpubkey} ${tpmca}
+	rm -f "${tpmkey}" "${tpmpubkey}" "${tpmca}"
 
 	if [ $((flags & FLAG_SRK_WELL_KNOWN)) -ne 0 ]; then
 		unset GNUTLS_PIN
@@ -153,7 +148,7 @@ create_localca_cert() {
 		fi
 	else
 		rm -f "${tpmkey}"
-		msg="$(run_tpmtool --generate-rsa --signing --outfile "${tpmkey}" ${params})"
+		msg="$(run_tpmtool --generate-rsa --signing --outfile \"${tpmkey}\" ${params})"
 		if [ $? -ne 0 ]; then
 			logerr "Could not create signing key with tpmtool"
 			logerr "${msg}"
@@ -165,33 +160,33 @@ create_localca_cert() {
 			rm -f "${tpmkey}"
 			return 1
 		fi
-		chmod 640 ${tpmkey}
-		tpmkeyurl=tpmkey:file=${tpmkey}
+		chmod 640 "${tpmkey}"
+		tpmkeyurl="tpmkey:file=${tpmkey}"
 	fi
 
 	rm -f "${tpmpubkey}"
-	msg=$(run_tpmtool --pubkey=${tpmkeyurl} --outfile "${tpmpubkey}" ${params})
+	msg=$(run_tpmtool "--pubkey=${tpmkeyurl}" --outfile \"${tpmpubkey}\" ${params})
 	if [ $? -ne 0 ] || \
-           [ ! -r ${tpmpubkey} ] || [ $(get_filesize "${tpmpubkey}") -eq 0 ]; then
+           [ ! -r "${tpmpubkey}" ] || [ $(get_filesize "${tpmpubkey}") -eq 0 ]; then
 		logerr "Error: Could not get TPM public key"
 		logerr "${msg}"
 		rm -f "${tpmkey}" "${tpmpubkey}"
 		return 1
 	fi
 
-	echo "cn=swtpm-localca" > ${template}
-	echo "ca" >> ${template}
-	echo "cert_signing_key" >> ${template}
-	echo "expiration_days = 3650" >> ${template}
+	echo "cn=swtpm-localca" > "${template}"
+	echo "ca" >> "${template}"
+	echo "cert_signing_key" >> "${template}"
+	echo "expiration_days = 3650" >> "${template}"
 
 	msg=$(${CERTTOOL} \
 		--generate-certificate \
-		--template ${template} \
-		--outfile ${tpmca} \
-		--load-ca-privkey ${cakey} \
-		--load-ca-certificate ${cacert} \
-		--load-privkey ${tpmkeyurl} \
-		--load-pubkey ${tpmpubkey} \
+		--template "${template}" \
+		--outfile "${tpmca}" \
+		--load-ca-privkey "${cakey}" \
+		--load-ca-certificate "${cacert}" \
+		--load-privkey "${tpmkeyurl}" \
+		--load-pubkey "${tpmpubkey}" \
 		2>&1)
 
 	if [ $? -ne 0 ]; then
@@ -222,20 +217,20 @@ TSS_TCSD_PORT = ${TSS_TCSD_PORT}"
 	echo "${output}"
 
 	if [ "$(id -u)" -eq 0 ]; then
-		chown "${owner}":"${group}" ${dir}
+		chown "${owner}:${group}" "${dir}"
 
-		pushd ${dir} &>/dev/null
+		pushd "${dir}" &>/dev/null
 		if [ $? -eq 0 ]; then
-			chown "${owner}":"${group}" *
+			chown "${owner}:${group}" ./*
 			popd &>/dev/null
 		fi
 
 		if [ -n "${outfile}" ]; then
-			chown "${owner}":"${group}" "${outfile}"
+			chown "${owner}:${group}" "${outfile}"
 		fi
 	fi
 
-	rm -f ${template}
+	rm -f "${template}"
 
 	return 0
 } #create_localca_cert
@@ -253,7 +248,7 @@ usage() {
 	cat << _EOF_
 Create a TPM-based CA for signing EK and platform certificates.
 
-Usage: $(basename $1) [options]
+Usage: $(basename "$1") [options]
 
 THIS SCRIPT IS EXPERIMENTAL
 
