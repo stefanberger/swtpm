@@ -153,7 +153,7 @@ logit()
 	if [ -z "$LOGFILE" ]; then
 		echo "$@" >&1
 	else
-		echo "$@" >> $LOGFILE
+		echo "$@" >> "$LOGFILE"
 	fi
 }
 
@@ -162,7 +162,7 @@ logit_cmd()
 	if [ -z "$LOGFILE" ]; then
 		eval "$@" >&1
 	else
-		eval "$@" >> $LOGFILE
+		eval "$@" >> "$LOGFILE"
 	fi
 }
 
@@ -171,7 +171,7 @@ logerr()
 	if [ -z "$LOGFILE" ]; then
 		echo "Error: $@" >&2
 	else
-		echo "Error: $@" >> $LOGFILE
+		echo "Error: $@" >> "$LOGFILE"
 	fi
 }
 
@@ -2189,7 +2189,7 @@ main()
 	fi
 
 	if [ -n "$LOGFILE" ]; then
-		touch $LOGFILE &>/dev/null
+		touch "$LOGFILE" &>/dev/null
 		if [ ! -w "$LOGFILE" ]; then
 			echo "Cannot write to logfile ${LOGFILE}." >&2
 			exit 1
