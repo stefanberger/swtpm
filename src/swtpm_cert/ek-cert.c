@@ -50,6 +50,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <getopt.h>
 
 #include <arpa/inet.h>
 
@@ -974,7 +975,6 @@ int
 main(int argc, char *argv[])
 {
     int ret = 1;
-    int i;
     gnutls_pubkey_t pubkey = NULL;
     gnutls_x509_privkey_t sigkey = NULL;
     gnutls_x509_crt_t sigcert = NULL;
@@ -983,14 +983,11 @@ main(int argc, char *argv[])
     const char *pubkey_filename = NULL;
     const char *sigkey_filename = NULL;
     const char *cert_filename = NULL;
-    const char *modulus_str = NULL;
     const char *issuercert_filename = NULL;
     unsigned char *modulus_bin = NULL;
     int modulus_len = 0;
-    const char *ecc_x_str = NULL;
     unsigned char *ecc_x_bin = NULL;
     int ecc_x_len = 0;
-    const char *ecc_y_str = NULL;
     unsigned char *ecc_y_bin = NULL;
     int ecc_y_len = 0;
     gnutls_datum_t datum = { NULL, 0},  out = { NULL, 0};
@@ -999,7 +996,7 @@ main(int argc, char *argv[])
     time_t now;
     int err;
     FILE *cert_file;
-    char *subject = NULL;
+    const char *subject = NULL;
     const char *error = NULL;
     int days = 365;
     char *sigkeypass = NULL;
@@ -1012,65 +1009,85 @@ main(int argc, char *argv[])
     enum cert_type_t certtype = CERT_TYPE_EK;
     const char *oid;
     unsigned int key_usage = 0;
-    char *tpm_manufacturer = NULL;
-    char *tpm_version = NULL;
-    char *tpm_model = NULL;
-    char *platf_manufacturer = NULL;
-    char *platf_version = NULL;
-    char *platf_model = NULL;
+    const char *tpm_manufacturer = NULL;
+    const char *tpm_version = NULL;
+    const char *tpm_model = NULL;
+    const char *platf_manufacturer = NULL;
+    const char *platf_version = NULL;
+    const char *platf_model = NULL;
     bool add_header = false;
-    char *spec_family = NULL;
+    const char *spec_family = NULL;
     long int spec_level = ~0;
     long int spec_revision = ~0;
     int flags = 0;
     bool is_ecc = false;
+    static struct option long_options[] = {
+        {"pubkey", required_argument, NULL, 'p'},
+        {"modulus", required_argument, NULL, 'm'},
+        {"ecc-x", required_argument, NULL, 'x'},
+        {"ecc-y", required_argument, NULL, 'y'},
+        {"exponent", required_argument, NULL, 'e'},
+        {"signkey", required_argument, NULL, 's'},
+        {"signkey-password", required_argument, NULL, 'S'},
+        {"signkey-pwd", required_argument, NULL, 'T'},
+        {"parentkey-passord", required_argument, NULL, 'P'},
+        {"parentkey-pwd", required_argument, NULL, 'Q'},
+        {"issuercert", required_argument, NULL, 'i'},
+        {"out-cert", required_argument, NULL, 'o'},
+        {"subject", required_argument, NULL, 'u'},
+        {"days", required_argument, NULL, 'd'},
+        {"serial", required_argument, NULL, 'r'},
+        {"type", required_argument, NULL, 't'},
+        {"tpm-manufacturer", required_argument, NULL, '1'},
+        {"tpm-model", required_argument, NULL, '2'},
+        {"tpm-version", required_argument, NULL, '3'},
+        {"platform-manufacturer", required_argument, NULL, '4'},
+        {"platform-model", required_argument, NULL, '5'},
+        {"platform-version", required_argument, NULL, '6'},
+        {"tpm-spec-family", required_argument, NULL, '7'},
+        {"tpm-spec-level", required_argument, NULL, '8'},
+        {"tpm-spec-revision", required_argument, NULL, '9'},
+        {"pem", no_argument, NULL, 'M'},
+        {"add-header", no_argument, NULL, 'a'},
+        {"tpm2", no_argument, NULL, 'X'},
+        {"allow-signing", no_argument, NULL, 'A'},
+        {"decryption", no_argument, NULL, 'D'},
+        {"print-capabilities", no_argument, NULL, 'c'},
+        {"version", no_argument, NULL, 'v'},
+        {"help", no_argument, NULL, 'h'},
+        {NULL, 0, NULL, 0},
+    };
+    int opt, option_index = 0;
 
-    i = 1;
-    while (i < argc) {
-        if (!strcmp(argv[i], "--pubkey")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --pubkey.\n");
+#ifdef __NetBSD__
+    while ((opt = getopt_long(argc, argv,
+                    "p:m:x:y:e:s:S:T:P:Q:i:o:u:d:r:1:2:3:4:5:6:7:8:9:MaXADcvh",
+                    long_options, &option_index)) != -1) {
+#else
+    while ((opt = getopt_long_only(argc, argv, "", long_options,
+                                   &option_index)) != -1) {
+#endif
+        switch (opt) {
+        case 'p': /* --pubkey */
+            pubkey_filename = optarg;
+            break;
+        case 'm': /* --modulus */
+            if (!(modulus_bin = hex_str_to_bin(optarg, &modulus_len))) {
                 goto cleanup;
             }
-            pubkey_filename = argv[i];
-        } else if (!strcmp(argv[i], "--modulus")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --modulus.\n");
+            break;
+        case 'x': /* --ecc-x */
+            if (!(ecc_x_bin = hex_str_to_bin(optarg, &ecc_x_len))) {
                 goto cleanup;
             }
-            modulus_str = argv[i];
-            if (!(modulus_bin = hex_str_to_bin(modulus_str, &modulus_len))) {
+            break;
+        case 'y': /* --ecc-y */
+            if (!(ecc_y_bin = hex_str_to_bin(optarg, &ecc_y_len))) {
                 goto cleanup;
             }
-        } else if (!strcmp(argv[i], "--ecc-x")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --ecc-x.\n");
-                goto cleanup;
-            }
-            ecc_x_str = argv[i];
-            if (!(ecc_x_bin = hex_str_to_bin(ecc_x_str, &ecc_x_len))) {
-                goto cleanup;
-            }
-        } else if (!strcmp(argv[i], "--ecc-y")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --ecc-y.\n");
-                goto cleanup;
-            }
-            ecc_y_str = argv[i];
-            if (!(ecc_y_bin = hex_str_to_bin(ecc_y_str, &ecc_y_len))) {
-                goto cleanup;
-            }
-        } else if (!strcmp(argv[i], "--exponent")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --exponent.\n");
-                goto cleanup;
-            }
-            exponent = strtol(argv[i], NULL, 0);
+            break;
+        case 'e': /* --exponent */
+            exponent = strtol(optarg, NULL, 0);
             if (exponent == 0) {
                 fprintf(stderr, "Exponent is wrong and cannot be 0.\n");
                 goto cleanup;
@@ -1079,206 +1096,131 @@ main(int argc, char *argv[])
                 fprintf(stderr, "Exponent must fit into 32bits.\n");
                 goto cleanup;
             }
-        } else if (!strcmp(argv[i], "--signkey")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --signkey.\n");
-                goto cleanup;
-            }
-            sigkey_filename = argv[i];
-        } else if (!strcmp(argv[i], "--signkey-password")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --signkey-password.\n");
-                goto cleanup;
-            }
+            break;
+        case 's': /* --signkey */
+            sigkey_filename = optarg;
+            break;
+        case 'S': /* --signkey-password */
             free(sigkeypass);
-            sigkeypass = strdup(argv[i]);
+            sigkeypass = strdup(optarg);
             if (!sigkeypass) {
                 fprintf(stderr, "Out of memory.\n");
                 goto cleanup;
             }
-        } else if (!strcmp(argv[i], "--signkey-pwd")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --signkey-pwd.\n");
-                goto cleanup;
-            }
+            break;
+        case 'T': /* --signkey-pwd */
             free(sigkeypass);
-            sigkeypass = get_password(argv[i]);
+            sigkeypass = get_password(optarg);
             if (!sigkeypass)
                 goto cleanup;
-        } else if (!strcmp(argv[i], "--parentkey-password")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --parentkey-password.\n");
-                goto cleanup;
-            }
+            break;
+        case 'P': /* --parentkey-password */
             free(parentkeypass);
-            parentkeypass = strdup(argv[i]);
+            parentkeypass = strdup(optarg);
             if (!parentkeypass) {
                 fprintf(stderr, "Out of memory.\n");
                 goto cleanup;
             }
-        } else if (!strcmp(argv[i], "--parentkey-pwd")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --parentkey-pwd.\n");
-                goto cleanup;
-            }
+            break;
+        case 'Q': /* --parentkey-pwd */
             free(parentkeypass);
-            parentkeypass = get_password(argv[i]);
+            parentkeypass = get_password(optarg);
             if (!parentkeypass)
                 goto cleanup;
-        } else if (!strcmp(argv[i], "--issuercert")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --issuercert.\n");
+            break;
+        case 'i': /* --issuercert */
+            issuercert_filename = optarg;
+            break;
+        case 'o': /* --out-cert */
+            cert_filename = optarg;
+            break;
+        case 'u': /* --subject */
+            subject = optarg;
+            break;
+        case 'd': /* --days */
+            days = atoi(optarg);
+            if (days < 0) {
+                fprintf(stderr, "Days must be a positive number.\n");
                 goto cleanup;
             }
-            issuercert_filename = argv[i];
-        } else if (!strcmp(argv[i], "--out-cert")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --out-cert.\n");
-                goto cleanup;
-            }
-            cert_filename = argv[i];
-        } else if (!strcmp(argv[i], "--subject")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --subject.\n");
-                goto cleanup;
-            }
-            subject = argv[i];
-        } else if (!strcmp(argv[i], "--days")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --days.\n");
-                goto cleanup;
-            }
-            days = atoi(argv[i]);
-        } else if (!strcmp(argv[i], "--serial")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --serial.\n");
-                goto cleanup;
-            }
-            serial = atoi(argv[i]);
-        } else if (!strcmp(argv[i], "--type")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --type.\n");
-                goto cleanup;
-            }
-            if (!strcasecmp(argv[i], "ek")) {
+            break;
+        case 'r': /* --serial */
+            serial = atoi(optarg);
+            break;
+        case 't': /* --type */
+            if (!strcasecmp(optarg, "ek")) {
                 certtype = CERT_TYPE_EK;
-            } else if (!strcasecmp(argv[i], "platform")) {
+            } else if (!strcasecmp(optarg, "platform")) {
                 certtype = CERT_TYPE_PLATFORM;
-//            } else if (!strcasecmp(argv[i], "aik")) {
-//                /* AIK cert needs EK cert as input */
-//                certtype = CERT_TYPE_AIK;
             } else {
                 fprintf(stderr, "Unknown certificate type '%s'.\n",
-                        argv[i]);
+                        optarg);
                 goto cleanup;
             }
-        } else if (!strcmp(argv[i], "--tpm-manufacturer")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --tpm-manufacturer.\n");
-                goto cleanup;
-            }
-            tpm_manufacturer = argv[i];
-        } else if (!strcmp(argv[i], "--tpm-model")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --tpm-model.\n");
-                goto cleanup;
-            }
-            tpm_model = argv[i];
-        } else if (!strcmp(argv[i], "--tpm-version")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --tpm-version.\n");
-                goto cleanup;
-            }
-            tpm_version = argv[i];
-        } else if (!strcmp(argv[i], "--platform-manufacturer")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --platform-manufacturer.\n");
-                goto cleanup;
-            }
-            platf_manufacturer = argv[i];
-        } else if (!strcmp(argv[i], "--platform-model")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --platform-model.\n");
-                goto cleanup;
-            }
-            platf_model = argv[i];
-        } else if (!strcmp(argv[i], "--platform-version")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --platform-version.\n");
-                goto cleanup;
-            }
-            platf_version = argv[i];
-        } else if (!strcmp(argv[i], "--tpm-spec-family")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --tpm-spec-family.\n");
-                goto cleanup;
-            }
-            spec_family = argv[i];
-        } else if (!strcmp(argv[i], "--tpm-spec-level")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --tpm-spec-level.\n");
-                goto cleanup;
-            }
-            spec_level = strtol(argv[i], NULL, 0);
+            break;
+        case '1': /* --tpm-manufacturer */
+            tpm_manufacturer = optarg;
+            break;
+        case '2': /* --tpm-model */
+            tpm_model = optarg;
+            break;
+        case '3': /* --tpm-version */
+            tpm_version = optarg;
+            break;
+        case '4': /* --platform-manufacturer */
+            platf_manufacturer = optarg;
+            break;
+        case '5': /* --platform-model */
+            platf_model = optarg;
+            break;
+        case '6': /* --platform-version */
+            platf_version = optarg;
+            break;
+        case '7': /* --tpm-spec-family */
+            spec_family = optarg;
+            break;
+        case '8': /* --tpm-spec-level */
+            spec_level = strtol(optarg, NULL, 0);
             if (spec_level < 0) {
                 fprintf(stderr, "--tpm-spec-level must pass a positive number.\n");
                 goto cleanup;
             }
-        } else if (!strcmp(argv[i], "--tpm-spec-revision")) {
-            i++;
-            if (i == argc) {
-                fprintf(stderr, "Missing argument for --tpm-spec-revision.\n");
-                goto cleanup;
-            }
-            spec_revision = strtol(argv[i], NULL, 0);
+            break;
+        case '9': /* --tpm-spec-revision */
+            spec_revision = strtol(optarg, NULL, 0);
             if (spec_revision < 0) {
                 fprintf(stderr, "--tpm-spec-revision must pass a positive number.\n");
                 goto cleanup;
             }
-        } else if (!strcmp(argv[i], "--pem")) {
+            break;
+        case 'M': /* --pem */
             write_pem = true;
-        } else if (!strcmp(argv[i], "--add-header")) {
+            break;
+        case 'a': /* --add-header */
             add_header = true;
-        } else if (!strcmp(argv[i], "--tpm2")) {
+            break;
+        case 'X': /* --tpm2 */
             flags |= CERT_TYPE_TPM2_F;
-        } else if (!strcmp(argv[i], "--allow-signing")) {
+            break;
+        case 'A': /* --allow-signing */
             flags |= ALLOW_SIGNING_F;
-        } else if (!strcmp(argv[i], "--print-capabilities")) {
+            break;
+        case 'D': /* --decryption */
+            flags |= DECRYPTION_F;
+            break;
+        case 'c': /* --print-capabilities */
             capabilities_print_json();
             exit(0);
-        } else if (!strcmp(argv[i], "--decryption")) {
-            flags |= DECRYPTION_F;
-        } else if (!strcmp(argv[i], "--version")) {
+        case 'v': /* --version */
             versioninfo(argv[0]);
             exit(0);
-        } else if (!strcmp(argv[i], "--help")) {
+        case 'h': /* --help */
             usage(argv[0]);
             exit(0);
-        } else {
-            fprintf(stderr, "Unknown command line parameter '%s'.\n", argv[i]);
+        default:
             usage(argv[0]);
             exit(1);
         }
-        i++;
     }
 
     if (flags & CERT_TYPE_TPM2_F)
