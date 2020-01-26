@@ -192,5 +192,8 @@ check-display:
 	@if test -n "$$SWTPM_IOCTL"; then \
 		echo "*** Using SWTPM_IOCTL=$$SWTPM_IOCTL"; \
 	fi
+	@if test -n "$$SWTPM_CERT"; then \
+		echo "*** Using SWTPM_CERT=$$SWTPM_CERT"; \
+	fi
 
 check: check-am check-display
