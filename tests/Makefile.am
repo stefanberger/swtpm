@@ -99,6 +99,7 @@ EXTRA_DIST=$(TESTS) \
 	data/issuercert.pem \
 	data/pubek.pem \
 	data/signkey.pem \
+	data/signkey-encrypted.pem \
 	data/keyfile.txt \
 	data/keyfile256bit.txt \
 	data/pwdfile.txt \

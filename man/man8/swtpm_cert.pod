@@ -19,7 +19,7 @@ The following options are supported:
 
 =over 4
 
-=item B<--type {ek|platform|aik}>
+=item B<--type {ek|platform}>
 
 The type of certificate to create; by default an EK certificate is created.
 
@@ -52,10 +52,29 @@ The key used for signing the certificate. The file must be in PEM format.
 
 Optional password for the signing key.
 
-=item B<--parent-password <password>>
+=item B<--signkey-pwd <pwd>>
+
+This is an alternative option for passing the signing key password. The
+following formats are supported for I<pwd>:
+
+  - <password>                   : direct password
+  - pass:<password>              : direct password
+  - file:<filename>              : password in file
+  - fd:<file descriptor>         : read password from file descriptor
+  - env:<environment variable>   : read password from env. variable
+
+All passwords read from files and file descriptors must be a maximum
+of 255 bytes (plus one byte for terminating NUL byte).
+
+=item B<--parentkey-password <password>>
 
 Optional password for a parent key. In case a TPM key is used for signing
 this would be the password for the TPM's storage root key (SRK).
+
+=item B<--parentkey-pwd <pwd>>
+
+This is an alternative option for passing the parentkey password. See
+the description above for supported I<pwd> formats.
 
 =item B<--issuercert <filename>>
 
