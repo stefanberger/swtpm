@@ -992,7 +992,7 @@ main(int argc, char *argv[])
     int ecc_y_len = 0;
     gnutls_datum_t datum = { NULL, 0},  out = { NULL, 0};
     gnutls_digest_algorithm_t hashAlgo = GNUTLS_DIG_SHA1;
-    int serial = 1;
+    unsigned long long serial = 1;
     time_t now;
     int err;
     FILE *cert_file;
@@ -1001,7 +1001,7 @@ main(int argc, char *argv[])
     int days = 365;
     char *sigkeypass = NULL;
     char *parentkeypass = NULL;
-    uint32_t ser_number;
+    uint64_t ser_number;
     long int exponent = 0x10001;
     bool write_pem = false;
     uint8_t id[512];
@@ -1058,6 +1058,7 @@ main(int argc, char *argv[])
         {NULL, 0, NULL, 0},
     };
     int opt, option_index = 0;
+    char *endptr;
 
 #ifdef __NetBSD__
     while ((opt = getopt_long(argc, argv,
@@ -1145,7 +1146,12 @@ main(int argc, char *argv[])
             }
             break;
         case 'r': /* --serial */
-            serial = atoi(optarg);
+            errno = 0;
+            serial = strtoull(optarg, &endptr, 10);
+            if (errno != 0 || optarg == endptr || *endptr != 0) {
+                fprintf(stderr, "Serial number is invalid.\n");
+                goto cleanup;
+            }
             break;
         case 't': /* --type */
             if (!strcasecmp(optarg, "ek")) {
@@ -1226,7 +1232,7 @@ main(int argc, char *argv[])
     if (flags & CERT_TYPE_TPM2_F)
         hashAlgo = GNUTLS_DIG_SHA256;
 
-    ser_number = htonl(serial);
+    ser_number = htobe64(serial);
 
     if (modulus_bin && (ecc_x_bin || ecc_y_bin)) {
         fprintf(stderr, "RSA modulus and ECC parameters cannot both be "
