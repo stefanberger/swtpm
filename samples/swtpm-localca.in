@@ -203,14 +203,6 @@ create_cert() {
 		options=$(cat "${LOCALCA_OPTIONS}")
 	fi
 
-	if [ -n "${SIGNKEY_PASSWORD}" ]; then
-		options="$options --signkey-password \"${SIGNKEY_PASSWORD}\""
-	fi
-
-	if [ -n "${PARENTKEY_PASSWORD}" ]; then
-		options="$options --parentkey-password ${PARENTKEY_PASSWORD}"
-	fi
-
 	if [ -n "$vmid" ]; then
 		options="$options --subject \"CN=$vmid\""
 	else
@@ -258,6 +250,8 @@ create_cert() {
 		else
 			eval swtpm_cert \
 			$options \
+			${SIGNKEY_PASSWORD:+--signkey-pwd file:<(echo -en "$SIGNKEY_PASSWORD")} \
+			${PARENTKEY_PASSWORD:+--parentkey-pwd file:<(echo -en "$PARENTKEY_PASSWORD")} \
 			$tpm_spec_params \
 			$tpm_attr_params \
 			${skpkcs:+--signkey "$skpkcs"} \
