@@ -3,7 +3,7 @@
  *
  * Authors: Stefan Berger <stefanb@us.ibm.com>
  *
- * (c) Copyright IBM Corporation 2014, 2015.
+ * (c) Copyright IBM Corporation 2014, 2015, 2020.
  *
  * All rights reserved.
  *
@@ -49,6 +49,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <arpa/inet.h>
 
@@ -110,7 +111,9 @@ usage(const char *prg)
         "--signkey <filename>      : PEM file for CA signing key or GnuTLS TPM or\n"
         "                            PKCS11 URL\n"
         "--signkey-password <pass> : Password for the CA signing key\n"
+        "--signkey-pwd <pwd>       : Alternative password option for CA signing key\n"
         "--parentkey-password <p>  : Password of parent key; SRK password of TPM\n"
+        "--parentkey-pwd <pwd>     : Alternative password option for SRK password\n"
         "--issuercert <filename>   : PEM file with CA cert\n"
         "--out-cert <filename>     : Filename for certificate\n"
         "--modulus <hex string>    : The modulus of the public key\n"
@@ -144,9 +147,15 @@ usage(const char *prg)
         "\n"
         "The following environment variables are supported:\n"
         "\n"
-        "SWTPM_PKCS11_PIN          : PKCS11 PIN to use\n"
-        "\n",
-        prg);
+        "SWTPM_PKCS11_PIN              : PKCS11 PIN to use\n"
+        "\n"
+        "Password passed in 'pwd' options support the following formats:\n"
+        "- <password>           : direct password\n"
+        "- pass:<password>      : direct password\n"
+        "- fd:<file descriptor> : read password from file descriptor\n"
+        "- file:<filename>      : read password from filename\n"
+        "- env:<env. varname>   : read from environment variable\n"
+        , prg);
 }
 
 static char
@@ -884,6 +893,70 @@ static int mypinfunc(void *userdata, int attempt, const char *tokenurl,
     return 0;
 }
 
+/*
+ * Get the password from the password parameter, which may have one of the
+ * following formats:
+ * <password>
+ * pass:<password>
+ * fd:<file descriptor>
+ * file:<filename>
+ * env:<environment variable>
+ * Any password read from files must not exceed 256 bytes including
+ * teminating 0 byte.
+ */
+static char *get_password(const char *password)
+{
+    char *result;
+    char *endptr;
+    int fd;
+    char buffer[256];
+    ssize_t n;
+    const char *tocopy;
+
+    if (!strncmp(password, "fd:", 3)) {
+        errno = 0;
+        fd = strtol(&password[3], &endptr, 10);
+        if (errno != 0 || fd < 0 || endptr == &password[3] || *endptr != 0) {
+            fprintf(stderr, "Bad file descriptor for password.\n");
+            return NULL;
+        }
+        goto readfd;
+    } else if (!strncmp(password, "file:", 5)) {
+        fd = open(&password[5], O_RDONLY);
+        if (fd < 0) {
+            fprintf(stderr, "Could not open password file for reading: %s\n",
+                    strerror(errno));
+            return NULL;
+        }
+readfd:
+        n = read(fd, buffer, sizeof(buffer) - 1);
+        close(fd);
+        if (n < 0) {
+            fprintf(stderr, "Could not read password from file descriptor: %s\n",
+                    strerror(errno));
+            return NULL;
+        }
+        buffer[n] = 0;
+        tocopy = buffer;
+    } else if (!strncmp(password, "pass:", 5)) {
+        tocopy = &password[5];
+    } else if (!strncmp(password, "env:", 4)) {
+        tocopy = getenv(&password[4]);
+        if (tocopy == NULL) {
+            fprintf(stderr, "Could not get password from environment variable\n");
+            return NULL;
+        }
+    } else {
+        tocopy = password;
+    }
+
+    result = strdup(tocopy);
+    if (!result)
+        fprintf(stderr, "Out of memory.\n");
+
+    return result;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1006,14 +1079,44 @@ main(int argc, char *argv[])
                 fprintf(stderr, "Missing argument for --signkey-password.\n");
                 goto cleanup;
             }
-            sigkeypass = argv[i];
+            free(sigkeypass);
+            sigkeypass = strdup(argv[i]);
+            if (!sigkeypass) {
+                fprintf(stderr, "Out of memory.\n");
+                goto cleanup;
+            }
+        } else if (!strcmp(argv[i], "--signkey-pwd")) {
+            i++;
+            if (i == argc) {
+                fprintf(stderr, "Missing argument for --signkey-pwd.\n");
+                goto cleanup;
+            }
+            free(sigkeypass);
+            sigkeypass = get_password(argv[i]);
+            if (!sigkeypass)
+                goto cleanup;
         } else if (!strcmp(argv[i], "--parentkey-password")) {
             i++;
             if (i == argc) {
                 fprintf(stderr, "Missing argument for --parentkey-password.\n");
                 goto cleanup;
             }
-            parentkeypass = argv[i];
+            free(parentkeypass);
+            parentkeypass = strdup(argv[i]);
+            if (!parentkeypass) {
+                fprintf(stderr, "Out of memory.\n");
+                goto cleanup;
+            }
+        } else if (!strcmp(argv[i], "--parentkey-pwd")) {
+            i++;
+            if (i == argc) {
+                fprintf(stderr, "Missing argument for --parentkey-pwd.\n");
+                goto cleanup;
+            }
+            free(parentkeypass);
+            parentkeypass = get_password(argv[i]);
+            if (!parentkeypass)
+                goto cleanup;
         } else if (!strcmp(argv[i], "--issuercert")) {
             i++;
             if (i == argc) {
@@ -1658,6 +1761,8 @@ cleanup:
 
     gnutls_global_deinit();
 
+    free(sigkeypass);
+    free(parentkeypass);
     free(modulus_bin);
     free(ecc_x_bin);
     free(ecc_y_bin);
