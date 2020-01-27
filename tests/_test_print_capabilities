@@ -50,4 +50,21 @@ fi
 
 echo "Test 2: OK"
 
+msg="$(${SWTPM_CERT} --print-capabilities 2>&1)"
+if [ $? -ne 0 ]; then
+	echo "Error: Could not pass --print-capabilities to ${SWTPM_CERT}"
+	echo "${msg}"
+	exit 1
+fi
+
+exp='{ "type": "swtpm_cert", "features": [ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd" ] }'
+if [ "${msg}" != "${exp}" ]; then
+	echo "Unexpected response from ${SWTPM_CERT} to --print-capabilities:"
+	echo "Actual   : ${msg}"
+	echo "Expected : ${exp}"
+	exit 1
+fi
+
+echo "Test 3: OK"
+
 exit 0
