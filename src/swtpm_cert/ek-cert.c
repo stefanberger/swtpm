@@ -142,6 +142,7 @@ usage(const char *prg)
         "                            requires --tpm2\n"
         "--decryption              : The EK if a TPM 2 can be used for key\n"
         "                            encipherment; requires --tpm2\n"
+        "--print-capabilities      : Print capabilities and exit\n"
         "--version                 : Display version and exit\n"
         "--help                    : Display this help screen and exit\n"
         "\n"
@@ -957,6 +958,18 @@ readfd:
     return result;
 }
 
+static void capabilities_print_json()
+{
+    fprintf(stdout,
+            "{ "
+            "\"type\": \"swtpm_cert\", "
+            "\"features\": [ "
+             "\"cmdarg-signkey-pwd\""
+             ", \"cmdarg-parentkey-pwd\""
+              " ] "
+             "}\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1249,6 +1262,9 @@ main(int argc, char *argv[])
             flags |= CERT_TYPE_TPM2_F;
         } else if (!strcmp(argv[i], "--allow-signing")) {
             flags |= ALLOW_SIGNING_F;
+        } else if (!strcmp(argv[i], "--print-capabilities")) {
+            capabilities_print_json();
+            exit(0);
         } else if (!strcmp(argv[i], "--decryption")) {
             flags |= DECRYPTION_F;
         } else if (!strcmp(argv[i], "--version")) {

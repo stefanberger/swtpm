@@ -251,6 +251,32 @@ Create an \s-1EK\s0 that can also be used for signing. Without this option, the
 If \-\-allow\-signing is passed and the \s-1EK\s0 should also be useable for key
 encipherment, this option must be passed. Otherwise key encipherment is the
 default. This option requires \-\-tpm2.
+.IP "\fB\-\-print\-capabilities\fR (since v0.3)" 4
+.IX Item "--print-capabilities (since v0.3)"
+Print capabilities that were added to swtpm_cert after version 0.2.
+The output may contain the following:
+.Sp
+.Vb 7
+\&    {
+\&      "type": "swtpm_cert",
+\&      "features": [
+\&        "cmdarg\-signkey\-pwd",
+\&        "cmdarg\-parentkey\-pwd"
+\&      ]
+\&    }
+.Ve
+.Sp
+The maining of the feature verbs is as follows:
+.RS 4
+.IP "\fBcmdarg-signkey-pwd\fR" 4
+.IX Item "cmdarg-signkey-pwd"
+The \fI\-\-signkey\-pwd\fR option is supported.
+.IP "\fBcmdarg-parentkey-pwd\fR" 4
+.IX Item "cmdarg-parentkey-pwd"
+The \fI\-\-parentkey\-pwd\fR option is supported.
+.RE
+.RS 4
+.RE
 .IP "\fB\-\-help, \-h\fR" 4
 .IX Item "--help, -h"
 Display the help screen

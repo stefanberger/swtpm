@@ -142,6 +142,33 @@ If --allow-signing is passed and the EK should also be useable for key
 encipherment, this option must be passed. Otherwise key encipherment is the
 default. This option requires --tpm2.
 
+=item B<--print-capabilities> (since v0.3)
+
+Print capabilities that were added to swtpm_cert after version 0.2.
+The output may contain the following:
+
+    {
+      "type": "swtpm_cert",
+      "features": [
+        "cmdarg-signkey-pwd",
+        "cmdarg-parentkey-pwd"
+      ]
+    }
+
+The maining of the feature verbs is as follows:
+
+=over 4
+
+=item B<cmdarg-signkey-pwd>
+
+The I<--signkey-pwd> option is supported.
+
+=item B<cmdarg-parentkey-pwd>
+
+The I<--parentkey-pwd> option is supported.
+
+=back
+
 =item B<--help, -h>
 
 Display the help screen
