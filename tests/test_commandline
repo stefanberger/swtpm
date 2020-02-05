@@ -131,7 +131,7 @@ fi
 
 exec 100>&-
 
-if wait_port_closed $PORT $PID 4; then
+if wait_port_closed $PORT $PID 8; then
 	echo "Test 2 failed: TPM did not close port"
 	exit 1
 fi
