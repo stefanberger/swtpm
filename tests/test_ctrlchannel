@@ -219,6 +219,7 @@ run_swtpm ${SWTPM_INTERFACE} \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--log file=$LOG_FILE \
+	--flags startup-clear  \
 	$RUNAS
 PID=$SWTPM_PID
 
@@ -246,16 +247,6 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-# Send TPM_Init to the TPM: CMD_INIT = 0x00 00 00 02 + flags
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x02\x00\x00\x00\x00')"
-exp=" 00 00 00 00"
-if [ "$res" != "$exp" ]; then
-	echo "Error: Socket TPM: Unexpected response from CMD_INIT:"
-	echo "       actual  : $res"
-	echo "       expected: $exp"
-	exit 1
-fi
-
 # Send unknown command to the TPM
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\xff\xff')"
 exp=" 00 00 00 0a"
@@ -266,9 +257,9 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-# Startup the TPM
+# Startup the TPM; we use --flags startup-clear, so expect this to fail with error 0x26 (INVALID POST INIT)
 res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')"
-exp=' 00 c4 00 00 00 0a 00 00 00 00'
+exp=' 00 c4 00 00 00 0a 00 00 00 26'
 if [ "$res" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
 	echo "expected: $exp"

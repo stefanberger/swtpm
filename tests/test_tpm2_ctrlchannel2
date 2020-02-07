@@ -153,6 +153,7 @@ $SWTPM_EXE socket \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
 	--tpm2 \
+	--flags startup-clear \
 	${SWTPM_TEST_SECCOMP_OPT} &
 PID=$!
 
@@ -178,17 +179,10 @@ if ! [[ "$act" =~ ^${exp}$ ]]; then
 	exit 1
 fi
 
-# Send TPM_Init to the TPM: CMD_INIT = 0x00 00 00 02 + flags
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
-if [ $? -ne 0 ]; then
-	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
-	exit 1
-fi
-
-# Startup the TPM
+# Startup the TPM; we used --flags startup-clear so expect this to fail now with 0x100
 echo -en '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00' >&100
 RES=$(cat <&100 | od -t x1 -A n)
-exp=' 80 01 00 00 00 0a 00 00 00 00'
+exp=' 80 01 00 00 00 0a 00 00 01 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM_Startup(SU_Clear)"
 	echo "expected: $exp"

@@ -43,8 +43,9 @@ $SWTPM_EXE chardev \
 	--vtpm-proxy \
 	--tpmstate dir=$TPM_PATH \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	--pid file=$PID_FILE \
-	${SWTPM_TEST_SECCOMP_OPT} &>$LOGFILE &
+	--flags startup-clear \
+	${SWTPM_TEST_SECCOMP_OPT} \
+	--pid file=$PID_FILE &>$LOGFILE &
 sleep 0.5
 PID=$(ps aux | grep $SWTPM | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
 
