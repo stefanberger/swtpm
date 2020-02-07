@@ -59,10 +59,11 @@ int capabilities_print_json(bool cusetpm)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s"
+             "%s%s%s%s%s"
           " ] "
          "}",
          !cusetpm     ? "\"tpm-send-command-header\", ": "",
+         !cusetpm     ? "\"flags-opt-startup\", "      : "",
          cmdarg_seccomp,
          true         ? "\"cmdarg-key-fd\", "          : "",
          true         ? "\"cmdarg-pwd-fd\""            : ""

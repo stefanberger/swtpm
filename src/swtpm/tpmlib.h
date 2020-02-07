@@ -73,6 +73,10 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer, uint32_t *rlength,
 off_t tpmlib_handle_tcg_tpm2_cmd_header(const unsigned char *command,
                                         uint32_t command_length,
                                         TPM_MODIFIER_INDICATOR *locality);
+uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
+                                   TPMLIB_TPMVersion tpmversion,
+                                   unsigned char *buffer,
+                                   uint32_t buffersize);
 
 struct tpm_req_header {
     uint16_t tag;
@@ -96,6 +100,12 @@ struct tpm2_resp_prefix {
     uint32_t size; /* size of the following TPM response */
 } __attribute__((packed));
 
+/* TPM 1.2 and TPM 2 used the same structured for startup */
+struct tpm_startup {
+    struct tpm_req_header hdr;
+    uint16_t startupType;
+} __attribute__((packed));
+
 /* Commands in tcg_tpm2_cmd_header 'cmd' */
 #define TPM2_SEND_COMMAND   8
 
@@ -103,9 +113,19 @@ struct tpm2_resp_prefix {
 #define TPM2_ST_NO_SESSION             0x8001
 #define TPM2_ST_SESSIONS               0x8002
 
+/* Tags supported by TPM 1.2 */
+#define TPM_TAG_RQU_COMMAND            0x00C1
+
 /* TPM 1.2 ordinals */
 #define TPMLIB_TPM_ORD_TakeOwnership   0x0000000d
 #define TPMLIB_TPM_ORD_CreateWrapKey   0x0000001f
+#define TPMLIB_TPM_ORD_Startup         0x00000099
+
+/* TPM 1.2 startup types */
+#define TPM_ST_CLEAR                   0x0001
+#define TPM_ST_STATE                   0x0002
+#define TPM_ST_DEACTIVATED             0x0003
+#define _TPM_ST_NONE                   0x0000 /* do not send Startup */
 
 /* TPM 2 error codes */
 #define TPM_RC_INSUFFICIENT 0x09a
@@ -114,6 +134,11 @@ struct tpm2_resp_prefix {
 
 /* TPM 2 commands */
 #define TPMLIB_TPM2_CC_CreatePrimary   0x00000131
+#define TPMLIB_TPM2_CC_Startup         0x00000144
 #define TPMLIB_TPM2_CC_Create          0x00000153
+
+/* TPM 2 startup types */
+#define TPM2_SU_CLEAR                  0x0000
+#define TPM2_SU_STATE                  0x0001
 
 #endif /* _SWTPM_TPMLIB_H_ */
