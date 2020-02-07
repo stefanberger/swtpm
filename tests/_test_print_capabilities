@@ -20,7 +20,7 @@ if has_seccomp_support "${SWTPM_EXE}"; then
 	seccomp='"cmdarg-seccomp", '
 fi
 if [ "${SWTPM_IFACE}" != "cuse" ]; then
-	noncuse='"tpm-send-command-header", '
+	noncuse='"tpm-send-command-header", "flags-opt-startup", '
 fi
 
 exp='{ "type": "swtpm", "features": [ '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd" ] }'
