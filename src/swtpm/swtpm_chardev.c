@@ -193,10 +193,12 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--locality [reject-locality-4][,allow-set-locality]\n"
     "                 : reject-locality-4: reject any command in locality 4\n"
     "                   allow-set-locality: accept SetLocality command\n"
-    "--flags [not-need-init]\n"
+    "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none]\n"
     "                 : not-need-init: commands can be sent without needing to\n"
     "                   send an INIT via control channel; not needed when using\n"
     "                   --vtpm-proxy\n"
+    "                   startup-...: send Startup command with this type;\n"
+    "                   when --vtpm-proxy is used, startup-clear is used\n"
     "--tpm2           : choose TPM2 functionality\n"
 #ifdef WITH_SECCOMP
 # ifndef SCMP_ACT_LOG
@@ -234,6 +236,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         .flags = 0,
         .locality_flags = 0,
         .tpmversion = TPMLIB_TPM_VERSION_1_2,
+        .startupType = _TPM_ST_NONE,
     };
     unsigned long val;
     char *end_ptr;
@@ -423,6 +426,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         if (mlp.tpmversion == TPMLIB_TPM_VERSION_2)
             vtpm_new_dev.flags = VTPM_PROXY_FLAG_TPM2;
 
+        /* Will be adjusted for TPM 2;
+         * handle_flags_options() will cause need_init_cmd = false to be set
+         */
+        mlp.startupType = TPM_ST_CLEAR;
+
         if (mlp.fd >= 0) {
             logprintf(STDERR_FILENO,
                       "Cannot use vTPM proxy with a provided device.\n");
@@ -483,7 +491,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_seccomp_options(seccompdata, &seccomp_action) < 0 ||
-        handle_flags_options(flagsdata, &need_init_cmd) < 0) {
+        handle_flags_options(flagsdata, &need_init_cmd,
+                             &mlp.startupType) < 0) {
         goto exit_failure;
     }
 
@@ -512,11 +521,6 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     TPM_DEBUG("main: Initializing TPM at %s", ctime(&start_time));
 
     tpmlib_debug_libtpms_parameters(mlp.tpmversion);
-
-#ifdef WITH_VTPM_PROXY
-    if (use_vtpm_proxy)
-        need_init_cmd = false;
-#endif
 
     if ((rc = tpmlib_register_callbacks(&callbacks)))
         goto error_no_tpm;

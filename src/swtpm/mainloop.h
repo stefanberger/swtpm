@@ -59,6 +59,7 @@ struct mainLoopParams {
     struct ctrlchannel *cc;
     uint32_t locality_flags;
     TPMLIB_TPMVersion tpmversion;
+    uint16_t startupType; /* use TPM 1.2 types */
 };
 
 int mainLoop(struct mainLoopParams *mlp,

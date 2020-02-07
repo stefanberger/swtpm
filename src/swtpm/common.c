@@ -68,6 +68,7 @@
 #include "ctrlchannel.h"
 #include "server.h"
 #include "seccomp_profile.h"
+#include "tpmlib.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -231,6 +232,22 @@ static const OptionDesc locality_opt_desc[] = {
 static const OptionDesc flags_opt_desc[] = {
     {
         .name = "not-need-init",
+        .type = OPT_TYPE_BOOLEAN,
+    },
+    {
+        .name = "startup-none",
+        .type = OPT_TYPE_BOOLEAN,
+    },
+    {
+        .name = "startup-clear",
+        .type = OPT_TYPE_BOOLEAN,
+    },
+    {
+        .name = "startup-state",
+        .type = OPT_TYPE_BOOLEAN,
+    },
+    {
+        .name = "startup-deactivated",
         .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
@@ -1154,7 +1171,8 @@ int handle_locality_options(char *options, uint32_t *flags)
     return 0;
 }
 
-static int parse_flags_options(char *options, bool *need_init_cmd)
+static int parse_flags_options(char *options, bool *need_init_cmd,
+                               uint16_t *startupType)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -1166,6 +1184,18 @@ static int parse_flags_options(char *options, bool *need_init_cmd)
     }
 
     if (option_get_bool(ovs, "not-need-init", false))
+        *need_init_cmd = false;
+
+    if (option_get_bool(ovs, "startup-clear", false))
+        *startupType = TPM_ST_CLEAR;
+    else if (option_get_bool(ovs, "startup-state", false))
+        *startupType = TPM_ST_STATE;
+    else if (option_get_bool(ovs, "startup-deactivated", false))
+        *startupType = TPM_ST_DEACTIVATED;
+    else if (option_get_bool(ovs, "startup-none", false))
+        *startupType = _TPM_ST_NONE;
+
+    if (*startupType != _TPM_ST_NONE)
         *need_init_cmd = false;
 
     option_values_free(ovs);
@@ -1186,12 +1216,13 @@ error:
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_flags_options(char *options, bool *need_init_cmd)
+int handle_flags_options(char *options, bool *need_init_cmd,
+                         uint16_t *startupType)
 {
     if (!options)
         return 0;
 
-    if (parse_flags_options(options, need_init_cmd) < 0)
+    if (parse_flags_options(options, need_init_cmd, startupType) < 0)
         return -1;
 
     return 0;

@@ -168,13 +168,14 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   can be given with the bindaddr parameter\n"
     "--server type=unixio[,path=path][,fd=fd][,mode=0...][,uid=uid][,gid=gid]\n"
     "                 : Expect UnixIO connections on the given path; if fd is\n"
-    "                   provided, packets wil be read from it directly;\n"
+    "                   provided, packets will be read from it directly;\n"
     "                   mode allows to set the file mode bits of the socket; the\n"
     "                   value must be given in octal number format;\n"
     "                   uid and gid set the ownership of the Unixio socket's file;\n"
-    "--flags [not-need-init]\n"
+    "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none]\n"
     "                 : not-need-init: commands can be sent without needing to\n"
     "                   send an INIT via control channel;\n"
+    "                   startup-...: send Startup command with this type;\n"
     "-r|--runas <user>: change to the given user\n"
     "--tpm2           : choose TPM2 functionality\n"
 #ifdef WITH_SECCOMP
@@ -214,6 +215,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         .fd = -1,
         .locality_flags = 0,
         .tpmversion = TPMLIB_TPM_VERSION_1_2,
+        .startupType = _TPM_ST_NONE,
     };
     struct server *server = NULL;
     unsigned long val;
@@ -435,7 +437,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_locality_options(localitydata, &mlp.locality_flags) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_seccomp_options(seccompdata, &seccomp_action) < 0 ||
-        handle_flags_options(flagsdata, &need_init_cmd) < 0) {
+        handle_flags_options(flagsdata, &need_init_cmd,
+                             &mlp.startupType) < 0) {
         goto exit_failure;
     }
 

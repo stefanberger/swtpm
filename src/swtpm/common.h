@@ -51,7 +51,8 @@ int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc);
 struct server;
 int handle_server_options(char *options, struct server **s);
 int handle_locality_options(char *options, uint32_t *flags);
-int handle_flags_options(char *options, bool *need_init_cmd);
+int handle_flags_options(char *options, bool *need_init_cmd,
+                         uint16_t *startupType);
 #ifdef WITH_SECCOMP
 int handle_seccomp_options(char *options, unsigned int *seccomp_action);
 #else

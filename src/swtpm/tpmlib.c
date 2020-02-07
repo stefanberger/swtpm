@@ -56,6 +56,7 @@
 #ifdef WITH_VTPM_PROXY
 #include "vtpm_proxy.h"
 #endif
+#include "utils.h"
 
 /*
  * convert the blobtype integer into a string that libtpms
@@ -379,4 +380,47 @@ off_t tpmlib_handle_tcg_tpm2_cmd_header(const unsigned char *command,
     }
 
     return ret;
+}
+
+/*
+ * Create a Startup command with the given startupType for the
+ * given TPM version.
+ */
+uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
+                                   TPMLIB_TPMVersion tpmversion,
+                                   unsigned char *buffer,
+                                   uint32_t buffersize)
+{
+    struct tpm_startup ts;
+    uint32_t tocopy = min(sizeof(ts), buffersize);
+
+    ts.hdr.size = htobe32(sizeof(ts));
+
+    switch (tpmversion) {
+    case TPMLIB_TPM_VERSION_1_2:
+        ts.hdr.tag = htobe16(TPM_TAG_RQU_COMMAND);
+        ts.hdr.ordinal = htobe32(TPMLIB_TPM_ORD_Startup);
+        ts.startupType = htobe16(startupType);
+        break;
+    case TPMLIB_TPM_VERSION_2:
+        ts.hdr.tag = htobe16(TPM2_ST_NO_SESSION);
+        ts.hdr.ordinal = htobe32(TPMLIB_TPM2_CC_Startup);
+        switch (startupType) {
+        case TPM_ST_CLEAR:
+            ts.startupType = htobe16(TPM2_SU_CLEAR);
+            break;
+        case TPM_ST_STATE:
+            ts.startupType = htobe16(TPM2_SU_STATE);
+            break;
+        case TPM_ST_DEACTIVATED:
+            tocopy = 0;
+            logprintf(STDERR_FILENO,
+                      "TPM 2 does not support startup deactivated.\n");
+            break;
+        }
+        break;
+    }
+
+    memcpy(buffer, &ts, tocopy);
+    return tocopy;
 }

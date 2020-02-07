@@ -134,6 +134,22 @@ int mainLoop(struct mainLoopParams *mlp,
 
     sockfd = SWTPM_IO_GetSocketFD();
 
+    if (mlp->startupType != _TPM_ST_NONE) {
+        command_length = tpmlib_create_startup_cmd(
+                                  mlp->startupType,
+                                  mlp->tpmversion,
+                                  command, max_command_length);
+        if (command_length > 0)
+            rc = TPMLIB_Process(&rbuffer, &rlength, &rTotal,
+                                command, command_length);
+
+        if (rc || command_length == 0) {
+            mainloop_terminate = true;
+            if (rc)
+                logprintf(STDERR_FILENO, "Could not send Startup: 0x%x\n", rc);
+        }
+    }
+
     while (!mainloop_terminate) {
 
         while (rc == 0) {
