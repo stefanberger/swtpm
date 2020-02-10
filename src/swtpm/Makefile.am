@@ -66,10 +66,10 @@ libswtpm_libtpms_la_CFLAGS = \
 	$(LIBSECCOMP_CFLAGS)
 
 libswtpm_libtpms_la_LIBADD = \
-	$(LIBTPMS_LIBS) \
 	$(GLIB_LIBS) \
 	$(LIBRT_LIBS) \
-	$(LIBSECCOMP_LIBS)
+	$(LIBSECCOMP_LIBS) \
+	$(LIBCRYPTO_LIBS)
 
 bin_PROGRAMS = swtpm
 if WITH_CUSE
@@ -100,8 +100,7 @@ swtpm_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
-	$(GTHREAD_LIBS) \
-	$(LIBTPMS_LIBS)
+	$(GTHREAD_LIBS)
 
 swtpm_cuse_DEPENDENCIES = $(privlib_LTLIBRARIES)
 
@@ -119,10 +118,9 @@ swtpm_cuse_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
-	$(GTHREAD_LIBS) \
-	$(LIBTPMS_LIBS)
+	$(GTHREAD_LIBS)
 
-AM_CPPFLAGS   = 
-LDADD         = -ltpms
+AM_CPPFLAGS   =
+LDADD         =
 
 CLEANFILES = *.gcno *.gcda *.gcov

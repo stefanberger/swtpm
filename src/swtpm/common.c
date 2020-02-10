@@ -37,6 +37,7 @@
 
 #include "config.h"
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -249,6 +250,15 @@ static const OptionDesc flags_opt_desc[] = {
     {
         .name = "startup-deactivated",
         .type = OPT_TYPE_BOOLEAN,
+    },
+    END_OPTION_DESC
+};
+
+/* --profile %s */
+static const OptionDesc profile_opt_desc[] = {
+    {
+        .name = "name",
+        .type = OPT_TYPE_STRING,
     },
     END_OPTION_DESC
 };
@@ -1226,6 +1236,95 @@ int handle_flags_options(char *options, bool *need_init_cmd,
         return -1;
 
     return 0;
+}
+
+/*
+ * parse_profile_options:
+ * Parse and act upon the parsed 'profile' options.
+ *
+ * @options: the 'profile' options to parse
+ * @library: the resulting name of the shared library file
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+static int
+parse_profile_options(char *options, char **library)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+    const char *name = NULL;
+    int ret;
+
+    ovs = options_parse(options, profile_opt_desc, &error);
+
+    if (!ovs) {
+        logprintf(STDERR_FILENO, "Error parsing profile options: %s\n",
+                  error);
+        goto error;
+    }
+
+    name = option_get_string(ovs, "name", NULL);
+    if (!name) {
+        logprintf(STDERR_FILENO,
+                  "The name parameter is required for the profile option.\n");
+        goto error;
+    }
+
+    if (!strcmp(name, "default")) {
+        *library = TPMLIB_LIBRARY;
+    } else{
+        ret = asprintf(library, TPMLIB_LIBRARY_PREFIX "%s" TPMLIB_LIBRARY_POSTFIX,
+                       name);
+        if (ret == -1) {
+            logprintf(STDERR_FILENO, "Out of memory.");
+            goto error;
+        }
+    }
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+
+    return -1;
+}
+
+/*
+ * handle_profile_options:
+ * Parse the 'profile' options.
+ *
+ * @options: the profile options to parse
+ * @options: the resulting profile name
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int handle_profile_options(char *options)
+{
+    char *profile = TPMLIB_LIBRARY;
+    int ret;
+
+    if (options != NULL) {
+        ret = parse_profile_options(options, &profile) < 0;
+        if (ret != 0) {
+            logprintf(STDERR_FILENO,
+                      "Error: Failed to parse profile.\n");
+            goto error;
+        }
+    }
+
+    ret = tpmlib_init(profile);
+    if (ret != TPM_SUCCESS) {
+        logprintf(STDERR_FILENO,
+                    "Error: Failed to load libtpms library.\n");
+        goto error;
+    }
+
+    return 0;
+
+error:
+    return -1;
 }
 
 #ifdef WITH_SECCOMP

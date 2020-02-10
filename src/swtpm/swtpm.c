@@ -178,6 +178,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   startup-...: send Startup command with this type;\n"
     "-r|--runas <user>: change to the given user\n"
     "--tpm2           : choose TPM2 functionality\n"
+    "--profile name=<name>\n"
+    "                 : name of the libtpms profile (e.g. default or pcclient)\n"
 #ifdef WITH_SECCOMP
 # ifndef SCMP_ACT_LOG
     "--seccomp action=none|kill\n"
@@ -230,6 +232,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *ctrlchdata = NULL;
     char *serverdata = NULL;
     char *flagsdata = NULL;
+    char *profiledata = NULL;
     char *seccompdata = NULL;
     char *runas = NULL;
     bool need_init_cmd = true;
@@ -254,6 +257,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"ctrl"      , required_argument, 0, 'C'},
         {"flags"     , required_argument, 0, 'F'},
         {"tpm2"      ,       no_argument, 0, '2'},
+        {"profile"   , required_argument, 0, 'x'},
 #ifdef WITH_SECCOMP
         {"seccomp"   , required_argument, 0, 'S'},
 #endif
@@ -307,7 +311,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             }
             mlp.fd = val;
             if (fstat(mlp.fd, &statbuf) != 0) {
-                logprintf(STDERR_FILENO, "Cannot stat file descriptor: %s\n", 
+                logprintf(STDERR_FILENO, "Cannot stat file descriptor: %s\n",
                           strerror(errno));
                 exit(EXIT_FAILURE);
             }
@@ -372,6 +376,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             mlp.tpmversion = TPMLIB_TPM_VERSION_2;
             break;
 
+        case 'x':
+            profiledata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -405,6 +413,14 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         logprintf(STDERR_FILENO,
             "Error: Cannot accept file descriptors with values 0, 1, or 2\n");
         exit(EXIT_FAILURE);
+    }
+
+    /*
+     * choose libtpms library and load dynamically
+     */
+    if (handle_profile_options(profiledata) < 0) {
+        logprintf(STDERR_FILENO, "Error: Failed to load libtpms profile. Exit.\n");
+        goto exit_failure;
     }
 
     /*
@@ -524,6 +540,7 @@ error_no_tpm:
 
 exit_failure:
     swtpm_cleanup(mlp.cc, server);
+    tpmlib_deinit();
 
     exit(EXIT_FAILURE);
 }

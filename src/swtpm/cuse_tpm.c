@@ -136,6 +136,7 @@ struct cuse_param {
     char *piddata;
     char *tpmstatedata;
     char *localitydata;
+    char *profiledata;
     char *seccompdata;
     unsigned int seccomp_action;
 };
@@ -226,6 +227,8 @@ static const char *usage =
 "-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
 "                       user\n"
 "--tpm2              :  choose TPM2 functionality\n"
+"--profile name=<name>\n"
+"                    :  name of the libtpms profile (e.g. default or pcclient)\n"
 #ifdef WITH_SECCOMP
 # ifndef SCMP_ACT_LOG
 "--seccomp action=none|kill\n"
@@ -1399,6 +1402,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {"pid"           , required_argument, 0, 'p'},
         {"tpmstate"      , required_argument, 0, 's'},
         {"tpm2"          ,       no_argument, 0, '2'},
+        {"profile"       , required_argument, 0, 'x'},
         {"help"          ,       no_argument, 0, 'h'},
         {"version"       ,       no_argument, 0, 'v'},
 #ifdef WITH_SECCOMP
@@ -1502,6 +1506,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case '2':
             tpmversion = TPMLIB_TPM_VERSION_2;
             break;
+        case 'x':
+            param.profiledata = optarg;
+            break;
         case 'S':
             param.seccompdata = optarg;
             break;
@@ -1525,6 +1532,15 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         logprintf(STDERR_FILENO,
                   "Unknown parameter '%s'\n", argv[optind]);
         ret = EXIT_FAILURE;
+        goto exit;
+    }
+
+    /*
+     * choose libtpms library and load dynamically
+     */
+    if (handle_profile_options(param.profiledata) < 0) {
+        logprintf(STDERR_FILENO, "Error: Failed to load libtpms profile. Exit.\n");
+        ret = -3;
         goto exit;
     }
 
@@ -1625,6 +1641,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 exit:
     ptm_cleanup();
     free(cinfo_argv[0]);
+    tpmlib_deinit();
 
     return ret;
 }

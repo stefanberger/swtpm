@@ -34,7 +34,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 #include "config.h"
 
 #include "sys_dependencies.h"
@@ -52,6 +52,7 @@
 
 #include "logging.h"
 #include "utils.h"
+#include "tpmlib.h"
 
 #include <libtpms/tpm_library.h>
 
@@ -216,7 +217,9 @@ void log_global_free(void)
 {
     free(log_prefix);
     log_prefix = NULL;
-    TPMLIB_SetDebugPrefix(NULL);
+    if (tpmlib_is_loaded()) {
+        TPMLIB_SetDebugPrefix(NULL);
+    }
 }
 
 /*

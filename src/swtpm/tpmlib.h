@@ -40,9 +40,14 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include <libtpms/tpm_library.h>
+#include <libtpms/tpm_error.h>
 
+TPM_RESULT tpmlib_init(const char* libtpms);
+void tpmlib_deinit(void);
+int tpmlib_is_loaded(void);
 const char *tpmlib_get_blobname(uint32_t blobtype);
 enum TPMLIB_StateType tpmlib_blobtype_to_statetype(uint32_t blobtype);
 TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs);
@@ -77,6 +82,47 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
                                    TPMLIB_TPMVersion tpmversion,
                                    unsigned char *buffer,
                                    uint32_t buffersize);
+
+typedef struct {
+    void *lib_handle;
+
+    /* tpm_library.h */
+    uint32_t (*TPMLIB_GetVersion)(void);
+    TPM_RESULT (*TPMLIB_ChooseTPMVersion)(TPMLIB_TPMVersion ver);
+    TPM_RESULT (*TPMLIB_MainInit)(void);
+    void (*TPMLIB_Terminate)(void);
+    TPM_RESULT (*TPMLIB_Process)(unsigned char **respbuffer, uint32_t *resp_size,
+                                uint32_t *respbufsize,
+                                unsigned char *command, uint32_t command_size);
+    TPM_RESULT (*TPMLIB_VolatileAll_Store)(unsigned char **buffer, uint32_t *buflen);
+    TPM_RESULT (*TPMLIB_CancelCommand)(void);
+    TPM_RESULT (*TPMLIB_GetTPMProperty)(enum TPMLIB_TPMProperty prop, int *result);
+    char *(*TPMLIB_GetInfo)(enum TPMLIB_InfoFlags flags);
+    TPM_RESULT (*TPMLIB_RegisterCallbacks)(struct libtpms_callbacks *);
+    TPM_RESULT (*TPMLIB_DecodeBlob)(const char *data, enum TPMLIB_BlobType type,
+                                    unsigned char **result, size_t *result_len);
+    void (*TPMLIB_SetDebugFD)(int fd);
+    void (*TPMLIB_SetDebugLevel)(unsigned int level);
+    TPM_RESULT (*TPMLIB_SetDebugPrefix)(const char *prefix);
+    uint32_t (*TPMLIB_SetBufferSize)(uint32_t wanted_size,
+                                    uint32_t *min_size,
+                                    uint32_t *max_size);
+    TPM_RESULT (*TPMLIB_ValidateState)(enum TPMLIB_StateType st,
+                                    unsigned int flags);
+    TPM_RESULT (*TPMLIB_SetState)(enum TPMLIB_StateType st,
+                                const unsigned char *buffer, uint32_t buflen);
+    TPM_RESULT (*TPMLIB_GetState)(enum TPMLIB_StateType st,
+                                unsigned char **buffer, uint32_t *buflen);
+
+    /* tpm_tis.h */
+    TPM_RESULT (*TPM_IO_Hash_Start)(void);
+    TPM_RESULT (*TPM_IO_Hash_Data)(const unsigned char *data,
+                    uint32_t data_length);
+    TPM_RESULT (*TPM_IO_Hash_End)(void);
+    TPM_RESULT (*TPM_IO_TpmEstablished_Get)(TPM_BOOL *tpmEstablished);
+    TPM_RESULT (*TPM_IO_TpmEstablished_Reset)(void);
+} tpmlib;
+extern tpmlib tpmlib_ctx;
 
 struct tpm_req_header {
     uint16_t tag;
@@ -140,5 +186,67 @@ struct tpm_startup {
 /* TPM 2 startup types */
 #define TPM2_SU_CLEAR                  0x0000
 #define TPM2_SU_STATE                  0x0001
+
+/* libtpms shared library postfix and prefix */
+#define TPMLIB_LIBRARY_PREFIX          "libtpms-"
+#ifdef __APPLE__
+#define TPMLIB_LIBRARY_POSTFIX         ".dylib"
+#else
+#define TPMLIB_LIBRARY_POSTFIX         ".so"
+#endif /* __APPLE__ */
+
+/* default libtpms shared library name */
+#define TPMLIB_LIBRARY                 "libtpms" TPMLIB_LIBRARY_POSTFIX
+
+/* Macros for redefining libtpms functions */
+#define TPMLIB_DL_INT(NAME, ...)                                                        \
+(                                                                                       \
+    tpmlib_ctx.lib_handle != NULL ?                                                     \
+    tpmlib_ctx.NAME(__VA_ARGS__) :                                                      \
+    (                                                                                   \
+        fprintf(stderr,                                                                 \
+                "Error: Cannot call " #NAME " in %s:%d, no libtpms library loaded.\n",  \
+                __FILE__, __LINE__),                                                    \
+        TPM_FAIL                                                                        \
+    )                                                                                   \
+)
+
+#define TPMLIB_DL_PTR(NAME,          ...)                                               \
+(                                                                                       \
+    tpmlib_ctx.lib_handle != NULL ?                                                     \
+    tpmlib_ctx.NAME(__VA_ARGS__) :                                                      \
+    (                                                                                   \
+        fprintf(stderr,                                                                 \
+                "Error: Cannot call " #NAME " in %s:%d, no libtpms library loaded.\n",  \
+                __FILE__, __LINE__),                                                    \
+        NULL                                                                            \
+    )                                                                                   \
+)
+
+/* Redefining libtpms library calls to dynamically loaded symbols */
+#define TPMLIB_GetVersion(...)         TPMLIB_DL_INT(TPMLIB_GetVersion, __VA_ARGS__)
+#define TPMLIB_ChooseTPMVersion(...)   TPMLIB_DL_INT(TPMLIB_ChooseTPMVersion, __VA_ARGS__)
+#define TPMLIB_MainInit(...)           TPMLIB_DL_INT(TPMLIB_MainInit, __VA_ARGS__)
+#define TPMLIB_Terminate(...)          TPMLIB_DL_INT(TPMLIB_Terminate, __VA_ARGS__)
+#define TPMLIB_Process(...)            TPMLIB_DL_INT(TPMLIB_Process, __VA_ARGS__)
+#define TPMLIB_VolatileAll_Store(...)  TPMLIB_DL_INT(TPMLIB_VolatileAll_Store, __VA_ARGS__)
+#define TPMLIB_CancelCommand(...)      TPMLIB_DL_INT(TPMLIB_CancelCommand, __VA_ARGS__)
+#define TPMLIB_GetTPMProperty(...)     TPMLIB_DL_INT(TPMLIB_GetTPMProperty, __VA_ARGS__)
+#define TPMLIB_GetInfo(...)            TPMLIB_DL_PTR(TPMLIB_GetInfo, __VA_ARGS__)
+#define TPMLIB_RegisterCallbacks(...)  TPMLIB_DL_INT(TPMLIB_RegisterCallbacks, __VA_ARGS__)
+#define TPMLIB_DecodeBlob(...)         TPMLIB_DL_INT(TPMLIB_DecodeBlob, __VA_ARGS__)
+#define TPMLIB_SetDebugFD(...)         TPMLIB_DL_INT(TPMLIB_SetDebugFD, __VA_ARGS__)
+#define TPMLIB_SetDebugLevel(...)      TPMLIB_DL_INT(TPMLIB_SetDebugLevel, __VA_ARGS__)
+#define TPMLIB_SetDebugPrefix(...)     TPMLIB_DL_INT(TPMLIB_SetDebugPrefix, __VA_ARGS__)
+#define TPMLIB_SetBufferSize(...)      TPMLIB_DL_INT(TPMLIB_SetBufferSize, __VA_ARGS__)
+#define TPMLIB_ValidateState(...)      TPMLIB_DL_INT(TPMLIB_ValidateState, __VA_ARGS__)
+#define TPMLIB_SetState(...)           TPMLIB_DL_INT(TPMLIB_SetState, __VA_ARGS__)
+#define TPMLIB_GetState(...)           TPMLIB_DL_INT(TPMLIB_GetState, __VA_ARGS__)
+
+#define TPM_IO_Hash_Start(...)         TPMLIB_DL_INT(TPM_IO_Hash_Start, __VA_ARGS__)
+#define TPM_IO_Hash_Data(...)          TPMLIB_DL_INT(TPM_IO_Hash_Data, __VA_ARGS__)
+#define TPM_IO_Hash_End(...)           TPMLIB_DL_INT(TPM_IO_Hash_End, __VA_ARGS__)
+#define TPM_IO_TpmEstablished_Get(...) TPMLIB_DL_INT(TPM_IO_TpmEstablished_Get, __VA_ARGS__)
+#define TPM_IO_TpmEstablished_Reset(...) TPMLIB_DL_INT(TPM_IO_TpmEstablished_Reset, __VA_ARGS__)
 
 #endif /* _SWTPM_TPMLIB_H_ */

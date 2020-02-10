@@ -150,8 +150,10 @@ openssl)
 	AC_CHECK_HEADERS([openssl/aes.h],[],
 			 AC_MSG_ERROR(Is openssl-devel/libssl-dev installed?))
 	AC_MSG_RESULT([Building with openssl crypto library])
+	LIBCRYPTO_LIBS=$(pkg-config --libs openssl)
 	;;
 esac
+AC_SUBST([LIBCRYPTO_LIBS])
 
 LIBTASN1_LIBS=$(pkg-config --libs libtasn1)
 if test $? -ne 0; then

@@ -40,6 +40,7 @@
 #include "sys_dependencies.h"
 
 #include <assert.h>
+#include <dlfcn.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -57,6 +58,146 @@
 #include "vtpm_proxy.h"
 #endif
 #include "utils.h"
+
+tpmlib tpmlib_ctx;
+
+/*
+ * dynamically load libtpms library, e.g. "libtpms.so"
+ */
+TPM_RESULT tpmlib_init(const char* libtpms)
+{
+    char *error;
+
+    if (libtpms == NULL) {
+        return TPM_BAD_PARAMETER;
+    }
+
+    tpmlib_ctx.lib_handle = dlopen(libtpms, RTLD_NOW);
+    if (tpmlib_ctx.lib_handle == NULL) {
+        logprintf(STDERR_FILENO, "%s\n", dlerror());
+        logprintf(STDERR_FILENO,
+                  "Error: Could not dynamically load library %s.\n", libtpms);
+        return TPM_FAIL;
+    }
+
+    /* clear potenital errors */
+    dlerror();
+
+    /* preload functions in tpm_library.h */
+    tpmlib_ctx.TPMLIB_GetVersion = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_GetVersion");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_ChooseTPMVersion = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_ChooseTPMVersion");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_MainInit = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_MainInit");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_Terminate = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_Terminate");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_Process = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_Process");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_VolatileAll_Store = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_VolatileAll_Store");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_CancelCommand = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_CancelCommand");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_GetTPMProperty = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_GetTPMProperty");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_GetInfo = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_GetInfo");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_RegisterCallbacks = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_RegisterCallbacks");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_DecodeBlob = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_DecodeBlob");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_SetDebugFD = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_SetDebugFD");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_SetDebugLevel = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_SetDebugLevel");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_SetDebugPrefix = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_SetDebugPrefix");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_SetBufferSize = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_SetBufferSize");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_ValidateState = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_ValidateState");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_SetState = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_SetState");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPMLIB_GetState = dlsym(tpmlib_ctx.lib_handle, "TPMLIB_GetState");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+
+    /* preload functions in tpm_tis.h */
+    tpmlib_ctx.TPM_IO_Hash_Start = dlsym(tpmlib_ctx.lib_handle, "TPM_IO_Hash_Start");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPM_IO_Hash_Data = dlsym(tpmlib_ctx.lib_handle, "TPM_IO_Hash_Data");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPM_IO_Hash_End = dlsym(tpmlib_ctx.lib_handle, "TPM_IO_Hash_End");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPM_IO_TpmEstablished_Get = dlsym(tpmlib_ctx.lib_handle, "TPM_IO_TpmEstablished_Get");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+    tpmlib_ctx.TPM_IO_TpmEstablished_Reset = dlsym(tpmlib_ctx.lib_handle, "TPM_IO_TpmEstablished_Reset");
+    if ((error = dlerror()) != NULL)  {
+        goto error;
+    }
+
+    return TPM_SUCCESS;
+
+error:
+    logprintf(STDERR_FILENO, "%s\n", error);
+    return TPM_FAIL;
+}
+
+void tpmlib_deinit(void)
+{
+    if (tpmlib_is_loaded()) {
+        dlclose(tpmlib_ctx.lib_handle);
+        tpmlib_ctx.lib_handle = NULL;
+    }
+}
+
+int tpmlib_is_loaded(void)
+{
+    return tpmlib_ctx.lib_handle != NULL;
+}
 
 /*
  * convert the blobtype integer into a string that libtpms

@@ -200,6 +200,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   startup-...: send Startup command with this type;\n"
     "                   when --vtpm-proxy is used, startup-clear is used\n"
     "--tpm2           : choose TPM2 functionality\n"
+    "--profile name=<name>\n"
+    "                 : name of the libtpms profile (e.g. default or pcclient)\n"
 #ifdef WITH_SECCOMP
 # ifndef SCMP_ACT_LOG
     "--seccomp action=none|kill\n"
@@ -248,6 +250,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
     char *flagsdata = NULL;
+    char *profiledata = NULL;
     char *seccompdata = NULL;
     char *runas = NULL;
 #ifdef WITH_VTPM_PROXY
@@ -276,6 +279,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"vtpm-proxy",       no_argument, 0, 'v'},
 #endif
         {"tpm2"      ,       no_argument, 0, '2'},
+        {"profile"   , required_argument, 0, 'x'},
 #ifdef WITH_SECCOMP
         {"seccomp"   , required_argument, 0, 'S'},
 #endif
@@ -379,6 +383,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             mlp.tpmversion = TPMLIB_TPM_VERSION_2;
             break;
 
+        case 'x':
+            profiledata = optarg;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -415,6 +423,14 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
     if (handle_locality_options(localitydata, &mlp.locality_flags) < 0)
         exit(EXIT_FAILURE);
+
+    /*
+     * choose libtpms library and load dynamically
+     */
+    if (handle_profile_options(profiledata) < 0) {
+        logprintf(STDERR_FILENO, "Error: Failed to load libtpms profile. Exit.\n");
+        goto exit_failure;
+    }
 
 #ifdef WITH_VTPM_PROXY
     if (use_vtpm_proxy) {
@@ -567,6 +583,7 @@ error_no_tpm:
 
 exit_failure:
     swtpm_cleanup(mlp.cc);
+    tpmlib_deinit();
 
     exit(EXIT_FAILURE);
 }
