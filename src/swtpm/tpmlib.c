@@ -421,6 +421,7 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
         break;
     }
 
-    memcpy(buffer, &ts, tocopy);
+    if (tocopy)
+        memcpy(buffer, &ts, tocopy);
     return tocopy;
 }
