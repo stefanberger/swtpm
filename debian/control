@@ -47,19 +47,6 @@ Description: Common libraries for TPM emulators
  The swtpm-libs package provides the shared libraries for the swtpm
  and swtpm-cuse packages.
 
-Package: swtpm-cuse
-Architecture: any
-Depends: swtpm-libs (= ${binary:Version}),
-	 ${shlibs:Depends},
-	 ${misc:Depends}
-# linux-image-extra
-Description: TPM emulator with CUSE interface
- The swtpm-cuse package provides a CUSE TPM emulator. This emulator
- creates a character device in the /dev directory to which applications
- can send TPM commands. Out-of-band control of the CUSE TPM is through
- ioctl's on that device. The swtpm_ioctl command line utility from the
- swtpm-tools package can be used for that.
-
 Package: swtpm-dev
 Architecture: any
 Depends: ${misc:Depends}
