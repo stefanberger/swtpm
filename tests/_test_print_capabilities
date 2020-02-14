@@ -50,21 +50,26 @@ fi
 
 echo "Test 2: OK"
 
-msg="$(${SWTPM_CERT} --print-capabilities 2>&1)"
-if [ $? -ne 0 ]; then
-	echo "Error: Could not pass --print-capabilities to ${SWTPM_CERT}"
-	echo "${msg}"
-	exit 1
-fi
+# SWTPM_CERT may be run by valgrind
+if [ -x "$(type -P $(echo "${SWTPM_CERT}" | cut -d" " -f1) )" ]; then
+	msg="$(${SWTPM_CERT} --print-capabilities 2>&1)"
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not pass --print-capabilities to ${SWTPM_CERT}"
+		echo "${msg}"
+		exit 1
+	fi
 
-exp='{ "type": "swtpm_cert", "features": [ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd" ] }'
-if [ "${msg}" != "${exp}" ]; then
-	echo "Unexpected response from ${SWTPM_CERT} to --print-capabilities:"
-	echo "Actual   : ${msg}"
-	echo "Expected : ${exp}"
-	exit 1
-fi
+	exp='{ "type": "swtpm_cert", "features": [ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd" ] }'
+	if [ "${msg}" != "${exp}" ]; then
+		echo "Unexpected response from ${SWTPM_CERT} to --print-capabilities:"
+		echo "Actual   : ${msg}"
+		echo "Expected : ${exp}"
+		exit 1
+	fi
 
-echo "Test 3: OK"
+	echo "Test 3: OK"
+else
+	echo "Test 2: SKIP -- ${SWTPM_CERT} not found or not an executable"
+fi
 
 exit 0
