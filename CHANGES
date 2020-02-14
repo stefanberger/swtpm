@@ -1,3 +1,30 @@
+version 0.3.0:
+  - swtpm:
+      - Support for applying 'TPM Startup' command during initialization
+      - Use writev_full rather than writev; fixes --vtpm-proxy EIO error
+      - Only accept() new client ctrl connection if we have none (bugfix)
+  - swtpm_setup & related scripts:
+      - Support whitespaces in filenames and paths
+      - Do not fail on future PCR banks' hashes
+  - swtpm_cert:
+      - Fix OIDs for TPM 2 platforms data
+      - Option parsing cleanup
+      - Support for passing password in various forms
+      - Use gnutls_x509_crt_get_subject_key_id API call for subj keyId
+      - Support 64bit serial numbers read from command line
+  - swtpm_ioctl:
+      - Block SIGPIPE so we can get EPIPE on write()
+  - swtpm_bios:
+      - Block SIGPIPE so we can get EPIPE on write()
+  - tests:
+      - Increased timeouts and better support for running tests with
+        executables run by valgrind
+      - Allow running tests with choice of seccomp profile option
+        (SWTPM_TEST_SECCOMP_OPT) to enable building for Ubuntu
+      - Various cleanups & fixes
+  - SELinux:
+      - More rules added for support on F30
+
 version 0.2.0:
   - Linux: swtpm now runs with a seccomp profile (blacklist) if compiled with
            libseccomp support
