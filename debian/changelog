@@ -1,3 +1,9 @@
+swtpm (0.3.0-1) RELEASED; urgency=medium
+
+  * Release of swtpm-0.3.0
+
+ -- Stefan Berger <stefanb@linux.ibm.com>  Mon, 17 Feb 2020 09:00:00 -0500
+
 swtpm (0.2.0-1) RELEASED; urgency=medium
 
  -- Stefan Berger <stefanb@linux.ibm.com>  Tue, 16 Jul 2019 14:21:18 -0500
