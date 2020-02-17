@@ -53,7 +53,7 @@ script:
   - ./autogen.sh ${CONFIG}
       && ${SUDO} make clean
       && export SWTPM_TEST_EXPENSIVE=${SWTPM_TEST_EXPENSIVE:-1}
-      && ${SUDO} make -j$(${NPROC:-nproc}) ${CHECK}
+      && ${SUDO} make -j$(${NPROC:-nproc}) ${CHECK} VERBOSE=1
   - if [ -n "${RUN_TEST}" ]; then
         sudo make install
         && sudo ${PREFIX}/bin/swtpm_setup
