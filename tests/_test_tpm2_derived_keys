@@ -51,12 +51,14 @@ fi
 # @param2: whether to send TPM2_Startup
 # @param3: command to send
 # @param4: expected return value
+# @param5: allowed failure return value to skip test
 function tx_cmd()
 {
 	local reset="$1"
 	local startup="$2"
 	local cmd="$3"
 	local exp="$4"
+	local allowed_error="$5"
 
 	local RES tmp
 
@@ -82,7 +84,9 @@ function tx_cmd()
 
 	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
-	if [ "$RES" != "$exp" ]; then
+	if [ "$RES" == "$allowed_error" ]; then
+		echo "Skip: Encountered allowed error response ($allowed_error)"
+	elif [ "$RES" != "$exp" ]; then
 		echo "Error: Did not get expected return from creating key"
 		echo "expected: $exp"
 		echo "received: $RES"
@@ -92,6 +96,10 @@ function tx_cmd()
 
 	return 0
 }
+
+# Older versions of libtpms do not support TDES
+# So we may skip the test in case we hit this error
+error_unsupt_algo=' 80 01 00 00 00 0a 00 00 02 d6'
 
 # Create a primary RSA key and expect a predictable return value
 # tsscreateprimary -hi e -v
@@ -245,12 +253,12 @@ test5_exp2+=' 00 00 01 00 00'
 case "$(uname -p)" in
 ppc64le|x86_64)
 	echo "[Assuming ${SWTPM_EXE} is 64bit]"
-	tx_cmd 1 0 "$test1_cmd" "$test1_exp" || exit 1 && echo "Test 1: OK"
-	tx_cmd 1 1 "$test2_cmd" "$test2_exp" || exit 1 && echo "Test 2: OK"
-	tx_cmd 1 1 "$test3_cmd" "$test3_exp" || exit 1 && echo "Test 3: OK"
-	tx_cmd 1 1 "$test4_cmd" "$test4_exp" || exit 1 && echo "Test 4: OK"
-	tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" || exit 1
-	tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" || exit 1 && echo "Test 5: OK"
+	tx_cmd 1 0 "$test1_cmd" "$test1_exp" "" || exit 1 && echo "Test 1: OK"
+	tx_cmd 1 1 "$test2_cmd" "$test2_exp" "" || exit 1 && echo "Test 2: OK"
+	tx_cmd 1 1 "$test3_cmd" "$test3_exp" "" || exit 1 && echo "Test 3: OK"
+	tx_cmd 1 1 "$test4_cmd" "$test4_exp" "$error_unsupt_algo" || exit 1 && echo "Test 4: OK"
+	tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" "" || exit 1
+	tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" "" || exit 1 && echo "Test 5: OK"
 	;;
 *)
 	echo "This test currently only works with 64bit TPMs"
@@ -301,12 +309,12 @@ test4_exp=' 80 02 00 00 00 71 00 00 00 00 80 00 00 00 00 00 00 5a 00 00 00 32 00
 test5_exp1=' 80 02 00 00 01 12 00 00 00 00 80 00 00 00 00 00 00 fb 00 32 00 08 00 0b 00 03 04 72 00 00 00 0a 00 0b 00 22 00 20 60 5c 90 40 d5 ef 80 59 70 f4 90 3e 43 7a ce 49 1e 06 06 f0 e9 79 39 e4 a0 a1 8b d5 12 ca 86 9a 00 37 00 00 00 00 00 20 e3 b0 c4 42 98 fc 1c 14 9a fb f4 c8 99 6f b9 24 27 ae 41 e4 64 9b 93 4c a4 95 99 1b 78 52 b8 55 01 00 10 00 04 40 00 00 0b 00 04 40 00 00 0b 00 00 00 20 28 d0 26 fa fd 74 91 06 74 3e 27 c4 28 05 51 58 5e 5d 17 66 8e b5 21 83 5e d6 01 27 ef fc 05 d4 80 21 40 00 00 0b 00 40 5a 84 8d d0 73 da 49 f6 76 84 6e d1 56 13 39 4d 4b 67 0a 68 97 71 c9 a4 92 a6 aa 6d 30 4b 19 6c 69 fc a7 d5 b9 5c 8f 5a af 0c f6 72 b9 85 c5 d4 0a 09 f8 f7 16 4d 11 bc 5d ec cc 48 02 15 ce 79 00 22 00 0b 04 13 09 39 42 b3 86 80 67 68 2a d7 27 e3 c7 44 1d 1c b6 65 23 c3 ee f0 b8 b8 b5 ff ee 49 1d 4b 00 00 01 00 00'
 test5_exp2=' 80 02 00 00 00 95 00 00 00 00 80 00 00 01 00 00 00 7e 00 00 00 56 00 23 00 0b 00 02 04 52 00 00 00 10 00 10 00 10 00 10 00 20 af 9f be fc c8 95 21 71 04 2d 7d db 3f 42 aa 54 cc 2f a0 cf 55 82 78 f4 3f 01 88 27 46 53 2c 88 00 20 dc ad 67 2f d1 ea 89 01 f5 27 1f 58 3f a5 da 52 85 50 98 d5 06 81 10 13 86 12 d7 23 55 12 ea 0c 00 22 00 0b 72 c2 60 3f c8 bb 79 ea 92 86 7e a3 df 57 8d 15 e3 f1 10 a2 f9 1c a6 80 41 c3 cf e1 fa 43 83 2f 00 00 01 00 00'
 
-tx_cmd 1 0 "$test1_cmd" "$test1_exp" || exit 1 && echo "Test 1: OK"
-tx_cmd 1 1 "$test2_cmd" "$test2_exp" || exit 1 && echo "Test 2: OK"
-tx_cmd 1 1 "$test3_cmd" "$test3_exp" || exit 1 && echo "Test 3: OK"
-tx_cmd 1 1 "$test4_cmd" "$test4_exp" || exit 1 && echo "Test 4: OK"
-tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" || exit 1
-tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" || exit 1 && echo "Test 5: OK"
+tx_cmd 1 0 "$test1_cmd" "$test1_exp" "" || exit 1 && echo "Test 1: OK"
+tx_cmd 1 1 "$test2_cmd" "$test2_exp" "" || exit 1 && echo "Test 2: OK"
+tx_cmd 1 1 "$test3_cmd" "$test3_exp" "" || exit 1 && echo "Test 3: OK"
+tx_cmd 1 1 "$test4_cmd" "$test4_exp" "" || exit 1 && echo "Test 4: OK"
+tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" "" || exit 1
+tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" "" || exit 1 && echo "Test 5: OK"
 
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
