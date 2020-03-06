@@ -426,10 +426,9 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         if (mlp.tpmversion == TPMLIB_TPM_VERSION_2)
             vtpm_new_dev.flags = VTPM_PROXY_FLAG_TPM2;
 
-        /* Will be adjusted for TPM 2;
-         * handle_flags_options() will cause need_init_cmd = false to be set
-         */
+        /* Will be adjusted for TPM 2 */
         mlp.startupType = TPM_ST_CLEAR;
+        need_init_cmd = false;
 
         if (mlp.fd >= 0) {
             logprintf(STDERR_FILENO,
