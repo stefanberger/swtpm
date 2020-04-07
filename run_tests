@@ -23,9 +23,10 @@ CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/l
  cp /usr/bin/swtpm /tmp/swtpm64 &&
  make -j$(nproc) check ||
  exit 1
-[ -z "${WITHOUT_CUSE}" ] &&
+if [ -z "${WITHOUT_CUSE}" ]; then
  sudo make -j$(nproc) check ||
  exit 1
+fi
 
 PKG_CONFIG_PATH=/usr/lib/pkgconfig \
  CFLAGS='-m32' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib ${WITHOUT_CUSE} && \
@@ -36,12 +37,17 @@ PKG_CONFIG_PATH=/usr/lib/pkgconfig \
  make -j$(nproc) check &&
  SWTPM_EXE=/tmp/swtpm64 make -j$(nproc) check ||
  exit 1
-[ -z "${WITHOUT_CUSE}" ] &&
+if [ -z "${WITHOUT_CUSE}" ]; then
  sudo SWTPM_EXE=/tmp/swtpm64 make -j$(nproc) check ||
  exit 1
+fi
 
 CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 ${WITHOUT_CUSE} && \
  make clean && \
  make -j$(nproc) &&
- SWTPM_EXE=/tmp/swtpm32 make -j$(nproc) check &&
+ SWTPM_EXE=/tmp/swtpm32 make -j$(nproc) check ||
  exit 1
+
+echo "*** All tests succeeded ***"
+
+exit 0
