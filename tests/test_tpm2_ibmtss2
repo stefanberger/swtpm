@@ -40,15 +40,24 @@ git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
 
 pushd ibmtpm20tss-tss &>/dev/null
 
-git checkout tags/v1.3.0
+git checkout tags/v1.4.0
 if [ $? -ne 0 ]; then
 	echo "'Git checkout' failed."
 	exit 1
 fi
 
+# A v1.4.0 bug work-around:
+pushd utils/regtests &>/dev/null
+# We cannot run the EK certificate tests since rootcerts.txt points to
+# files we do not have
+sed -i "133s/./\#\0/" testcredential.sh
+sed -i "134s/./\#\0/" testcredential.sh
+sed -i "135s/./\#\0/" testcredential.sh
+popd &>/dev/null
+
 autoreconf --force --install
-#FIXME: Need to pass LIBS on Ubuntu to avoid X509_free linker errors
-CFLAGS="" LDFLAGS="" LIBS="-lz -lssl -lcrypto" ./configure --disable-tpm-1.2
+unset CFLAGS LDFLAGS LIBS
+./configure --disable-tpm-1.2
 make -j4
 
 pushd utils
@@ -67,6 +76,22 @@ if [ $revision -lt 155 ]; then
 		touch "${t}"
 		chmod 777 "${t}"
 	done
+fi
+
+# libtpms may at some revision start supporting RSA 3072 keys...
+if [ $revision -gt 0 ]; then
+	pushd regtests &>/dev/null
+
+	echo "Modifying test cases related to RSA 3072 keys."
+	# We do not support 3072 bit RSA keys at this point, so eliminate all 3072
+	# RSA key tests
+	for f in initkeys.sh testrsa.sh testsign.sh; do
+		sed -i "s| 3072||" "${f}"
+	done
+
+	sed -i "s| \"-rsa 3072\"||" testsalt.sh
+
+	popd &>/dev/null
 fi
 
 export TPM_SERVER_NAME=localhost
