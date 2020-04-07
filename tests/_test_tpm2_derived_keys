@@ -250,18 +250,23 @@ test5_exp2+=' 00 00 01 00 00'
 # 64bit TPMs. We only test 64bit TPMs with the above expected
 # return values.
 #
-case "$(uname -p)" in
-ppc64le|x86_64)
-	echo "[Assuming ${SWTPM_EXE} is 64bit]"
-	tx_cmd 1 0 "$test1_cmd" "$test1_exp" "" || exit 1 && echo "Test 1: OK"
-	tx_cmd 1 1 "$test2_cmd" "$test2_exp" "" || exit 1 && echo "Test 2: OK"
-	tx_cmd 1 1 "$test3_cmd" "$test3_exp" "" || exit 1 && echo "Test 3: OK"
-	tx_cmd 1 1 "$test4_cmd" "$test4_exp" "$error_unsupt_algo" || exit 1 && echo "Test 4: OK"
-	tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" "" || exit 1
-	tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" "" || exit 1 && echo "Test 5: OK"
+case "$(uname -s)" in
+Linux)
+	# Only 64bit apps will link with libs in /lib64/ dirs
+	if [ -n "$(grep -E "\/lib64\/" /proc/${SWTPM_PID}/maps)" ]; then
+		tx_cmd 1 0 "$test1_cmd" "$test1_exp" "" || exit 1 && echo "Test 1: OK"
+		tx_cmd 1 1 "$test2_cmd" "$test2_exp" "" || exit 1 && echo "Test 2: OK"
+		tx_cmd 1 1 "$test3_cmd" "$test3_exp" "" || exit 1 && echo "Test 3: OK"
+		tx_cmd 1 1 "$test4_cmd" "$test4_exp" "$error_unsupt_algo" || exit 1 && echo "Test 4: OK"
+		tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" "" || exit 1
+		tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" "" || exit 1 && echo "Test 5: OK"
+	else
+		echo "This test currently only runs with 64bit swtpm. ${SWTPM_EXE} seems 32bit."
+	fi
 	;;
 *)
-	echo "This test currently only works with 64bit TPMs"
+	echo "This test currently only runs on Linux"
+	;;
 esac
 
 # Get revision of TPM 2.0 implementation; we need >= 155 for subsequent tests
