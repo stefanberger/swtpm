@@ -7,33 +7,40 @@ fi
 
 unset SWTPM
 
+# Comment the following to compile and test with CUSE interface
+WITHOUT_CUSE="--without-cuse"
+
 # FIXME:
 # Due to some bug in glib2 for i686 we don't seem to be able to run a
 # 32bit swtpm with cuse interface correctly. The g_cond_wait_until()
 # doesn't behave as it does with 64bit. test_hashing2 gets stuck.
 
 
-CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 && \
+CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 ${WITHOUT_CUSE} && \
  make clean && \
  make -j$(nproc) &&
  sudo make -j$(nproc) install &&
  cp /usr/bin/swtpm /tmp/swtpm64 &&
- make -j$(nproc) check &&
+ make -j$(nproc) check ||
+ exit 1
+[ -z "${WITHOUT_CUSE}" ] &&
  sudo make -j$(nproc) check ||
  exit 1
 
 PKG_CONFIG_PATH=/usr/lib/pkgconfig \
- CFLAGS='-m32' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib && \
+ CFLAGS='-m32' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib ${WITHOUT_CUSE} && \
  make clean && \
  make -j$(nproc) &&
  sudo make -j$(nproc) install &&
  cp /usr/bin/swtpm /tmp/swtpm32 &&
  make -j$(nproc) check &&
- SWTPM_EXE=/tmp/swtpm64 make -j$(nproc) check &&
+ SWTPM_EXE=/tmp/swtpm64 make -j$(nproc) check ||
+ exit 1
+[ -z "${WITHOUT_CUSE}" ] &&
  sudo SWTPM_EXE=/tmp/swtpm64 make -j$(nproc) check ||
  exit 1
 
-CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 && \
+CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 ${WITHOUT_CUSE} && \
  make clean && \
  make -j$(nproc) &&
  SWTPM_EXE=/tmp/swtpm32 make -j$(nproc) check &&
