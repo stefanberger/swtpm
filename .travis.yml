@@ -26,7 +26,6 @@ addons:
         - libtasn1-dev
         - socat
         - findutils
-        - tpm-tools
         - gnutls-dev
         - gnutls-bin
         - libasan2
@@ -42,6 +41,11 @@ addons:
     branch_pattern: coverity_scan
 before_install:
   - test $TRAVIS_BRANCH != coverity_scan -o ${TRAVIS_JOB_NUMBER##*.} = 1 || exit 0
+  - |
+    if [ "$(uname -s)" = "Linux" ]; then
+      sudo rm -rf /dev/tpm* # This is a work-around for Bionic where trousers otherwise fails to install
+      sudo apt-get -y install trousers tpm-tools
+    fi
 script:
   - if [ ! -d libtpms ]; then git clone https://github.com/stefanberger/libtpms; fi
   - cd libtpms
@@ -56,6 +60,7 @@ script:
   - ./autogen.sh ${CONFIG}
       && ${SUDO} make clean
       && export SWTPM_TEST_EXPENSIVE=${SWTPM_TEST_EXPENSIVE:-1}
+      && export SWTPM_TEST_IBMTSS2=${SWTPM_TEST_IBMTSS2:-0}
       && ${SUDO} make -j$(${NPROC:-nproc}) ${CHECK} VERBOSE=1
   - if [ -n "${RUN_TEST}" ]; then
         sudo make install
@@ -74,11 +79,14 @@ matrix:
            RUN_TEST="1"
       before_script:
       - pep8 $(find . -type f | grep -E "\.py$")
-    - env: PREFIX="/usr"
+    - dist: bionic
+      env: PREFIX="/usr"
            CONFIG="--with-openssl --prefix=/usr --enable-test-coverage"
            SUDO="sudo"
            CHECK="check"
+           SWTPM_TEST_IBMTSS2="1"
       before_script:
+      - sudo apt-get -y install tss2
       - sudo pip install cpp-coveralls
       - p=$PWD; while [ "$PWD" != "/" ]; do chmod o+x . &>/dev/null ; cd .. ; done; cd $p
         && sudo mkdir src/swtpm/.libs

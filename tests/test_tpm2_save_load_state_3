@@ -672,7 +672,7 @@ function test_primary_volatile_load()
 export TPM_SERVER_TYPE=raw
 export TPM_SERVER_NAME=127.0.0.1
 export TPM_INTERFACE_TYPE=socsim
-export TPM_COMMAND_PORT=65533
+export TPM_COMMAND_PORT=55533
 export TPM_DATA_DIR=$TPMDIR
 export TPM_SESSION_ENCKEY="807e2bfe898ddaed8fa6310e716a24dc" # for sessions
 
