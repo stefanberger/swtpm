@@ -406,7 +406,7 @@ start_tpm()
 			ctr2=0
 			while [ -f "${pidfile}" ]; do
 			        # test the connection to swtpm
-				(exec 100<>"/dev/tcp/localhost/$TPM_PORT") 2>/dev/null
+				(exec 100<>"/dev/tcp/127.0.0.1/$TPM_PORT") 2>/dev/null
 				if [ $? -ne 0 ]; then
 					if [ $ctr2 -eq 40 ]; then
 						stop_tpm 0
@@ -532,12 +532,12 @@ EOF
 		stop_tcsd 1
 		case "$(id -u)" in
 		0)
-			$TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
+			TCSD_TCP_DEVICE_HOSTNAME=127.0.0.1 $TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
 			TCSD_PID=$!
 			;;
 		*)
 			# for tss user, use the wrapper
-			$TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
+			TCSD_TCP_DEVICE_HOSTNAME=127.0.0.1 $TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
 			#if [ $? -ne  0]; then
 			#	swtpm_tcsd_launcher -c $TCSD_CONFIG -e -f &>/dev/null &
 			#fi
@@ -549,7 +549,7 @@ EOF
 		# disappeared (bad); whatever happens first
 	        ctr2=0
 	        while :; do
-			(exec 100<>"/dev/tcp/localhost/$TSS_TCSD_PORT") 2>/dev/null
+			(exec 100<>"/dev/tcp/127.0.0.1/$TSS_TCSD_PORT") 2>/dev/null
 			if [ $? -ne 0 ]; then
 				if [ $ctr2 -eq 40 ]; then
 					stop_tcsd 0
