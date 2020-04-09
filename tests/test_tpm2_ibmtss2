@@ -8,7 +8,7 @@ ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 SWTPM_SERVER_PORT=65426
-SWTPM_SERVER_NAME=localhost
+SWTPM_SERVER_NAME=127.0.0.1
 SWTPM_CTRL_PORT=65427
 SWTPM_INTERFACE=socket+socket
 
@@ -94,7 +94,7 @@ if [ $revision -gt 0 ]; then
 	popd &>/dev/null
 fi
 
-export TPM_SERVER_NAME=localhost
+export TPM_SERVER_NAME=127.0.0.1
 export TPM_INTERFACE_TYPE=socsim
 export TPM_COMMAND_PORT=${SWTPM_SERVER_PORT}
 export TPM_PLATFORM_PORT=${SWTPM_CTRL_PORT}

@@ -30,9 +30,9 @@ TESTLOG=${WORKDIR}/test.log
 
 # variables used by the TPM 1.2 test suite
 TPM_SERVER_PORT=65440
-TPM_SERVER_NAME=localhost
+TPM_SERVER_NAME=127.0.0.1
 SLAVE_TPM_PORT=65442
-SLAVE_TPM_SERVER=localhost
+SLAVE_TPM_SERVER=127.0.0.1
 
 SWTPM_INTERFACE=socket+socket
 
