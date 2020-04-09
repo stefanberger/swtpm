@@ -62,9 +62,11 @@ function test_nvram_state()
 	local create="$1"
 	local check="$2"
 
-	local i res rc act exp
+	local i res rc act exp ody
 
 	if [ $create -eq 1 ]; then
+		# the 1st and 2nd spaces are 'orderly' and will be cleared by reset
+		ody="+at ody"
 		for ((i=0; i < 10; i++)); do
 			printf "Creating NVRAM location 01%06x\n" $i
 			# the '+at wd' allows us to only write once
@@ -74,10 +76,15 @@ function test_nvram_state()
 				-pwdn nnn \
 				+at wst \
 				+at wd \
+				$ody \
 				-hi o >/dev/null
 			if [ $? -ne 0 ]; then
 				echo "Error: nvdefinespace failed for i = $i."
 				exit 1
+			fi
+
+			if [ $i -eq 1 ]; then
+				ody=""
 			fi
 
 			${TOOLSPATH}/${PREFIX}nvwrite \
@@ -121,13 +128,35 @@ function test_nvram_state()
 	fi
 
 	if [ $check -eq 1 ]; then
-		for ((i=0; i < 10; i++)); do
+		local last=0
+
+		if [ $create -eq 0 ]; then
+			last=2
+		fi
+
+		# The orderly indices must not be readable UNLESS they were just
+		# created. In the latter case we skip this first loop here.
+		for ((i=0; i < last; i++)); do
+			printf "Checking orderly NVRAM location 01%06x after reset\n" $i
+			${TOOLSPATH}/${PREFIX}nvread \
+				-ha $(printf "01%06x" $i) \
+				-pwdn nnn \
+				-sz 10 > $TMPFILE
+			if [ $? -eq 0 ]; then
+				echo "Error: nvread succeeded for orderly NVRAM index; i = $i"
+				cat $TMPFILE
+				exit 1
+			fi
+		done
+
+		# test the non-orderly indices OR orderly we just created above
+		for ((i=last; i < 10; i++)); do
 			printf "Checking NVRAM location 01%06x\n" $i
 			${TOOLSPATH}/${PREFIX}nvread \
 				-ha $(printf "01%06x" $i) \
 				-pwdn nnn \
 				-sz 10 > $TMPFILE
-			if [ $? -ne  0 ]; then
+			if [ $? -ne 0 ]; then
 				echo "Error: nvread failed for i = $i"
 				cat $TMPFILE
 				exit 1
