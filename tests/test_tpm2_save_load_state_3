@@ -1336,6 +1336,15 @@ if [ $? -ne 0 ]; then
 fi
 
 test_primary_volatile_load 0 1 1
+# Create the orderly nv indices and have them cleared (for coverage)
+test_nvram_state 1 1
+
+${TOOLSPATH}/${PREFIX}clear -hi p
+if [ $? -ne 0 ]; then
+	echo "Error: clear failed."
+	cat $LOGFILE
+	exit 1
+fi
 
 # Send Shutdown
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
