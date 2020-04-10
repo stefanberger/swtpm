@@ -530,20 +530,9 @@ EOF
 
 		# make sure tcsd is gone
 		stop_tcsd 1
-		case "$(id -u)" in
-		0)
-			TCSD_TCP_DEVICE_HOSTNAME=127.0.0.1 $TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
-			TCSD_PID=$!
-			;;
-		*)
-			# for tss user, use the wrapper
-			TCSD_TCP_DEVICE_HOSTNAME=127.0.0.1 $TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
-			#if [ $? -ne  0]; then
-			#	swtpm_tcsd_launcher -c $TCSD_CONFIG -e -f &>/dev/null &
-			#fi
-			TCSD_PID=$!
-			;;
-		esac
+
+		TCSD_TCP_DEVICE_HOSTNAME=127.0.0.1 $TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
+		TCSD_PID=$!
 
 		# poll for open port (good) or the process to have
 		# disappeared (bad); whatever happens first
@@ -804,13 +793,6 @@ init_tpm()
 	if [ $? -ne 0 ]; then
 		return 1
 	fi
-
-	# Define NVRAM are for Physical Presence Interface; unfortunately
-	# there are no useful write permissions...
-	#tpm_nvdefine \
-	#	-i $((0x50010000)) \
-	#	-p "PPREAD|PPWRITE|WRITEDEFINE" \
-	#	-s 6 2>&1 > /dev/null
 
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] && \
 	   [ -r "${EK_CERT_FILE}" ]; then
