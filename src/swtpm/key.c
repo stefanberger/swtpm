@@ -132,7 +132,7 @@ key_stream_to_bin(const char *input, unsigned char *bin, size_t bin_size)
     int n, num;
 
     while (input[digits] &&
-           !isspace(input[digits]) &&
+           !isspace((int)input[digits]) &&
            bin_size > (size_t)digits / 2) {
         num = sscanf(&input[digits], "%2hhx%n", &bin[digits/2], &n);
         if (num != 1 || n != 2)
@@ -140,7 +140,7 @@ key_stream_to_bin(const char *input, unsigned char *bin, size_t bin_size)
         digits += 2;
     }
 
-    if (input[digits] && !isspace(input[digits]))
+    if (input[digits] && !isspace((int)input[digits]))
         return -1;
 
     return (digits != 0) ? digits : -1;
