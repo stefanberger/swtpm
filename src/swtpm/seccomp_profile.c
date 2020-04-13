@@ -90,9 +90,18 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(settimeofday),
         SCMP_SYS(clock_adjtime),
         SCMP_SYS(clock_settime),
+#ifdef __NR_clock_settime64
+        SCMP_SYS(clock_settime64),
+#endif
         SCMP_SYS(adjtimex),
         SCMP_SYS(mount),
         SCMP_SYS(umount2),
+#ifdef __NR_fsmount
+        SCMP_SYS(fsmount),
+#endif
+#ifdef __NR_move_mount
+        SCMP_SYS(move_mount),
+#endif
         SCMP_SYS(swapon),
         SCMP_SYS(swapoff),
         SCMP_SYS(reboot),
@@ -159,6 +168,12 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(signalfd),
         SCMP_SYS(eventfd),
         SCMP_SYS(timerfd_settime),
+#ifdef __NR_timer_settime64
+        SCMP_SYS(timer_settime64),
+#endif
+#ifdef __NR_timerfd_settime64
+        SCMP_SYS(timerfd_settime64),
+#endif
         SCMP_SYS(timerfd_gettime),
         SCMP_SYS(signalfd4),
         SCMP_SYS(eventfd2),
@@ -234,7 +249,10 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(clone),
         SCMP_SYS(fork),
         SCMP_SYS(vfork),
-        SCMP_SYS(prctl)
+        SCMP_SYS(prctl),
+#ifdef __NR_clone3
+        SCMP_SYS(clone3),
+#endif
     };
     scmp_filter_ctx ctx;
     int ret;
