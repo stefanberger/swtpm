@@ -8,9 +8,15 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 77
 fi
 
+tmp="$(getenforce 2>&1)"
+if [ "${tmp}" = "Enforcing" ]; then
+	echo "Test may not work with SELinux in enforcing mode."
+	exit 77
+fi
+
 # tpm2_ptool may not be packaged everywhere ...
 if [ -z "$(type -P tpm2_ptool)" ]; then
-	echo "Could not find tpmtool in PATH"
+	echo "Could not find tpm2_ptool in PATH"
 	exit 77
 fi
 
@@ -19,9 +25,14 @@ if [ -z "$(tpm2_ptool | grep ",config,")" ]; then
 	exit 77
 fi
 
-msg=$(systemctl status tpm2-abrmd 2>&1)
-if [ $? -ne 0 ]; then
-	echo "tpm2-abrmd must be running"
+if [ -z "$(type -P tpm2-abrmd)" ]; then
+	echo "Could not find tpm2-abrmd in PATH"
+	exit 77
+fi
+
+if [ ! -r /usr/lib64/pkcs11/libtpm2_pkcs11.so ]; then
+	echo "/usr/lib64/pkcs11/libtpm2_pkcs11.so is missing"
+	echo "tpm2-pkcs11 package may not be installed."
 	exit 77
 fi
 
@@ -37,21 +48,36 @@ SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
 
 SWTPM_INTERFACE=socket+socket
 SWTPM_SERVER_NAME=localhost
-SWTPM_SERVER_PORT=65450
-SWTPM_CTRL_PORT=65451
+SWTPM_SERVER_PORT=65455
+SWTPM_CTRL_PORT=65454
+SWTPM_FAKE_CTRL_PORT=65456
 
 workdir=$(mktemp -d)
 
 SWTPM_LOCALCA_DIR="${workdir}/my localca"
 SWTPM_LOCALCA_CONF="${workdir}/my localca/swtpm-localca.conf"
 export TPM2_PKCS11_STORE="${workdir}"
+TPM2_ABRMD_PIDFILE="${workdir}/tpm2-abrmd.pid"
 
 PID="" # primary object id returned by tpm2_ptool
+TPM2_ABRMD_PID=""
 
 function cleanup()
 {
 	if [ -n "${PID}" ]; then
 		echo "y" | tpm2_ptool destroy ${PID} &>/dev/null
+	fi
+	if [ -n "${TPM2_ABRMD_PID}" ]; then
+		kill_quiet -15 ${TPM2_ABRMD_PID}
+	fi
+	if [ -n "${SWTPM_PID}" ]; then
+		kill_quiet -9 ${SWTPM_PID}
+	fi
+	if [ -n "${BASH_PID}" ]; then
+		kill_quiet -9 ${BASH_PID}
+	fi
+	if [ -n "${NCAT_PID}" ]; then
+		kill_quiet -9 ${NCAT_PID}
 	fi
 	rm -rf "${workdir}"
 }
@@ -83,6 +109,55 @@ create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=/dev/null
 _EOF_
 
+	$SWTPM_SETUP \
+		--tpm-state "${workdir}" \
+		--logfile "${workdir}/logfile" \
+		--config "${workdir}/swtpm_setup.conf" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--swtpm_ioctl "${SWTPM_IOCTL}" \
+		--tpm2 > /dev/null
+
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not run $SWTPM_SETUP."
+		echo "Setup Logfile:"
+		cat ${workdir}/logfile
+		exit 1
+	fi
+
+	SWTPM_SERVER_NO_DISCONNECT=1 run_swtpm ${SWTPM_INTERFACE} \
+		--tpm2 \
+		--flags not-need-init \
+		--tpmstate "dir=${workdir}" \
+		--log level=0
+
+	ncat -l ${SWTPM_FAKE_CTRL_PORT} \
+		-k -c "xargs --null -n1 printf '\x00\x00\x00\x00' 2>/dev/null" &
+	if [ $? -ne 0 ]; then
+		echo "Could not start ncat"
+		exit 1
+	fi
+	NCAT_PID=$!
+	kill_quiet -0 ${NCAT_PID}
+	if [ $? -ne 0 ]; then
+		echo "ncat must have terminated"
+		exit 1
+	fi
+
+	bash -c "tpm2-abrmd --tcti=mssim:host=127.0.0.1,port=${SWTPM_SERVER_PORT} --allow-root & echo \$! > "${TPM2_ABRMD_PIDFILE}"; wait" &
+	BASH_PID=$!
+
+	if wait_for_file "${TPM2_ABRMD_PIDFILE}" 3; then
+		echo "Error: Could not get tpm2-abrmd's PID file"
+		exit 1
+	fi
+
+	TPM2_ABRMD_PID=$(cat "${TPM2_ABRMD_PIDFILE}")
+	kill_quiet -0 "${TPM2_ABRMD_PID}"
+	if [ $? -ne 0 ]; then
+		echo "Error: tpm2-abrmd with pid ${TPM2_ABRMD_PID} must have terminated"
+		exit 1
+	fi
+
 	tmp="$(tpm2_ptool init 2>&1)"
 	if [ $? -ne 0 ]; then
 		echo "tpm2_ptool init failed:"
@@ -102,7 +177,7 @@ _EOF_
 		--outfile "${SWTPM_LOCALCA_CONF}" \
 		--group tss \
 		--tpm2 \
-		--pid "${PID}")"
+		--pid "${PID}" 2>&1)"
 
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not create TPM CA"
@@ -196,6 +271,30 @@ _EOF_
 		fi
 	done
 
+	# Send SIGTERM to tpm2-abrmd
+	kill_quiet -15 "${TPM2_ABRMD_PID}"
+	TPM2_ABRMD_PID=""
+
+	kill_quiet -9 "${NCAT_PID}"
+	NCAT_PID=""
+
+	# Shut down TPM
+	run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+		exit 1
+	fi
+
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+		exit 1
+	fi
+
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: tcsd should not be running anymore."
+		exit 1
+	fi
+	SWTPM_PID=""
 } # run_test
 
 run_test 1
