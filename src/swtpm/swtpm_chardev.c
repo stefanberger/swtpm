@@ -50,10 +50,6 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 
-#ifdef WITH_SECCOMP
-# include <seccomp.h>
-#endif
-
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_memory.h>
