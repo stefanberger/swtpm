@@ -78,8 +78,10 @@ if [ $revision -lt 155 ]; then
 	done
 fi
 
-# libtpms may at some revision start supporting RSA 3072 keys...
-if [ $revision -gt 0 ]; then
+rsa3072=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 4 |
+          sed -n 's/.*"RSAKeySizes":\[\([0-9,]*\)\].*/\1/p' |
+          grep 3072)
+if [ -z "$rsa3072" ]; then
 	pushd regtests &>/dev/null
 
 	echo "Modifying test cases related to RSA 3072 keys."
@@ -92,6 +94,8 @@ if [ $revision -gt 0 ]; then
 	sed -i "s| \"-rsa 3072\"||" testsalt.sh
 
 	popd &>/dev/null
+else
+	echo "swptm/libtpms support RSA 3072 bit keys"
 fi
 
 export TPM_SERVER_NAME=127.0.0.1
