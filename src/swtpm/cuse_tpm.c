@@ -58,10 +58,6 @@
 
 #include <glib.h>
 
-#ifdef WITH_SECCOMP
-# include <seccomp.h>
-#endif
-
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_tis.h>
 #include <libtpms/tpm_error.h>
