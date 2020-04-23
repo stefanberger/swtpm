@@ -23,8 +23,9 @@ if [ "${SWTPM_IFACE}" != "cuse" ]; then
 	noncuse='"tpm-send-command-header", "flags-opt-startup", '
 fi
 
-exp='{ "type": "swtpm", "features": [ '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd" ] }'
-if [ "${msg}" != "${exp}" ]; then
+# The rsa key size reporting is variable, so use a regex
+exp='\{ "type": "swtpm", "features": \[ '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd"(, "rsa-keysize-1024")?(, "rsa-keysize-2048")?(, "rsa-keysize-3072")? \] \}'
+if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-capabilities:"
 	echo "Actual   : ${msg}"
 	echo "Expected : ${exp}"
