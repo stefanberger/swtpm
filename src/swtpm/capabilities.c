@@ -40,9 +40,77 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include <libtpms/tpm_library.h>
 
 #include "capabilities.h"
 #include "logging.h"
+
+/* Convert the RSA key size indicators supported by libtpms into capability
+ * strings.
+ * libtpms may return us something like this here:
+ * "TPMAttributes":{"manufacturer":"id:00001014",\
+ * "version":"id:20191023","model":"swtpm","RSAKeySizes":[1024,2048,3072]}}
+ *
+ * or an older version may not report RSA keysizes:
+ * "TPMAttributes":{"manufacturer":"id:00001014",\
+ * "version":"id:20191023","model":"swtpm"}}
+ */
+static int get_rsa_keysize_caps(char **keysizecaps)
+{
+    int ret = 0;
+    char *start, *endptr;
+    const char *needle = "\"RSAKeySizes\":[";
+    char *info_data = TPMLIB_GetInfo(4 /*TPMLIB_INFO_TPMFEATURES*/);
+    char buffer[128];
+    off_t offset = 0;
+    int n;
+
+    if (!info_data)
+        goto oom;
+
+    start = strstr(info_data, needle);
+    if (start) {
+        start += strlen(needle);
+        while (1) {
+            unsigned long int keysize = strtoul(start, &endptr, 10);
+
+            if (*endptr != ',' && *endptr != ']') {
+                logprintf(STDERR_FILENO, "Malformed TPMLIB_GetInfo() string\n");
+                ret = -1;
+                goto cleanup;
+            }
+
+            n = snprintf(buffer + offset, sizeof(buffer) - offset,
+                         ", \"rsa-keysize-%lu\"",
+                          keysize);
+            if (n < 0 || (unsigned)n >= sizeof(buffer) - offset) {
+                logprintf(STDERR_FILENO, "%s: buffer is too small\n", __func__);
+                ret = -1;
+                goto cleanup;
+            }
+            if (*endptr == ']')
+                break;
+
+            offset += n;
+            start = endptr + 1;
+        }
+
+        *keysizecaps = strndup(buffer, sizeof(buffer) - 1);
+        if (*keysizecaps == NULL)
+            goto oom;
+    }
+
+cleanup:
+    free(info_data);
+    return ret;
+
+oom:
+    logprintf(STDERR_FILENO, "Out of memory\n");
+    ret = -1;
+    goto cleanup;
+}
 
 int capabilities_print_json(bool cusetpm)
 {
@@ -54,19 +122,25 @@ int capabilities_print_json(bool cusetpm)
 #else
     const char *cmdarg_seccomp = "";
 #endif
+    char *keysizecaps = NULL;
+
+    ret = get_rsa_keysize_caps(&keysizecaps);
+    if (ret < 0)
+        goto cleanup;
 
     n =  asprintf(&string,
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s"
+             "%s%s%s%s%s%s"
           " ] "
          "}",
          !cusetpm     ? "\"tpm-send-command-header\", ": "",
          !cusetpm     ? "\"flags-opt-startup\", "      : "",
          cmdarg_seccomp,
          true         ? "\"cmdarg-key-fd\", "          : "",
-         true         ? "\"cmdarg-pwd-fd\""            : ""
+         true         ? "\"cmdarg-pwd-fd\""            : "",
+         keysizecaps  ? keysizecaps                    : ""
     );
 
     if (n < 0) {
@@ -79,6 +153,7 @@ int capabilities_print_json(bool cusetpm)
     fprintf(stdout, "%s\n", string);
 
 cleanup:
+    free(keysizecaps);
     free(string);
 
     return ret;

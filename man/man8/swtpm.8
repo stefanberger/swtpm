@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm 8"
-.TH swtpm 8 "2020-02-08" "swtpm" ""
+.TH swtpm 8 "2020-04-23" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -380,7 +380,10 @@ may contain the following:
 \&        "cmdarg\-key\-fd",
 \&        "cmdarg\-pwd\-fd",
 \&        "tpm\-send\-command\-header",
-\&        "flags\-opt\-startup"
+\&        "flags\-opt\-startup",
+\&        "rsa\-keysize\-1024",
+\&        "rsa\-keysize\-2048",
+\&        "rsa\-keysize\-3072"
 \&      ]
 \&    }
 .Ve
@@ -405,6 +408,10 @@ The \s-1TPM 2\s0 will respond by preprending a 4\-byte response indicator and a
 .IP "\fBflags-opt-startup\fR" 4
 .IX Item "flags-opt-startup"
 The \fI\-\-flags\fR option supports the \fIstartup\-...\fR options.
+.IP "\fBrsa\-keysize\-2048\fR" 4
+.IX Item "rsa-keysize-2048"
+The \s-1TPM 2\s0 supports the shown \s-1RSA\s0 key sizes. If none of the
+rsa-keysize verbs is shown then only \s-1RSA 2048\s0 bit keys are supported.
 .RE
 .RS 4
 .RE

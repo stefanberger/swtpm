@@ -294,7 +294,10 @@ may contain the following:
         "cmdarg-key-fd",
         "cmdarg-pwd-fd",
         "tpm-send-command-header",
-        "flags-opt-startup"
+        "flags-opt-startup",
+        "rsa-keysize-1024",
+        "rsa-keysize-2048",
+        "rsa-keysize-3072"
       ]
     }
 
@@ -324,6 +327,11 @@ The TPM 2 will respond by preprending a 4-byte response indicator and a
 =item B<flags-opt-startup>
 
 The I<--flags> option supports the I<startup-...> options.
+
+=item B<rsa-keysize-2048>
+
+The TPM 2 supports the shown RSA key sizes. If none of the
+rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 
 =back
 
