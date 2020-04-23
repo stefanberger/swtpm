@@ -254,6 +254,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 #endif
     bool need_init_cmd = true;
     unsigned int seccomp_action;
+    bool printcapabilities = false;
     static struct option longopts[] = {
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
@@ -380,8 +381,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             exit(EXIT_SUCCESS);
 
         case 'a':
-            ret = capabilities_print_json(false);
-            exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
+            printcapabilities = true;
+            break;
 
         case 'r':
             runas = optarg;
@@ -466,6 +467,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         logprintf(STDERR_FILENO,
                   "Error: Could not choose TPM version.\n");
         exit(EXIT_FAILURE);
+    }
+
+    if (printcapabilities) {
+        ret = capabilities_print_json(false);
+        exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
     }
 
     SWTPM_NVRAM_Set_TPMVersion(mlp.tpmversion);
