@@ -61,43 +61,55 @@ _EOF_
 # We need to adapt the PATH so the correct swtpm_cert is picked
 export PATH=${TOPBUILD}/src/swtpm_cert:${PATH}
 
-# we need to create at least one cert: --create-ek-cert
-$SWTPM_SETUP \
-	--tpm2 \
-	--allow-signing \
-	--tpm-state "${workdir}" \
-	--create-ek-cert \
-	--create-platform-cert \
-	--config "${workdir}/swtpm_setup.conf" \
-	--logfile "${workdir}/logfile" \
-	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--swtpm_ioctl "${SWTPM_IOCTL}"
-
-if [ $? -ne 0 ]; then
-	echo "Error: Could not run $SWTPM_SETUP."
-	echo "Logfile output:"
-	cat "${workdir}/logfile"
-	exit 1
+keysizes="2048"
+if [ -n "$($SWTPM_SETUP --tpm2 --print-capabilities |
+	    grep tpm2-rsa-keysize-3072 )" ]; then
+	keysizes+=" 3072"
 fi
 
-if [ ! -r "${SIGNINGKEY}" ]; then
-	echo "Error: Signingkey file ${SIGNINGKEY} was not created."
-	exit 1
-fi
+for keysize in $(echo $keysizes); do
+	echo "Testing with RSA keysize $keysize"
+	# we need to create at least one cert: --create-ek-cert
+	$SWTPM_SETUP \
+		--tpm2 \
+		--allow-signing \
+		--tpm-state "${workdir}" \
+		--create-ek-cert \
+		--create-platform-cert \
+		--config "${workdir}/swtpm_setup.conf" \
+		--logfile "${workdir}/logfile" \
+		--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--swtpm_ioctl "${SWTPM_IOCTL}" \
+		--rsa-keysize ${keysize} \
+		--overwrite
 
-if [ ! -r "${ISSUERCERT}" ]; then
-	echo "Error: Issuer cert file ${ISSUERCERT} was not created."
-	exit 1
-fi
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not run $SWTPM_SETUP."
+		echo "Logfile output:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
 
-if [ ! -r "${CERTSERIAL}" ]; then
-	echo "Error: Cert serial number file ${CERTSERIAL} was not created."
-	exit 1
-fi
+	if [ ! -r "${SIGNINGKEY}" ]; then
+		echo "Error: Signingkey file ${SIGNINGKEY} was not created."
+		exit 1
+	fi
+
+	if [ ! -r "${ISSUERCERT}" ]; then
+		echo "Error: Issuer cert file ${ISSUERCERT} was not created."
+		exit 1
+	fi
+
+	if [ ! -r "${CERTSERIAL}" ]; then
+		echo "Error: Cert serial number file ${CERTSERIAL} was not created."
+		exit 1
+	fi
+
+	rm -rf ${SIGNINGKEY} ${ISSUERCERT} ${CERTSERIAL}
+done
 
 echo "Test 1: OK"
 
-rm -rf ${SIGNINGKEY} ${ISSUERCERT} ${CERTSERIAL}
 
 # we need to create at least one cert: --create-ek-cert
 $SWTPM_SETUP \
