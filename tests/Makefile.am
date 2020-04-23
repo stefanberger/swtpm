@@ -58,6 +58,7 @@ TESTS += \
 	test_tpm2_resume_volatile \
 	test_tpm2_savestate \
 	test_tpm2_save_load_encrypted_state \
+	test_tpm2_save_load_state_2 \
 	test_tpm2_save_load_state_3 \
 	test_tpm2_save_load_state_da_timeout \
 	test_tpm2_setbuffersize \
@@ -140,6 +141,8 @@ EXTRA_DIST=$(TESTS) \
 	data/tpm2state3b/tpm2-00.permall \
 	data/tpm2state4/tpm2-00.volatilestate \
 	data/tpm2state4/tpm2-00.permall \
+	data/tpm2state5/signature.bin \
+	data/tpm2state5/tpm2-00.permall \
 	load_vtpm_proxy \
 	patches/libtpm.patch \
 	softhsm_setup \

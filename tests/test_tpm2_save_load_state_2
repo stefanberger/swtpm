@@ -1,0 +1,334 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+if [ ${SWTPM_TEST_IBMTSS2:-0} -eq 0 ]; then
+	echo "SWTPM_TEST_IBMTSS2 must be set to run this test."
+	exit 77
+fi
+
+type -p nvdefinespace startup &>/dev/null
+if [ $? -ne 0 ]; then
+    PREFIX=tss
+    type -p ${PREFIX}nvdefinespace ${PREFIX}startup
+fi
+if [ $? -ne 0 ]; then
+	echo "Could not find TPM2 tools (e.g., (tss)startup, (tss)nvdefinespace) in PATH."
+	exit 77
+fi
+TOOLSPATH=$(dirname $(type -P ${PREFIX}startup))
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+SWTPM=swtpm
+SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
+SWTPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+TPMDIR=`mktemp -d`
+PID_FILE=$TPMDIR/${SWTPM}.pid
+SOCK_PATH=$TPMDIR/sock
+CMD_PATH=$TPMDIR/cmd
+RESP_PATH=$TPMDIR/resp
+LOGFILE=$TPMDIR/logfile
+TMPFILE=$TPMDIR/tmpfile
+BINFILE=$TPMDIR/binfile
+SIGFILE=$TPMDIR/sigfile
+
+source ${TESTDIR}/test_common
+source ${TESTDIR}/common
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf $TPMDIR
+	# remove files from tss tools
+	rm -f h01*.bin nvp*.bin
+	if [ -n "$PID" ]; then
+		kill_quiet -SIGTERM $PID 2>/dev/null
+	fi
+}
+
+# Fill up the NVRAM space with 2048 bit signing keys and then an NVRAM area that
+# fills it up to the last byte. We want to make sure that the OBJECTs that the
+# RSA keys are creating in NVRAM can be loaded into the NVRAM again when the size
+# of the OBJECT increases when for example the size of the RSA keys increases.
+# This may force us to increase the NVRAM memory space in libtpms then.
+function fillup_nvram()
+{
+	local create="$1"
+	local check="$2"
+
+	local i sz
+
+	if [ $create -eq 1 ]; then
+		# Fill up the NVRAM space with RSA 2048 keys;
+		# exactly 64 have to fit
+		${TOOLSPATH}/${PREFIX}createprimary -hi o -si > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: createprimary failed."
+			exit 1
+		fi
+		if [ -z "$(grep 80000000 $TMPFILE)" ]; then
+			echo "Error: createprimary did not result in expected handle 80000000"
+			exit 1
+		fi
+		for ((i = 0x81000000; i < 0x81000100; i++)); do
+			${TOOLSPATH}/${PREFIX}evictcontrol \
+				-hi o \
+				-ho 80000000 \
+				-hp $(printf "%x" $i) &>$TMPFILE || break
+		done
+		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 81000000 > $TMPFILE
+		# We need know we need to see '64 Handles' for state created with
+		# libtpms-0.6.0 and 128kb NVRAM size
+		grep -i "64 Handles" $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: Did not find '64 Handles' keyword in output"
+			cat $TMPFILE
+			exit 1
+		fi
+
+		# Fill up the rest of the NVRAM with a single NVRAM index whose size
+		# we now have to find;
+		# for reference: libtpms v0.6.0 allowed 236 bytes
+		for ((sz = 0; ; sz++)); do
+			${TOOLSPATH}/${PREFIX}nvdefinespace \
+				-hi o \
+				-ha 01000000 \
+				-sz ${sz} > ${TMPFILE} || break
+			# this worked, so lets remove it and try the next size
+			#echo "NVRAM space of size $sz could be created"
+			${TOOLSPATH}/${PREFIX}nvundefinespace \
+				-hi o \
+				-ha 01000000 > ${TMPFILE}
+		done
+		if [ $sz -gt 0 ]; then
+			sz=$((sz - 1))
+			echo "Creating final space of size ${sz}"
+			${TOOLSPATH}/${PREFIX}nvdefinespace \
+				-hi o \
+				-ha 01000000 \
+				-sz ${sz} > ${TMPFILE}
+			if [ $? -ne 0 ]; then
+				echo "Error: Could not create final NVRAM space."
+				cat ${TMPFILE}
+				exit 1
+			fi
+		fi
+		if [ $sz -eq 0 ]; then
+			echo "Error: NVRAM space could not be created at all; not enough space!"
+			exit 1
+		elif [ $sz -lt 236 ]; then
+			echo "Error: Insufficient NVRAM memory. Needed to create an NVRAM index with size 236 bytes."
+			exit 1
+		elif [ $sz -gt 236 ]; then
+			echo "Error: The NVRAM index is too large. Only needed 236 bytes but got $sz bytes."
+			exit 1
+		else
+			echo "The NVRAM index is exactly of the right size (236 bytes)."
+		fi
+
+		echo -n "123" > $BINFILE
+		${TOOLSPATH}/${PREFIX}sign \
+			-hk 81000000 \
+			-if ${BINFILE} \
+			-os ${SIGFILE} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not create signature."
+			cat $TMPFILE
+			exit 1
+		fi
+	fi
+
+	if [ $check -eq 1 ]; then
+		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 81000000 > $TMPFILE
+		# We need know we need to see '64 Handles' for state created with
+		# libtpms-0.6.0 and 128kb NVRAM size
+		grep -i "64 Handles" $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: Did not find '64 Handles' keyword in output"
+			cat $TMPFILE
+			exit 1
+		fi
+
+		printf "Verifying signature with all the persisted keys\n"
+		echo -n "123" > $BINFILE
+		for ((i = 0x81000000; i < 0x81000040; i++)); do
+			${TOOLSPATH}/${PREFIX}verifysignature \
+				-hk $(printf "%x" $i) \
+				-is ${SIGFILE} \
+				-if ${BINFILE} > $TMPFILE
+			if [ $? -ne 0 ]; then
+				echo "Verifying signature failed for handle $(printf "%x" $i)."
+				exit 1
+			fi
+		done
+	fi
+}
+
+export TPM_SERVER_TYPE=raw
+export TPM_SERVER_NAME=127.0.0.1
+export TPM_INTERFACE_TYPE=socsim
+export TPM_COMMAND_PORT=65446
+export TPM_DATA_DIR=$TPMDIR
+export TPM_SESSION_ENCKEY="807e2bfe898ddaed8fa6310e716a24dc" # for sessions
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (1) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	exit 1
+fi
+
+fillup_nvram 1 1
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "============================" >> $LOGFILE
+
+echo "TPM was shut down"
+
+# Store this state for later usage; use a really old version of libtpms: 0.6.0
+#cp $TPMDIR/tpm2-00.permall ${TESTDIR}/data/tpm2state5;
+#cp $SIGFILE ${TESTDIR}/data/tpm2state5/signature.bin
+
+#################################################################
+# Run TPM2 with the created state and verify it's the same
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (2) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+echo "TPM re-started"
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+fillup_nvram 0 1
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "============================" >> $LOGFILE
+
+echo "TPM was shut down"
+
+#################################################################
+# Run TPM2 with previously saved state and verify it's the same
+
+rm -f $TPMDIR/*
+cp -f ${TESTDIR}/data/tpm2state5/tpm2-00.permall $TPMDIR/tpm2-00.permall
+cp ${TESTDIR}/data/tpm2state5/signature.bin $SIGFILE
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+echo "TPM started with previously generated state"
+
+PID="$(cat $PID_FILE)"
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+${TOOLSPATH}/${PREFIX}startup -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_startup clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+fillup_nvram 0 1
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "Test 1 OK"
