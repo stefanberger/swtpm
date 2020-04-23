@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+[ "${SWTPM_IFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
+source ${TESTDIR}/common
+
+msg="$(${SWTPM_EXE} ${SWTPM_IFACE} --tpm2 --print-capabilities 2>&1)"
+if [ $? -ne 0 ]; then
+	echo "Error: Could not pass --print-capabilities"
+	echo "${msg}"
+	exit 1
+fi
+
+if has_seccomp_support "${SWTPM_EXE}"; then
+	seccomp='"cmdarg-seccomp", '
+fi
+if [ "${SWTPM_IFACE}" != "cuse" ]; then
+	noncuse='"tpm-send-command-header", "flags-opt-startup", '
+fi
+
+exp='{ "type": "swtpm", "features": [ '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd" ] }'
+if [ "${msg}" != "${exp}" ]; then
+	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-capabilities:"
+	echo "Actual   : ${msg}"
+	echo "Expected : ${exp}"
+	exit 1
+fi
+
+echo "Test 1: OK"
+
+msg="$(${SWTPM_SETUP} --tpm2 --print-capabilities 2>&1)"
+if [ $? -ne 0 ]; then
+	echo "Error: Could not pass --print-capabilities"
+	echo "${msg}"
+	exit 1
+fi
+
+exp='{ "type": "swtpm_setup", "features": [ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd" ] }'
+if [ "${msg}" != "${exp}" ]; then
+	echo "Unexpected response from ${SWTPM_SETUP} to --print-capabilities:"
+	echo "Actual   : ${msg}"
+	echo "Expected : ${exp}"
+	exit 1
+fi
+
+echo "Test 2: OK"
+
+# SWTPM_CERT may be run by valgrind
+if [ -x "$(type -P $(echo "${SWTPM_CERT}" | cut -d" " -f1) )" ]; then
+	msg="$(${SWTPM_CERT} --tpm2 --print-capabilities 2>&1)"
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not pass --print-capabilities to ${SWTPM_CERT}"
+		echo "${msg}"
+		exit 1
+	fi
+
+	exp='{ "type": "swtpm_cert", "features": [ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd" ] }'
+	if [ "${msg}" != "${exp}" ]; then
+		echo "Unexpected response from ${SWTPM_CERT} to --print-capabilities:"
+		echo "Actual   : ${msg}"
+		echo "Expected : ${exp}"
+		exit 1
+	fi
+
+	echo "Test 3: OK"
+else
+	echo "Test 2: SKIP -- ${SWTPM_CERT} not found or not an executable"
+fi
+
+exit 0

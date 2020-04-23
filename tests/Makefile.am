@@ -54,6 +54,7 @@ TESTS += \
 	test_tpm2_hashing2 \
 	test_tpm2_hashing3 \
 	test_tpm2_migration_key \
+	test_tpm2_print_capabilities \
 	test_tpm2_resume_volatile \
 	test_tpm2_savestate \
 	test_tpm2_save_load_encrypted_state \
@@ -171,6 +172,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm2_init \
 	_test_tpm2_locality \
 	_test_tpm2_migration_key \
+	_test_tpm2_print_capabilities \
 	_test_tpm2_probe \
 	_test_tpm2_resume_volatile \
 	_test_tpm2_savestate \
