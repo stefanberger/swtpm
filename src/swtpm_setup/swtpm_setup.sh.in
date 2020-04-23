@@ -1990,14 +1990,56 @@ TPM emulator setup tool version @SWTPM_VER_MAJOR@.@SWTPM_VER_MINOR@.@SWTPM_VER_M
 EOF
 }
 
+# Get the support RSA key sizes
+# @return This function echos something like the following
+# - "1024\n2048\n3072\n"
+# - "" (empty string, indicating only 2048 bit RSA keys are supported)
+get_rsa_keysizes() {
+	local flags="$1"
+
+	if [ $((flags & SETUP_TPM2_F)) -ne 0 ]; then
+		$SWTPM --tpm2 --print-capabilities |
+			sed -n 's/rsa\-keysize\-[^"]*"/\n&/gp' |
+			sed -n 's/rsa\-keysize\-\([^"]*\)".*/\1/gp'
+	fi
+}
+
+# Get supported RSA key sizes useful for creating the EK key; only 2048
+# and 3072 bits are checked and reported
+# @return This function echos something like the following
+# - "tpm2-rsa-keysize-2048", "tpm2-rsa-keyssize-3072"
+# - "" (empty string, indicating only 2048 bit RSA keys are supported)
+get_rsakeysize_caps() {
+	local flags="$1"
+
+	local keysizes keysize result=""
+
+	for keysize in $(get_rsa_keysizes "$flags"); do
+		if [ $keysize -ge 2048 ]; then
+			if [ -n "$result" ]; then
+				result+=", "
+			fi
+			result+=\""tpm2-rsa-keysize-${keysize}\""
+		fi
+	done
+
+	echo "$result"
+	return 0
+}
+
 print_capabilities()
 {
-	local param=""
+	local output param=""
 
 	if [ -z "$(type -P tcsd)" ] || \
 	   [ -z "$(type -P tpm_nvinfo)" ] || \
 	   [ -z "$(type -P tpm_takeownership)" ]; then
 		param=', "no-tpm12-tools"'
+	fi
+
+	output="$(get_rsakeysize_caps "$((SETUP_TPM2_F))")"
+	if [ -n "$output" ]; then
+		param+=", ${output}"
 	fi
 
 	echo '{ "type": "swtpm_setup",' \
@@ -2123,7 +2165,7 @@ main()
 	local tpm_state_path=""
 	local config_file="$DEFAULT_CONFIG_FILE"
 	local vmid="" tmp
-	local ret
+	local ret printcapabilities=0
 	local keyfile pwdfile cipher="aes-128-cbc"
 	local keyfile_fd pwdfile_fd
 	local got_ownerpass=0 got_srkpass=0
@@ -2167,12 +2209,17 @@ main()
 		--pcr-banks) shift; pcr_banks="${pcr_banks},$1";;
 		--tcsd-system-ps-file) shift; tcsd_system_ps_file="$1";;
 		--version) versioninfo "$0"; exit 0;;
-		--print-capabilities) print_capabilities; exit 0;;
+		--print-capabilities) printcapabilities=1;;
 		--help|-h|-?) usage "$0"; exit 0;;
 		*) logerr "Unknown option $1"; usage "$0"; exit 1;;
 		esac
 		shift
 	done
+
+	if [ $printcapabilities -ne 0 ]; then
+		print_capabilities "$flags"
+		exit 0
+	fi
 
 	[ $got_ownerpass -eq 0 ] && flags=$((flags | SETUP_OWNERPASS_ZEROS_F))
 	[ $got_srkpass -eq 0 ] && flags=$((flags | SETUP_SRKPASS_ZEROS_F))

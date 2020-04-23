@@ -175,15 +175,17 @@ This option is only useful with TPM 1.2 and in if ownership is taken.
 
 =item B<--print-capabilities> (since v0.2)
 
-Print capabilities that were added to swtpm_setup after version 0.1. The output
-contains the following:
+Print capabilities that were added to swtpm_setup after version 0.1.
+The output may contain the following:
 
     {
       "type": "swtpm_setup",
       "features": [
         "cmdarg-keyfile-fd",
         "cmdarg-pwdfile-fd",
-        "no-tpm12-tools"
+        "no-tpm12-tools",
+        "tpm2-rsa-keysize-2048",
+        "tpm2-rsa-keysize-3072"
       ]
     }
 
@@ -204,6 +206,11 @@ The I<--pwdfile-fd> option is supported.
 TPM 1.2 tools cannot be found in the PATH. This means that no certificates can
 be created since they cannot be written into the NVRAM and the NVRAM cannot be
 locked. Among the TPM 1.2 setup parameters only I<--createek> can be passed.
+
+=item B<tpm2-rsa-keysize-2048, ...>
+
+The shown RSA key sizes are supported for a TPM 2's EK key. If none of the
+tpm2-rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 
 =back
 
