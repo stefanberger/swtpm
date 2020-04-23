@@ -1414,6 +1414,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     int n, tpmfd;
     char path[PATH_MAX];
     int ret = 0;
+    bool printcapabilities = false;
 
     memset(&cinfo, 0, sizeof(cinfo));
     memset(&param, 0, sizeof(param));
@@ -1505,8 +1506,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
             fprintf(stdout, usage, prgname, iface);
             goto exit;
         case 'a':
-            ret = capabilities_print_json(true);
-            goto exit;
+            printcapabilities = true;
+            break;
         case 'v': /* version */
             fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
                     "Copyright (c) 2014-2015 IBM Corp.\n",
@@ -1532,6 +1533,11 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         logprintf(STDERR_FILENO,
                   "Error: Could not choose TPM version.\n");
         ret = EXIT_FAILURE;
+        goto exit;
+    }
+
+    if (printcapabilities) {
+        ret = capabilities_print_json(true) ? EXIT_FAILURE : EXIT_SUCCESS;
         goto exit;
     }
 

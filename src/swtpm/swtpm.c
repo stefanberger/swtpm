@@ -233,6 +233,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     time_t              start_time;
 #endif
     unsigned int seccomp_action;
+    bool printcapabilities = false;
     static struct option longopts[] = {
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
@@ -373,8 +374,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             exit(EXIT_SUCCESS);
 
         case 'a':
-            ret = capabilities_print_json(false);
-            exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
+            printcapabilities = true;
+            break;
 
         case 'r':
             runas = optarg;
@@ -411,6 +412,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         logprintf(STDERR_FILENO,
                   "Error: Could not choose TPM version.\n");
         exit(EXIT_FAILURE);
+    }
+
+    if (printcapabilities) {
+        ret = capabilities_print_json(false);
+        exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
     }
 
     if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
