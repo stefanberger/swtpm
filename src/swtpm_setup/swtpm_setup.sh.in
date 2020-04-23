@@ -5,7 +5,7 @@
 #
 # Authors: Stefan Berger <stefanb@us.ibm.com>
 #
-# (c) Copyright IBM Corporation 2011,2014,2015.
+# (c) Copyright IBM Corporation 2011,2014-2020
 #
 # All rights reserved.
 #
@@ -129,6 +129,7 @@ TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCert=$((0x01c00016))
 TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTemplate=$((0x01c00017))
 
 TPM2_EK_RSA_HANDLE=$((0x81010001))
+TPM2_EK_RSA3072_HANDLE=$((0x8101001c))
 TPM2_EK_ECC_SECP384R1_HANDLE=$((0x81010016))
 TPM2_SPK_HANDLE=$((0x81000001))
 
@@ -140,16 +141,24 @@ TPMLIB_INFO_TPMATTRIBUTES=2
 
 NB16='\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 NB32=${NB16}${NB16}
-NB256=${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}
-# Nonce used for EK creation; 2 bytes length + nonce
-NONCE_RSA='\x01\x00'${NB256}
-NONCE_RSA_SIZE=256
+NB128=${NB32}${NB32}${NB32}${NB32}
+NB256=${NB128}${NB128}
+# Nonce used for EK creation for RSA 2048 keys; 2 bytes length + nonce
+NONCE_RSA2048='\x01\x00'${NB256}
+NONCE_RSA2048_SIZE=256
+
+# Nonce used for EK creation for RSA 3072 keys; 2 bytes length + nonce
+NB384=${NB256}${NB128}
+NONCE_RSA3072='\x01\x80'${NB384}
+NONCE_RSA3072_SIZE=384
 
 NONCE_ECC_384='\x00\x30'${NB32}${NB16}
 NONCE_ECC_384_SIZE=48
 
 NONCE_EMPTY='\x00\x00'
 NONCE_EMPTY_SIZE=0
+
+DEFAULT_RSA_KEYSIZE=2048
 
 trap "cleanup" SIGTERM EXIT
 
@@ -925,81 +934,104 @@ init_tpm()
 #
 # @param1: flags
 # @param2: filename for template
+# @param3: RSA key size in bits
 tpm2_createprimary_ek_rsa()
 {
 	local flags="$1"
 	local templatefile="$2"
+	local rsa_keysize="$3"
 
-	local symkeydata keyflags totlen publen off min_exp authpolicy
+	local symkeydata keyflags totlen publen off min_exp authpolicy nonce_size
+	local addlen
+
+	case "$rsa_keysize" in
+	2048)	nonce_size=$NONCE_RSA2048_SIZE
+		# authPolicy from: Ek Credential Profile; Spec v 2.1; rev12; p.37
+		authpolicy='\\x83\\x71\\x97\\x67\\x44\\x84\\xb3\\xf8\\x1a\\x90\\xcc\\x8d'
+		authpolicy+='\\x46\\xa5\\xd7\\x24\\xfd\\x52\\xd7\\x6e\\x06\\x52\\x0b\\x64'
+		authpolicy+='\\xf2\\xa1\\xda\\x1b\\x33\\x14\\x69\\xaa'
+		addlen=0
+		keyflags=0
+		;;
+	3072)	nonce_size=$NONCE_RSA3072_SIZE
+		# authPolicy from: Ek Credential Profile; Spec v 2.3; rev2; p.47
+		authpolicy='\\xB2\\x6E\\x7D\\x28\\xD1\\x1A\\x50\\xBC\\x53\\xD8\\x82\\xBC'
+		authpolicy+='\\xF5\\xFD\\x3A\\x1A\\x07\\x41\\x48\\xBB\\x35\\xD3\\xB4\\xE4'
+		authpolicy+='\\xCB\\x1C\\x0A\\xD9\\xBD\\xE4\\x19\\xCA\\xCB\\x47\\xBA\\x09'
+		authpolicy+='\\x69\\x96\\x46\\x15\\x0F\\x9F\\xC0\\x00\\xF3\\xF8\\x0E\\x12'
+		addlen=16
+		# keyflags: userWithAuth
+		keyflags=$((0x40))
+		;;
+	esac
 
 	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ] && \
 	   [ $((flags & SETUP_DECRYPTION_F)) -ne 0 ]; then
 		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
 		# adminWithPolicy, sign, decrypt
-		keyflags=$((0x000600b2))
+		keyflags=$((keyflags | 0x000600b2))
 		# symmetric: TPM_ALG_NULL
 		symkeydata='\\x00\\x10'
-		publen=$((0x36 + NONCE_RSA_SIZE))
-		totlen=$((0x5f + NONCE_RSA_SIZE))
+		publen=$((0x36 + nonce_size + addlen))
+		totlen=$((0x5f + nonce_size + addlen))
 		min_exp=1506
 		# offset of length indicator for key
-		off=216
+		off=$((216 + addlen * 3))
 	elif [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
 		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
 		# adminWithPolicy, sign
-		keyflags=$((0x000400b2))
+		keyflags=$((keyflags | 0x000400b2))
 		# symmetric: TPM_ALG_NULL
 		symkeydata='\\x00\\x10'
-		publen=$((0x36 + NONCE_RSA_SIZE))
-		totlen=$((0x5f + NONCE_RSA_SIZE))
+		publen=$((0x36 + nonce_size + addlen))
+		totlen=$((0x5f + nonce_size + addlen))
 		min_exp=1506
 		# offset of length indicator for key
-		off=216
+		off=$((216 + addlen * 3))
 	else
 		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
 		# adminWithPolicy, restricted, decrypt
-		keyflags=$((0x000300b2))
-		# symmetric: TPM_ALG_AES, 128bit, TPM_ALG_CFB
-		symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
-		publen=$((0x3a + NONCE_RSA_SIZE))
-		totlen=$((0x63 + NONCE_RSA_SIZE))
+		keyflags=$((keyflags | 0x000300b2))
+		# symmetric: TPM_ALG_AES, 128bit or 256bit, TPM_ALG_CFB
+		symkeydata='\\x00\\x06@SYMKEYLEN-2@\\x00\\x43'
+		publen=$((0x3a + nonce_size + addlen))
+		totlen=$((0x63 + nonce_size + addlen))
 		min_exp=1518
 		# offset of length indicator for key
-		off=228
+		off=$((228 + addlen * 3))
 	fi
-
-	# authPolicy from: Ek Credential Profile; Spec v 2.1; rev12; p.37
-	authpolicy='\\x83\\x71\\x97\\x67\\x44\\x84\\xb3\\xf8\\x1a\\x90\\xcc\\x8d'
-	authpolicy+='\\x46\\xa5\\xd7\\x24\\xfd\\x52\\xd7\\x6e\\x06\\x52\\x0b\\x64'
-	authpolicy+='\\xf2\\xa1\\xda\\x1b\\x33\\x14\\x69\\xaa'
-
-	# Check the TCG EK Credential Profile doc for TPM 2 for
-	# parameters used here
 
 	# TPM_RH_ENDORSEMENT
 	tpm2_createprimary_rsa_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off}" \
-	    "${authpolicy}" "${templatefile}"
+	    "${authpolicy}" "${templatefile}" "${rsa_keysize}"
 	return $?
 }
 
 # Create a storage primary key
 #
 # @param1: flags
+# @param2: RSA key size in bits
 tpm2_createprimary_spk_rsa()
 {
 	local flags="$1"
+	local rsa_keysize="$2"
 
-	local symkeydata keyflags totlen publen off min_exp
+	local symkeydata keyflags totlen publen off min_exp nonce_size
+
+	case "$rsa_keysize" in
+	2048)	nonce_size=$NONCE_RSA2048_SIZE;;
+	3072)	nonce_size=$NONCE_RSA3072_SIZE;;
+	esac
 
 	# keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
 	# userWithAuth, noDA, restricted, decrypt
 	keyflags=$((0x00030472))
 	# keyflags=$((0x000300b2))
 	# symmetric: TPM_ALG_NULL
-	symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
-	publen=$((0x1a + NONCE_RSA_SIZE))
-	totlen=$((0x43 + NONCE_RSA_SIZE))
+	symkeydata='\\x00\\x06@SYMKEYLEN-2@\\x00\\x43'
+	publen=$((0x1a + nonce_size))
+	totlen=$((0x43 + nonce_size))
 	min_exp=1470
 	# offset of length indicator for key
 	off=132
@@ -1007,7 +1039,7 @@ tpm2_createprimary_spk_rsa()
 	# TPM_RH_OWNER
 	tpm2_createprimary_rsa_params '\\x40\\x00\\x00\\x01' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off}" "" \
-	    ""
+	    "" "${rsa_keysize}"
 	return $?
 }
 
@@ -1022,9 +1054,24 @@ function tpm2_createprimary_rsa_params()
 	local off="$7"
 	local authpolicy="$8"
 	local templatefile="$9"
+	local rsa_keysize="${10}"
 
-	local req rsp res temp
+	local req rsp res temp nonce_rsa modulus_len_str key_strlen hashalg
+	local symkeylen
 	local authpolicylen=$((${#authpolicy} / 5))
+
+	case "$rsa_keysize" in
+	2048)	nonce_rsa=${NONCE_RSA2048}
+		modulus_len_str=" 01 00"
+		hashalg=11
+		symkeylen=128
+		;;
+	3072)	nonce_rsa=${NONCE_RSA3072}
+		modulus_len_str=" 01 80"
+		hashalg=12
+		symkeylen=256
+		;;
+	esac
 
 	req='\x80\x02@TOTLEN-4@\x00\x00\x01\x31'
 	req+='@KEYHANDLE-4@'
@@ -1036,7 +1083,7 @@ function tpm2_createprimary_rsa_params()
 	# Size of TPM2B_PUBLIC
 	req+='@PUBLEN-2@'
 	# TPM_ALG_RSA, TPM_ALG_SHA256
-	temp='\x00\x01\x00\x0b'
+	temp='\x00\x01@HASHALG-2@'
 	# fixedTPM, fixedParent, sensitiveDatOrigin, adminWithPolicy
 	# restricted, decrypt
 	temp+='@KEYFLAGS-4@'
@@ -1044,18 +1091,21 @@ function tpm2_createprimary_rsa_params()
 	temp+='@AUTHPOLICYLEN-2@'
 	temp+='@AUTHPOLICY@'
 	temp+='@SYMKEYDATA@'
-	# scheme: TPM_ALG_NULL, keyBits: 2048bits
-	temp+='\x00\x10\x08\x00'
+	# scheme: TPM_ALG_NULL, keyBits: 2048bits or 3072bits
+	temp+='\x00\x10@RSAKEYSIZE-2@'
 	# exponent
 	temp+='\x00\x00\x00\x00'
 	# TPM2B_DATA
-	temp+=${NONCE_RSA}
+	temp+=${nonce_rsa}
 
 	temp=$(echo $temp | \
 	       sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
 	           -e "s/@SYMKEYDATA@/$symkeydata/" \
 	           -e "s/@AUTHPOLICY@/$authpolicy/" \
-	           -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/")
+	           -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/" \
+		   -e "s/@RSAKEYSIZE-2@/$(_format "$rsa_keysize" 2)/" \
+		   -e "s/@SYMKEYLEN-2@/$(_format "$symkeylen" 2)/" \
+		   -e "s/@HASHALG-2@/$(_format "$hashalg" 2)/")
 
 	req+=${temp}
 	# TPML_PCR_SELECTION
@@ -1076,16 +1126,18 @@ function tpm2_createprimary_rsa_params()
 	fi
 
 	# Check the RSA modulus length indicator
-	if [ "${rsp:$off:6}" != " 01 00" ]; then
+	if [ "${rsp:$off:6}" != "${modulus_len_str}" ]; then
 		logerr "Getting modulus from wrong offset."
 		return 1
 	fi
 
 	off=$((off + 6))
+	key_strlen=$((rsa_keysize / 8 * 3))
 
 	# output: handle,ek
 	res="$(echo "0x${rsp:30:12}" | sed -n 's/ //pg'),"
-	res+="$(echo "${rsp:$off:768}" | sed -n 's/ //pg')"
+	res+="$(echo "${rsp:$off:$key_strlen}" | sed -n 's/ //pg')"
+
 	echo "$res"
 
 	if [ -n "${templatefile}" ]; then
@@ -1328,18 +1380,20 @@ tpm2_evictcontrol()
 # @param1: flags
 # @param2: non-evict handle, if any
 # @param3: filename for EK template
+# @param4: RSA key size in bits
 tpm2_create_ek()
 {
 	local flags="$1"
 	local nehandle="$2"
 	local ektemplatefile="$3"
+	local rsa_keysize="$4"
 
 	local res handle
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
 		res=$(tpm2_createprimary_ek_ecc_nist_p384 "$flags" "${ektemplatefile}")
 	else
-		res=$(tpm2_createprimary_ek_rsa "$flags" "${ektemplatefile}")
+		res=$(tpm2_createprimary_ek_rsa "$flags" "${ektemplatefile}" "${rsa_keysize}")
 	fi
 	[ $? -ne 0 ] && return 1
 
@@ -1364,12 +1418,14 @@ tpm2_create_ek()
 # @param2: configuration file
 # @param3: certificates directory
 # @param4: VM identifier
+# @param5: RSA key size in bits
 tpm2_create_ek_and_cert()
 {
 	local flags="$1"
 	local config_file="$2"
 	local certs_dir="$3"
 	local vmid="$4"
+	local rsa_keysize="$5"
 
 	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
 	local EK_CERT_FILE="$certsdir/ek.cert"
@@ -1388,12 +1444,16 @@ tpm2_create_ek_and_cert()
 		keytype="ECC"
 		tpm2_ek_handle=$TPM2_EK_ECC_SECP384R1_HANDLE
 	else
-		keytype="RSA"
-		tpm2_ek_handle=$TPM2_EK_RSA_HANDLE
+		keytype="RSA $rsa_keysize"
+		case "$rsa_keysize" in
+		2048)	tpm2_ek_handle=$TPM2_EK_RSA_HANDLE;;
+		3072)	tpm2_ek_handle=$TPM2_EK_RSA3072_HANDLE;;
+		esac
 	fi
 
 	if [ $((flags & SETUP_CREATE_EK_F)) -ne 0 ]; then
-		ek=$(tpm2_create_ek "$flags" "${tpm2_ek_handle}" "${EK_TEMP_FILE}")
+		ek=$(tpm2_create_ek "$flags" "${tpm2_ek_handle}" \
+			"${EK_TEMP_FILE}" "${rsa_keysize}")
 		if [ $? -ne 0 ]; then
 			logerr "tpm2_create_ek failed"
 			return 1
@@ -1515,21 +1575,23 @@ tpm2_create_ek_and_cert()
 # @param2: configuration file
 # @param3: certificates directory
 # @param4: VM identifier
+# @param5: RSA key size in bits
 tpm2_create_eks_and_certs()
 {
 	local flags="$1"
 	local config_file="$2"
 	local certs_dir="$3"
 	local vmid="$4"
+	local rsa_keysize="$5"
 
 	# 1st key will be RSA
 	flags=$((flags & ~SETUP_TPM2_ECC_F))
-	tpm2_create_ek_and_cert "$flags" "$config_file" "$certsdir" "$vmid"
+	tpm2_create_ek_and_cert "$flags" "$config_file" "$certsdir" "$vmid" "$rsa_keysize"
 	[ $? -ne 0 ] && return 1
 
 	# 2nd key will be an ECC; no more platform cert
 	flags=$(((flags & ~SETUP_PLATFORM_CERT_F) | SETUP_TPM2_ECC_F))
-	tpm2_create_ek_and_cert "$flags" "$config_file" "$certsdir" "$vmid"
+	tpm2_create_ek_and_cert "$flags" "$config_file" "$certsdir" "$vmid" "$rsa_keysize"
 	return $?
 }
 
@@ -1537,17 +1599,19 @@ tpm2_create_eks_and_certs()
 #
 # @param1: flags
 # @param2: non-evict handle, if any
+# @param3: RSA key size in bits
 tpm2_create_spk()
 {
 	local flags="$1"
 	local nehandle="$2"
+	local rsa_keysize="$3"
 
 	local res handle
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
 		res=$(tpm2_createprimary_spk_ecc_nist_p384 "$flags")
 	else
-		res=$(tpm2_createprimary_spk_rsa "$flags")
+		res=$(tpm2_createprimary_spk_rsa "$flags" "$rsa_keysize")
 	fi
 
 	[ $? -ne 0 ] && return 1
@@ -1881,6 +1945,7 @@ function tpm2_shutdown
 # @param6: The ID of the VM
 # @param7: The set of PCR banks to activate
 # @param8: The --key option parameter to start swtpm with
+# @param9: The RSA key size in bits
 init_tpm2()
 {
 	local flags="$1"
@@ -1891,6 +1956,7 @@ init_tpm2()
 	local vmid="$6"
 	local pcr_banks="$7"
 	local swtpm_keyopt="$8"
+	local rsa_keysize="$9"
 
 	# where external app writes certs into
 	local certsdir="$tpm2_state_path"
@@ -1913,7 +1979,7 @@ init_tpm2()
 	fi
 
 	if [ $((flags & SETUP_CREATE_SPK_F)) -ne 0 ]; then
-		pk=$(tpm2_create_spk "$flags" "${TPM2_SPK_HANDLE}")
+		pk=$(tpm2_create_spk "$flags" "${TPM2_SPK_HANDLE}" "${rsa_keysize}")
 		if [ $? -ne 0 ]; then
 			logerr "tpm2_create_spk failed: $pk"
 			return 1
@@ -1922,7 +1988,7 @@ init_tpm2()
 		      "handle $(printf "0x%08x" ${TPM2_SPK_HANDLE})."
 	fi
 
-	tpm2_create_eks_and_certs "$flags" "$config_file" "$certsdir" "$vmid"
+	tpm2_create_eks_and_certs "$flags" "$config_file" "$certsdir" "$vmid" "$rsa_keysize"
 	[ $? -ne 0 ] && return 1
 
 	if [ "$pcr_banks" != "-" ]; then
@@ -2150,6 +2216,11 @@ The following options are supported:
                    like 'sha1,sha256'. '-' to skip and leave all banks active.
                    Default: $DEFAULT_PCR_BANKS
 
+--rsa-keysize <keysize>
+                 : The RSA key size of the EK key; 3072 bits may be supported
+                   if libtpms supports it.
+                   Default: $DEFAULT_RSA_KEYSIZE
+
 --tcsd-system-ps-file <file>
                  : File to copy TCSD's system_ps_file to; only for TPM 1.2
 
@@ -2170,7 +2241,7 @@ main()
 	local keyfile_fd pwdfile_fd
 	local got_ownerpass=0 got_srkpass=0
 	local pcr_banks="" swtpm_keyopt=""
-	local tcsd_system_ps_file=""
+	local tcsd_system_ps_file="" rsa_keysize=$DEFAULT_RSA_KEYSIZE
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
@@ -2207,6 +2278,7 @@ main()
 		--allow-signing) flags=$((flags | SETUP_ALLOW_SIGNING_F));;
 		--decryption) flags=$((flags | SETUP_DECRYPTION_F));;
 		--pcr-banks) shift; pcr_banks="${pcr_banks},$1";;
+		--rsa-keysize) shift; rsa_keysize="$1";;
 		--tcsd-system-ps-file) shift; tcsd_system_ps_file="$1";;
 		--version) versioninfo "$0"; exit 0;;
 		--print-capabilities) printcapabilities=1;;
@@ -2400,6 +2472,17 @@ main()
 		fi
 	fi
 
+	case "${rsa_keysize}" in
+	2048)	;;
+	3072)	tmp="$(get_rsakeysize_caps "$flags")"
+		if [ -z "$(echo "$tmp" | grep ${rsa_keysize})" ]; then
+			logerr "${rsa_keysize} bit RSA keys are not supported by libtpms"
+			exit 1
+		fi
+		;;
+	*)	logerr "Unsupported RSA key size ${rsa_keysize}"; exit 1;;
+	esac
+
 	logit "Starting vTPM manufacturing as $(id -n -u):$(id -n -g) @ $(date +%c)"
 
 	if [ $((flags & SETUP_TPM2_F)) -eq 0 ]; then
@@ -2410,7 +2493,7 @@ main()
 		SWTPM="$SWTPM --tpm2"
 		init_tpm2 $flags "$config_file" "$tpm_state_path" \
 		        "$ownerpass" "$srkpass" "$vmid" "$pcr_banks" \
-			"$swtpm_keyopt"
+			"$swtpm_keyopt" "$rsa_keysize"
 	fi
 	ret=$?
 	if [ $ret -eq 0 ]; then

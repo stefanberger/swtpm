@@ -74,6 +74,7 @@ const char *one_arg_params[] = {
     "--swtpm_ioctl",
     "--pcr-banks",
     "--tcsd-system-ps-file",
+    "--rsa-keysize",
     NULL
 };
 

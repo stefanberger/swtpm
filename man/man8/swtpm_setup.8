@@ -277,6 +277,12 @@ A file to copy \s-1TCSD\s0's system_ps_file to. The system_ps_file contains the
 needed by \s-1TCSD\s0 for key related functions.
 .Sp
 This option is only useful with \s-1TPM 1.2\s0 and in if ownership is taken.
+.IP "\fBrsa-keysize <keysize\fR> (since v0.4)" 4
+.IX Item "rsa-keysize <keysize> (since v0.4)"
+This option allows to pass the size of a \s-1TPM 2 RSA EK\s0 key, such as 2048
+or 3072. The supported keysizes for a \s-1TPM 2\s0 can be queried for using
+the \fI\-\-print\-capabilities\fR option. The default size is 2048 bits for
+both \s-1TPM 1.2\s0 and \s-1TPM 2.\s0
 .IP "\fB\-\-print\-capabilities\fR (since v0.2)" 4
 .IX Item "--print-capabilities (since v0.2)"
 Print capabilities that were added to swtpm_setup after version 0.1.
