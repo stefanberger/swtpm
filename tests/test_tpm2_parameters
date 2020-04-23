@@ -32,6 +32,20 @@ PARAMETERS=(
 	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile-fd 101 --cipher aes-256-cbc"
 )
 
+# Tests for 3072 bit RSA keys to be appended to above array if RSA 3072 keys are supported
+PARAMETERS_3072=(
+	"--createek --rsa-keysize 3072"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --rsa-keysize 3072"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt --rsa-keysize 3072"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --rsa-keysize 3072"
+	"--createek --allow-signing --rsa-keysize 3072"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --rsa-keysize 3072"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt --rsa-keysize 3072"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --rsa-keysize 3072"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc --rsa-keysize 3072"
+	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc --rsa-keysize 3072"
+)
+
 # Open read-only file descriptors referenced in test cases
 exec 100<${TESTDIR}/data/keyfile256bit.txt
 exec 101<${TESTDIR}/data/pwdfile.txt
@@ -68,6 +82,10 @@ if [ $? -ne 0 ]; then
 	echo "Could not change ownership of $TPMDIR to $TSS_USER:$TSS_GROUP." \
 	     "You need to be root."
 	exit 1
+fi
+
+if [ -n "$($TPMAUTHORING --tpm2 --print-capabilities | grep tpm2-rsa-keysize-3072 )" ]; then
+	PARAMETERS+=( "${PARAMETERS_3072[@]}" )
 fi
 
 # swtpm_setup.conf points to the local create_certs.sh
