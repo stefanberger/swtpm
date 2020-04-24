@@ -417,7 +417,17 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
             logprintf(STDERR_FILENO,
                       "TPM 2 does not support startup deactivated.\n");
             break;
+        default:
+            tocopy = 0;
+            logprintf(STDERR_FILENO,
+                      "%s: internal error; unupported startup type for TPM 2\n", __func__);
+            break;
         }
+        break;
+    default:
+        tocopy = 0;
+        logprintf(STDERR_FILENO,
+                  "%s: internal error; invalid TPM version\n", __func__);
         break;
     }
 
