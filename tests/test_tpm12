@@ -59,7 +59,20 @@ SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm ${SWTPM_INTERFACE} \
 
 pushd ${WORKDIR} &>/dev/null
 
-curl -sJOL https://sourceforge.net/projects/ibmswtpm/files/tpm4769tar.gz/download
+for ((i = 0; i < 3; i++)); do
+	curl -sJOL https://sourceforge.net/projects/ibmswtpm/files/tpm4769tar.gz/download
+	if [ $? -eq 0 ]; then
+		break
+	fi
+	# wait 3..10 seconds for a retry
+	sleep $((3 + (RANDOM & 7)))
+done
+hash=$(get_sha1_file tpm4769tar.gz)
+if [ $hash != ca99a3ccd3e41cdd9983086a9b944023b6049bbc ]; then
+	echo "Error: Downloaded file does not have expected hash."
+	echo "Actual: $hash"
+	exit 1
+fi
 tar -xzf tpm4769tar.gz
 
 pushd libtpm &>/dev/null
