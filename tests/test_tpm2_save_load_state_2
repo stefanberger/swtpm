@@ -64,7 +64,7 @@ function fillup_nvram()
 
 	if [ $create -eq 1 ]; then
 		# Fill up the NVRAM space with RSA 2048 keys;
-		# exactly 64 have to fit
+		# exactly 65 have to fit
 		${TOOLSPATH}/${PREFIX}createprimary -hi o -si > $TMPFILE
 		if [ $? -ne 0 ]; then
 			echo "Error: createprimary failed."
@@ -80,12 +80,12 @@ function fillup_nvram()
 				-ho 80000000 \
 				-hp $(printf "%x" $i) &>$TMPFILE || break
 		done
-		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 81000000 > $TMPFILE
-		# We need know we need to see '64 Handles' for state created with
+		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 81000000 -pc 80 > $TMPFILE
+		# We need know we need to see '65 Handles' for state created with
 		# libtpms-0.6.0 and 128kb NVRAM size
-		grep -i "64 Handles" $TMPFILE
+		grep -i "65 Handles" $TMPFILE
 		if [ $? -ne 0 ]; then
-			echo "Error: Did not find '64 Handles' keyword in output"
+			echo "Error: Did not find '65 Handles' keyword in output"
 			cat $TMPFILE
 			exit 1
 		fi
@@ -143,12 +143,12 @@ function fillup_nvram()
 	fi
 
 	if [ $check -eq 1 ]; then
-		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 81000000 > $TMPFILE
-		# We need know we need to see '64 Handles' for state created with
+		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 81000000 -pc 80 > $TMPFILE
+		# We need know we need to see '65 Handles' for state created with
 		# libtpms-0.6.0 and 128kb NVRAM size
-		grep -i "64 Handles" $TMPFILE
+		grep -i "65 Handles" $TMPFILE
 		if [ $? -ne 0 ]; then
-			echo "Error: Did not find '64 Handles' keyword in output"
+			echo "Error: Did not find '65 Handles' keyword in output"
 			cat $TMPFILE
 			exit 1
 		fi
