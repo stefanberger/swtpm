@@ -49,7 +49,9 @@ This parameter indicates the modulus of the public key of the endorsement key
 (EK). The public key is provided as a sequence of ASCII hex digits.
 
 In case ECC (elliptic curve crypography) keys are used, the parameter must
-have the format --ek x=<hex digits>,y=<hex digits>.
+have the format --ek x=<hex digits>,y=<hex digits>,id=<curve id>. The
+id=<curve id> part is optional and only necessary for ECC curves other
+than secp256r1.
 
 =item B<--vmid ID>
 
