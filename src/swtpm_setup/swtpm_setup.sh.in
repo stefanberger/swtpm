@@ -1008,6 +1008,7 @@ tpm2_createprimary_ek_rsa()
 		off=228
 	fi
 
+	# authPolicy from: Ek Credential Profile; Spec v 2.1; rev12; p.37
 	authpolicy='\\x83\\x71\\x97\\x67\\x44\\x84\\xb3\\xf8\\x1a\\x90\\xcc\\x8d'
 	authpolicy+='\\x46\\xa5\\xd7\\x24\\xfd\\x52\\xd7\\x6e\\x06\\x52\\x0b\\x64'
 	authpolicy+='\\xf2\\xa1\\xda\\x1b\\x33\\x14\\x69\\xaa'
@@ -1185,6 +1186,7 @@ tpm2_createprimary_ek_ecc()
 		off2=324
 	fi
 
+	# authPolicy from Ek Credential Profile; Spec v 2.1; rev12; p. 38
 	authpolicy='\\x83\\x71\\x97\\x67\\x44\\x84\\xb3\\xf8\\x1a\\x90\\xcc\\x8d'
 	authpolicy+='\\x46\\xa5\\xd7\\x24\\xfd\\x52\\xd7\\x6e\\x06\\x52\\x0b\\x64'
 	authpolicy+='\\xf2\\xa1\\xda\\x1b\\x33\\x14\\x69\\xaa'
