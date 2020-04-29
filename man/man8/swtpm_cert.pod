@@ -32,13 +32,18 @@ The public key (EK) in PEM format.
 The modulus of the public key as a string of hex digits. This option
 can be used in place of the --pubkey option.
 
-=item <--ecc-x <hex digits>>
+=item B<--ecc-x <hex digits>>
 
 The elliptic curve parameter x as string of hex digits.
 
-=item <--ecc-y <hex digits>>
+=item B<--ecc-y <hex digits>>
 
 The elliptic curve parameter y as string of hex digits.
+
+=item B<--ecc-curveid <curve id>>
+
+The elliptic curve's id. secp256r1, secp384r1, and secp521r1 are supported.
+If this option is not given, secp256r1 is assumed.
 
 =item B<--exponent <exponent>>
 
