@@ -1144,7 +1144,7 @@ tpm2_createprimary_ek_ecc()
 	local flags="$1"
 	local templatefile="$2"
 
-	local min_exp symkeydata keyflags totlen publen off1 off2 authpolicy
+	local min_exp symkeydata keyflags totlen publen offset authpolicy
 
 	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ] && \
 	   [ $((flags & SETUP_DECRYPTION_F)) -ne 0 ]; then
@@ -1157,8 +1157,7 @@ tpm2_createprimary_ek_ecc()
 		totlen=$((0x5f + 2 * NONCE_ECC_SIZE))
 		min_exp=930
 		# offset of length indicator for key
-		off1=210
-		off2=312
+		offset=210
 	elif [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
 		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
 		# adminWithPolicy, sign
@@ -1169,8 +1168,7 @@ tpm2_createprimary_ek_ecc()
 		totlen=$((0x5f + 2 * NONCE_ECC_SIZE))
 		min_exp=930
 		# offset of length indicator for key
-		off1=210
-		off2=312
+		offset=210
 	else
 		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
 		# adminWithPolicy, restricted, decrypt
@@ -1182,8 +1180,7 @@ tpm2_createprimary_ek_ecc()
 		# some version of TPM2 returns 942, another 990
 		min_exp=942
 		# offset of length indicator for key
-		off1=222
-		off2=324
+		offset=222
 	fi
 
 	# authPolicy from Ek Credential Profile; Spec v 2.1; rev12; p. 38
@@ -1192,8 +1189,8 @@ tpm2_createprimary_ek_ecc()
 	authpolicy+='\\xf2\\xa1\\xda\\x1b\\x33\\x14\\x69\\xaa'
 
 	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
-	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off1}" \
-	    "${off2}" "${authpolicy}" "${templatefile}"
+	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
+	    "32" "${authpolicy}" "${templatefile}"
 	return $?
 }
 
@@ -1204,7 +1201,7 @@ tpm2_createprimary_spk_ecc()
 {
 	local flags="$1"
 
-	local min_exp symkeydata keyflags totlen publen off1 off2
+	local min_exp symkeydata keyflags totlen publen offset
 
 	# keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
 	# userWithAuth, noDA, restricted, decrypt
@@ -1216,12 +1213,11 @@ tpm2_createprimary_spk_ecc()
 	# some version of TPM2 returns 942, another 990
 	min_exp=894
 	# offset of length indicator for key
-	off1=126
-	off2=228
+	offset=126
 
 	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
-	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off1}" \
-	    "${off2}" "" ""
+	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
+	    "32" "" ""
 	return $?
 }
 
@@ -1234,11 +1230,12 @@ tpm2_createprimary_ecc_params()
 	local totlen="$5"
 	local min_exp="$6"
 	local off1="$7"
-	local off2="$8"
+	local keylen="$8"
 	local authpolicy="$9"
 	local templatefile="${10}"
 
-	local req rsp res temp
+	local off2=$((off1 + (2 + keylen) * 3))
+	local req rsp res temp len
 	local authpolicylen=$((${#authpolicy} / 5))
 
 	# Check the TCG EK Credential Profile doc for TPM 2 for
@@ -1297,8 +1294,9 @@ tpm2_createprimary_ecc_params()
 	fi
 
 	# Check the x and y length indicators
-	if [ "${rsp:$off1:6}" != " 00 20" ] || \
-	   [ "${rsp:$off2:6}" != " 00 20" ]; then
+	tmp=" 00 $(printf "%x" $keylen)"
+	if [ "${rsp:$off1:6}" != "$tmp" ] || \
+	   [ "${rsp:$off2:6}" != "$tmp" ]; then
 		logerr "Getting ECC x and y parameter from wrong offset."
 		return 1
 	fi
@@ -1308,7 +1306,8 @@ tpm2_createprimary_ecc_params()
 
 	# output: handle,ek
 	res="$(echo "0x${rsp:30:12}" | sed -n 's/ //pg'),"
-	res+="$(echo x=${rsp:$off1:96},y=${rsp:$off2:96} | sed -n 's/ //pg')"
+	len=$((keylen*3))
+	res+="$(echo x=${rsp:$off1:$len},y=${rsp:$off2:$len} | sed -n 's/ //pg')"
 	echo "$res"
 
 	if [ -n "${templatefile}" ]; then
