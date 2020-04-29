@@ -146,6 +146,9 @@ NONCE_RSA_SIZE=256
 NONCE_ECC_256='\x00\x20'${NB32}
 NONCE_ECC_256_SIZE=32
 
+NONCE_EMPTY='\x00\x00'
+NONCE_EMPTY_SIZE=0
+
 trap "cleanup" SIGTERM EXIT
 
 logit()
@@ -1221,6 +1224,92 @@ tpm2_createprimary_spk_ecc_nist_p256()
 	return $?
 }
 
+# Create the primary key as a NIST P384 ECC key (EK equivalent)
+#
+# @param1: flags
+# @param2: filename for template
+tpm2_createprimary_ek_ecc_nist_p384()
+{
+	local flags="$1"
+	local templatefile="$2"
+
+	local min_exp symkeydata keyflags totlen publen offset authpolicy
+
+	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ] && \
+	   [ $((flags & SETUP_DECRYPTION_F)) -ne 0 ]; then
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# userWithAuth, adminWithPolicy, sign, decrypt
+		keyflags=$((0x000600f2))
+		# symmetric: TPM_ALG_NULL
+		symkeydata='\\x00\\x10'
+		publen=$((0x46 + 2 * NONCE_EMPTY_SIZE))
+		totlen=$((0x6f + 2 * NONCE_EMPTY_SIZE))
+		min_exp=1026
+		# offset of length indicator for key
+		offset=258
+	elif [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# userWithAuth, adminWithPolicy, sign
+		keyflags=$((0x000400f2))
+		# symmetric: TPM_ALG_NULL
+		symkeydata='\\x00\\x10'
+		publen=$((0x46 + 2 * NONCE_EMPTY_SIZE))
+		totlen=$((0x6f + 2 * NONCE_EMPTY_SIZE))
+		min_exp=1026
+		# offset of length indicator for key
+		offset=258
+	else
+		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+		# userWithAuth, adminWithPolicy, restricted, decrypt
+		keyflags=$((0x000300f2))
+		# symmetric: TPM_ALG_AES, 256bit, TPM_ALG_CFB
+		symkeydata='\\x00\\x06\\x01\\x00\\x00\\x43'
+		publen=$((0x4a + 2 * NONCE_EMPTY_SIZE))
+		totlen=$((0x73 + 2 * NONCE_EMPTY_SIZE))
+		# minimum expected return
+		min_exp=1038
+		# offset of length indicator for key
+		offset=270
+	fi
+
+	# authPolicy from Ek Credential Profile; Spec v 2.1; rev12; p. 43
+	authpolicy='\\xB2\\x6E\\x7D\\x28\\xD1\\x1A\\x50\\xBC\\x53\\xD8\\x82\\xBC'
+	authpolicy+='\\xF5\\xFD\\x3A\\x1A\\x07\\x41\\x48\\xBB\\x35\\xD3\\xB4\\xE4'
+	authpolicy+='\\xCB\\x1C\\x0A\\xD9\\xBD\\xE4\\x19\\xCA\\xCB\\x47\\xBA\\x09'
+	authpolicy+='\\x69\\x96\\x46\\x15\\x0F\\x9F\\xC0\\x00\\xF3\\xF8\\x0E\\x12'
+
+	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
+	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
+	    "48" "${authpolicy}" "${templatefile}" "4" "12" "$NONCE_EMPTY"
+	return $?
+}
+
+# Create primary storage key as a NIST P384 ECC key
+#
+# @param1: flags
+tpm2_createprimary_spk_ecc_nist_p384()
+{
+	local flags="$1"
+
+	local min_exp symkeydata keyflags totlen publen offset
+
+	# keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
+	# userWithAuth, noDA, restricted, decrypt
+	keyflags=$((0x00030472))
+	# symmetric: TPM_ALG_AES, 256bit, TPM_ALG_CFB
+	symkeydata='\\x00\\x06\\x01\\x00\\x00\\x43'
+	publen=$((0x1a + 2 * NONCE_ECC_384_SIZE))
+	totlen=$((0x43 + 2 * NONCE_ECC_384_SIZE))
+	min_exp=990
+	# offset of length indicator for key
+	offset=126
+
+	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
+	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
+	    "48" "" "" "4" "12" "$NONCE_ECC_384"
+	return $?
+}
+
 tpm2_createprimary_ecc_params()
 {
 	local primaryhandle="$1"
@@ -1313,6 +1402,12 @@ tpm2_createprimary_ecc_params()
 	res="$(echo "0x${rsp:30:12}" | sed -n 's/ //pg'),"
 	len=$((keylen*3))
 	res+="$(echo x=${rsp:$off1:$len},y=${rsp:$off2:$len} | sed -n 's/ //pg')"
+
+	case "$curveid" in
+	3)	;;
+	4)	res+=",id=secp384r1";;
+	esac
+
 	echo "$res"
 
 	if [ -n "${templatefile}" ]; then
