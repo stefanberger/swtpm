@@ -178,7 +178,8 @@ This option is only useful with TPM 1.2 and in if ownership is taken.
 This option allows to pass the size of a TPM 2 RSA EK key, such as 2048
 or 3072. The supported keysizes for a TPM 2 can be queried for using
 the I<--print-capabilities> option. The default size is 2048 bits for
-both TPM 1.2 and TPM 2.
+both TPM 1.2 and TPM 2. If 'max' is passed, the largest possible key
+size is used.
 
 =item B<--print-capabilities> (since v0.2)
 

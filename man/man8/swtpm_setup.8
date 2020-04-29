@@ -282,7 +282,8 @@ This option is only useful with \s-1TPM 1.2\s0 and in if ownership is taken.
 This option allows to pass the size of a \s-1TPM 2 RSA EK\s0 key, such as 2048
 or 3072. The supported keysizes for a \s-1TPM 2\s0 can be queried for using
 the \fI\-\-print\-capabilities\fR option. The default size is 2048 bits for
-both \s-1TPM 1.2\s0 and \s-1TPM 2.\s0
+both \s-1TPM 1.2\s0 and \s-1TPM 2.\s0 If 'max' is passed, the largest possible key
+size is used.
 .IP "\fB\-\-print\-capabilities\fR (since v0.2)" 4
 .IX Item "--print-capabilities (since v0.2)"
 Print capabilities that were added to swtpm_setup after version 0.1.

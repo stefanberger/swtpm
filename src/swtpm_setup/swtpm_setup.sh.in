@@ -2472,6 +2472,14 @@ main()
 		fi
 	fi
 
+	# Determine maximum possible RSA keysize that we will then use
+	if [ "$rsa_keysize" = "max" ]; then
+		rsa_keysize=$(get_rsa_keysizes "$flags" | sed '$!d')
+		if [ -z "$rsa_keysize" ]; then
+			rsa_keysize=2048
+		fi
+	fi
+
 	case "${rsa_keysize}" in
 	2048)	;;
 	3072)	tmp="$(get_rsakeysize_caps "$flags")"
