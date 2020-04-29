@@ -1135,11 +1135,11 @@ function tpm2_createprimary_rsa_params()
 	return 0
 }
 
-# Create the primary key as an ECC key (EK equivalent)
+# Create the primary key as a NIST P256 ECC key (EK equivalent)
 #
 # @param1: flags
 # @param2: filename for template
-tpm2_createprimary_ek_ecc()
+tpm2_createprimary_ek_ecc_nist_p256()
 {
 	local flags="$1"
 	local templatefile="$2"
@@ -1190,14 +1190,14 @@ tpm2_createprimary_ek_ecc()
 
 	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
-	    "32" "${authpolicy}" "${templatefile}"
+	    "32" "${authpolicy}" "${templatefile}" "3" "11" "$NONCE_ECC"
 	return $?
 }
 
-# Create primary storage key as an ECC key
+# Create primary storage key as a NIST P256 ECC key
 #
 # @param1: flags
-tpm2_createprimary_spk_ecc()
+tpm2_createprimary_spk_ecc_nist_p256()
 {
 	local flags="$1"
 
@@ -1217,7 +1217,7 @@ tpm2_createprimary_spk_ecc()
 
 	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
-	    "32" "" ""
+	    "32" "" "" "3" "11" "$NONCE_ECC"
 	return $?
 }
 
@@ -1233,6 +1233,9 @@ tpm2_createprimary_ecc_params()
 	local keylen="$8"
 	local authpolicy="$9"
 	local templatefile="${10}"
+	local curveid="${11}"
+	local hashalg="${12}"
+	local nonce_ecc="${13}"
 
 	local off2=$((off1 + (2 + keylen) * 3))
 	local req rsp res temp len
@@ -1253,7 +1256,7 @@ tpm2_createprimary_ecc_params()
 	# Size of TPM2B_PUBLIC
 	req+='@PUBLEN-2@'
 	# TPM_ALG_ECC, TPM_ALG_SHA256
-	temp='\x00\x23\x00\x0b'
+	temp='\x00\x23@HASHALG-2@'
 	# flags: fixedTPM, fixedParent, sensitiveDatOrigin, adminWithPolicy
 	# restricted, decrypt
 	temp+='@KEYFLAGS-4@'
@@ -1262,19 +1265,21 @@ tpm2_createprimary_ecc_params()
 	temp+='@AUTHPOLICYLEN-2@'
 	temp+='@AUTHPOLICY@'
 	temp+='@SYMKEYDATA@'
-	# scheme: TPM_ALG_NULL, curveID: TPM_ECC_NIST_P256
-	temp+='\x00\x10\x00\x03'
+	# scheme: TPM_ALG_NULL, curveID: $curveid
+	temp+='\x00\x10@CURVEID-2@'
 	# kdf->scheme: TPM_ALG_NULL
 	temp+='\x00\x10'
 	# TPM2B_DATA for x and y
-	temp+=${NONCE_ECC}
-	temp+=${NONCE_ECC}
+	temp+=${nonce_ecc}
+	temp+=${nonce_ecc}
 
 	temp=$(echo $temp | \
 	       sed -e "s/@KEYFLAGS-4@/$(_format "$keyflags" 4)/" \
 	           -e "s/@SYMKEYDATA@/$symkeydata/" \
 	           -e "s/@AUTHPOLICY@/$authpolicy/" \
-	           -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/")
+	           -e "s/@AUTHPOLICYLEN-2@/$(_format "$authpolicylen" 2)/" \
+		   -e "s/@HASHALG-2@/$(_format "$hashalg" 2)/" \
+		   -e "s/@CURVEID-2@/$(_format "$curveid" 2)/")
 
 	req+=${temp}
 	# TPML_PCR_SELECTION
@@ -1369,7 +1374,7 @@ tpm2_create_ek()
 	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
-		res=$(tpm2_createprimary_ek_ecc "$flags" "${ektemplatefile}")
+		res=$(tpm2_createprimary_ek_ecc_nist_p256 "$flags" "${ektemplatefile}")
 	else
 		res=$(tpm2_createprimary_ek_rsa "$flags" "${ektemplatefile}")
 	fi
@@ -1405,7 +1410,7 @@ tpm2_create_spk()
 	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
-		res=$(tpm2_createprimary_spk_ecc "$flags")
+		res=$(tpm2_createprimary_spk_ecc_nist_p256 "$flags")
 	else
 		res=$(tpm2_createprimary_spk_rsa "$flags")
 	fi
