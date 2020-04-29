@@ -143,8 +143,8 @@ NB256=${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}
 NONCE_RSA='\x01\x00'${NB256}
 NONCE_RSA_SIZE=256
 
-NONCE_ECC='\x00\x20'${NB32}
-NONCE_ECC_SIZE=32
+NONCE_ECC_256='\x00\x20'${NB32}
+NONCE_ECC_256_SIZE=32
 
 trap "cleanup" SIGTERM EXIT
 
@@ -1153,8 +1153,8 @@ tpm2_createprimary_ek_ecc_nist_p256()
 		keyflags=$((0x000600b2))
 		# symmetric: TPM_ALG_NULL
 		symkeydata='\\x00\\x10'
-		publen=$((0x36 + 2 * NONCE_ECC_SIZE))
-		totlen=$((0x5f + 2 * NONCE_ECC_SIZE))
+		publen=$((0x36 + 2 * NONCE_ECC_256_SIZE))
+		totlen=$((0x5f + 2 * NONCE_ECC_256_SIZE))
 		min_exp=930
 		# offset of length indicator for key
 		offset=210
@@ -1164,8 +1164,8 @@ tpm2_createprimary_ek_ecc_nist_p256()
 		keyflags=$((0x000400b2))
 		# symmetric: TPM_ALG_NULL
 		symkeydata='\\x00\\x10'
-		publen=$((0x36 + 2 * NONCE_ECC_SIZE))
-		totlen=$((0x5f + 2 * NONCE_ECC_SIZE))
+		publen=$((0x36 + 2 * NONCE_ECC_256_SIZE))
+		totlen=$((0x5f + 2 * NONCE_ECC_256_SIZE))
 		min_exp=930
 		# offset of length indicator for key
 		offset=210
@@ -1175,8 +1175,8 @@ tpm2_createprimary_ek_ecc_nist_p256()
 		keyflags=$((0x000300b2))
 		# symmetric: TPM_ALG_AES, 128bit, TPM_ALG_CFB
 		symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
-		publen=$((0x3a + 2 * NONCE_ECC_SIZE))
-		totlen=$((0x63 + 2 * NONCE_ECC_SIZE))
+		publen=$((0x3a + 2 * NONCE_ECC_256_SIZE))
+		totlen=$((0x63 + 2 * NONCE_ECC_256_SIZE))
 		# some version of TPM2 returns 942, another 990
 		min_exp=942
 		# offset of length indicator for key
@@ -1190,7 +1190,7 @@ tpm2_createprimary_ek_ecc_nist_p256()
 
 	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
-	    "32" "${authpolicy}" "${templatefile}" "3" "11" "$NONCE_ECC"
+	    "32" "${authpolicy}" "${templatefile}" "3" "11" "$NONCE_ECC_256"
 	return $?
 }
 
@@ -1208,8 +1208,8 @@ tpm2_createprimary_spk_ecc_nist_p256()
 	keyflags=$((0x00030472))
 	# symmetric: TPM_ALG_AES, 128bit, TPM_ALG_CFB
 	symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
-	publen=$((0x1a + 2 * NONCE_ECC_SIZE))
-	totlen=$((0x43 + 2 * NONCE_ECC_SIZE))
+	publen=$((0x1a + 2 * NONCE_ECC_256_SIZE))
+	totlen=$((0x43 + 2 * NONCE_ECC_256_SIZE))
 	# some version of TPM2 returns 942, another 990
 	min_exp=894
 	# offset of length indicator for key
@@ -1217,7 +1217,7 @@ tpm2_createprimary_spk_ecc_nist_p256()
 
 	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
-	    "32" "" "" "3" "11" "$NONCE_ECC"
+	    "32" "" "" "3" "11" "$NONCE_ECC_256"
 	return $?
 }
 
