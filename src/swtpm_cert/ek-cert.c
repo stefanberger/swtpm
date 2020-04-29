@@ -121,6 +121,8 @@ usage(const char *prg)
         "--exponent <exponent>     : The exponent of the public key\n"
         "--ecc-x                   : ECC key x component\n"
         "--ecc-y                   : ECC key y component\n"
+        "--ecc-curveid <id>        : ECC curve id; secp256r1, secp384r1, secp521r1\n"
+        "                            default: secp256r1\n"
         "--serial <serial number>  : The certificate serial number\n"
         "--days <number>           : Number of days the cert is valid\n"
         "--pem                     : Write certificate in PEM format; default is DER\n"
@@ -256,7 +258,8 @@ create_rsa_from_modulus(unsigned char *modulus, unsigned int modulus_len,
 
 static gnutls_pubkey_t
 create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
-                        unsigned char *ecc_y, unsigned int ecc_y_len)
+                        unsigned char *ecc_y, unsigned int ecc_y_len,
+                        const char *ecc_curveid)
 {
     gnutls_pubkey_t rsa = NULL;
     int err;
@@ -268,6 +271,7 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
         .data = ecc_y,
         .size = ecc_y_len,
     };
+    gnutls_ecc_curve_t curve;
 
     err = gnutls_pubkey_init(&rsa);
     if (err < 0) {
@@ -276,8 +280,18 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
         return NULL;
     }
 
-    err = gnutls_pubkey_import_ecc_raw(rsa, GNUTLS_ECC_CURVE_SECP256R1,
-                                       &x, &y);
+    if (ecc_curveid == NULL || !strcmp(ecc_curveid, "secp256r1")) {
+        curve = GNUTLS_ECC_CURVE_SECP256R1;
+    } else if (!strcmp(ecc_curveid, "secp384r1")) {
+        curve = GNUTLS_ECC_CURVE_SECP384R1;
+    } else if (!strcmp(ecc_curveid, "secp521r1")) {
+        curve = GNUTLS_ECC_CURVE_SECP521R1;
+    } else {
+        fprintf(stderr, "Unsupported ECC curve id: %s\n", ecc_curveid);
+        return NULL;
+    }
+
+    err = gnutls_pubkey_import_ecc_raw(rsa, curve, &x, &y);
     if (err < 0) {
         fprintf(stderr, "Could not set x and y on ECC key : %s\n",
                 gnutls_strerror(err));
@@ -990,6 +1004,7 @@ main(int argc, char *argv[])
     int ecc_x_len = 0;
     unsigned char *ecc_y_bin = NULL;
     int ecc_y_len = 0;
+    const char *ecc_curveid = NULL;
     gnutls_datum_t datum = { NULL, 0},  out = { NULL, 0};
     gnutls_digest_algorithm_t hashAlgo = GNUTLS_DIG_SHA1;
     unsigned long long serial = 1;
@@ -1026,6 +1041,7 @@ main(int argc, char *argv[])
         {"modulus", required_argument, NULL, 'm'},
         {"ecc-x", required_argument, NULL, 'x'},
         {"ecc-y", required_argument, NULL, 'y'},
+        {"ecc-curveid", required_argument, NULL, 'z'},
         {"exponent", required_argument, NULL, 'e'},
         {"signkey", required_argument, NULL, 's'},
         {"signkey-password", required_argument, NULL, 'S'},
@@ -1062,7 +1078,7 @@ main(int argc, char *argv[])
 
 #ifdef __NetBSD__
     while ((opt = getopt_long(argc, argv,
-                    "p:m:x:y:e:s:S:T:P:Q:i:o:u:d:r:1:2:3:4:5:6:7:8:9:MaXADcvh",
+                    "p:m:x:y:z:e:s:S:T:P:Q:i:o:u:d:r:1:2:3:4:5:6:7:8:9:MaXADcvh",
                     long_options, &option_index)) != -1) {
 #else
     while ((opt = getopt_long_only(argc, argv, "", long_options,
@@ -1086,6 +1102,9 @@ main(int argc, char *argv[])
             if (!(ecc_y_bin = hex_str_to_bin(optarg, &ecc_y_len))) {
                 goto cleanup;
             }
+            break;
+        case 'z': /* --ecc-curveid */
+            ecc_curveid = optarg;
             break;
         case 'e': /* --exponent */
             exponent = strtol(optarg, NULL, 0);
@@ -1327,7 +1346,8 @@ main(int argc, char *argv[])
             modulus_bin = NULL;
         } else if (ecc_x_bin) {
             pubkey = create_ecc_from_x_and_y(ecc_x_bin, ecc_x_len,
-                                             ecc_y_bin, ecc_y_len);
+                                             ecc_y_bin, ecc_y_len,
+                                             ecc_curveid);
             free(ecc_x_bin);
             ecc_x_bin = NULL;
             free(ecc_y_bin);

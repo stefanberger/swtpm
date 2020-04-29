@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_cert 8"
-.TH swtpm_cert 8 "2020-01-27" "swtpm" ""
+.TH swtpm_cert 8 "2020-04-29" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -162,12 +162,16 @@ The public key (\s-1EK\s0) in \s-1PEM\s0 format.
 .IX Item "--modulus <hex digits>"
 The modulus of the public key as a string of hex digits. This option
 can be used in place of the \-\-pubkey option.
-.IP "<\-\-ecc\-x <hex digits>>" 4
-.IX Item "<--ecc-x <hex digits>>"
+.IP "\fB\-\-ecc\-x <hex digits\fR>" 4
+.IX Item "--ecc-x <hex digits>"
 The elliptic curve parameter x as string of hex digits.
-.IP "<\-\-ecc\-y <hex digits>>" 4
-.IX Item "<--ecc-y <hex digits>>"
+.IP "\fB\-\-ecc\-y <hex digits\fR>" 4
+.IX Item "--ecc-y <hex digits>"
 The elliptic curve parameter y as string of hex digits.
+.IP "\fB\-\-ecc\-curveid <curve id\fR>" 4
+.IX Item "--ecc-curveid <curve id>"
+The elliptic curve's id. secp256r1, secp384r1, and secp521r1 are supported.
+If this option is not given, secp256r1 is assumed.
 .IP "\fB\-\-exponent <exponent\fR>" 4
 .IX Item "--exponent <exponent>"
 The exponent of the public key. By default 0x10001 is assumed.
