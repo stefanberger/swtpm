@@ -192,7 +192,7 @@ create_cert() {
 	local tpm_spec_params="$6"
 	local tpm_attr_params="$7"
 
-	local options="" rc=0 keyparms="" serial skfile skpkcs
+	local options="" rc=0 keyparms="" serial skfile skpkcs tmp
 
 	serial=$(get_next_cert_serial)
 	if [ -z "$serial" ]; then
@@ -230,7 +230,12 @@ create_cert() {
 		keyparms="--ecc-x \"$(echo "$ek" | \
 		                sed -n 's/x=\([[:xdigit:]]*\),.*/\1/p')\" "
 		keyparms+="--ecc-y \"$(echo "$ek" | \
-		                sed -n 's/.*y=\([[:xdigit:]]*\)/\1/p')\""
+		                sed -n 's/.*y=\([[:xdigit:]]*\).*/\1/p')\""
+		tmp="$(echo "$ek" | \
+		                sed -n 's/.*id=\([^,]*\).*/\1/p')"
+		if [ -n "$tmp" ]; then
+			keyparms+=" --ecc-curveid ${tmp}"
+		fi
 	else
 		keyparms="--modulus \"${ek}\""
 	fi
