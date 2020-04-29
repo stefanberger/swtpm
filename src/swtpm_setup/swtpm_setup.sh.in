@@ -122,9 +122,7 @@ TPMA_NV_WRITEDEFINE=$((0x2000))
 TPM2_NV_INDEX_RSA_EKCert=$((0x01c00002))
 TPM2_NV_INDEX_RSA_EKTemplate=$((0x01c00004))
 # For ECC follow "TCG EK Credential Profile For TPM Family 2.0; Level 0"
-# Specification Version 2.1; Revision 12; 17 August 2018 (Draft)
-TPM2_NV_INDEX_ECC_EKCert=$((0x01c0000a))
-TPM2_NV_INDEX_ECC_EKTemplate=$((0x01c0000c))
+# Specification Version 2.1; Revision 13; 10 December 2018
 TPM2_NV_INDEX_PlatformCert=$((0x01c08000))
 
 TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCert=$((0x01c00016))
@@ -146,9 +144,6 @@ NB256=${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}${NB32}
 # Nonce used for EK creation; 2 bytes length + nonce
 NONCE_RSA='\x01\x00'${NB256}
 NONCE_RSA_SIZE=256
-
-NONCE_ECC_256='\x00\x20'${NB32}
-NONCE_ECC_256_SIZE=32
 
 NONCE_ECC_384='\x00\x30'${NB32}${NB16}
 NONCE_ECC_384_SIZE=48
@@ -1145,92 +1140,6 @@ function tpm2_createprimary_rsa_params()
 	return 0
 }
 
-# Create the primary key as a NIST P256 ECC key (EK equivalent)
-#
-# @param1: flags
-# @param2: filename for template
-tpm2_createprimary_ek_ecc_nist_p256()
-{
-	local flags="$1"
-	local templatefile="$2"
-
-	local min_exp symkeydata keyflags totlen publen offset authpolicy
-
-	if [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ] && \
-	   [ $((flags & SETUP_DECRYPTION_F)) -ne 0 ]; then
-		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-		# adminWithPolicy, sign, decrypt
-		keyflags=$((0x000600b2))
-		# symmetric: TPM_ALG_NULL
-		symkeydata='\\x00\\x10'
-		publen=$((0x36 + 2 * NONCE_ECC_256_SIZE))
-		totlen=$((0x5f + 2 * NONCE_ECC_256_SIZE))
-		min_exp=930
-		# offset of length indicator for key
-		offset=210
-	elif [ $((flags & SETUP_ALLOW_SIGNING_F)) -ne 0 ]; then
-		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-		# adminWithPolicy, sign
-		keyflags=$((0x000400b2))
-		# symmetric: TPM_ALG_NULL
-		symkeydata='\\x00\\x10'
-		publen=$((0x36 + 2 * NONCE_ECC_256_SIZE))
-		totlen=$((0x5f + 2 * NONCE_ECC_256_SIZE))
-		min_exp=930
-		# offset of length indicator for key
-		offset=210
-	else
-		# keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-		# adminWithPolicy, restricted, decrypt
-		keyflags=$((0x000300b2))
-		# symmetric: TPM_ALG_AES, 128bit, TPM_ALG_CFB
-		symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
-		publen=$((0x3a + 2 * NONCE_ECC_256_SIZE))
-		totlen=$((0x63 + 2 * NONCE_ECC_256_SIZE))
-		# some version of TPM2 returns 942, another 990
-		min_exp=942
-		# offset of length indicator for key
-		offset=222
-	fi
-
-	# authPolicy from Ek Credential Profile; Spec v 2.1; rev12; p. 38
-	authpolicy='\\x83\\x71\\x97\\x67\\x44\\x84\\xb3\\xf8\\x1a\\x90\\xcc\\x8d'
-	authpolicy+='\\x46\\xa5\\xd7\\x24\\xfd\\x52\\xd7\\x6e\\x06\\x52\\x0b\\x64'
-	authpolicy+='\\xf2\\xa1\\xda\\x1b\\x33\\x14\\x69\\xaa'
-
-	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
-	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
-	    "32" "${authpolicy}" "${templatefile}" "3" "11" "$NONCE_ECC_256"
-	return $?
-}
-
-# Create primary storage key as a NIST P256 ECC key
-#
-# @param1: flags
-tpm2_createprimary_spk_ecc_nist_p256()
-{
-	local flags="$1"
-
-	local min_exp symkeydata keyflags totlen publen offset
-
-	# keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
-	# userWithAuth, noDA, restricted, decrypt
-	keyflags=$((0x00030472))
-	# symmetric: TPM_ALG_AES, 128bit, TPM_ALG_CFB
-	symkeydata='\\x00\\x06\\x00\\x80\\x00\\x43'
-	publen=$((0x1a + 2 * NONCE_ECC_256_SIZE))
-	totlen=$((0x43 + 2 * NONCE_ECC_256_SIZE))
-	# some version of TPM2 returns 942, another 990
-	min_exp=894
-	# offset of length indicator for key
-	offset=126
-
-	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
-	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
-	    "32" "" "" "3" "11" "$NONCE_ECC_256"
-	return $?
-}
-
 # Create the primary key as a NIST P384 ECC key (EK equivalent)
 #
 # @param1: flags
@@ -1476,7 +1385,7 @@ tpm2_create_ek()
 	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
-		res=$(tpm2_createprimary_ek_ecc_nist_p256 "$flags" "${ektemplatefile}")
+		res=$(tpm2_createprimary_ek_ecc_nist_p384 "$flags" "${ektemplatefile}")
 	else
 		res=$(tpm2_createprimary_ek_rsa "$flags" "${ektemplatefile}")
 	fi
@@ -1688,7 +1597,7 @@ tpm2_create_spk()
 	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
-		res=$(tpm2_createprimary_spk_ecc_nist_p256 "$flags")
+		res=$(tpm2_createprimary_spk_ecc_nist_p384 "$flags")
 	else
 		res=$(tpm2_createprimary_spk_rsa "$flags")
 	fi
