@@ -1489,6 +1489,151 @@ tpm2_create_ek()
 	return 0
 }
 
+# Create the TPM2 RSA or ECC EK along with its cert and write them into
+# NVRAM
+#
+# @param1: flags
+# @param2: configuration file
+# @param3: certificates directory
+# @param4: VM identifier
+tpm2_create_ek_and_cert()
+{
+	local flags="$1"
+	local config_file="$2"
+	local certs_dir="$3"
+	local vmid="$4"
+
+	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
+	local EK_CERT_FILE="$certsdir/ek.cert"
+	local EK_TEMP_FILE="$certsdir/ektemplate"
+
+	local ek nvindex nvindex_str
+	local nvindexattrs=$((TPMA_NV_PLATFORMCREATE | \
+		TPMA_NV_AUTHREAD | \
+		TPMA_NV_OWNERREAD | \
+		TPMA_NV_PPREAD | \
+		TPMA_NV_PPWRITE | \
+		TPMA_NV_NO_DA | \
+		TPMA_NV_WRITEDEFINE))
+
+	if [ $((flags & SETUP_CREATE_EK_F)) -ne 0 ]; then
+		ek=$(tpm2_create_ek "$flags" "${TPM2_EK_HANDLE}" "${EK_TEMP_FILE}")
+		if [ $? -ne 0 ]; then
+			logerr "tpm2_create_ek failed"
+			return 1
+		fi
+		logit "Successfully created EK with handle" \
+		      "$(printf "0x%08x" ${TPM2_EK_HANDLE})."
+
+		if [ $((flags & SETUP_TPM2_ECC_F)) -eq 0 ]; then
+			nvindex=${TPM2_NV_INDEX_RSA_EKTemplate}
+		else
+			nvindex=${TPM2_NV_INDEX_ECC_EKTemplate}
+		fi
+		nvindex_str="$(printf "0x%08x" ${nvindex})"
+
+		if [ $((flags & SETUP_ALLOW_SIGNING_F )) -ne 0 ]; then
+			tpm2_nv_define ${nvindex} ${nvindexattrs} \
+				"$(get_filesize "${EK_TEMP_FILE}")"
+			if [ $? -ne 0 ]; then
+				logerr "Could not create NVRAM area ${nvindex_str}" \
+				       "for EK template."
+				return 1
+			fi
+			tpm2_nv_write ${nvindex} "${EK_TEMP_FILE}"
+			if [ $? -ne 0 ]; then
+				logerr "Could not write EK template into" \
+				       "NVRAM area ${nvindex_str}."
+				return 1
+			fi
+			if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
+				tpm2_nv_writelock ${nvindex}
+				if [ $? -ne 0 ]; then
+					logerr "Could not lock EK template NVRAM" \
+					       "area ${nvindex_str}."
+					return 1
+				fi
+			fi
+			logit "Successfully created NVRAM area ${nvindex_str} for EK template."
+		fi
+		rm -f "${EK_TEMP_FILE}"
+	fi
+
+	# have external program create the certificates now
+	call_create_certs "$flags" "$config_file" "$certsdir" "$ek" "$vmid"
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] && \
+	   [ -r "${EK_CERT_FILE}" ]; then
+
+		if [ $((flags & SETUP_TPM2_ECC_F)) -eq 0 ]; then
+			nvindex=${TPM2_NV_INDEX_RSA_EKCert}
+		else
+			nvindex=${TPM2_NV_INDEX_ECC_EKCert}
+		fi
+		nvindex_str="$(printf "0x%08x" ${nvindex})"
+
+		tpm2_nv_define ${nvindex} ${nvindexattrs} \
+			"$(get_filesize "${EK_CERT_FILE}")"
+		if [ $? -ne 0 ]; then
+			logerr "Could not create NVRAM area ${nvindex_str}" \
+			       "for EK certificate."
+			return 1
+		fi
+		tpm2_nv_write ${nvindex} "${EK_CERT_FILE}"
+		if [ $? -ne 0 ]; then
+			logerr "Could not write EK certificate into" \
+			       "NVRAM area ${nvindex_str}."
+			return 1
+		fi
+		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
+			tpm2_nv_writelock ${nvindex}
+			if [ $? -ne 0 ]; then
+				logerr "Could not lock EK certificate NVRAM" \
+				       "area ${nvindex_str}."
+				return 1
+			fi
+		fi
+		logit "Successfully created NVRAM area ${nvindex_str} for EK certificate."
+		rm -f "${EK_CERT_FILE}"
+	fi
+
+	if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ] && \
+	   [ -r "${PLATFORM_CERT_FILE}" ] ; then
+
+		nvindex=${TPM2_NV_INDEX_PlatformCert}
+		nvindex_str="$(printf "0x%08x" ${nvindex})"
+
+		tpm2_nv_define ${nvindex} ${nvindexattrs} \
+			"$(get_filesize "${PLATFORM_CERT_FILE}")"
+		if [ $? -ne 0 ]; then
+			logerr "Could not create NVRAM area ${nvindex_str}" \
+			       "for platform certificate."
+			return 1
+		fi
+		tpm2_nv_write ${nvindex} "${PLATFORM_CERT_FILE}"
+		if [ $? -ne 0 ]; then
+			logerr "Could not write platform certificate into" \
+			       "NVRAM area ${nvindex_str}."
+			return 1
+		fi
+		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
+			tpm2_nv_writelock ${nvindex}
+			if [ $? -ne 0 ]; then
+				logerr "Could not lock platform certificate" \
+				       "NVRAM area ${nvindex_str}."
+				return 1
+			fi
+		fi
+		logit "Successfully created NVRAM area ${nvindex_str}" \
+		      "for platform certificate."
+		rm -f "${PLATFORM_CERT_FILE}"
+	fi
+	return 0
+}
+
 # Create the platform key, either RSA or ECC
 #
 # @param1: flags
@@ -1854,12 +1999,8 @@ init_tpm2()
 
 	# where external app writes certs into
 	local certsdir="$tpm2_state_path"
-	local ek tmp output nvindex nvindex_str
+	local tmp output
 	local all_pcr_banks active_pcr_banks
-
-	local PLATFORM_CERT_FILE="$certsdir/platform.cert"
-	local EK_CERT_FILE="$certsdir/ek.cert"
-	local EK_TEMP_FILE="$certsdir/ektemplate"
 
 	start_tpm "$SWTPM" "$tpm2_state_path" "$swtpm_keyopt"
 	if [ $? -ne 0 ]; then
@@ -1886,155 +2027,8 @@ init_tpm2()
 		      "handle $(printf "0x%08x" ${TPM2_SPK_HANDLE})."
 	fi
 
-	if [ $((flags & SETUP_CREATE_EK_F)) -ne 0 ]; then
-		ek=$(tpm2_create_ek "$flags" "${TPM2_EK_HANDLE}" \
-		     "${EK_TEMP_FILE}")
-		if [ $? -ne 0 ]; then
-			logerr "tpm2_create_ek failed"
-			return 1
-		fi
-		logit "Successfully created EK with handle" \
-		      "$(printf "0x%08x" ${TPM2_EK_HANDLE})."
-
-		if [ $((flags & SETUP_TPM2_ECC_F)) -eq 0 ]; then
-			nvindex=${TPM2_NV_INDEX_RSA_EKTemplate}
-		else
-			nvindex=${TPM2_NV_INDEX_ECC_EKTemplate}
-		fi
-		nvindex_str="$(printf "0x%08x" ${nvindex})"
-
-		if [ $((flags & SETUP_ALLOW_SIGNING_F )) -ne 0 ]; then
-			tpm2_nv_define \
-				${nvindex} \
-				$((TPMA_NV_PLATFORMCREATE | \
-				   TPMA_NV_AUTHREAD | \
-				   TPMA_NV_OWNERREAD | \
-				   TPMA_NV_PPREAD | \
-				   TPMA_NV_PPWRITE | \
-				   TPMA_NV_NO_DA | \
-				   TPMA_NV_WRITEDEFINE)) \
-				"$(get_filesize "${EK_TEMP_FILE}")"
-			if [ $? -ne 0 ]; then
-				logerr "Could not create NVRAM area ${nvindex_str}" \
-				       "for EK template."
-				return 1
-			fi
-			tpm2_nv_write \
-				${nvindex} \
-				"${EK_TEMP_FILE}"
-			if [ $? -ne 0 ]; then
-				logerr "Could not write EK template into" \
-				       "NVRAM area ${nvindex_str}."
-				return 1
-			fi
-			if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
-				tpm2_nv_writelock \
-					${nvindex}
-				if [ $? -ne 0 ]; then
-					logerr "Could not lock EK template NVRAM" \
-					       "area ${nvindex_str}."
-					return 1
-				fi
-			fi
-			logit "Successfully created NVRAM area ${nvindex_str} for EK template."
-		fi
-		rm -f "${EK_TEMP_FILE}"
-	fi
-
-	# have external program create the certificates now
-	call_create_certs "$flags" "$config_file" "$certsdir" "$ek" "$vmid"
-	if [ $? -ne 0 ]; then
-		return 1
-	fi
-
-	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] && \
-	   [ -r "${EK_CERT_FILE}" ]; then
-
-		if [ $((flags & SETUP_TPM2_ECC_F)) -eq 0 ]; then
-			nvindex=${TPM2_NV_INDEX_RSA_EKCert}
-		else
-			nvindex=${TPM2_NV_INDEX_ECC_EKCert}
-		fi
-		nvindex_str="$(printf "0x%08x" ${nvindex})"
-
-		tpm2_nv_define \
-			${nvindex} \
-			$((TPMA_NV_PLATFORMCREATE | \
-			   TPMA_NV_AUTHREAD | \
-			   TPMA_NV_OWNERREAD | \
-			   TPMA_NV_PPREAD | \
-			   TPMA_NV_PPWRITE | \
-			   TPMA_NV_NO_DA | \
-			   TPMA_NV_WRITEDEFINE)) \
-			"$(get_filesize "${EK_CERT_FILE}")"
-		if [ $? -ne 0 ]; then
-			logerr "Could not create NVRAM area ${nvindex_str}" \
-			       "for EK certificate."
-			return 1
-		fi
-		tpm2_nv_write \
-			${nvindex} \
-			"${EK_CERT_FILE}"
-		if [ $? -ne 0 ]; then
-			logerr "Could not write EK certificate into" \
-			       "NVRAM area ${nvindex_str}."
-			return 1
-		fi
-		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
-			tpm2_nv_writelock \
-				${nvindex}
-			if [ $? -ne 0 ]; then
-				logerr "Could not lock EK certificate NVRAM" \
-				       "area ${nvindex_str}."
-				return 1
-			fi
-		fi
-		logit "Successfully created NVRAM area ${nvindex_str} for EK certificate."
-		rm -f "${EK_CERT_FILE}"
-	fi
-
-	if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ] && \
-	   [ -r "${PLATFORM_CERT_FILE}" ] ; then
-
-		nvindex=${TPM2_NV_INDEX_PlatformCert}
-		nvindex_str="$(printf "0x%08x" ${nvindex})"
-
-		tpm2_nv_define \
-			${nvindex} \
-			$((TPMA_NV_PLATFORMCREATE | \
-			   TPMA_NV_AUTHREAD | \
-			   TPMA_NV_OWNERREAD | \
-			   TPMA_NV_PPREAD | \
-			   TPMA_NV_PPWRITE | \
-			   TPMA_NV_NO_DA | \
-			   TPMA_NV_WRITEDEFINE)) \
-			"$(get_filesize "${PLATFORM_CERT_FILE}")"
-		if [ $? -ne 0 ]; then
-			logerr "Could not create NVRAM area ${nvindex_str}" \
-			       "for platform certificate."
-			return 1
-		fi
-		tpm2_nv_write \
-			${nvindex} \
-			"${PLATFORM_CERT_FILE}"
-		if [ $? -ne 0 ]; then
-			logerr "Could not write platform certificate into" \
-			       "NVRAM area ${nvindex_str}."
-			return 1
-		fi
-		if [ $((flags & SETUP_LOCK_NVRAM_F)) -ne 0 ]; then
-			tpm2_nv_writelock \
-				${nvindex}
-			if [ $? -ne 0 ]; then
-				logerr "Could not lock platform certificate" \
-				       "NVRAM area ${nvindex_str}."
-				return 1
-			fi
-		fi
-		logit "Successfully created NVRAM area ${nvindex_str}" \
-		      "for platform certificate."
-		rm -f "${PLATFORM_CERT_FILE}"
-	fi
+	tpm2_create_ek_and_cert "$flags" "$config_file" "$certsdir" "$vmid"
+	[ $? -ne 0 ] && return 1
 
 	if [ "$pcr_banks" != "-" ]; then
 		all_pcr_banks="$(tpm2_get_all_pcr_banks)"
