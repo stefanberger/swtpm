@@ -1529,7 +1529,7 @@ tpm2_create_eks_and_certs()
 	# 2nd key will be an ECC; no more platform cert
 	flags=$(((flags & ~SETUP_PLATFORM_CERT_F) | SETUP_TPM2_ECC_F))
 	tpm2_create_ek_and_cert "$flags" "$config_file" "$certsdir" "$vmid"
-	return 0
+	return $?
 }
 
 # Create the platform key, either RSA or ECC
