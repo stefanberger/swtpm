@@ -1190,7 +1190,8 @@ tpm2_createprimary_spk_ecc()
 	off1=126
 	off2=228
 
-	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
+	# TPM_RH_OWNER
+	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x01' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off1}" \
 	    "${off2}" "" ""
 	return $?
