@@ -934,51 +934,6 @@ init_tpm()
 
 ################################# TPM 2 ##################################
 
-# Get a couple of random numbers from the host and stir the TPM
-# RNG with them
-#
-tpm2_stirrandom()
-{
-	local req r rsp exp
-
-	# just the header, expecting 0x18 bytes of random data
-	req='\x80\x01\x00\x00\x00\x24\x00\x00\x01\x46\x00\x18'
-	r=$(dd if=/dev/urandom count=24 bs=1 2>/dev/null | \
-	    read_hex_data | sed 's/ /\\x/g')
-
-	rsp="$(tpm_transfer "${req}${r}")"
-
-	exp=' 80 01 00 00 00 0a 00 00 00 00'
-	if [ "$rsp" != "$exp" ]; then
-		logerr "TPM2_Stirrandom() failed"
-		logerr "       expected: $exp"
-		logerr "       received: $rsp"
-		return 1
-	fi
-
-	return 0
-}
-
-tpm2_changeeps()
-{
-	local req rsp exp
-
-	req='\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x24\x40\x00\x00\x0c\x00\x00'
-	req+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00'
-
-	rsp="$(tpm_transfer "${req}")"
-
-	exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
-	if [ "$rsp" != "$exp" ]; then
-		logerr "TPM2_ChangeEPS() failed"
-		logerr "       expected: $exp"
-		logerr "       received: $rsp"
-		return 1
-	fi
-
-	return 0
-}
-
 # Create the primary key (EK equivalent)
 #
 # @param1: flags
@@ -1381,10 +1336,6 @@ tpm2_create_ek()
 
 	local res handle
 
-	tpm2_stirrandom
-	tpm2_changeeps
-	[ $? -ne 0 ] && return 1
-
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
 		res=$(tpm2_createprimary_ek_ecc "$flags" "${ektemplatefile}")
 	else
@@ -1416,10 +1367,6 @@ tpm2_create_spk()
 	local nehandle="$2"
 
 	local res handle
-
-	tpm2_stirrandom
-	tpm2_changeeps
-	[ $? -ne 0 ] && return 1
 
 	if [ $((flags & SETUP_TPM2_ECC_F)) -ne 0 ]; then
 		res=$(tpm2_createprimary_spk_ecc "$flags")
