@@ -1175,7 +1175,8 @@ tpm2_createprimary_spk_ecc_nist_p384()
 	# offset of length indicator for key
 	offset=126
 
-	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
+	# TPM_RH_OWNER
+	tpm2_createprimary_ecc_params '\\x40\\x00\\x00\\x01' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${offset}" \
 	    "48" "" "" "4" "12" "$NONCE_ECC_384"
 	return $?
