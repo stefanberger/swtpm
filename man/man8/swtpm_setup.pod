@@ -182,7 +182,8 @@ contains the following:
       "type": "swtpm_setup",
       "features": [
         "cmdarg-keyfile-fd",
-        "cmdarg-pwdfile-fd"
+        "cmdarg-pwdfile-fd",
+        "no-tpm12-tools"
       ]
     }
 
@@ -197,6 +198,12 @@ The I<--keyfile-fd> option is supported.
 =item B<cmdarg-pwd-fd>
 
 The I<--pwdfile-fd> option is supported.
+
+=item B<no-tpm12-tools>
+
+TPM 1.2 tools cannot be found in the PATH. This means that no certificates can
+be created since they cannot be written into the NVRAM and the NVRAM cannot be
+locked. Among the TPM 1.2 setup parameters only I<--createek> can be passed.
 
 =back
 

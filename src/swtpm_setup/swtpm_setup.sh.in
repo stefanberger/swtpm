@@ -1992,8 +1992,16 @@ EOF
 
 print_capabilities()
 {
+	local param=""
+
+	if [ -z "$(type -P tcsd)" ] || \
+	   [ -z "$(type -P tpm_nvinfo)" ] || \
+	   [ -z "$(type -P tpm_takeownership)" ]; then
+		param=', "no-tpm12-tools"'
+	fi
+
 	echo '{ "type": "swtpm_setup",' \
-		'"features": [ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd" ]'\
+		'"features": [ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd"'${param}' ]'\
 	'}'
 }
 
