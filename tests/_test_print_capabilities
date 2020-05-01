@@ -40,8 +40,9 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-exp='{ "type": "swtpm_setup", "features": [ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd" ] }'
-if [ "${msg}" != "${exp}" ]; then
+# The are some variable parameters at the end, use regex
+exp='\{ "type": "swtpm_setup", "features": \[ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd"(, "no-tpm12-tools")? \] \}'
+if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_SETUP} to --print-capabilities:"
 	echo "Actual   : ${msg}"
 	echo "Expected : ${exp}"
