@@ -141,8 +141,14 @@ EXTRA_DIST=$(TESTS) \
 	data/tpm2state3b/tpm2-00.permall \
 	data/tpm2state4/tpm2-00.volatilestate \
 	data/tpm2state4/tpm2-00.permall \
+	data/tpm2state5/h5691272a7b04862c49b9a7b3d388bd84bde57a26d597aff4f4867a33cc544f8a.bin \
+	data/tpm2state5/hp5691272a7b04862c49b9a7b3d388bd84bde57a26d597aff4f4867a33cc544f8a.bin \
+	data/tpm2state5/primarykeyctxt.bin \
+	data/tpm2state5/sigfile.bin \
 	data/tpm2state5/signature.bin \
 	data/tpm2state5/tpm2-00.permall \
+	data/tpm2state5/tpm2-permanent.bin \
+	data/tpm2state5/tpm2-volatile.bin \
 	load_vtpm_proxy \
 	patches/libtpm.patch \
 	softhsm_setup \

@@ -24,7 +24,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
-SWTPM_IOCTL=$ROOT/src/swtpm_ioctl/swtpm_ioctl
+SWTPM_IOCTL=${SWTPM_IOCTL:-$ROOT/src/swtpm_ioctl/swtpm_ioctl}
 TPMDIR=`mktemp -d`
 PID_FILE=$TPMDIR/${SWTPM}.pid
 SOCK_PATH=$TPMDIR/sock
@@ -33,7 +33,12 @@ RESP_PATH=$TPMDIR/resp
 LOGFILE=$TPMDIR/logfile
 TMPFILE=$TPMDIR/tmpfile
 BINFILE=$TPMDIR/binfile
-SIGFILE=$TPMDIR/sigfile
+SIGFILE=$TPMDIR/sigfile.bin
+KEYCONTEXTFILE=$TPMDIR/primarykeyctxt.bin
+TSSKEYCONTEXTFILE1=  # will be determined
+TSSKEYCONTEXTFILE2=  # will be determined
+VOLATILESTATE=$TPMDIR/tpm2-volatile.bin
+PERMANENTSTATE=$TPMDIR/tpm2-permanent.bin
 
 source ${TESTDIR}/test_common
 source ${TESTDIR}/common
@@ -59,6 +64,7 @@ function fillup_nvram()
 {
 	local create="$1"
 	local check="$2"
+	local check_keycontext="$3"
 
 	local i sz
 
@@ -74,12 +80,28 @@ function fillup_nvram()
 			echo "Error: createprimary did not result in expected handle 80000000"
 			exit 1
 		fi
+
+		# Store the primary key; expecting to be able to load if after upgrades
+		${TOOLSPATH}/${PREFIX}contextsave -ha 80000000 -of $KEYCONTEXTFILE > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: contextsave failed."
+			cat $TMPFILE
+			exit 1
+		fi
+
+		# We need to pick two more files from the contextsave; without those
+		# the contextload will not work
+		# There's a risk that future TSS version may not take these files anymore...
+		TSSKEYCONTEXTFILE1=$(for f in $TPMDIR/*; do [[ $f =~ hp[0-9a-f]{64}.bin ]] && echo $f; done)
+		TSSKEYCONTEXTFILE2=$(for f in $TPMDIR/*; do [[ $f =~ h[0-9a-f]{64}.bin ]] && echo $f; done)
+
 		for ((i = 0x81000000; i < 0x81000100; i++)); do
 			${TOOLSPATH}/${PREFIX}evictcontrol \
 				-hi o \
 				-ho 80000000 \
 				-hp $(printf "%x" $i) &>$TMPFILE || break
 		done
+
 		${TOOLSPATH}/${PREFIX}getcapability -cap 1 -pr 81000000 -pc 80 > $TMPFILE
 		# We need know we need to see '65 Handles' for state created with
 		# libtpms-0.6.0 and 128kb NVRAM size
@@ -87,6 +109,12 @@ function fillup_nvram()
 		if [ $? -ne 0 ]; then
 			echo "Error: Did not find '65 Handles' keyword in output"
 			cat $TMPFILE
+			exit 1
+		fi
+
+		${TOOLSPATH}/${PREFIX}flushcontext -ha 80000000
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not flush context for key with handle 80000000"
 			exit 1
 		fi
 
@@ -162,9 +190,41 @@ function fillup_nvram()
 				-if ${BINFILE} > $TMPFILE
 			if [ $? -ne 0 ]; then
 				echo "Verifying signature failed for handle $(printf "%x" $i)."
+				cat $TMPFILE
 				exit 1
 			fi
 		done
+	fi
+
+	if [ $check_keycontext -eq 1 ]; then
+		# load the primary key via context; this cannot work if the TPM 2 was reset
+		# but can only work after a resume of the TPM 2's state
+		${TOOLSPATH}/${PREFIX}contextload -if $KEYCONTEXTFILE > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not load primary key using contextload."
+			cat $TMPFILE
+			exit 1
+		fi
+		if [ -z "$(grep 80000000 $TMPFILE)" ]; then
+			echo "Error: contextlog did not result in expected handle 80000000."
+			cat $TMPFILE
+			exit 1
+		fi
+
+		${TOOLSPATH}/${PREFIX}verifysignature \
+			-hk 80000000 \
+			-is ${SIGFILE} \
+			-if ${BINFILE} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Verifying signature failed for handle $(printf "%x" $i)."
+			exit 1
+		fi
+
+		${TOOLSPATH}/${PREFIX}flushcontext -ha 80000000
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not flush context for key with handle 80000000"
+			exit 1
+		fi
 	fi
 }
 
@@ -204,7 +264,20 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-fillup_nvram 1 1
+fillup_nvram 1 1 1
+
+# Take a snapshot of the volatile and permanent state
+${SWTPM_IOCTL} --unix $SOCK_PATH --save volatile $VOLATILESTATE
+if [ $? -ne 0 ]; then
+	echo "Error: Saving volatile state failed."
+	exit 1
+fi
+
+${SWTPM_IOCTL} --unix $SOCK_PATH --save permanent $PERMANENTSTATE
+if [ $? -ne 0 ]; then
+	echo "Error: Saving permanent state failed."
+	exit 1
+fi
 
 # Send Shutdown
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
@@ -218,8 +291,8 @@ echo "============================" >> $LOGFILE
 echo "TPM was shut down"
 
 # Store this state for later usage; use a really old version of libtpms: 0.6.0
-#cp $TPMDIR/tpm2-00.permall ${TESTDIR}/data/tpm2state5;
-#cp $SIGFILE ${TESTDIR}/data/tpm2state5/signature.bin
+#cp $TPMDIR/tpm2-00.permall ${TESTDIR}/data/tpm2state5
+#cp $TSSKEYCONTEXTFILE1 $TSSKEYCONTEXTFILE2 $SIGFILE $PERMANENTSTATE $VOLATILESTATE $KEYCONTEXTFILE ${TESTDIR}/data/tpm2state5
 
 #################################################################
 # Run TPM2 with the created state and verify it's the same
@@ -256,7 +329,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-fillup_nvram 0 1
+fillup_nvram 0 1 0
 
 ${TOOLSPATH}/${PREFIX}shutdown -c
 if [ $? -ne 0 ]; then
@@ -280,8 +353,8 @@ echo "TPM was shut down"
 # Run TPM2 with previously saved state and verify it's the same
 
 rm -f $TPMDIR/*
-cp -f ${TESTDIR}/data/tpm2state5/tpm2-00.permall $TPMDIR/tpm2-00.permall
-cp ${TESTDIR}/data/tpm2state5/signature.bin $SIGFILE
+cp -f ${TESTDIR}/data/tpm2state5/tpm2-00.permall $TPMDIR/
+cp -f ${TESTDIR}/data/tpm2state5/$(basename $SIGFILE) $TPMDIR/
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
@@ -315,7 +388,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-fillup_nvram 0 1
+fillup_nvram 0 1 0
 
 ${TOOLSPATH}/${PREFIX}shutdown -c
 if [ $? -ne 0 ]; then
@@ -332,3 +405,79 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Test 1 OK"
+
+#################################################################
+# Run TPM2 with previously saved permanent and volatile state
+#
+# This test does a contextload that requires two more state files harvested
+# from version tss2-1331. If a different TSS2 version fails to accept these
+# state files, this test will fail.
+
+rm -f $TPMDIR/*
+cp -f ${TESTDIR}/data/tpm2state5/$(basename $PERMANENTSTATE) $TPMDIR/
+cp -f ${TESTDIR}/data/tpm2state5/$(basename $VOLATILESTATE) $TPMDIR/
+cp -f ${TESTDIR}/data/tpm2state5/$(basename $SIGFILE) $TPMDIR/
+cp -f ${TESTDIR}/data/tpm2state5/$(basename $KEYCONTEXTFILE) $TPMDIR/
+# Restore the special TSS state files
+cp -f ${TESTDIR}/data/tpm2state5/*.bin $TPMDIR/
+
+$SWTPM_EXE socket \
+	--server port=${TPM_COMMAND_PORT} \
+	--tpmstate dir=$TPMDIR \
+	--pid file=$PID_FILE \
+	--ctrl type=unixio,path=$SOCK_PATH \
+	--log file=$LOGFILE,level=20 \
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT} &
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: (3) Socket TPM did not write pidfile."
+	exit 1
+fi
+
+PID="$(cat $PID_FILE)"
+
+${SWTPM_IOCTL} --unix $SOCK_PATH --stop
+if [ $? -ne 0 ]; then
+	echo "Error: Could send stop to TPM 2."
+	exit 1
+fi
+
+${SWTPM_IOCTL} --unix $SOCK_PATH --load permanent $PERMANENTSTATE
+if [ $? -ne 0 ]; then
+	echo "Error: Loading permanent state failed."
+	exit 1
+fi
+
+${SWTPM_IOCTL} --unix $SOCK_PATH --load volatile $VOLATILESTATE
+if [ $? -ne 0 ]; then
+	echo "Error: Loading volatile state failed."
+	exit 1
+fi
+
+# Send TPM_Init
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	exit 1
+fi
+
+echo "TPM started with previously generated permanent and volatile state"
+
+fillup_nvram 0 1 1
+
+${TOOLSPATH}/${PREFIX}shutdown -c
+if [ $? -ne 0 ]; then
+	echo "Error: tpm_shutdown clear failed."
+	cat $LOGFILE
+	exit 1
+fi
+
+# Send Shutdown
+act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+	exit 1
+fi
+
+echo "Test 2 OK"
