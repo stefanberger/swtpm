@@ -159,10 +159,9 @@ if test $? -ne 0; then
 fi
 AC_SUBST([LIBTASN1_LIBS])
 
-LIBTPMS_LIBS=$(pkg-config --libs libtpms)
-if test $? -ne 0; then
-	AC_MSG_ERROR("Is libtpms-devel installed? -- could not get libs for libtpms")
-fi
+PKG_CHECK_MODULES([LIBTPMS],[libtpms],,AC_MSG_WARN("no libtpms.pc found, continuing with standard path"))
+LDFLAGS="$LDFLAGS $LIBTPMS_LDFLAGS"
+CFLAGS="$CFLAGS $LIBTPMS_CFLAGS"
 AC_CHECK_LIB(tpms,
              TPMLIB_ChooseTPMVersion,[true],
              AC_MSG_ERROR("libtpms 0.6 or later is required")
@@ -406,7 +405,8 @@ PKG_PROG_PKG_CONFIG
 AC_MSG_CHECKING([Checking the crypto library libtpms is linked to])
 libtpms_cryptolib=`$PKG_CONFIG --variable cryptolib libtpms`
 if test "x$libtpms_cryptolib" = "x"; then
-  AC_MSG_ERROR([Could not determine the crypto library libtpms is using])
+  AC_MSG_WARN([Could not determine the crypto library libtpms is using, assuming ${cryptolib}])
+  libtpms_cryptolib=${cryptolib}
 fi
 AC_MSG_RESULT($libtpms_cryptolib)
 
