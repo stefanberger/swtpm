@@ -84,9 +84,12 @@ function fillup_nvram()
 		# Store the primary key; expecting to be able to load if after upgrades
 		${TOOLSPATH}/${PREFIX}contextsave -ha 80000000 -of $KEYCONTEXTFILE > $TMPFILE
 		if [ $? -ne 0 ]; then
-			echo "Error: contextsave failed."
+			# This can happen if the tool is too old to deal with larger
+			# context sizes. We let it go through but have to eliminate
+			# the checking of the key context
+			echo "WARNING: contextsave failed."
 			cat $TMPFILE
-			exit 1
+			check_keycontext=0
 		fi
 
 		# We need to pick two more files from the contextsave; without those
