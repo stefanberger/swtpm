@@ -955,7 +955,7 @@ tpm2_createprimary_ek_rsa()
 		addlen=0
 		keyflags=0
 		;;
-	3072)	nonce_size=$NONCE_RSA3072_SIZE
+	3072)	nonce_size=$NONCE_EMPTY_SIZE
 		# authPolicy from: Ek Credential Profile; Spec v 2.3; rev2; p.47
 		authpolicy='\\xB2\\x6E\\x7D\\x28\\xD1\\x1A\\x50\\xBC\\x53\\xD8\\x82\\xBC'
 		authpolicy+='\\xF5\\xFD\\x3A\\x1A\\x07\\x41\\x48\\xBB\\x35\\xD3\\xB4\\xE4'
@@ -1006,7 +1006,7 @@ tpm2_createprimary_ek_rsa()
 	# TPM_RH_ENDORSEMENT
 	tpm2_createprimary_rsa_params '\\x40\\x00\\x00\\x0b' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off}" \
-	    "${authpolicy}" "${templatefile}" "${rsa_keysize}"
+	    "${authpolicy}" "${templatefile}" "${rsa_keysize}" "${nonce_size}"
 	return $?
 }
 
@@ -1041,7 +1041,7 @@ tpm2_createprimary_spk_rsa()
 	# TPM_RH_OWNER
 	tpm2_createprimary_rsa_params '\\x40\\x00\\x00\\x01' "${keyflags}" \
 	    "${symkeydata}" "${publen}" "${totlen}" "${min_exp}" "${off}" "" \
-	    "" "${rsa_keysize}"
+	    "" "${rsa_keysize}" "${nonce_size}"
 	return $?
 }
 
@@ -1057,6 +1057,7 @@ function tpm2_createprimary_rsa_params()
 	local authpolicy="$8"
 	local templatefile="$9"
 	local rsa_keysize="${10}"
+	local nonce_size="${11}"
 
 	local req rsp res temp nonce_rsa modulus_len_str key_strlen hashalg
 	local symkeylen
@@ -1068,7 +1069,10 @@ function tpm2_createprimary_rsa_params()
 		hashalg=11
 		symkeylen=128
 		;;
-	3072)	nonce_rsa=${NONCE_RSA3072}
+	3072)	case "$nonce_size" in
+		$NONCE_EMPTY_SIZE)	nonce_rsa=$NONCE_EMPTY;;
+		*)			nonce_rsa=$NONCE_RSA3072;;
+		esac
 		modulus_len_str=" 01 80"
 		hashalg=12
 		symkeylen=256
