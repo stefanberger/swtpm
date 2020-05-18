@@ -119,8 +119,10 @@ TPMA_NV_WRITEDEFINE=$((0x2000))
 # Use standard EK Cert NVRAM, EK and SRK handles per IWG spec.
 # "TCG TPM v2.0 Provisioning Guide"; Version 1.0, Rev 1.0, March 15, 2017
 # Table 2
-TPM2_NV_INDEX_RSA_EKCert=$((0x01c00002))
-TPM2_NV_INDEX_RSA_EKTemplate=$((0x01c00004))
+TPM2_NV_INDEX_RSA2048_EKCert=$((0x01c00002))
+TPM2_NV_INDEX_RSA2048_EKTemplate=$((0x01c00004))
+TPM2_NV_INDEX_RSA3072_HI_EKCert=$((0x01c0001c))
+TPM2_NV_INDEX_RSA3072_HI_EKTemplate=$((0x01c0001d))
 # For ECC follow "TCG EK Credential Profile For TPM Family 2.0; Level 0"
 # Specification Version 2.1; Revision 13; 10 December 2018
 TPM2_NV_INDEX_PlatformCert=$((0x01c08000))
@@ -1462,7 +1464,10 @@ tpm2_create_ek_and_cert()
 		      "$(printf "0x%08x" ${tpm2_ek_handle})."
 
 		if [ $((flags & SETUP_TPM2_ECC_F)) -eq 0 ]; then
-			nvindex=${TPM2_NV_INDEX_RSA_EKTemplate}
+			case "$rsa_keysize" in
+			2048)	nvindex=${TPM2_NV_INDEX_RSA2048_EKTemplate};;
+			3072)	nvindex=${TPM2_NV_INDEX_RSA3072_HI_EKTemplate};;
+			esac
 		else
 			nvindex=${TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTemplate}
 		fi
@@ -1505,7 +1510,10 @@ tpm2_create_ek_and_cert()
 	   [ -r "${EK_CERT_FILE}" ]; then
 
 		if [ $((flags & SETUP_TPM2_ECC_F)) -eq 0 ]; then
-			nvindex=${TPM2_NV_INDEX_RSA_EKCert}
+			case "$rsa_keysize" in
+			2048)	nvindex=${TPM2_NV_INDEX_RSA2048_EKCert};;
+			3072)	nvindex=${TPM2_NV_INDEX_RSA3072_HI_EKCert};;
+			esac
 		else
 			nvindex=${TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCert}
 		fi
