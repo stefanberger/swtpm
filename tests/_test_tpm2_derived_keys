@@ -248,12 +248,13 @@ test5_exp2+=' 00 00 01 00 00'
 #
 # The issue is that 32bit TPMs produce different results than
 # 64bit TPMs. We only test 64bit TPMs with the above expected
-# return values.
+# return values. We also only test little endian
 #
 case "$(uname -s)" in
 Linux)
 	# Only 64bit apps will link with libs in /lib64/ dirs
-	if [ -n "$(grep -E "\/lib64\/" /proc/${SWTPM_PID}/maps)" ]; then
+	if [ -n "$(grep -E "\/lib64\/" /proc/${SWTPM_PID}/maps)" ] && \
+	   [ -n "$(lscpu | grep "Little Endian")" ]; then
 		tx_cmd 1 0 "$test1_cmd" "$test1_exp" "" || exit 1 && echo "Test 1: OK"
 		tx_cmd 1 1 "$test2_cmd" "$test2_exp" "" || exit 1 && echo "Test 2: OK"
 		tx_cmd 1 1 "$test3_cmd" "$test3_exp" "" || exit 1 && echo "Test 3: OK"
@@ -261,7 +262,7 @@ Linux)
 		tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" "" || exit 1
 		tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" "" || exit 1 && echo "Test 5: OK"
 	else
-		echo "This test currently only runs with 64bit swtpm. ${SWTPM_EXE} seems 32bit."
+		echo "This test currently only runs with 64bit little endian swtpm. ${SWTPM_EXE} seems 32bit or big endian."
 	fi
 	;;
 *)
