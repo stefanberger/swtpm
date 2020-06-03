@@ -45,7 +45,7 @@ Use the given port rather than using the environment variable TPM_PORT.
 
 Terminate the TPM after the client has closed the connection.
 
-=item B<--server [type=tcp][,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>fdE<gt>][,disconnect]>
+=item B<--server [type=tcp][,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt> [,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>fdE<gt>][,disconnect]>
 
 Expect TCP connections on the given port; if a port is not provided a file descriptor
 must be passed with the fd parameter and the commands are read from this file
@@ -58,7 +58,7 @@ provided with I<ifname>.
 This parameter enables a persistent connection by default unless the disconnect option
 is given. This parameter should be used rather than the -p and --fd options.
 
-=item B<--server type=unixio[,path=E<lt>pathE<gt>][,fd=E<lt>fdE<gt>][,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>]>
+=item B<--server type=unixio[,path=E<lt>pathE<gt>][,fd=E<lt>fdE<gt>] [,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>]>
 
 Expect UnixIO connections on the given path. If no path is provided, a file descriptor
 must be passed instead. The mode parameter allows to set the file mode bits of the
@@ -125,7 +125,7 @@ For the socket interface, this option automatically assumes -t.
 
 Daemonize the process.
 
-=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>][,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>filedescriptorE<gt>|clientfd=E<lt>filedescriptorE<gt>][,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>] >
+=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>] [,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]] [,fd=E<lt>filedescriptorE<gt>|clientfd=E<lt>filedescriptorE<gt>] [,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>] >
 
 This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
 a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
@@ -141,7 +141,7 @@ This operation requires root privileges.
 
 The control channel enables out-of-band control of the TPM, such as resetting the TPM.
 
-=item B<--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none]>
+=item B<--flags [not-need-init] [,startup-clear|startup-state|startup-deactivated|startup-none]>
 
 The I<not-need-init> flag enables the TPM to accept TPM commands right after
 start without requiring a INIT to be sent to it through the command channel
@@ -176,7 +176,7 @@ The default value is 0640.
 
 Choose TPM 2 functionality; by default a TPM 1.2 is chosen.
 
-=item B<--log [fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>][,level=E<lt>nE<gt>]>[,prefix=E<lt>prefixE<gt>][,truncate]
+=item B<--log [fd=E<lt>fdE<gt>|file=E<lt>pathE<gt>][,level=E<lt>nE<gt>] [,prefix=E<lt>prefixE<gt>][,truncate]>
 
 Enable logging to a file given its file descriptor or its path. Use '-' for path to
 suppress the logging.
@@ -200,7 +200,7 @@ This option is implied by the I<--vtpm-proxy> option and therefore need not
 be explicity set if this option is passed. In all other cases care should be
 taken as to who can send the TPM/TPM2_SetLocality command.
 
-=item B<--key file=E<lt>keyfileE<gt>|fd=E<lt>fdE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc],[remove[=true|false]]>
+=item B<--key file=E<lt>keyfileE<gt>|fd=E<lt>fdE<gt> [,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc], [remove[=true|false]]>
 
 Enable encryption of the state files of the TPM. The keyfile must contain
 an AES key of supported size; 128 bit (16 bytes) and 256 bit (32 bytes) keys are
@@ -217,13 +217,13 @@ The encrypted data is integrity protected using encrypt-then-mac.
 The I<remove> parameter will attempt to remove the given keyfile once the key
 has been read.
 
-=item B<--key pwdfile=E<lt>passphrase fileE<gt>|pwdfd=E<lt>fdE<gt>[,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]>
+=item B<--key pwdfile=E<lt>passphrase fileE<gt>|pwdfd=E<lt>fdE<gt> [,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]>
 
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash
 or PBKDF2. By default PBKDF2 is used.
 
-=item B<--migration-key file=E<lt>keyfileE<gt>|fd=E<lt>fdE<gt>[,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]>
+=item B<--migration-key file=E<lt>keyfileE<gt>|fd=E<lt>fdE<gt> [,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc] [,remove[=true|false]]>
 
 The availability of a migration key ensures that the state of the TPM
 will not be revealed in unencrypted form when
@@ -256,7 +256,7 @@ The encrypted data is integrity protected using encrypt-then-mac.
 The I<remove> parameter will attempt to remove the given keyfile once the key
 has been read.
 
-=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>|pwdfd=E<lt>fdE<gt>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]>
+=item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>|pwdfd=E<lt>fdE<gt> [,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]>
 
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash

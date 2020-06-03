@@ -176,8 +176,8 @@ Use the given port rather than using the environment variable \s-1TPM_PORT.\s0
 .IP "\fB\-t|\-\-terminate\fR" 4
 .IX Item "-t|--terminate"
 Terminate the \s-1TPM\s0 after the client has closed the connection.
-.IP "\fB\-\-server [type=tcp][,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]][,fd=<fd>][,disconnect]\fR" 4
-.IX Item "--server [type=tcp][,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]][,fd=<fd>][,disconnect]"
+.IP "\fB\-\-server [type=tcp][,port=<port>[,bindaddr=<address> [,ifname=<ifname>]]][,fd=<fd>][,disconnect]\fR" 4
+.IX Item "--server [type=tcp][,port=<port>[,bindaddr=<address> [,ifname=<ifname>]]][,fd=<fd>][,disconnect]"
 Expect \s-1TCP\s0 connections on the given port; if a port is not provided a file descriptor
 must be passed with the fd parameter and the commands are read from this file
 descriptor then.
@@ -188,8 +188,8 @@ provided with \fIifname\fR.
 .Sp
 This parameter enables a persistent connection by default unless the disconnect option
 is given. This parameter should be used rather than the \-p and \-\-fd options.
-.IP "\fB\-\-server type=unixio[,path=<path>][,fd=<fd>][,mode=<0...>][,uid=<uid>][,gid=<gid>]\fR" 4
-.IX Item "--server type=unixio[,path=<path>][,fd=<fd>][,mode=<0...>][,uid=<uid>][,gid=<gid>]"
+.IP "\fB\-\-server type=unixio[,path=<path>][,fd=<fd>] [,mode=<0...>][,uid=<uid>][,gid=<gid>]\fR" 4
+.IX Item "--server type=unixio[,path=<path>][,fd=<fd>] [,mode=<0...>][,uid=<uid>][,gid=<gid>]"
 Expect UnixIO connections on the given path. If no path is provided, a file descriptor
 must be passed instead. The mode parameter allows to set the file mode bits of the
 UnixIO path. The mode bits value must be given as an octal number starting with a '0'.
@@ -229,8 +229,8 @@ For the socket interface, this option automatically assumes \-t.
 .IP "\fB\-d|\-\-daemon\fR" 4
 .IX Item "-d|--daemon"
 Daemonize the process.
-.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>][,mode=<0...>][,uid=<uid>][,gid=<gid>] \fR" 4
-.IX Item "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]][,fd=<filedescriptor>|clientfd=<filedescriptor>][,mode=<0...>][,uid=<uid>][,gid=<gid>] "
+.IP "\fB\-\-ctrl type=[unixio|tcp][,path=<path>] [,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]] [,fd=<filedescriptor>|clientfd=<filedescriptor>] [,mode=<0...>][,uid=<uid>][,gid=<gid>] \fR" 4
+.IX Item "--ctrl type=[unixio|tcp][,path=<path>] [,port=<port>[,bindaddr=<address>[,ifname=<ifname>]]] [,fd=<filedescriptor>|clientfd=<filedescriptor>] [,mode=<0...>][,uid=<uid>][,gid=<gid>] "
 This option adds a control channel to the \s-1TPM.\s0 The control channel can either use a UnixIO socket with
 a given \fIpath\fR or \fIfiledescriptor\fR or it can use a \s-1TCP\s0 socket on the given \fIport\fR or \fIfiledescriptor\fR.
 If a port is provided the \fIbind address\fR on which to listen for \s-1TCP\s0 connections
@@ -244,8 +244,8 @@ The default value is 0770. uid and gid set the ownership of the UnixIO socket's 
 This operation requires root privileges.
 .Sp
 The control channel enables out-of-band control of the \s-1TPM,\s0 such as resetting the \s-1TPM.\s0
-.IP "\fB\-\-flags [not\-need\-init][,startup\-clear|startup\-state|startup\-deactivated|startup\-none]\fR" 4
-.IX Item "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none]"
+.IP "\fB\-\-flags [not\-need\-init] [,startup\-clear|startup\-state|startup\-deactivated|startup\-none]\fR" 4
+.IX Item "--flags [not-need-init] [,startup-clear|startup-state|startup-deactivated|startup-none]"
 The \fInot-need-init\fR flag enables the \s-1TPM\s0 to accept \s-1TPM\s0 commands right after
 start without requiring a \s-1INIT\s0 to be sent to it through the command channel
 (see the '\-i' option of swtpm_ioctl).
@@ -270,8 +270,8 @@ The default value is 0640.
 .IP "\fB\-\-tpm2\fR" 4
 .IX Item "--tpm2"
 Choose \s-1TPM 2\s0 functionality; by default a \s-1TPM 1.2\s0 is chosen.
-.IP "\fB\-\-log [fd=<fd>|file=<path>][,level=<n>]\fR[,prefix=<prefix>][,truncate]" 4
-.IX Item "--log [fd=<fd>|file=<path>][,level=<n>][,prefix=<prefix>][,truncate]"
+.IP "\fB\-\-log [fd=<fd>|file=<path>][,level=<n>] [,prefix=<prefix>][,truncate]\fR" 4
+.IX Item "--log [fd=<fd>|file=<path>][,level=<n>] [,prefix=<prefix>][,truncate]"
 Enable logging to a file given its file descriptor or its path. Use '\-' for path to
 suppress the logging.
 .Sp
@@ -292,8 +292,8 @@ TPM/TPM2_SetLocality commands. This is parameter is useful if the Linux
 This option is implied by the \fI\-\-vtpm\-proxy\fR option and therefore need not
 be explicity set if this option is passed. In all other cases care should be
 taken as to who can send the TPM/TPM2_SetLocality command.
-.IP "\fB\-\-key file=<keyfile>|fd=<fd>[,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc],[remove[=true|false]]\fR" 4
-.IX Item "--key file=<keyfile>|fd=<fd>[,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc],[remove[=true|false]]"
+.IP "\fB\-\-key file=<keyfile>|fd=<fd> [,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc], [remove[=true|false]]\fR" 4
+.IX Item "--key file=<keyfile>|fd=<fd> [,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc], [remove[=true|false]]"
 Enable encryption of the state files of the \s-1TPM.\s0 The keyfile must contain
 an \s-1AES\s0 key of supported size; 128 bit (16 bytes) and 256 bit (32 bytes) keys are
 supported.
@@ -308,13 +308,13 @@ The encrypted data is integrity protected using encrypt-then-mac.
 .Sp
 The \fIremove\fR parameter will attempt to remove the given keyfile once the key
 has been read.
-.IP "\fB\-\-key pwdfile=<passphrase file>|pwdfd=<fd>[,mode=aes\-cbc|aes\-256\-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]\fR" 4
-.IX Item "--key pwdfile=<passphrase file>|pwdfd=<fd>[,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]"
+.IP "\fB\-\-key pwdfile=<passphrase file>|pwdfd=<fd> [,mode=aes\-cbc|aes\-256\-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]\fR" 4
+.IX Item "--key pwdfile=<passphrase file>|pwdfd=<fd> [,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]"
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a \s-1SHA512\s0 hash
 or \s-1PBKDF2.\s0 By default \s-1PBKDF2\s0 is used.
-.IP "\fB\-\-migration\-key file=<keyfile>|fd=<fd>[,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]]\fR" 4
-.IX Item "--migration-key file=<keyfile>|fd=<fd>[,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc][,remove[=true|false]]"
+.IP "\fB\-\-migration\-key file=<keyfile>|fd=<fd> [,format=<hex|binary>][,mode=aes\-cbc|aes\-256\-cbc] [,remove[=true|false]]\fR" 4
+.IX Item "--migration-key file=<keyfile>|fd=<fd> [,format=<hex|binary>][,mode=aes-cbc|aes-256-cbc] [,remove[=true|false]]"
 The availability of a migration key ensures that the state of the \s-1TPM\s0
 will not be revealed in unencrypted form when
 the \s-1TPM\s0 state blobs are retreived through the ioctl interface.
@@ -345,8 +345,8 @@ The encrypted data is integrity protected using encrypt-then-mac.
 .Sp
 The \fIremove\fR parameter will attempt to remove the given keyfile once the key
 has been read.
-.IP "\fB\-\-migration\-key pwdfile=<passphrase file>|pwdfd=<fd>[,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]\fR" 4
-.IX Item "--migration-key pwdfile=<passphrase file>|pwdfd=<fd>[,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]"
+.IP "\fB\-\-migration\-key pwdfile=<passphrase file>|pwdfd=<fd> [,mode=aes\-cbc|aes\-256\-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]\fR" 4
+.IX Item "--migration-key pwdfile=<passphrase file>|pwdfd=<fd> [,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]"
 This variant of the key parameter allows to provide a passphrase in a file.
 The file is read and a key is derived from it using either a \s-1SHA512\s0 hash
 or \s-1PBKDF2.\s0 By default \s-1PBKDF2\s0 is used.
