@@ -1085,7 +1085,7 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
                     !tlv_data_find_tag(data, length, tag_encrypted_data,
                                        &td[1])) {
                     logprintf(STDERR_FILENO,
-                              "Could not find HMAC or encrpted data (tag %u) "
+                              "Could not find HMAC or encrypted data (tag %u) "
                               "in byte stream.\n", tag_encrypted_data);
                     rc = TPM_FAIL;
                     break;

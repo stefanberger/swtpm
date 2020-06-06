@@ -52,7 +52,7 @@ must be passed with the fd parameter and the commands are read from this file
 descriptor then.
 If a port is provided the I<bind address> on which to listen for TCP connections
 can be provided as well; the default bind address is 127.0.0.1. If a link
-local IPv6 addresss if provided, the name of the interface to bind to must be
+local IPv6 address is provided, the name of the interface to bind to must be
 provided with I<ifname>.
 
 This parameter enables a persistent connection by default unless the disconnect option
@@ -61,7 +61,7 @@ is given. This parameter should be used rather than the -p and --fd options.
 =item B<--server type=unixio[,path=E<lt>pathE<gt>][,fd=E<lt>fdE<gt>] [,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>]>
 
 Expect UnixIO connections on the given path. If no path is provided, a file descriptor
-must be passed instead. The mode parameter allows to set the file mode bits of the
+must be passed instead. The mode parameter allows a user to set the file mode bits of the
 UnixIO path. The mode bits value must be given as an octal number starting with a '0'.
 The default value is 0770. uid and gid set the ownership of the UnixIO socket's path.
 This operation requires root privileges.
@@ -131,10 +131,10 @@ This option adds a control channel to the TPM. The control channel can either us
 a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
 If a port is provided the I<bind address> on which to listen for TCP connections
 can be provided as well; the default bind address is 127.0.0.1. If a link
-local IPv6 addresss if provided, the name of the interface to bind to must be
+local IPv6 address is provided, the name of the interface to bind to must be
 provided with I<ifname>.
 
-The mode parameter allows to set the file mode bits of the UnixIO path.
+The mode parameter allows a user to set the file mode bits of the UnixIO path.
 The mode bits value must be given as an octal number starting with a '0'.
 The default value is 0770. uid and gid set the ownership of the UnixIO socket's path.
 This operation requires root privileges.
@@ -181,7 +181,7 @@ Choose TPM 2 functionality; by default a TPM 1.2 is chosen.
 Enable logging to a file given its file descriptor or its path. Use '-' for path to
 suppress the logging.
 
-The level parameter allows to choose the level of logging. Starting at log
+The level parameter allows a user to choose the level of logging. Starting at log
 level 5, libtpms debug logging is activated.
 
 All logged lines will be prefixed with prefix. By default no prefix is prepended.
@@ -197,7 +197,7 @@ The I<allow-set-locality> parameter allows the swtpm to receive
 TPM/TPM2_SetLocality commands. This is parameter is useful if the Linux
 VTPM proxy driver access is enabled by file descriptor passing.
 This option is implied by the I<--vtpm-proxy> option and therefore need not
-be explicity set if this option is passed. In all other cases care should be
+be explicitly set if this option is passed. In all other cases care should be
 taken as to who can send the TPM/TPM2_SetLocality command.
 
 =item B<--key file=E<lt>keyfileE<gt>|fd=E<lt>fdE<gt> [,format=E<lt>hex|binaryE<gt>][,mode=aes-cbc|aes-256-cbc], [remove[=true|false]]>
@@ -219,7 +219,7 @@ has been read.
 
 =item B<--key pwdfile=E<lt>passphrase fileE<gt>|pwdfd=E<lt>fdE<gt> [,mode=aes-cbc|aes-256-cbc][remove[=true|false]][,kdf=sha512|pbkdf2]>
 
-This variant of the key parameter allows to provide a passphrase in a file.
+This variant of the key parameter allows a user to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash
 or PBKDF2. By default PBKDF2 is used.
 
@@ -227,7 +227,7 @@ or PBKDF2. By default PBKDF2 is used.
 
 The availability of a migration key ensures that the state of the TPM
 will not be revealed in unencrypted form when
-the TPM state blobs are retreived through the ioctl interface.
+the TPM state blobs are retrieved through the ioctl interface.
 The migration key is not used for encrypting TPM state written to files,
 this is what the I<--key> parameter is used for.
 
@@ -258,13 +258,13 @@ has been read.
 
 =item B<--migration-key pwdfile=E<lt>passphrase fileE<gt>|pwdfd=E<lt>fdE<gt> [,mode=aes-cbc|aes-256-cbc][,remove[=true|false]][,pdf=sha512|pbkdf2]>
 
-This variant of the key parameter allows to provide a passphrase in a file.
+This variant of the key parameter allows a user to provide a passphrase in a file.
 The file is read and a key is derived from it using either a SHA512 hash
 or PBKDF2. By default PBKDF2 is used.
 
 =item B<--pid file=E<lt>pidfileE<gt>|fd=E<lt>filedescriptorE<gt>>
 
-This options allows to set the name of file where the process ID (pid) of the TPM
+This options allows a user to set the name of file where the process ID (pid) of the TPM
 will be written into. It is also possible to pass a file descriptor to a file that
 has been opened for writing.
 
@@ -274,7 +274,7 @@ Switch to the given user. This option can only be used when swtpm is started as 
 
 =item B<--seccomp action=none|log|kill> (since v0.2)
 
-This option allows to select the action to take by the seccomp profile when
+This option allows a user to select the action to take by the seccomp profile when
 a syscall is executed that is not allowed. The default is I<kill>. To disable
 the seccomp profile, choose I<none>. The I<log> action logs offending syscalls.
 The I<log> action is only available if libseccomp supports logging.

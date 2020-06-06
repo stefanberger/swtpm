@@ -6,7 +6,7 @@ swtpm_setup.conf - Configuration file for swtpm_setup
 
 The file I</etc/swtpm_setup.conf> contains configuration information for
 the swtpm_setup and swtpm_setup.sh programs. It must only contain
-one configuration keywork per line, followed by an equals sign (=) and then
+one configuration keyword per line, followed by an equals sign (=) and then
 followed by appropriate configuration information. A comment at the
 end of the line may be introduced by a hash (#) sign.
 
@@ -16,7 +16,7 @@ The following keywords are recognized:
 
 =item B<create_certs_tool>
 
-This keyword is to be followed by the name of an executable or exectuable
+This keyword is to be followed by the name of an executable or executable
 script used for creating various TPM certificates. The tool will be
 called with the following options
 

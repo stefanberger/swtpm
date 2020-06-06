@@ -145,7 +145,7 @@ swtpm_setup \- Swtpm utility to simulate the manufacturing of a TPM 1.2 or 2.0
 \&\fBswtpm_setup [\s-1OPTIONS\s0]\fR
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBswtpm_setup\fR is a tool that prepares the intial state for a libtpms-based
+\&\fBswtpm_setup\fR is a tool that prepares the initial state for a libtpms-based
 \&\s-1TPM.\s0
 .PP
 For creating the initial state of a \s-1TPM 1.2,\s0 swtpm_setup must be run either
@@ -254,7 +254,7 @@ If this option is not given and an existing state file is found, an error
 code is returned.
 .IP "\fB\-\-not\-overwrite\fR" 4
 .IX Item "--not-overwrite"
-Do not overwrite existing \s-1TPM\s0 state. If exising \s-1TPM\s0 state is found, the
+Do not overwrite existing \s-1TPM\s0 state. If existing \s-1TPM\s0 state is found, the
 program ends without an error.
 .IP "\fB\-\-vmid <\s-1VM ID\s0\fR>" 4
 .IX Item "--vmid <VM ID>"
@@ -264,7 +264,7 @@ used for creating the certificates and may be required by that tool.
 .IP "\fB\-\-pcr\-banks <\s-1PCR\s0 banks\fR>" 4
 .IX Item "--pcr-banks <PCR banks>"
 Optional comma-separated list of \s-1PCR\s0 banks to activate. Providing '\-'
-allows to skip the selection and activates all \s-1PCR\s0 banks. By default
+allows a user to skip the selection and activates all \s-1PCR\s0 banks. By default
 the sha1 and sha256 banks are activated.
 .IP "\fB\-\-swtpm_ioctl <executable\fR>" 4
 .IX Item "--swtpm_ioctl <executable>"

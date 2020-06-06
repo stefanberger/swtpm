@@ -667,7 +667,7 @@ static void print_usage(const char *prgname)
 "\t                       terminate with exit code 129 if the TPM\n"
 "\t                       needs to be reset\n"
 "\t-u                     give up physical presence\n"
-"\t                       on TPM 2 set the platform hierachy to a\n"
+"\t                       on TPM 2 set the platform hierarchy to a\n"
 "\t                       random password\n"
 "\t-v                     display version and exit\n"
 "\t-h                     display this help screen and exit\n"

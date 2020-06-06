@@ -147,7 +147,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   it will be treaded as client connection;\n"
     "                   NOTE: fd and clientfd are mutually exclusive and \n"
     "                   clientfd is only valid for UnixIO channels\n"
-    "                   mode allows to set the file mode bits of a Unixio socket;\n"
+    "                   mode allows a user to set the file mode bits of a Unixio socket;\n"
     "                   the value must be given in octal number format\n"
     "                   uid and gid set the ownership of the Unixio socket's file;\n"
     "--migration-key file=<path>|fd=<fd>[,mode=aes-cbc|aes-256-cbc][,format=hex|binary][,remove=[true|false]]\n"
@@ -179,7 +179,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : set the directory where the TPM's state will be written\n"
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead;\n"
-    "                   mode allows to set the file mode bits of the state files;\n"
+    "                   mode allows a user to set the file mode bits of the state files;\n"
     "                   the default mode is 0640;\n"
     "-r|--runas <user>: change to the given user\n"
 #ifdef WITH_VTPM_PROXY
