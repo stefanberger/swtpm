@@ -217,7 +217,7 @@ static const char *usage =
 "                    :  set the directory where the TPM's state will be written\n"
 "                       into; the TPM_PATH environment variable can be used\n"
 "                       instead;\n"
-"                       mode allows to set the file mode bits of the state\n"
+"                       mode allows a user to set the file mode bits of the state\n"
 "                       files; the default mode is 0640;\n"
 "-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
 "                       user\n"

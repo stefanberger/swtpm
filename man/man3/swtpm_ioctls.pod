@@ -11,7 +11,7 @@ B<#include E<lt>tpm_ioctl.hE<gt>>
 
 The CUSE TPM implements an ioctl interface on the CUSE TPM's character device.
 The ioctl's are used for out-of-band control of various TPM operations,
-such as its intialization, resetting, and state migration. The control channel
+such as its initialization, resetting, and state migration. The control channel
 over TCP or UnixIO sockets uses control commands for these operations.
 
 The following is an enumeration of the supported ioctl's and control commands,
@@ -21,10 +21,10 @@ I<PTM> and control commands are prefixed with I<CMD>.
 
 In case of the ioctl interface, the pointer to a command's data structure is
 passed as the 2nd parameter to the ioctl() function. The fields in the command's
-data structure are to be fill out in host endianess format.
+data structure are to be fill out in host endianness format.
 
 In case of control commands, the command code must be encoded as a 4 byte
-interger preceding the command's data structure. Command code and data must be
+integer preceding the command's data structure. Command code and data must be
 written in big endian format.
 
 =over 4
@@ -122,7 +122,7 @@ A TPM result code is returned in the tpm_result field.
 
 =item B<PTM_SHUTDOWN / CMD_SHUTDOWN, ptm_res>
 
-This ioctl allows to shut down the TPM.
+This ioctl allows a user to shut down the TPM.
 
 A TPM result code is returned in ptm_res.
 
@@ -267,11 +267,11 @@ The ptm_getstate data structure looks as follows:
     } u;
  };
 
-In the request the state_flags field allows to set the
+In the request the state_flags field allows a user to set the
 B<PTM_STATE_FLAG_DECRYPT> flag to retrieve decrypted TPM state in case
 the TPM's state was written in encrypted form.
 
-The type field allows to choose one of the TPM's state blobs, and must be
+The type field allows a user to choose one of the TPM's state blobs, and must be
 one of B<PTM_BLOB_TYPE_PERMANENT>, B<PTM_BLOB_TYPE_VOLATILE>, and
 B<PTM_BLOB_TYPE_SAVESTATE>.
 
@@ -370,7 +370,7 @@ A TPM result code is returned in ptm_res.
 
 =item B<CMD_SET_BUFFERSIZE, ptm_setbuffersize>
 
-This command allows to set and query for the buffer size that the TPM is
+This command allows a user to set and query for the buffer size that the TPM is
 using for input and output I/O buffers.
 
 The ptm_setbuffersize data structure looks as follows:

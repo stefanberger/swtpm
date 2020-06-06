@@ -821,7 +821,7 @@ static void usage(const char *prgname)
 "-b <buffersize>       : set the buffer size of the TPM and get its current\n"
 "                        size; get minimum and maximum supported sizes\n"
 "--info <flags>        : get TPM implementation specific information;\n"
-"                        flags must be an interger value\n"
+"                        flags must be an integer value\n"
 "--version             : display version and exit\n"
 "--help                : display help screen and exit\n"
 "\n"

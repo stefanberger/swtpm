@@ -148,7 +148,7 @@ and control commands used by the control channel over socket interface.
 .IX Header "DESCRIPTION"
 The \s-1CUSE TPM\s0 implements an ioctl interface on the \s-1CUSE TPM\s0's character device.
 The ioctl's are used for out-of-band control of various \s-1TPM\s0 operations,
-such as its intialization, resetting, and state migration. The control channel
+such as its initialization, resetting, and state migration. The control channel
 over \s-1TCP\s0 or UnixIO sockets uses control commands for these operations.
 .PP
 The following is an enumeration of the supported ioctl's and control commands,
@@ -158,10 +158,10 @@ commands return a \s-1TPM\s0 error code in their response. Ioctl's are prefixed 
 .PP
 In case of the ioctl interface, the pointer to a command's data structure is
 passed as the 2nd parameter to the \fIioctl()\fR function. The fields in the command's
-data structure are to be fill out in host endianess format.
+data structure are to be fill out in host endianness format.
 .PP
 In case of control commands, the command code must be encoded as a 4 byte
-interger preceding the command's data structure. Command code and data must be
+integer preceding the command's data structure. Command code and data must be
 written in big endian format.
 .IP "\fB\s-1PTM_GET_CAPABILITY / CMD_GET_CAPABILITY,\s0 ptm_cap\fR" 4
 .IX Item "PTM_GET_CAPABILITY / CMD_GET_CAPABILITY, ptm_cap"
@@ -242,7 +242,7 @@ delete the volatile state upon startup (\fB\s-1PTM_INIT_FLAG_DELETE_VOLATILE\s0\
 A \s-1TPM\s0 result code is returned in the tpm_result field.
 .IP "\fB\s-1PTM_SHUTDOWN / CMD_SHUTDOWN,\s0 ptm_res\fR" 4
 .IX Item "PTM_SHUTDOWN / CMD_SHUTDOWN, ptm_res"
-This ioctl allows to shut down the \s-1TPM.\s0
+This ioctl allows a user to shut down the \s-1TPM.\s0
 .Sp
 A \s-1TPM\s0 result code is returned in ptm_res.
 .IP "\fB\s-1PTM_GET_TPMESTABLISHED / CMD_GET_TPMESTABLISHED,\s0 ptm_est\fR" 4
@@ -387,11 +387,11 @@ The ptm_getstate data structure looks as follows:
 \& };
 .Ve
 .Sp
-In the request the state_flags field allows to set the
+In the request the state_flags field allows a user to set the
 \&\fB\s-1PTM_STATE_FLAG_DECRYPT\s0\fR flag to retrieve decrypted \s-1TPM\s0 state in case
 the \s-1TPM\s0's state was written in encrypted form.
 .Sp
-The type field allows to choose one of the \s-1TPM\s0's state blobs, and must be
+The type field allows a user to choose one of the \s-1TPM\s0's state blobs, and must be
 one of \fB\s-1PTM_BLOB_TYPE_PERMANENT\s0\fR, \fB\s-1PTM_BLOB_TYPE_VOLATILE\s0\fR, and
 \&\fB\s-1PTM_BLOB_TYPE_SAVESTATE\s0\fR.
 .Sp
@@ -489,7 +489,7 @@ See also \fB\f(BIsendmsg\fB\|(2)\fR and \fB\f(BIcmsg\fB\|(3)\fR.
 A \s-1TPM\s0 result code is returned in ptm_res.
 .IP "\fB\s-1CMD_SET_BUFFERSIZE,\s0 ptm_setbuffersize\fR" 4
 .IX Item "CMD_SET_BUFFERSIZE, ptm_setbuffersize"
-This command allows to set and query for the buffer size that the \s-1TPM\s0 is
+This command allows a user to set and query for the buffer size that the \s-1TPM\s0 is
 using for input and output I/O buffers.
 .Sp
 The ptm_setbuffersize data structure looks as follows:

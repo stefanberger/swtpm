@@ -8,7 +8,7 @@ B<swtpm_setup [OPTIONS]>
 
 =head1 DESCRIPTION
 
-B<swtpm_setup> is a tool that prepares the intial state for a libtpms-based
+B<swtpm_setup> is a tool that prepares the initial state for a libtpms-based
 TPM.
 
 For creating the initial state of a TPM 1.2, swtpm_setup must be run either
@@ -145,7 +145,7 @@ code is returned.
 
 =item B<--not-overwrite>
 
-Do not overwrite existing TPM state. If exising TPM state is found, the
+Do not overwrite existing TPM state. If existing TPM state is found, the
 program ends without an error.
 
 =item B<--vmid <VM ID>>
@@ -157,7 +157,7 @@ used for creating the certificates and may be required by that tool.
 =item B<--pcr-banks <PCR banks>>
 
 Optional comma-separated list of PCR banks to activate. Providing '-'
-allows to skip the selection and activates all PCR banks. By default
+allows a user to skip the selection and activates all PCR banks. By default
 the sha1 and sha256 banks are activated.
 
 =item B<--swtpm_ioctl <executable>>
