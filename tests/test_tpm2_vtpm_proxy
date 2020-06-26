@@ -79,7 +79,7 @@ fi
 #                         length         CC            count       hashalg         sz
 echo -en '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02' >&100
 RES=$(od -t x1 -A n -w128 <&100)
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 15 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 14 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"

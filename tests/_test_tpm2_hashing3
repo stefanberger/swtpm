@@ -93,7 +93,7 @@ swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 # Read PCR 0
 #                                                     length         CC            count       hashalg         sz
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x01\x00\x00')
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 15 00 00 00 01 00 0b 03 01 00 00 00 00 00 01 00 20 34 0a 23 3f ac 4c a0 14 98 6e 45 dd 95 ec 77 6a 7a 3f 86 a2 10 74 f4 3a 43 90 c5 b8 c3 ab ea f4'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 14 00 00 00 01 00 0b 03 01 00 00 00 00 00 01 00 20 34 0a 23 3f ac 4c a0 14 98 6e 45 dd 95 ec 77 6a 7a 3f 86 a2 10 74 f4 3a 43 90 c5 b8 c3 ab ea f4'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(0)"
 	echo "expected: $exp"
