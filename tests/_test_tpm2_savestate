@@ -85,7 +85,7 @@ swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 # Read PCR 10
 #                         length         CC            count       hashalg         sz
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 c3 ba a5 62 69 08 26 72 c3 db 3d 11 0a 10 74 a1 a7 a6 ea 43 e8 82 16 1a af 4b ea a6 83 17 e4 b8'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 15 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 c3 ba a5 62 69 08 26 72 c3 db 3d 11 0a 10 74 a1 a7 a6 ea 43 e8 82 16 1a af 4b ea a6 83 17 e4 b8'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM2_PCRRead(10)"
 	echo "expected: $exp"
@@ -126,7 +126,7 @@ swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 # Read PCR 10
 #                                                   length         CC            count       hashalg         sz
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 1b 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 c3 ba a5 62 69 08 26 72 c3 db 3d 11 0a 10 74 a1 a7 a6 ea 43 e8 82 16 1a af 4b ea a6 83 17 e4 b8'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 19 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 c3 ba a5 62 69 08 26 72 c3 db 3d 11 0a 10 74 a1 a7 a6 ea 43 e8 82 16 1a af 4b ea a6 83 17 e4 b8'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (2) Did not get expected result from TPM2_PCR_Read(10)"
 	echo "expected: $exp"
