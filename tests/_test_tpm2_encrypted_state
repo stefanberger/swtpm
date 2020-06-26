@@ -100,7 +100,7 @@ fi
 # Read PCR 17
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 19 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"
@@ -192,7 +192,7 @@ fi
 # Read the PCR again ...
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 19 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"
@@ -236,7 +236,7 @@ fi
 # Read the PCR again ...
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 19 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"
