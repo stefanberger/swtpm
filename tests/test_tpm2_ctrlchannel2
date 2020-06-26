@@ -264,7 +264,7 @@ exec 100<>/dev/tcp/localhost/65532
 #                         length         CC            count       hashalg         sz
 echo -en '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02' >&100
 RES=$(cat <&100 | od -t x1 -A n | tr -d "\n")
-exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 19 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 e5 17 e3 9b 10 a3 5b 3b b7 29 95 79 4b c6 4a 07 f8 bc b0 bd e6 bb 31 ad 35 27 fb 6f 64 f8 4c b9'
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 e5 17 e3 9b 10 a3 5b 3b b7 29 95 79 4b c6 4a 07 f8 bc b0 bd e6 bb 31 ad 35 27 fb 6f 64 f8 4c b9'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"
