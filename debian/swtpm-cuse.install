@@ -1,3 +1,0 @@
-#! /usr/bin/dh-exec
-/usr/bin/swtpm_cuse
-/usr/share/man/man8/swtpm_cuse.8*

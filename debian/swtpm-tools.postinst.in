@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 SWTPM_LOCALCA_DIR=@LOCALSTATEDIR@/lib/swtpm-localca
 
