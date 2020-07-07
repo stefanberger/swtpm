@@ -1,2 +1,17 @@
+CHANGES - changes for swtpm
+
+version 0.1.1:
+  - swtpm:
+    - Fix return code of change_process_owner
+    - Fix illegal heap access while parsing options
+  - swtpm_setup:
+    - follow XGD spec more closely for default config
+  - swtpm_cert:
+    - fix OIDs for TPM 2 platform data
+    - Use gnutls_x509_crt_get_subject_key_id API call for subj keyId
+  - tests:
+    - Adjusted pcrUpdateCounter in tests to succeed with PCR TCB group fixes
+      in libtpms TPM 2 code
+
 version 0.1.0:
   first public release
