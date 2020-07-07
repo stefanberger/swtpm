@@ -22,7 +22,7 @@ swtpm (0.2.0~dev1) UNRELEASED; urgency=medium
 
  -- Stefan Berger <stefanb@linux.ibm.com>  Mon, 04 Feb 2019 14:30:08 -0500
 
-swtpm (0.1.0-1) RELEASED; urgency medium
+swtpm (0.1.0-1) RELEASED; urgency=medium
 
   * Initial public release
 
