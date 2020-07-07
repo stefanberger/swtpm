@@ -1,4 +1,10 @@
-swtpm (0.1.0-1) RELEASED; urgency medium
+swtpm (0.1.1-1) RELEASED; urgency=medium
+
+  * Version 0.1.1
+
+ -- Stefan Berger <stefanb@linux.ibm.com>  Fri, 10 Jul 2020 12:01:00 -0500
+
+swtpm (0.1.0-1) RELEASED; urgency=medium
 
   * Initial public release
 
