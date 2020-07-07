@@ -1,3 +1,20 @@
+CHANGES - changes for swtpm
+
+verison 0.3.2:
+  - swtpm:
+    - Remove unnecessary #include <seccomp.h> (fixes SuSE build)
+    - Make coverity happy by handling default case in case statement
+  - swtpm_setup:
+    - bugfix: Create ECC storage primary key in owner hierarchy
+    - bugfix: remove tpm2_stirrandom and tpm2_changeeps
+  - tests:
+    - Adjusted pcrUpdateCounter in tests to succeed with PCR TCB group fixes
+      in libtpms TPM 2 code
+
+version 0.3.1:
+  - swtpm:
+    - Fix vtpm proxy case without startup flags
+
 version 0.3.0:
   - swtpm:
       - Support for applying 'TPM Startup' command during initialization
