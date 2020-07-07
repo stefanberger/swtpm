@@ -1,3 +1,21 @@
+CHANGES - changes for swtpm
+
+version 0.2.1:
+  - swtpm:
+    - Only accept() new client ctrl connection if we have none
+    - Add --print-capabilities to help screen of 'swtpm chardev'
+    - Use writev_full rather than writev; fixes --vtpm-proxy EIO error
+  - swtpm_setup:
+    - bugfix: Create ECC storage primary key in owner hierarchy
+    - bugfix: remove tpm2_stirrandom and tpm2_changeeps
+    - Log about encryption and fix c&p error in err msg
+  - swtpm_cert:
+    - Use gnutls_x509_crt_get_subject_key_id API call for subj keyId
+    - Fix OIDs for TPM 2 platforms data
+  - tests:
+    - Adjusted pcrUpdateCounter in tests to succeed with PCR TCB group fixes
+      in libtpms TPM 2 code
+
 version 0.2.0:
   - Linux: swtpm now runs with a seccomp profile (blacklist) if compiled with
            libseccomp support
