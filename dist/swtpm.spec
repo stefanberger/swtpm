@@ -1,7 +1,7 @@
 %bcond_without gnutls
 
-%global gitdate     20200330
-%global gitcommit   7b30a547eee858ff438b2ee5aae2701b0a8b0be4
+%global gitdate     20200710
+%global gitcommit   git_commit
 %global gitshortcommit  %(c=%{gitcommit}; echo ${c:0:7})
 
 # Macros needed by SELinux
@@ -164,6 +164,9 @@ fi
 %attr( 755, tss, tss) %{_localstatedir}/lib/swtpm-localca
 
 %changelog
+* Fri Jul 10 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.3.2
+- v0.3.2 release
+
 * Mon Mar 30 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.3.1-20200218git7b30a54
 - v0.3.1 release
 
