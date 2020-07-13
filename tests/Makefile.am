@@ -144,6 +144,7 @@ EXTRA_DIST=$(TESTS) \
 	data/tpm2state5/signature.bin \
 	data/tpm2state5/tpm2-00.permall \
 	load_vtpm_proxy \
+	patches/ibmtss2_1.5_rsa2048only.patch \
 	patches/libtpm.patch \
 	softhsm_setup \
 	test_clientfds.py \
