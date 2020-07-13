@@ -6,6 +6,7 @@ fi
 
 ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+ABSTESTDIR=$(cd ${TESTDIR} &>/dev/null;echo ${PWD})
 
 SWTPM_SERVER_PORT=65426
 SWTPM_SERVER_NAME=127.0.0.1
@@ -40,19 +41,21 @@ git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
 
 pushd ibmtpm20tss-tss &>/dev/null
 
-git checkout tags/v1.4.0
+git checkout tags/v1.5.0
 if [ $? -ne 0 ]; then
 	echo "'Git checkout' failed."
 	exit 1
 fi
 
-# A v1.4.0 bug work-around:
+# A v1.5.0 bug work-around:
 pushd utils/regtests &>/dev/null
 # We cannot run the EK certificate tests since rootcerts.txt points to
 # files we do not have
-sed -i "133s/./\#\0/" testcredential.sh
-sed -i "134s/./\#\0/" testcredential.sh
-sed -i "135s/./\#\0/" testcredential.sh
+for line in 305 306 307 407 408 409 545 546 547; do
+	sed -i "${line}s/./\#\0/" testcredential.sh
+done
+
+sed -i 's/pass:rrrr 2048/pass:rrrr ${BITS}/' testrsa.sh
 popd &>/dev/null
 
 autoreconf --force --install
@@ -61,6 +64,21 @@ unset CFLAGS LDFLAGS LIBS
 make -j4
 
 pushd utils
+
+rsa3072=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 4 |
+          sed -n 's/.*"RSAKeySizes":\[\([0-9,]*\)\].*/\1/p' |
+          grep 3072)
+if [ -z "$rsa3072" ]; then
+	echo "Modifying test cases related to RSA 3072 keys."
+
+	patch -p2 < "${ABSTESTDIR}/patches/ibmtss2_1.5_rsa2048only.patch"
+	if [ $? -ne 0 ]; then
+		echo "Patching of testsuite failed"
+		exit 1
+	fi
+else
+	echo "swptm/libtpms support RSA 3072 bit keys"
+fi
 
 sed -i 's/export CRYPTOLIBRARY.*/export CRYPTOLIBRARY=openssl/' reg.sh
 
@@ -76,26 +94,6 @@ if [ $revision -lt 155 ]; then
 		touch "${t}"
 		chmod 777 "${t}"
 	done
-fi
-
-rsa3072=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 4 |
-          sed -n 's/.*"RSAKeySizes":\[\([0-9,]*\)\].*/\1/p' |
-          grep 3072)
-if [ -z "$rsa3072" ]; then
-	pushd regtests &>/dev/null
-
-	echo "Modifying test cases related to RSA 3072 keys."
-	# We do not support 3072 bit RSA keys at this point, so eliminate all 3072
-	# RSA key tests
-	for f in initkeys.sh testrsa.sh testsign.sh; do
-		sed -i "s| 3072||" "${f}"
-	done
-
-	sed -i "s| \"-rsa 3072\"||" testsalt.sh
-
-	popd &>/dev/null
-else
-	echo "swptm/libtpms support RSA 3072 bit keys"
 fi
 
 export TPM_SERVER_NAME=127.0.0.1
