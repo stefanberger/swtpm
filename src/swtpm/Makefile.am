@@ -69,7 +69,8 @@ libswtpm_libtpms_la_LIBADD = \
 	$(LIBTPMS_LIBS) \
 	$(GLIB_LIBS) \
 	$(LIBRT_LIBS) \
-	$(LIBSECCOMP_LIBS)
+	$(LIBSECCOMP_LIBS) \
+	$(LIBCRYPTO_LIBS)
 
 bin_PROGRAMS = swtpm
 if WITH_CUSE
