@@ -407,6 +407,24 @@ AC_ARG_WITH([tss-group],
             [TSS_GROUP="$withval"],
             [TSS_GROUP="tss"]
 )
+
+case $have_tcsd in
+yes)
+	AC_MSG_CHECKING([whether TSS_USER $TSS_USER is available])
+	if ! test $(id -u $TSS_USER); then
+		AC_MSG_ERROR(["$TSS_USER is not available"])
+	else
+		AC_MSG_RESULT([yes])
+	fi
+	AC_MSG_CHECKING([whether TSS_GROUP $TSS_GROUP is available])
+	if ! test $(id -g $TSS_GROUP); then
+		AC_MSG_ERROR(["$TSS_GROUP is not available"])
+	else
+		AC_MSG_RESULT([yes])
+	fi
+	;;
+esac
+
 AC_SUBST([TSS_USER])
 AC_SUBST([TSS_GROUP])
 
