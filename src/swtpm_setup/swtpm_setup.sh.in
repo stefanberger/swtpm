@@ -502,7 +502,7 @@ start_tcsd()
 {
 	local TCSD=$1
 
-	local user group ctr=0 ctr2
+	local user group ctr=0 ctr2 tmp tcsd_error_file
 
 	user=$(id -u -n)
 	group=$(id -g -n)
@@ -516,9 +516,10 @@ start_tcsd()
 	TCSD_CONFIG="$(mktemp)"
 	TCSD_DATA_DIR="$(mktemp -d)"
 	TCSD_DATA_FILE="$(TMPDIR=${TCSD_DATA_DIR} mktemp)"
+	tcsd_error_file="$(TMPDIR=${TCSD_DATA_DIR} mktemp)"
 
 	if [ -z "$TCSD_CONFIG" ] || [ -z "$TCSD_DATA_DIR" ] || \
-	   [ -z "$TCSD_DATA_FILE" ]; then
+	   [ -z "$TCSD_DATA_FILE" ] || [ -z "$tcsd_error_file" ]; then
 		logerr "Could not create temporary file; TMPDIR=$TMPDIR"
 		return 1
 	fi
@@ -547,7 +548,7 @@ EOF
 		# make sure tcsd is gone
 		stop_tcsd 1
 
-		TCSD_TCP_DEVICE_HOSTNAME=127.0.0.1 $TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
+		TCSD_TCP_DEVICE_HOSTNAME=127.0.0.1 $TCSD -c "$TCSD_CONFIG" -e -f &>"$tcsd_error_file" &
 		TCSD_PID=$!
 
 		# poll for open port (good) or the process to have
@@ -575,6 +576,11 @@ EOF
 			echo "TSS is listening on TCP port $TSS_TCSD_PORT."
 			return 0
 		done
+
+		tmp="$(cat "$tcsd_error_file")"
+		if [ -n "$tmp" ]; then
+			logerr "tcsd error: $tmp"
+		fi
 
 		ctr=$((ctr + 1))
 	done
