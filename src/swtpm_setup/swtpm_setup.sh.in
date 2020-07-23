@@ -486,7 +486,7 @@ start_tcsd()
 {
 	local TCSD=$1
 
-	local user group ctr=0 ctr2
+	local user group ctr=0 ctr2 tmp tcsd_error_file
 
 	user=$(id -u -n)
 	group=$(id -g -n)
@@ -500,9 +500,10 @@ start_tcsd()
 	TCSD_CONFIG="$(mktemp)"
 	TCSD_DATA_DIR="$(mktemp -d)"
 	TCSD_DATA_FILE="$(TMPDIR=${TCSD_DATA_DIR} mktemp)"
+	tcsd_error_file="$(TMPDIR=${TCSD_DATA_DIR} mktemp)"
 
 	if [ -z "$TCSD_CONFIG" ] || [ -z "$TCSD_DATA_DIR" ] || \
-	   [ -z "$TCSD_DATA_FILE" ]; then
+	   [ -z "$TCSD_DATA_FILE" ] || [ -z "$tcsd_error_file" ]; then
 		logerr "Could not create temporary file; TMPDIR=$TMPDIR"
 		return 1
 	fi
@@ -532,12 +533,12 @@ EOF
 		stop_tcsd 1
 		case "$(id -u)" in
 		0)
-			$TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
+			$TCSD -c "$TCSD_CONFIG" -e -f &>"$tcsd_error_file" &
 			TCSD_PID=$!
 			;;
 		*)
 			# for tss user, use the wrapper
-			$TCSD -c "$TCSD_CONFIG" -e -f &>/dev/null &
+			$TCSD -c "$TCSD_CONFIG" -e -f &>"$tcsd_error_file" &
 			#if [ $? -ne  0]; then
 			#	swtpm_tcsd_launcher -c $TCSD_CONFIG -e -f &>/dev/null &
 			#fi
@@ -570,6 +571,11 @@ EOF
 			echo "TSS is listening on TCP port $TSS_TCSD_PORT."
 			return 0
 		done
+
+		tmp="$(cat "$tcsd_error_file")"
+		if [ -n "$tmp" ]; then
+			logerr "tcsd error: $tmp"
+		fi
 
 		ctr=$((ctr + 1))
 	done
