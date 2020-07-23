@@ -534,15 +534,15 @@ EOF
 		else
 			chmod 0640 "$TCSD_CONFIG"
 		fi
-		if [ $(id -u) -eq 0 ]; then
+		if [ $(id -u) -eq 0 ] && \
+		   [ $(id -u) -ne $(id -u @TSS_USER@) -o $(id -g) -ne $(id -g @TSS_GROUP@) ]; then
 			chown "@TSS_USER@:@TSS_GROUP@" "$TCSD_CONFIG" 2>/dev/null
+			if [ $? -ne 0 ]; then
+				logerr "Could not change ownership on $TCSD_CONFIG to ${user}:${group}."
+				return 1
+			fi
 			chown "@TSS_USER@:@TSS_GROUP@" "$TCSD_DATA_DIR" 2>/dev/null
 			chown "@TSS_USER@:@TSS_GROUP@" "$TCSD_DATA_FILE" 2>/dev/null
-		fi
-		if [ $? -ne 0 ]; then
-			logerr "Could not change ownership on $TCSD_CONFIG to ${user}:${group}."
-			ls -l "$TCSD_CONFIG"
-			return 1
 		fi
 
 		# make sure tcsd is gone
