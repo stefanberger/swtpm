@@ -98,7 +98,7 @@ swtpm_CFLAGS = \
 	-DHAVE_SWTPM_CUSE_MAIN
 
 swtpm_LDADD = \
-	-L$(PWD)/.libs -lswtpm_libtpms \
+	-L$(PWD)/.libs -lswtpm_libtpms -ltpms \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
 	$(GTHREAD_LIBS) \
@@ -117,7 +117,7 @@ swtpm_cuse_CFLAGS = \
 	$(HARDENING_CFLAGS)
 
 swtpm_cuse_LDADD = \
-	-L$(PWD)/.libs -lswtpm_libtpms \
+	-L$(PWD)/.libs -lswtpm_libtpms -ltpms \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
 	$(GTHREAD_LIBS) \
