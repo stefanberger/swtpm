@@ -486,7 +486,7 @@ start_tcsd()
 {
 	local TCSD=$1
 
-	local user group ctr=0 ctr2 tmp tcsd_error_file
+	local user group ctr=0 ctr2 tmp tcsd_error_file tss_uid tss_gid
 
 	user=$(id -u -n)
 	group=$(id -g -n)
@@ -494,6 +494,17 @@ start_tcsd()
 	export TSS_TCSD_PORT
 
 	if check_spaces "$TMPDIR" "TMPDIR environment variable"; then
+		return 1
+	fi
+
+	tss_uid=$(id -u @TSS_USER@ 2>&1)
+	if [ $? -ne 0 ]; then
+		logerr "tcsd's user '@TSS_USER@' must be available: $tss_uid"
+		return 1
+	fi
+	tss_gid=$(id -u @TSS_GROUP@ 2>&1)
+	if [ $? -ne 0 ]; then
+		logerr "tcsd's group '@TSS_GROUP@' must be available: $tss_gid"
 		return 1
 	fi
 
@@ -516,8 +527,13 @@ port = $TSS_TCSD_PORT
 system_ps_file = $TCSD_DATA_FILE
 EOF
 		# tcsd requires @TSS_USER@:@TSS_GROUP@ and 0600 on TCSD_CONFIG
-		# -> only root can start
-		chmod 600 "$TCSD_CONFIG"
+		# 0640 is needed if user != group
+		# -> only root can start (typically)
+		if [ "$tss_uid" = "$tss_gid" ]; then
+			chmod 0600 "$TCSD_CONFIG"
+		else
+			chmod 0640 "$TCSD_CONFIG"
+		fi
 		if [ $(id -u) -eq 0 ]; then
 			chown "@TSS_USER@:@TSS_GROUP@" "$TCSD_CONFIG" 2>/dev/null
 			chown "@TSS_USER@:@TSS_GROUP@" "$TCSD_DATA_DIR" 2>/dev/null
