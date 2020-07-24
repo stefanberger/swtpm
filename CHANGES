@@ -1,6 +1,13 @@
 CHANGES - changes for swtpm
 
-verison 0.3.2:
+version 0.3.3:
+  - swtpm_setup:
+    - openSUSE: Support tcsd configuration where tss user != tss group,
+                such as root/tss; Fedora & Ubuntu for example use tss/tss
+  - build-sys:
+    - Check whether tss user and group are available
+
+version 0.3.2:
   - swtpm:
     - Remove unnecessary #include <seccomp.h> (fixes SuSE build)
     - Make coverity happy by handling default case in case statement
