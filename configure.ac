@@ -162,7 +162,12 @@ if test $? -ne 0; then
 fi
 AC_SUBST([LIBTASN1_LIBS])
 
-PKG_CHECK_MODULES([LIBTPMS],[libtpms],,AC_MSG_WARN("no libtpms.pc found, continuing with standard path"))
+PKG_CHECK_MODULES(
+	[LIBTPMS],
+	[libtpms],
+	,
+	AC_MSG_ERROR("no libtpms.pc found; please set PKG_CONFIG_PATH to the directory where libtpms.pc is located")
+)
 LDFLAGS="$LDFLAGS $LIBTPMS_LDFLAGS"
 CFLAGS="$CFLAGS $LIBTPMS_CFLAGS"
 AC_CHECK_LIB(tpms,
