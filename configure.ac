@@ -193,7 +193,7 @@ dnl If we have the tcsd package, we can build swtpm_setup, but need netstat also
 AC_PATH_PROG([NETSTAT], [netstat])
 case $host_os in
 linux-*)
-    if test "x$NETSTAT" = "x" && test "have_tcsd" != "no"; then
+    if test "x$NETSTAT" = "x" && test "$have_tcsd" != "no"; then
         AC_MSG_ERROR([netstat tool is missing for tests: net-tools package])
     fi
     ;;
