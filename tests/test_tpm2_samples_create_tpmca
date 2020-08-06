@@ -37,8 +37,8 @@ SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
 
 SWTPM_INTERFACE=socket+socket
 SWTPM_SERVER_NAME=localhost
-SWTPM_SERVER_PORT=65434
-SWTPM_CTRL_PORT=65435
+SWTPM_SERVER_PORT=65450
+SWTPM_CTRL_PORT=65451
 
 workdir=$(mktemp -d)
 
