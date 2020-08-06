@@ -44,6 +44,7 @@ workdir=$(mktemp -d)
 
 SWTPM_LOCALCA_DIR="${workdir}/my localca"
 SWTPM_LOCALCA_CONF="${workdir}/my localca/swtpm-localca.conf"
+export TPM2_PKCS11_STORE="${workdir}"
 
 PID="" # primary object id returned by tpm2_ptool
 
