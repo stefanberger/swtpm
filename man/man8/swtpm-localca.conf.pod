@@ -7,7 +7,10 @@ swtpm-localca.conf - Configuration file for swtpm-localca
 The file I</etc/swtpm-localca.conf> contains configuration variables
 for the I<swtpm-localca> program.
 
-The following configuration variables must be set:
+Entries may contain shell variables that will be resolved. All shell
+variables must be formatted like this: '${varname}'.
+
+The following configuration variables are supported:
 
 =over 4
 
@@ -19,8 +22,7 @@ in this directory.
 =item B<signinkey>
 
 The file containing the key used for signing the certificates. Provide
-a key in PEM format. In case a PKCS11 URI is used all semicolons ';'
-have to be escaped and written as '\;'.
+a key in PEM format or a pkcs11 URI.
 
 =item B<signingkey_password>
 
@@ -60,7 +62,7 @@ An example I<swtpm-localca.conf> file may look as follows:
 With a PKCS11 URI it may look like this:
 
  statedir = /var/lib/swtpm-localca
- signingkey = pkcs11:model=SoftHSM%20v2\;manufacturer=SoftHSM%20project\;serial=891b99c169e41301\;token=mylabel\;id=%00\;object=mykey\;type=public
+ signingkey = pkcs11:model=SoftHSM%20v2;manufacturer=SoftHSM%20project;serial=891b99c169e41301;token=mylabel;id=%00;object=mykey;type=public
  issuercert = /var/lib/swtpm-localca/swtpm-localca-tpmca-cert.pem
  certserial = /var/lib/swtpm-localca/certserial
  SWTPM_PKCS11_PIN = 1234
