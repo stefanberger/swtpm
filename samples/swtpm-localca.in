@@ -110,18 +110,10 @@ escape_eval() {
 	tr -s '\\'
 }
 
-# Escape for eval and avoid variable substitution, so we also escape '$';
-# escape ' ' for filenames with spaces.
-escape_eval_nosubst() {
-	echo "$1" | \
-	sed -e 's/\\\([;|&()`<>!\$ ]\)/\1/g' -e 's/\([;|&()`<>!\$ ]\)/\\\1/g' \
-		-e "s/\\\'/'/g" -e "s/'/\\\'/g" | \
-	tr -s '\\'
-}
-
-# Get an configuration value from an configurations file
+# Get a configuration value from a configuration file
 # @param1: The file with the options
 # @param2: The name of the option
+# @param3: The default value
 get_config_value() {
 	local configfile="$1"
 	local configname="$(echo "$2" | sed 's/-/\\-/g')"
@@ -150,7 +142,8 @@ get_config_value() {
 			tmp="$(escape_eval "$tmp")"
 			echo "$(eval echo "$tmp")"
 		else
-			echo "$tmp"
+			# unescape any previously required '\;'
+			echo "$tmp" | sed -e 's/\\;/;/g'
 		fi
 	fi
 
@@ -214,7 +207,7 @@ create_cert() {
 	local tpm_spec_params="$6"
 	local tpm_attr_params="$7"
 
-	local options="" rc=0 keyparms="" serial skey tmp
+	local options="" rc=0 keyparms="" serial tmp subj
 
 	serial=$(get_next_cert_serial)
 	if [ -z "$serial" ]; then
@@ -226,9 +219,9 @@ create_cert() {
 	fi
 
 	if [ -n "$vmid" ]; then
-		options="$options --subject \"CN=$vmid\""
+		subj="CN=$vmid"
 	else
-		options="$options --subject \"CN=unknown\""
+		subj="CN=unknown"
 	fi
 
 	if [ $((flags & SETUP_TPM2_F)) -ne 0 ]; then
@@ -249,20 +242,18 @@ create_cert() {
 
 	# if ek contains x=..,y=... it's an ECC key
 	if [[ "$ek" =~ x=.*,y=.* ]]; then
-		keyparms="--ecc-x \"$(echo "$ek" | \
-		                sed -n 's/x=\([[:xdigit:]]*\),.*/\1/p')\" "
-		keyparms+="--ecc-y \"$(echo "$ek" | \
-		                sed -n 's/.*y=\([[:xdigit:]]*\).*/\1/p')\""
+		keyparms="--ecc-x $(echo "$ek" | \
+		                sed -n 's/x=\([[:xdigit:]]*\),.*/\1/p') "
+		keyparms+="--ecc-y $(echo "$ek" | \
+		                sed -n 's/.*y=\([[:xdigit:]]*\).*/\1/p')"
 		tmp="$(echo "$ek" | \
 		                sed -n 's/.*id=\([^,]*\).*/\1/p')"
 		if [ -n "$tmp" ]; then
 			keyparms+=" --ecc-curveid ${tmp}"
 		fi
 	else
-		keyparms="--modulus \"${ek}\""
+		keyparms="--modulus ${ek}"
 	fi
-
-	skey="$(escape_eval_nosubst "${SIGNKEY}")"
 
 	case "$typ" in
 	ek)
@@ -270,18 +261,19 @@ create_cert() {
 			logerr "Missing swtpm_cert tool"
 			rc=1
 		else
-			eval swtpm_cert \
+			swtpm_cert \
+			--subject "$subj" \
 			$options \
 			${SIGNKEY_PASSWORD:+--signkey-pwd file:<(echo -en "$SIGNKEY_PASSWORD")} \
 			${PARENTKEY_PASSWORD:+--parentkey-pwd file:<(echo -en "$PARENTKEY_PASSWORD")} \
 			$tpm_spec_params \
 			$tpm_attr_params \
-			--signkey "${skey}" \
-			--issuercert \"${ISSUERCERT}\" \
-			--out-cert \"${dir}/ek.cert\" \
+			--signkey "${SIGNKEY}" \
+			--issuercert "${ISSUERCERT}" \
+			--out-cert "${dir}/ek.cert" \
 			$keyparms \
-			--days $((10*365)) \
-			--serial \"$serial\"
+			--days 3650 \
+			--serial "$serial"
 			if [ $? -eq 0 ]; then
 				logit "Successfully created EK certificate locally."
 			else
@@ -295,16 +287,17 @@ create_cert() {
 			logerr "Missing swtpm_cert tool"
 			rc=1
 		else
-			eval swtpm_cert \
+			swtpm_cert \
+			--subject "$subj" \
 			$options \
 			$tpm_attr_params \
 			--type platform \
-			--signkey "${skey}" \
-			--issuercert \"${ISSUERCERT}\" \
-			--out-cert \"${dir}/platform.cert\" \
+			--signkey "${SIGNKEY}" \
+			--issuercert "${ISSUERCERT}" \
+			--out-cert "${dir}/platform.cert" \
 			$keyparms \
-			--days $((10*365)) \
-			--serial \"$serial\"
+			--days 3650 \
+			--serial "$serial"
 			if [ $? -eq 0 ]; then
 				logit "Successfully created platform certificate locally."
 			else
