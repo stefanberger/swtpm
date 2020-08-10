@@ -235,6 +235,58 @@ get_random()
 	echo $(( (RANDOM % (upper - lower)) + lower))
 }
 
+# Escape a string for call with eval. Replace any occurrences of '$(' with
+# '(' to avoid subshells and escape '][;|&()'`'<>!\#*' since those are shell
+# special characters.  Unescape any already-escaped characters and then
+# escape again. Do NOT escape '${' since we use it for variable substitution
+# but escape all other $-sequences. Squeeze all sequences of multiple '\'.
+escape_eval() {
+	echo "$1" | \
+	sed	-e 's/\$(/(/g' \
+		-e 's/\\\([][;|&()`<>!#*]\)/\1/g' -e 's/\([][;|&()`<>!#*]\)/\\\1/g' \
+		-e "s/\\\'/'/g" -e "s/'/\\\'/g" \
+		-e 's/$\([^{]\)/\\$\\\1/g' | \
+	tr -s '\\'
+}
+
+# Get a configuration value from a configuration file
+# @param1: The file with the options
+# @param2: The name of the option
+# @param3: Optional default value
+get_config_value() {
+	local configfile="$1"
+	local configname="$(echo "$2" | sed 's/-/\\-/g')"
+	local defaultvalue="$3"
+	local tmp
+
+	if [ ! -r "$configfile" ]; then
+		logerr "Cannot read config file $configfile"
+		return 1
+	fi
+
+	tmp="$(sed -ne "s/^${configname}[[:space:]]*=[[:space:]]*\([^#]*\).*/\1/p" \
+		"$configfile" | sed 's/[[:space:]]*$//')"
+	if [ -z "$tmp" ]; then
+		if [ -n "$defaultvalue" ]; then
+			echo "$defaultvalue"
+		else
+			return 1
+		fi
+	else
+		# only use eval if there are any ${ that are not \${
+		# or the command starts with '${'
+		if [ "$tmp" != "${tmp%[^\\]\${*}" ] || \
+		   [ "${tmp:0:2}" = '${' ]; then
+			tmp="$(escape_eval "$tmp")"
+			echo "$(eval echo "$tmp")"
+		else
+			echo "$tmp"
+		fi
+	fi
+
+	return 0
+}
+
 # Get the TPM specification parameters from the TPM using swtpm_ioctl
 get_tpm_parameters()
 {
@@ -291,11 +343,7 @@ call_create_certs()
 	local vmid="$5"
 
 	local logparam tmp fn
-	local params="" cmd
-
-	if [ -n "$vmid" ]; then
-		params="$params --vmid \"$vmid\""
-	fi
+	local params="" cmd typ
 
 	if [ -n "$LOGFILE" ]; then
 		logparam="--logfile \"$LOGFILE\""
@@ -307,24 +355,14 @@ call_create_certs()
 	if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ] || \
 	   [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ]; then
 		if [ -r "$configfile" ]; then
-			# The config file contains lines in the format:
-			# key = value
-			# or with a comment at the end started by #:
-			# key = value # comment
-			create_certs_tool="$(sed -n 's/\s*create_certs_tool\s*=\s*\([^#]*\).*/\1/p' \
-				"$configfile")"
+			create_certs_tool=$(get_config_value \
+				"$configfile" "create_certs_tool" "")
 
-			create_certs_tool_config="$(sed -n 's/\s*create_certs_tool_config\s*=\s*\([^#]*\).*/\1/p' \
-				"$configfile")"
-			if [ -n "$create_certs_tool_config" ]; then
-				params="$params --configfile \"$create_certs_tool_config\""
-			fi
+			create_certs_tool_config=$(get_config_value \
+				"$configfile" "create_certs_tool_config" "")
 
-			create_certs_tool_options="$(sed -n 's/\s*create_certs_tool_options\s*=\s*\([^#]*\).*/\1/p' \
-				"$configfile")"
-			if [ -n "$create_certs_tool_options" ]; then
-				params="$params --optsfile \"$create_certs_tool_options\""
-			fi
+			create_certs_tool_options=$(get_config_value \
+				"$configfile" "create_certs_tool_options" "")
 		else
 			logerr "Could not access config file" \
 			       "'$configfile' to get" \
@@ -340,33 +378,51 @@ call_create_certs()
 	if [ -n "$create_certs_tool" ]; then
 		fn=$(basename "${create_certs_tool}")
 
+		cmd="--ek '$ek'
+			--dir '$certdir'
+			${LOGFILE:+--logfile '$LOGFILE'}
+			${vmid:+--vmid '$vmid'}
+			${params}
+			${create_certs_tool_config:+--configfile \"$create_certs_tool_config\"}
+			${create_certs_tool_options:+--optsfile \"$create_certs_tool_options\"}"
+
 		if [ $((flags & SETUP_EK_CERT_F)) -ne 0 ]; then
-			cmd="$create_certs_tool \
+			local lcmd="$create_certs_tool --type ek $cmd"
+			logit "  Invoking: $(echo $lcmd | tr -s " ")"
+			tmp="$($create_certs_tool \
 				--type ek \
-				--ek \"$ek\" \
-				--dir \"$certdir\" \
-				${logparam} ${params}"
-			logit "  Invoking: $(echo $cmd | tr -s " ")"
-			tmp="$(eval "$cmd" 2>&1)"
+				--ek "$ek" \
+				--dir "$certdir" \
+				${LOGFILE:+--logfile "$LOGFILE"} \
+				${vmid:+--vmid "$vmid"} \
+				${params} \
+				${create_certs_tool_config:+--configfile "$create_certs_tool_config"} \
+				${create_certs_tool_options:+--optsfile "$create_certs_tool_options"} \
+				2>&1)"
 			ret=$?
 			logit "$(echo "${tmp}" | sed -e "s/^/$fn: /")"
 			if [ $ret -ne 0 ]; then
-				logerr "Error running '$cmd'."
+				logerr "Error returned from command."
 				return $ret
 			fi
 		fi
 		if [ $((flags & SETUP_PLATFORM_CERT_F)) -ne 0 ]; then
-			cmd="$create_certs_tool \
+			local lcmd="$create_certs_tool --type ek $cmd"
+			logit "  Invoking: $(echo $lcmd | tr -s " ")"
+			tmp="$($create_certs_tool \
 				--type platform \
-				--ek \"$ek\" \
-				--dir \"$(echo $certdir)\" \
-				${logparam} ${params}"
-			logit "  Invoking: $(echo $cmd | tr -s " ")"
-			tmp="$(eval "$cmd" 2>&1)"
+				--ek "$ek" \
+				--dir "$certdir" \
+				${LOGFILE:+--logfile "$LOGFILE"} \
+				${vmid:+--vmid "$vmid"} \
+				${params} \
+				${create_certs_tool_config:+--configfile "$create_certs_tool_config"} \
+				${create_certs_tool_options:+--optsfile "$create_certs_tool_options"} \
+				2>&1)"
 			ret=$?
 			logit "$(echo "${tmp}" | sed -e "s/^/$fn: /")"
 			if [ $ret -ne 0 ]; then
-				logerr "Error running '$cmd'."
+				logerr "Error returned from command."
 				return $ret
 			fi
 		fi
