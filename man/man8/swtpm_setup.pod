@@ -173,7 +173,7 @@ needed by TCSD for key related functions.
 
 This option is only useful with TPM 1.2 and in if ownership is taken.
 
-=item B<rsa-keysize <keysize>> (since v0.4)
+=item B<--rsa-keysize <keysize>> (since v0.4)
 
 This option allows to pass the size of a TPM 2 RSA EK key, such as 2048
 or 3072. The supported keysizes for a TPM 2 can be queried for using
