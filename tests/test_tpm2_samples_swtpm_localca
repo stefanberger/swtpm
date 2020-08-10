@@ -116,4 +116,54 @@ do
   fi
 done
 
+echo "Test 1: OK"
+echo
+
+#A few tests with odd vm Ids
+for vmid in \
+	's p a c e|s p a c e' \
+	'$(ls)>foo|$(ls)\>foo' \
+	'`ls`&; #12|`ls`&\; #12' \
+	'foo>&1<&2;$(ls)|foo\>&1\<&2\;$(ls)' \
+	"'*|'*" \
+	'"*|\"*' \
+	':$$|:$$' \
+	'${t}[]|${t}[]';
+do
+  in=$(echo "$vmid" | cut -d"|" -f1)
+  exp=$(echo "$vmid" | cut -d"|" -f2)
+
+  ${SWTPM_LOCALCA} \
+    --type ek \
+    --ek "${ek}" \
+    --dir "${workdir}" \
+    --vmid "$in" \
+    --tpm2 \
+    --configfile "${workdir}/swtpm-localca.conf" \
+    --optsfile "${workdir}/swtpm-localca.options" \
+    --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
+    ${params} &>/dev/null
+  if [ $? -ne 0 ]; then
+    echo "Error: Test with parameters '$params' failed."
+    exit 1
+  fi
+
+  if [ ! -r "${workdir}/ek.cert" ]; then
+    echo "Error: ${workdir}/ek.cert was not created."
+    exit 1
+  fi
+
+  ac=$(${CERTTOOL} -i --inder --infile "${workdir}/ek.cert" | \
+       sed -n "s/.*Subject: CN=\(.*\)$/\1/p")
+  if [ "$ac" != "$exp" ]; then
+    echo "Error: unexpected subject string"
+    echo "actual   : $ac"
+    echo "expected : $exp"
+  else
+    echo "Pass: $ac"
+  fi
+done
+
+echo "Test 2: OK"
+
 exit 0
