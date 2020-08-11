@@ -1,5 +1,14 @@
 CHANGES - changes for swtpm
 
+version 0.3.4:
+  - swtpm:
+    - Fix compilation for cygwin
+  - swtpm_setup & swtpm-localca:
+    - Get rid of bash's eval when invoking external tools to avoid abuse.
+      Only use eval for 'resolving' variables.
+  - tests:
+    - Various fixes of minor issues
+
 version 0.3.3:
   - swtpm_setup:
     - openSUSE: Support tcsd configuration where tss user != tss group,
