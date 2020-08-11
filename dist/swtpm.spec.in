@@ -1,6 +1,6 @@
 %bcond_without gnutls
 
-%global gitdate     20200710
+%global gitdate     20200811
 %global gitcommit   git_commit
 %global gitshortcommit  %(c=%{gitcommit}; echo ${c:0:7})
 
@@ -164,6 +164,12 @@ fi
 %attr( 755, @TSS_USER@, @TSS_GROUP@) %{_localstatedir}/lib/swtpm-localca
 
 %changelog
+* Tue Aug 11 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.3.4
+- v0.3.4 release
+
+* Fri Jul 24 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.3.3
+- v0.3.3 release
+
 * Fri Jul 10 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.3.2
 - v0.3.2 release
 
