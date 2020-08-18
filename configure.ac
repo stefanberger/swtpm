@@ -535,14 +535,15 @@ AC_OUTPUT
 
 echo
 printf "with_gnutls     : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
-printf "with_selinux    : %5s  (no = SELinux policy extenions will NOT be built)\n" $with_selinux
+printf "with_selinux    : %5s  (no = SELinux policy extensions will NOT be built)\n" $with_selinux
 printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
 printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
 printf "with_swtpm_setup: %5s  (no = swtpm_setup will NOT be built)\n" $with_swtpm_setup
 printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
 printf "with_seccomp    : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
 echo
-echo "cryptolib: $cryptolib"
+echo "Version to build  : $PACKAGE_VERSION"
+echo "Crypto library    : $cryptolib"
 echo
 echo "CFLAGS=$CFLAGS"
 echo "HARDENING_CFLAGS=$HARDENING_CFLAGS"
