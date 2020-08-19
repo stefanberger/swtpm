@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+if [ -z "${XDG_CONFIG_HOME}" ]; then
+	echo "Environment variable XDG_CONFIG_HOME is not set."
+	exit 1
+fi
+
+SWTPM_DIR="${XDG_CONFIG_HOME}/swtpm"
+SWTPM_LOCALCA_DIR="${SWTPM_DIR}/swtpm-localca"
+
+SWTPM_SETUP_CONF="${XDG_CONFIG_HOME}/swtpm_setup.conf"
+SWTPM_LOCALCA_CONF="${SWTPM_DIR}/swtpm-localca.conf"
+SWTPM_LOCALCA_OPTIONS="${SWTPM_DIR}/swtpm-localca.options"
+
+FLAG_OVERWRITE=1
+
+function help() {
+	cat <<_EOF_
+Usage: $1 [options]
+
+The following options are supported:
+--overwrite	: Overwrite existing config files
+
+--help|-h|-?	: Display this help screen and exit
+
+_EOF_
+}
+
+function main() {
+	local flags=0
+
+	while [ $# -ne 0 ]; do
+		case "$1" in
+		--overwrite) flags=$((flags | FLAG_OVERWRITE));;
+		--help|-h|-?) help $0; exit 0;;
+		*) echo -e "Unknown option $1\n" >&2; help $0; exit 1;;
+		esac
+		shift
+	done
+
+	if [[ $((flags & FLAG_OVERWRITE)) -eq 0 ]]; then
+		for f in "${SWTPM_SETUP_CONF}" \
+			"${SWTPM_LOCALCA_CONF}" \
+			"${SWTPM_LOCALCA_OPTIONS}"; do
+			if [ -f "${f}" ]; then
+				echo "File ${f} already exists. Refusing to overwrite." >&2
+				exit 1
+			fi
+		done
+	fi
+
+	mkdir -p "${SWTPM_DIR}"
+	mkdir -p "${SWTPM_LOCALCA_DIR}"
+
+	echo "Writing ${SWTPM_SETUP_CONF}."
+	cat <<_EOF_ > "${SWTPM_SETUP_CONF}"
+create_certs_tool= @DATAROOTDIR@/swtpm/swtpm-localca
+create_certs_tool_config = ${SWTPM_LOCALCA_CONF}
+create_certs_tool_options = ${SWTPM_LOCALCA_OPTIONS}
+_EOF_
+
+	echo "Writing ${SWTPM_LOCALCA_CONF}."
+	cat <<_EOF_ > "${SWTPM_LOCALCA_CONF}"
+statedir = ${SWTPM_LOCALCA_DIR}
+signingkey = ${SWTPM_LOCALCA_DIR}/signkey.pem
+issuercert = ${SWTPM_LOCALCA_DIR}/issuercert.pem
+certserial = ${SWTPM_LOCALCA_DIR}/certserial
+_EOF_
+
+	echo "Writing ${SWTPM_LOCALCA_OPTIONS}."
+	cat <<_EOF_ > "${SWTPM_LOCALCA_OPTIONS}"
+--platform-manufacturer $(uname -s | tr " " "_")
+--platform-version $(uname -r | tr " " "_")
+--platform-model $(uname -s | tr " " "_")
+_EOF_
+
+	exit 0
+}
+
+main "$@"
