@@ -40,9 +40,24 @@ all: $(POLICIES_BZ2)
 clean:
 	$(RM) -r tmp $(POLICIES) $(POLICIES_BZ2)
 
+PRIORITY ?= 400
+selinux-install: $(POLICIES_BZ2)
+	@if test $(shell id -u) != 0; then \
+		echo "You have to be root for this operation"; exit 1; \
+	fi
+	semodule --priority $(PRIORITY) --install $(POLICIES_BZ2)
+
+selinux-uninstall:
+	@if test $(shell id -u) != 0; then \
+		echo "You have to be root for this operation"; exit 1; \
+	fi
+	semodule --priority $(PRIORITY) --remove $(patsubst %.pp.bz2,%,$(POLICIES_BZ2))
+
+.PHONY: selinux-install selinux-uninstall
+
 %.pp.bz2: %.pp
 	@echo Compressing $^ -\> $@
-	bzip2 -f -9 $^
+	bzip2 -k -f -9 $^
 
 .SECONDEXPANSION:
 .NOTPARALLEL:

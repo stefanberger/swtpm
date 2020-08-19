@@ -21,3 +21,9 @@ EXTRA_DIST = \
 	COPYING \
 	README \
 	autogen.sh
+
+if WITH_SELINUX
+selinux-install selinux-uninstall:
+	@cd src/selinux && $(MAKE) $(AM_MAKEFLAGS) $@
+.PHONY: selinux-install selinux-uninstall
+endif
