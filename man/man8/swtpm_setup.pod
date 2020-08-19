@@ -272,6 +272,14 @@ The following configuration files need to be created:
     --platform-version 2.12
     --platform-model QEMU
 
+Note: The tool swtpm-create-user-config-files can be used to create such
+files (with different content):
+
+  #> /usr/share/swtpm/swtpm-create-user-config-files
+  Writing /home/stefanb/.config/swtpm_setup.conf.
+  Writing /home/stefanb/.config/swtpm-localca.conf.
+  Writing /home/stefanb/.config/swtpm-localca.options.
+
 The following commands now create a TPM 2 with an EK and platform
 certificate. The state of the TPM 2 will be stored in the directory
 ${XDG_CONFIG_HOME}/mytpm1.
