@@ -46,6 +46,10 @@ selinux-install: $(POLICIES_BZ2)
 		echo "You have to be root for this operation"; exit 1; \
 	fi
 	semodule --priority $(PRIORITY) --install $(POLICIES_BZ2)
+	restorecon -i "$(prefix)/bin/swtpm"
+if WITH_CUSE
+	restorecon -i "$(prefix)/bin/swtpm_cuse"
+endif
 
 selinux-uninstall:
 	@if test $(shell id -u) != 0; then \
