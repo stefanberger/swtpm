@@ -2155,7 +2155,8 @@ get_rsa_keysizes() {
 
 	if [ $((flags & SETUP_TPM2_F)) -ne 0 ]; then
 		$SWTPM --tpm2 --print-capabilities |
-			sed -n 's/rsa\-keysize\-[^"]*"/\n&/gp' |
+			sed -n 's/rsa\-keysize\-[^"]*"/@&/gp' |
+			tr '@' '\n' |
 			sed -n 's/rsa\-keysize\-\([^"]*\)".*/\1/gp'
 	fi
 }
