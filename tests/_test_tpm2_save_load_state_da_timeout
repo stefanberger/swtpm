@@ -131,28 +131,30 @@ if [ "$RES" != "$exp" ]; then
 	echo "received: $RES"
 	exit 1
 fi
-timeout=$(date +%s)
-timeout=$((timeout + 6))
+timenow=$(date +%s)
+timeout=$((timenow + 6))
 
 # TPM2_NV_Write with good password must now fail until $timeout
 while :; do
-	echo "Writing with good password failed due to lockout until $timeout - now is $(date +%s)."
+	timenow=$(date +%s)
+	echo "Writing with good password failed due to lockout until $timeout - now is $timenow."
 	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 01 00 00 00 0a 00 00 09 21'
 	# busy systems may run the above at >= $timeout and get an unexpected result; check time again
-	if [ "$RES" != "$exp" ] && [ $(date +%s) -lt $timeout ]; then
+	if [ "$RES" != "$exp" ] && [ $timenow -lt $timeout ]; then
 		echo "Error: Did not get expected failure from TPM2_NV_Write() with good password. Lockout should be enabled."
 		echo "expected: $exp"
 		echo "received: $RES"
 		exit 1
 	fi
-	[ $(date +%s) -ge $timeout ] && break
+	[ $timenow -ge $timeout ] && break
 	sleep 1
 done
 
 sleep 1
-echo "Time is now $(date +%s) -- trying with good password should work now."
+timenow_after=$(date +%s)
+echo "Time is now ${timenow_after} -- trying with good password should work now."
 # Now writing with the good password must work again
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
@@ -161,6 +163,11 @@ if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM2_NV_Write() with good password"
 	echo "expected: $exp"
 	echo "received: $RES"
+	# OS X special check
+	if [ $timenow_after -lt $timenow ]; then
+		echo "Time went backwards..."
+		exit 77
+	fi
 	exit 1
 fi
 
@@ -174,8 +181,8 @@ if [ "$RES" != "$exp" ]; then
 	echo "received: $RES"
 	exit 1
 fi
-timeout=$(date +%s)
-timeout=$((timeout + 6))
+timenow=$(date +%s)
+timeout=$((timenow + 6))
 
 # Save the state and restore it and then try to poll again
 run_swtpm_ioctl ${SWTPM_INTERFACE} --save permanent $MY_PERMANENT_STATE_FILE
@@ -271,23 +278,25 @@ fi
 
 # TPM2_NV_Write with good password must now fail until $timeout
 while :; do
-	echo "Writing with good password failed due to lockout until $timeout - now is $(date +%s)."
+	timenow=$(date +%s)
+	echo "Writing with good password failed due to lockout until $timeout - now is $timenow."
 	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 01 00 00 00 0a 00 00 09 21'
 	# busy systems may run the above at >= $timeout and get an unexpected result; check time again
-	if [ "$RES" != "$exp" ] && [ $(date +%s) -lt $timeout ]; then
+	if [ "$RES" != "$exp" ] && [ $timenow -lt $timeout ]; then
 		echo "Error: Did not get expected failure from TPM2_NV_Write() with good password. Lockout should be enabled."
 		echo "expected: $exp"
 		echo "received: $RES"
 		exit 1
 	fi
-	[ $(date +%s) -ge $timeout ] && break
+	[ $timenow -ge $timeout ] && break
 	sleep 1
 done
 
 sleep 1
-echo "Time is now $(date +%s) -- trying with good password should work now."
+timenow_after=$(date +%s)
+echo "Time is now $timenow_after -- trying with good password should work now."
 # Now writing with the good password must work again
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
@@ -296,6 +305,11 @@ if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM2_NV_Write() with good password"
 	echo "expected: $exp"
 	echo "received: $RES"
+	# OS X special check
+	if [ $timenow_after -lt $timenow ]; then
+		echo "Time went backwards..."
+		exit 77
+	fi
 	exit 1
 fi
 
