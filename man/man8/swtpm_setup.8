@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "swtpm_setup 8"
-.TH swtpm_setup 8 "2020-05-04" "swtpm" ""
+.TH swtpm_setup 8 "2020-08-20" "swtpm" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -277,8 +277,8 @@ A file to copy \s-1TCSD\s0's system_ps_file to. The system_ps_file contains the
 needed by \s-1TCSD\s0 for key related functions.
 .Sp
 This option is only useful with \s-1TPM 1.2\s0 and in if ownership is taken.
-.IP "\fBrsa-keysize <keysize\fR> (since v0.4)" 4
-.IX Item "rsa-keysize <keysize> (since v0.4)"
+.IP "\fB\-\-rsa\-keysize <keysize\fR> (since v0.4)" 4
+.IX Item "--rsa-keysize <keysize> (since v0.4)"
 This option allows to pass the size of a \s-1TPM 2 RSA EK\s0 key, such as 2048
 or 3072. The supported keysizes for a \s-1TPM 2\s0 can be queried for using
 the \fI\-\-print\-capabilities\fR option. The default size is 2048 bits for
@@ -376,6 +376,16 @@ The following configuration files need to be created:
 \&    \-\-platform\-manufacturer Fedora
 \&    \-\-platform\-version 2.12
 \&    \-\-platform\-model QEMU
+.Ve
+.PP
+Note: The tool swtpm-create-user-config-files can be used to create such
+files (with different content):
+.PP
+.Vb 4
+\&  #> /usr/share/swtpm/swtpm\-create\-user\-config\-files
+\&  Writing /home/stefanb/.config/swtpm_setup.conf.
+\&  Writing /home/stefanb/.config/swtpm\-localca.conf.
+\&  Writing /home/stefanb/.config/swtpm\-localca.options.
 .Ve
 .PP
 The following commands now create a \s-1TPM 2\s0 with an \s-1EK\s0 and platform

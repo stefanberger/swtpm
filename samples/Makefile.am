@@ -9,6 +9,7 @@ samplessysconfdir = $(sysconfdir)
 
 samplesconf_SCRIPTS = \
 	swtpm-create-tpmca \
+	swtpm-create-user-config-files \
 	swtpm-localca
 
 samplessysconf_DATA = \
@@ -23,6 +24,7 @@ install-data-local:
 
 EXTRA_DIST= \
 	swtpm-create-tpmca \
+	swtpm-create-user-config-files \
 	swtpm-localca \
 	swtpm-localca.conf \
 	swtpm-localca.options
