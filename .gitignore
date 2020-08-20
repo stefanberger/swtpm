@@ -36,6 +36,8 @@ Makefile
 /etc/swtpm_setup.conf
 /patches/*
 /include/swtpm.h
+/man/man3/*.3
+/man/man8/*.8
 /samples/swtpm-create-user-config-files
 /samples/swtpm-localca
 /src/selinux/*.pp.bz2
