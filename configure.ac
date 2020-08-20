@@ -527,6 +527,7 @@ AC_CONFIG_FILES([Makefile                   \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_setup/Makefile    \
 		src/swtpm_setup/swtpm_setup.h  \
+		src/swtpm_setup/py_swtpm_setup/swtpm_setup_conf.py \
 		man/Makefile                \
 		man/man3/Makefile           \
 		man/man8/Makefile           \
