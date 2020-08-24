@@ -18,6 +18,12 @@ ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
+# We need to be able to find swtpm_setup.py and swtpm_setup.py needs to find swtpm
+export PYTHONPATH=$ROOT/src/swtpm_setup
+PATH=$ROOT/src/swtpm:$PATH
+
+source ${abs_top_builddir:-$(dirname "$0")/..}/tests/test_config
+
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_CREATE_TPMCA=${SRCDIR}/samples/swtpm-create-tpmca
 SWTPM_LOCALCA=${SRCDIR}/samples/swtpm-localca
@@ -41,6 +47,19 @@ TCSD_SYSTEM_PS_FILE=${workdir}/system_ps_file
 TCSD_PIDFILE=${workdir}/tcsd.pid
 SWTPM_LOCALCA_DIR="${workdir}/my localca"
 SWTPM_LOCALCA_CONF="${workdir}/my localca/swtpm-localca.conf"
+
+# Captured TCSD file when using a SRK_PASSWORD=srk
+TCSD_FILE="AQEAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAABLwEAAAAAAwAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAQEAAAARAAAAAAEAAAABAAMAAQAAAAwAAAgAAAAAAgAAAAAAAAAA
+AAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 function cleanup()
 {
@@ -93,11 +112,7 @@ _EOF_
 	else
 		params="${params} --owner-well-known"
 	fi
-	if [ -n "${srk_password}" ]; then
-		params="${params} --srkpass ${srk_password}"
-	else
-		params="${params} --srk-well-known"
-	fi
+	params="${params} --srkpass ${srk_password}"
 
 	# First setup the TPM and take ownership of it and set SRK password
 	$SWTPM_SETUP \
@@ -106,10 +121,8 @@ _EOF_
 		--logfile "${workdir}/logfile" \
 		--config "${workdir}/swtpm_setup.conf" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-		--swtpm_ioctl "${SWTPM_IOCTL}" \
 		--take-ownership \
-		${params} \
-		--tcsd-system-ps-file "${TCSD_SYSTEM_PS_FILE}" >/dev/null
+		${params} >/dev/null
 
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not run $SWTPM_SETUP."
@@ -136,14 +149,20 @@ _EOF_
 		exit 1
 	fi
 
+	echo "$TCSD_FILE" | base64 -d > "${TCSD_SYSTEM_PS_FILE}"
+
 	# Setup the TCSD config file and start TCSD with it
 	cat <<_EOF_ > "${TCSD_CONF}"
 port = ${TCSD_LISTEN_PORT}
 system_ps_file = ${TCSD_SYSTEM_PS_FILE}
 _EOF_
 
-	chown tss:tss "${TCSD_CONF}"
-	chmod 0600 "${TCSD_CONF}"
+	chown ${TSS_USER}:${TSS_GROUP} "${TCSD_CONF}"
+	if [ "${TSS_USER}" == "${TSS_GROUP}" ]; then
+		chmod 0600 "${TCSD_CONF}"
+	else
+		chmod 0640 "${TCSD_CONF}"
+	fi
 
 	bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c "${TCSD_CONF}" -e -f &>/dev/null & echo \$! > "${TCSD_PIDFILE}"; wait" &
 	BASH_PID=$!
@@ -160,17 +179,11 @@ _EOF_
 		exit 1
 	fi
 
-	if [ -n "${srk_password}" ]; then
-		params="--srk-password ${srk_password}"
-	else
-		params=""
-	fi
-
 	${SWTPM_CREATE_TPMCA} \
 		--dir "${SWTPM_LOCALCA_DIR}" \
-		${params} \
+		--srk-password "${srk_password}" \
 		--register \
-		--group tss \
+		--group "${TSS_GROUP}" \
 		--tss-tcsd-port "${TCSD_LISTEN_PORT}" \
 		--outfile "${SWTPM_LOCALCA_CONF}" &>/dev/null
 
@@ -304,29 +317,5 @@ echo "Test 3: OK"
 
 run_test "" "${SRK_PASSWORD}" 0
 echo "Test 4: OK"
-
-# Repeat the test with the SRK having the well known password of 20 zero bytes
-# We will have to check the help screen of swtpm-create-tpmca for whether
-# it supports it, which in turn depends on tpmtool supporting it...
-
-if [ -n "$(${SWTPM_CREATE_TPMCA} --help | grep "use 'well known' password if")" ]; then
-	run_test "${OWNER_PASSWORD}" "" 1
-	echo "Test 5: OK"
-	run_test "${OWNER_PASSWORD}" "" 0
-	echo "Test 6: OK"
-
-	run_test "" "" 1
-	echo "Test 7: OK"
-
-	run_test "" "" 0
-	echo "Test 8: OK"
-else
-	if [ -n "$(tpmtool --help | grep srk-well-known)" ]; then
-		echo "Error: tpmtool seems to support --srk-well-known"
-		exit 1
-	fi
-	echo "tpmtool does not seem to support --srk-well-known"
-	echo "Tests 5..8: SKIP"
-fi
 
 exit 0

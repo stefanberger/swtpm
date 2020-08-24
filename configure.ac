@@ -179,14 +179,13 @@ AC_SUBST([LIBTPMS_LIBS])
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
 AC_SUBST([LIBRT_LIBS])
 
-AC_PATH_PROG([TPM_NVDEFINE], tpm_nvdefine)
-if test "x$TPM_NVDEFINE" = "x"; then
+AC_PATH_PROG([TCSD], tcsd)
+if test "x$TCSD" = "x"; then
     have_tcsd=no
-    AC_MSG_WARN([NVRAM area tools are needed for TPM 1.2 certificate injection: tpm-tools package])
+    AC_MSG_WARN([tcsd could not be found; typically need it for tss user account and tests])
 else
     have_tcsd=yes
 fi
-with_swtpm_setup=yes
 AM_CONDITIONAL([HAVE_TCSD], test "$have_tcsd" != "no")
 
 dnl If we have the tcsd package, we can build swtpm_setup, but need netstat also
@@ -347,10 +346,39 @@ if test "x$FLOCK" = "x"; then
 	AC_MSG_ERROR([flock is required: flock package])
 fi
 
-AC_PATH_PROG([PYTHON], python3)
-if test "x$PYTHON" = "x"; then
-	AC_MSG_ERROR([python3 is required])
+AC_PATH_PROG([BASE64], base64)
+if test "x$BASE64" = "x"; then
+	AC_MSG_ERROR([base64 is required: base64 package])
 fi
+
+AC_PATH_PROG([CP], cp)
+if test "x$CP" = "x"; then
+	AC_MSG_ERROR([cp is required])
+fi
+
+AM_PATH_PYTHON([3.3])
+
+AC_PATH_PROG([PIP3], pip3)
+if test "x$PIP3" = "x"; then
+	AC_PATH_PROG([PIP3], pip)
+	if test "x$PIP3" = "x"; then
+		AC_MSG_ERROR([pip3 is required])
+	else
+		AC_MSG_WARN([Using pip as pip3 tool])
+	fi
+fi
+
+AC_MSG_CHECKING([for python setuptools package])
+$PYTHON -c "import setuptools"
+AS_IF([ test $? = 0 ],
+       [AC_MSG_RESULT([yes])],
+       [AC_MSG_ERROR([python setuptools is required])])
+
+AC_MSG_CHECKING([for python cryptography package])
+$PYTHON -c "import cryptography"
+AS_IF([ test $? = 0 ],
+       [AC_MSG_RESULT([yes])],
+       [AC_MSG_ERROR([python setuptools is required])])
 
 AC_ARG_ENABLE([hardening],
   AS_HELP_STRING([--disable-hardening], [Disable hardening flags]))
@@ -526,7 +554,6 @@ AC_CONFIG_FILES([Makefile                   \
 		src/swtpm_cert/Makefile     \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_setup/Makefile    \
-		src/swtpm_setup/swtpm_setup.h  \
 		src/swtpm_setup/py_swtpm_setup/swtpm_setup_conf.py \
 		man/Makefile                \
 		man/man3/Makefile           \
@@ -534,10 +561,14 @@ AC_CONFIG_FILES([Makefile                   \
 		tests/Makefile              \
 		tests/test_config           \
 		])
-AC_CONFIG_FILES([src/swtpm_setup/swtpm_setup.sh],
-		[chmod 755 src/swtpm_setup/swtpm_setup.sh])
 AC_CONFIG_FILES([samples/swtpm-localca],
 		[chmod 755 samples/swtpm-localca])
+dnl for out-of-tree builds:
+AC_CONFIG_LINKS([src/swtpm_setup/swtpm_setup.sh:src/swtpm_setup/swtpm_setup.sh \
+                 src/swtpm_setup/py_swtpm_setup/__init__.py:src/swtpm_setup/py_swtpm_setup/__init__.py \
+                 src/swtpm_setup/py_swtpm_setup/swtpm.py:src/swtpm_setup/py_swtpm_setup/swtpm.py \
+                 src/swtpm_setup/py_swtpm_setup/swtpm_utils.py:src/swtpm_setup/py_swtpm_setup/swtpm_utils.py \
+                 src/swtpm_setup/py_swtpm_setup/swtpm_setup.py:src/swtpm_setup/py_swtpm_setup/swtpm_setup.py])
 AC_OUTPUT
 
 echo
@@ -545,7 +576,6 @@ printf "with_gnutls     : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnut
 printf "with_selinux    : %5s  (no = SELinux policy extensions will NOT be built)\n" $with_selinux
 printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
 printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
-printf "with_swtpm_setup: %5s  (no = swtpm_setup will NOT be built)\n" $with_swtpm_setup
 printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
 printf "with_seccomp    : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
 echo

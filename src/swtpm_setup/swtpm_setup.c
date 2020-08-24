@@ -54,8 +54,6 @@
 #include <mach-o/dyld.h>
 #endif
 
-#include "swtpm_setup.h"
-
 /*
  * Those parameters interpreted by swtpm_setup.sh that have an additional
  * parameter.
@@ -181,10 +179,8 @@ int main(int argc, char *argv[])
     size_t length;
     struct passwd *passwd = NULL;
     int i = 1, j;
-    const char *userid = E_USER_ID;
+    const char *userid = NULL;
     bool change_user = true;
-    bool use_tpm2 = false;
-    bool have_runas = false;
     const char *p;
 #if defined __APPLE__
     char path[MAXPATHLEN];
@@ -197,19 +193,16 @@ int main(int argc, char *argv[])
         if (!strcmp("--runas", argv[i])) {
             i++;
             if (i == argc) {
-                fprintf(stderr, "Missing user argument for --runas");
+                fprintf(stderr, "Missing user argument for --runas\n");
                 exit(1);
             }
             userid = argv[i];
-            have_runas = true;
         } else if (!strcmp("--help", argv[i]) || !strcmp("-h", argv[i])) {
             change_user = false;
         } else if (!strcmp("--version", argv[i])) {
             change_user = false;
         } else if (!strcmp("--print-capabilities", argv[i])) {
             change_user = false;
-        } else if (!strcmp("--tpm2", argv[i])) {
-            use_tpm2 = true;
         }
         for (j = 0; one_arg_params[j] != NULL; j++) {
             if (!strcmp(one_arg_params[j], argv[i])) {
@@ -281,30 +274,10 @@ skip:
     }
 
     /*
-     * In case of TPM2 we don't require to run as root since none
-     * of the tools we will run require root priviliges similar to
-     * TrouSerS (tcsd). So unless we saw --runas, we will not attempt
-     * to switch the user.
+     * Unless we saw --runas, we will not attempt to switch the user.
      */
-    if (use_tpm2) {
-        if (!have_runas) {
-            change_user = false;
-        }
-    }
-
-    /*
-     * In case of TPM 1.2 we allow running this program as 'tss'
-     * (E_USER_ID).
-     */
-    if (!use_tpm2 && change_user) {
-        passwd = getpwnam(E_USER_ID);
-        if (!passwd) {
-            fprintf(stderr, "Could not get account data of user %s.\n", E_USER_ID);
-            goto exit_failure;
-        }
-        if (passwd->pw_uid == geteuid())
-            change_user = false;
-    }
+    if (!userid)
+        change_user = false;
 
     if (change_user && change_process_owner(userid))
         goto exit_failure;

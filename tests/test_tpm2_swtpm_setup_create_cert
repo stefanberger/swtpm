@@ -6,10 +6,13 @@ TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
 TOPSRC=${abs_top_srcdir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
+# We need to be able to find swtpm_setup.py and swtpm_setup.py needs to find swtpm
+export PYTHONPATH=${TOPBUILD}/src/swtpm_setup
+PATH=${TOPBUILD}/src/swtpm:$PATH
+
 SWTPM_SETUP=${TOPBUILD}/src/swtpm_setup/swtpm_setup
-SWTPM_LOCALCA=${TOPSRC}/samples/swtpm-localca
+SWTPM_LOCALCA=${TOPBUILD}/samples/swtpm-localca
 SWTPM=${TOPBUILD}/src/swtpm/swtpm
-SWTPM_IOCTL=${TOPBUILD}/src/swtpm_ioctl/swtpm_ioctl
 
 workdir=$(mktemp -d "/tmp/path with spaces.XXXXXX")
 
@@ -25,12 +28,6 @@ function cleanup()
 {
 	rm -rf "${workdir}"
 }
-
-# Quirk for Cygwin
-if [[ "$(uname -s)" =~ ^CYGWIN ]]; then
-	# quirk for CYGWIN where the swtpm_setup executable in is .libs/
-	cp ${SWTPM_SETUP}.sh $(dirname ${SWTPM_SETUP})/.libs
-fi
 
 # We want swtpm_cert to use the local CA and see that the
 # local CA script automatically creates a signingkey and
@@ -79,7 +76,6 @@ for keysize in $(echo $keysizes); do
 		--config "${workdir}/swtpm_setup.conf" \
 		--logfile "${workdir}/logfile" \
 		--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-		--swtpm_ioctl "${SWTPM_IOCTL}" \
 		--rsa-keysize ${keysize} \
 		--overwrite
 
@@ -120,7 +116,6 @@ $SWTPM_SETUP \
 	--config "${workdir}/swtpm_setup.conf" \
 	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--swtpm_ioctl "${SWTPM_IOCTL}" \
 	--overwrite
 
 if [ $? -ne 0 ]; then

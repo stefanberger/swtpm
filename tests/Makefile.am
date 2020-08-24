@@ -23,6 +23,7 @@ TESTS += \
 endif
 
 TESTS += \
+	test_commandline \
 	test_ctrlchannel \
 	test_ctrlchannel3 \
 	test_encrypted_state \
@@ -32,6 +33,7 @@ TESTS += \
 	test_init \
 	test_locality \
 	test_migration_key \
+	test_parameters \
 	test_resume_volatile \
 	test_save_load_encrypted_state \
 	test_save_load_state \
@@ -70,17 +72,12 @@ TESTS += \
 	\
 	test_tpm2_ibmtss2
 
-if HAVE_TCSD
-TESTS += \
-	test_commandline \
-	test_parameters
-endif
-
 if WITH_GNUTLS
 TESTS += \
+	test_samples_create_tpmca \
 	test_swtpm_cert \
+	test_swtpm_setup_create_cert \
 	test_tpm2_parameters \
-	test_tpm2_samples_create_tpmca \
 	test_tpm2_samples_swtpm_localca \
 	test_tpm2_samples_swtpm_localca_pkcs11 \
 	test_tpm2_swtpm_cert \
@@ -88,8 +85,7 @@ TESTS += \
 	test_tpm2_swtpm_setup_create_cert
 if HAVE_TCSD
 TESTS += \
-	test_swtpm_setup_create_cert \
-	test_samples_create_tpmca
+	test_tpm2_samples_create_tpmca
 endif
 endif
 

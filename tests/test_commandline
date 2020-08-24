@@ -2,6 +2,12 @@
 
 # For the license, see the LICENSE file in the root directory.
 
+if [ "$(uname -s)" != "Linux" ]; then
+	# Due to netstat
+	echo "This test only runs only Linux."
+	exit 77
+fi
+
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 

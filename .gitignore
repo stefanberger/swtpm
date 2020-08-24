@@ -56,8 +56,6 @@ Makefile
 /src/swtpm_ioctl/swtpm_ioctl
 /src/swtpm_setup/dist
 /src/swtpm_setup/swtpm_setup
-/src/swtpm_setup/swtpm_setup.h
-/src/swtpm_setup/swtpm_setup.sh
 /src/swtpm_setup/py_swtpm_setup/swtpm_setup_conf.py
 /test-driver
 tests/*.log
