@@ -13,10 +13,9 @@ certificates.
 
 An example I<swtpm-localca.options> file may look as follows:
 
---platform-manufacturer Fedora
---platform-version 2.1
---platform-model QEMU
---subject "C=US,ST=NY,L=Yorktown"
+  --platform-manufacturer Fedora
+  --platform-version 2.1
+  --platform-model QEMU
 
 =head1 SEE ALSO
 
