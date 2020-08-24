@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm_setup - Swtpm utility to simulate the manufacturing of a TPM 1.2 or 2.0
+swtpm_setup - Swtpm tool to simulate the manufacturing of a TPM 1.2 or 2.0
 
 =head1 SYNOPSIS
 
@@ -28,9 +28,12 @@ Path to configuration file containing the tool to use for creating
 certificates; see also B<swtpm_setup.conf>
 
 If this parameter is not provided, the default configuration file
-/etc/swtpm_setup.conf will be used. If the environment variable
-XDG_CONFIG_HOME is set, the configuration file is assumed to be
-$XDG_CONFIG_HOME/swtpm_setup.conf.
+will be used. The search order for the default configuration file is
+as follows. If the environment variable XDG_CONFIG_HOME is set,
+${XDG_CONFIG_HOME}/swtpm_setup.conf will be used if available, otherwise if
+the environment variable HOME is set, ${HOME}/swtpm_setup.conf
+will be used if available. If none of the previous ones are available, /etc/swtpm_setup.conf
+will be used.
 
 =item B<--tpm-state <dir>> or B<--tpmstate <dir>>
 
@@ -48,7 +51,7 @@ Do setup on a TPM 2; by default a TPM 1.2 is setup.
 
 =item B<--createek>
 
-Create the EK
+Create an endorsement key (EK).
 
 =item B<--allow-signing>
 
@@ -58,7 +61,7 @@ Note that the TCG specification "EK Credential Profile For TPM Family 2.0; Level
 suggests in its section on "EK Usage" that "the Endorsement Key can be a
 created as a decryption or signing key." However, some platforms will
 not accept an EK as a signing key, or as a signing and encryption key, and
-therefore this option should be used very carfully.
+therefore this option should be used very carefully.
 
 =item B<--decryption>
 
@@ -71,41 +74,42 @@ Create elliptic curve crypto (ECC) keys; by default RSA keys are generated.
 
 =item B<--take-ownership>
 
-Take ownership; this option implies --createek
+Take ownership; this option implies --createek. This option is only available for TPM 1.2.
 
 =item B<--ownerpass  <password>>
 
-Provide custom owner password; default is ooo
+Provide custom owner password; default is 'ooo'. This option is only available for TPM 1.2.
 
 =item B<--owner-well-known>
 
-Use a password of all zeros (20 bytes of zeros) as the owner password
+Use a password of all zeros (20 bytes of zeros) as the owner password.
+This option is only available for TPM 1.2.
 
 =item B<--srkpass <password>>
 
-Provide custom SRK password; default is sss
+Provide custom SRK password; default is 'sss'. This option is only available for TPM 1.2.
 
 =item B<--srk-well-known>
 
-Use a password of all zeros (20 bytes of zeros) as the SRK password
+Use a password of all zeros (20 bytes of zeros) as the SRK password.
+This option is only available for TPM 1.2.
 
 =item B<--create-ek-cert>
 
-Create an EK certificate; this implies --createek
-(NOT SUPPORTED YET)
+Create an EK certificate; this implies --createek.
 
 =item B<--create-platform-cert>
 
-Create a platform certificate; this implies --create-ek-cert
+Create a platform certificate; this implies --create-ek-cert.
 
 =item B<--lock-nvram>
 
-Lock NVRAM access
+Lock NVRAM access to all NVRAM locations that were written to.
 
 =item B<--display>
 
 At the end display as much info as possible about the configuration
-of the TPM
+of the TPM.
 
 =item B<--logfile <logfile>>
 
@@ -295,4 +299,4 @@ B<swtpm_setup.conf>
 
 =head1 REPORTING BUGS
 
-Report bugs to Stefan Berger <stefanb@linux.vnet.ibm.com>
+Report bugs to Stefan Berger <stefanb@linux.ibm.com>
