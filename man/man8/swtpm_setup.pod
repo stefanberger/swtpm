@@ -11,16 +11,13 @@ B<swtpm_setup [OPTIONS]>
 B<swtpm_setup> is a tool that prepares the initial state for a libtpms-based
 TPM.
 
-For creating the initial state of a TPM 1.2, swtpm_setup must be run either
-as root or as the user the that tcsd requires, which is typically tss.
-
 The following options are supported:
 
 =over 4
 
 =item B<--runas <userid>>
 
-Use this userid to run swtpm_setup.sh; by default 'tss' is used.
+Use this userid to run swtpm_setup.sh as. Only 'root' can use this option.
 
 =item B<--config <file>>
 
@@ -171,11 +168,7 @@ in the PATH is used.
 
 =item B<--tcsd-system-ps-file <file>>
 
-A file to copy TCSD's system_ps_file to. The system_ps_file contains the
-TPM 1.2 SRK public key after taking ownership of the TPM. The file is
-needed by TCSD for key related functions.
-
-This option is only useful with TPM 1.2 and in if ownership is taken.
+This option is deprecated and has no effect (since v0.4).
 
 =item B<--rsa-keysize <keysize>> (since v0.4)
 
@@ -195,9 +188,9 @@ The output may contain the following:
       "features": [
         "cmdarg-keyfile-fd",
         "cmdarg-pwdfile-fd",
-        "no-tpm12-tools",
         "tpm2-rsa-keysize-2048",
-        "tpm2-rsa-keysize-3072"
+        "tpm2-rsa-keysize-3072",
+        "tpm12-not-need-root"
       ]
     }
 
@@ -213,16 +206,16 @@ The I<--keyfile-fd> option is supported.
 
 The I<--pwdfile-fd> option is supported.
 
-=item B<no-tpm12-tools>
-
-TPM 1.2 tools cannot be found in the PATH. This means that no certificates can
-be created since they cannot be written into the NVRAM and the NVRAM cannot be
-locked. Among the TPM 1.2 setup parameters only I<--createek> can be passed.
-
 =item B<tpm2-rsa-keysize-2048, ...>
 
 The shown RSA key sizes are supported for a TPM 2's EK key. If none of the
 tpm2-rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
+
+=item B<tpm12-not-need-root> (since 0.4.0)
+
+This option implies that any user can setup a TPM 1.2. Previously only root
+or the 'tss' user, depending on configuration and availability of this account,
+could do that.
 
 =back
 
@@ -239,12 +232,9 @@ To simulate manufacturing of a TPM, one would typically run the following comman
   #> sudo swtpm_setup --tpmstate /tmp/mytpm1/ \
       --create-ek-cert --create-platform-cert --lock-nvram
 
-Note: since setting up a TPM 1.2 relies on the I<tcsd> for some of its operations,
-B<swtpm_setup> has to be run as root so that it can invoke the I<tcsd> either as root
-or tss user.
+Note: since v0.4 TPM 1.2 setup does not require root rights anymore.
 
-
-A normal user can also simulate the manufacturing of a TPM 2 using the
+Any user can also simulate the manufacturing of a TPM using the
 swtpm-localca plugin. The following example assumes that the user has
 set the environment variable XDG_CONFIG_HOME as follows (using bash for
 example):

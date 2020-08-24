@@ -6,6 +6,10 @@
 ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
+# We need to be able to find swtpm_setup.py and swtpm_setup.py needs to find swtpm
+export PYTHONPATH=$ROOT/src/swtpm_setup
+PATH=$ROOT/src/swtpm:$PATH
+
 [ "${SWTPM_IFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
 source ${TESTDIR}/common
 
@@ -42,7 +46,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # The are some variable parameters at the end, use regex
-exp='\{ "type": "swtpm_setup", "features": \[ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd"(, "no-tpm12-tools")?(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")? \] \}'
+exp='\{ "type": "swtpm_setup", "features": \[ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd", "tpm12-not-need-root"(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")? \] \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_SETUP} to --print-capabilities:"
 	echo "Actual   : ${msg}"

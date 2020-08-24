@@ -7,7 +7,7 @@ TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
 TOPSRC=${abs_top_srcdir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-SWTPM_LOCALCA=${TOPSRC}/samples/swtpm-localca
+SWTPM_LOCALCA=${TOPBUILD}/samples/swtpm-localca
 
 workdir=$(mktemp -d "/tmp/path with spaces.XXXXXX")
 

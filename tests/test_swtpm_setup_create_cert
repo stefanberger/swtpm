@@ -2,19 +2,18 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Need to be root to run this test."
-	exit 77
-fi
 
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
+# We need to be able to find swtpm_setup.py and swtpm_setup.py needs to find swtpm
+export PYTHONPATH=$ROOT/src/swtpm_setup
+PATH=$ROOT/src/swtpm:$PATH
+
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
-SWTPM_LOCALCA=${SRCDIR}/samples/swtpm-localca
+SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
 SWTPM=${ROOT}/src/swtpm/swtpm
-SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
 
 workdir=$(mktemp -d)
 
@@ -65,13 +64,11 @@ export SWTPM_ROOTCA_PASSWORD=password
 
 # we need to create at least one cert: --create-ek-cert
 $SWTPM_SETUP \
-	--runas root \
 	--tpm-state ${workdir} \
 	--create-ek-cert \
 	--config ${workdir}/swtpm_setup.conf \
 	--logfile ${workdir}/logfile \
-	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--swtpm_ioctl ${SWTPM_IOCTL}
+	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}"
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."

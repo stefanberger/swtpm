@@ -19,7 +19,8 @@ samplessysconf_DATA = \
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(localstatedir)/lib/swtpm-localca
 	if test -z $(DESTDIR); then \
-		chown @TSS_USER@:@TSS_GROUP@ $(DESTDIR)$(localstatedir)/lib/swtpm-localca || true; \
+		chown -R @TSS_USER@:root $(DESTDIR)$(localstatedir)/lib/swtpm-localca || true; \
+		chmod 0750 $(DESTDIR)$(localstatedir)/lib/swtpm-localca || true; \
 	fi
 
 EXTRA_DIST= \
