@@ -9,14 +9,11 @@ B<swtpm_ioctl [COMMAND] E<lt>deviceE<gt>>
 =head1 DESCRIPTION
 
 B<swtpm_ioctl> implements a client tool for controlling the
-I<swtpm_cuse> TPM software emulator, such as for example its
-initialization and shutdown. Once the swtpm_cuse has been
-initialized, TPM commands can be sent to it.
+I<swtpm_cuse> and I<swtpm> TPM software emulators, such as for example their
+initialization and shutdown. Once it has been initialized, TPM commands can
+be sent to it.
 
-The full path to the swtpm_cuse's character device must be provided such 
-as for example /dev/vtpm-200.
-
-The environment variable SWTPM_IOCTL_BUFFERSIZE can be set to the size
+Note: The environment variable SWTPM_IOCTL_BUFFERSIZE can be set to the size
 for the buffer for state blob transfer to use. If it is not set, the ioctl()
 interface is used for transferring the state. This environment variable
 is primarily used for testing purposes.
@@ -27,7 +24,8 @@ The following commands are supported:
 
 =item B<--tpm-device E<lt>deviceE<gt>>
 
-Use the given device.
+Use the given device. The full path to the character device must be provided, such
+as for example /dev/vtpm-200.
 
 This option can be used instead of providing the device as the last parameter.
 
@@ -42,22 +40,21 @@ Connect to the given UnixIO path.
 
 =item B<-c>
 
-Get the swtpm_cuse's capability flags indicating which commands
-are supported.
+Get the capability flags indicating which commands are supported.
 
 =item B<-i>
 
-Send a hardware initialization signal to the swtpm_cuse. Volatile
+Send a hardware initialization signal to the swtpm_cuse/swtpm. Volatile
 state previously written by the TPM will be read and the file automatically
 delete.
 
 =item B<-s>
 
-Gracefully shut the swtpm_cuse down.
+Initiate a graceful shut down.
 
 =item B<--stop>
 
-Stop the swtpm_cuse. This does not shut it down. The I<-i> command can again
+Stop the swtpm_cuse/swtpm. This does not shut it down. The I<-i> command can again
 be sent to it. After a stop it is also possible to load TPM stateblobs into the
 TPM using the I<--load> command.
 
@@ -93,17 +90,17 @@ character '-', then all data are read from stdin.
 =item B<--save E<lt>TPM state blob nameE<gt> E<lt>filenameE<gt> >
 
 Save the TPM state blob into the given file. Valid TPM state blob
-names are permanent, volatile, and savestate.
+names are 'permanent', 'volatile', and 'savestate'.
 
 Note that this command can be executed at any time. However, to retrieve
 the latest volatile state, the I<-v> command should have been run
 immediately before running this command. The savestate blob will only be
-returned if a TPM_SaveState command was executed in the TPM.
+returned if a TPM_SaveState command was executed in the TPM (TPM 1.2).
 
 =item B<--load E<lt>TPM state blob nameE<gt> E<lt>filenameE<gt>>
 
 Load the given TPM state blob from the given file. Valid TPM state blob
-names are permanent, volatile, and savestate.
+names are 'permanent', 'volatile', and 'savestate'.
 
 Note that this command can only be executed on a TPM that is shut down.
 To then start the TPM with the uploaded state, the I<-i> command must
@@ -117,10 +114,30 @@ or migration key) are in use by the TPM.
 =item B<--info E<lt>flagE<gt>>
 
 Get information about the TPM implementation in JSON format. The flag
-<TPMLIB_INFO_TPMSPECIFICATION>, which has the value 1, returns information
-about the specification the TPM implementation followed.
+I<TPMLIB_INFO_TPMSPECIFICATION>, which has the value 1, returns information
+about the specification the TPM implementation followed. The flag
+I<TPMLIB_INFO_TPMATTRIBUTES>, which has the value 2, returns information
+about the manufacturer, model, and version of the TPM.
+
 
 =back
+
+=head1 EXAMPLE
+
+Start swtpm on port 10000 for the control port and emulate a TPM 1.2:
+
+   #> swtpm socket --tpmstate dir=/tmp/myvtpm1 --log level=4 --ctrl type=tcp,port=10000 --server type=tcp,port=10001 --flags not-need-init
+
+Get information about the TPM implementation in JSON:
+
+   #> swtpm_ioctl --tcp :10000 --info 1
+   {"TPMSpecification":{"family":"1.2","level":2,"revision":116}}
+   #> swtpm_ioctl --tcp :10000 --info 2
+   {"TPMAttributes":{"manufacturer":"id:00001014","version":"id:00740001","model":"swtpm"}}
+
+Shut down the swtpm
+
+   #> swtpm_ioctl --tcp :10000 -s
 
 =head1 SEE ALSO
 
