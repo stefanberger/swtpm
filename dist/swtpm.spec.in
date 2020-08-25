@@ -1,7 +1,7 @@
 %bcond_without gnutls
 
-%global gitdate     20200217
-%global gitcommit   38f36f30e3b611d79d73597e52d9a36b6c755deb
+%global gitdate     20200828
+%global gitcommit   <enter commit here>
 %global gitshortcommit  %(c=%{gitcommit}; echo ${c:0:7})
 
 # Macros needed by SELinux
@@ -28,10 +28,13 @@ BuildRequires:  net-tools
 BuildRequires:  openssl-devel
 BuildRequires:  socat
 BuildRequires:  python3
+BuildRequires:  python3-devel
+BuildRequires:  python3-cryptography
+BuildRequires:  python3-pip
+BuildRequires:  python3-setuptools
 BuildRequires:  python3-twisted
 BuildRequires:  softhsm
 BuildRequires:  trousers >= 0.3.9
-BuildRequires:  tpm-tools >= 1.3.8-6
 %if %{with gnutls}
 BuildRequires:  gnutls >= 3.1.0
 BuildRequires:  gnutls-devel
@@ -69,7 +72,7 @@ Include files for the TPM emulator's CUSE interface.
 Summary:        Tools for the TPM emulator
 License:        BSD
 Requires:       swtpm = %{version}-%{release}
-Requires:       trousers >= 0.3.9 tpm-tools >= 1.3.8-6 expect bash net-tools gnutls-utils
+Requires:       trousers >= 0.3.9 bash gnutls-utils python3 python3-cryptography
 
 %description    tools
 Tools for the TPM emulator from the swtpm package
@@ -161,7 +164,10 @@ fi
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf
 %dir %{_datadir}/@PACKAGE@
 %{_datadir}/@PACKAGE@/swtpm-localca
-%attr( 755, @TSS_USER@, @TSS_GROUP@) %{_localstatedir}/lib/swtpm-localca
+%{_datadir}/swtpm/swtpm-create-user-config-files
+%{python3_sitelib}/py_swtpm_setup/*
+%{python3_sitelib}/swtpm_setup-*/*
+%attr( 750, @TSS_USER@, root) %{_localstatedir}/lib/swtpm-localca
 
 %changelog
 * Mon Feb 17 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.3.0-20200218git38f36f3
