@@ -4,5 +4,6 @@ SWTPM_LOCALCA_DIR=@LOCALSTATEDIR@/lib/swtpm-localca
 
 if ! [ -d $SWTPM_LOCALCA_DIR ]; then
 	mkdir -p $SWTPM_LOCALCA_DIR
-	chown @TSS_USER@:@TSS_GROUP@ $SWTPM_LOCALCA_DIR
+	chown @TSS_USER@:root $SWTPM_LOCALCA_DIR
+	chmod 0750 $SWTPM_LOCALCA_DIR
 fi
