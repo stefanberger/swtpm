@@ -7,7 +7,6 @@ dist: xenial
 addons:
   apt:
       packages:
-        - pep8
         - automake
         - autoconf
         - libtool
@@ -18,7 +17,11 @@ addons:
         - sed
         - bash
         - dh-exec
-        - python-twisted
+        - pylint3
+        - python3-cryptography
+        - python3-pip
+        - python3-setuptools
+        - python3-twisted
         - libfuse-dev
         - libglib2.0-dev
         - libgmp-dev
@@ -41,12 +44,15 @@ addons:
     branch_pattern: coverity_scan
 before_install:
   - test $TRAVIS_BRANCH != coverity_scan -o ${TRAVIS_JOB_NUMBER##*.} = 1 || exit 0
-  - |
+  - |  # We need trousers only for the tss user
     if [ "$(uname -s)" = "Linux" ]; then
       sudo rm -rf /dev/tpm* # This is a work-around for Bionic where trousers otherwise fails to install
-      sudo apt-get -y install trousers tpm-tools
+      sudo apt-get -y install trousers
     fi
 script:
+  - sudo pip3 install --upgrade pip
+  - sudo pip3 install --upgrade wheel
+  - sudo pip3 install --upgrade cryptography
   - if [ ! -d libtpms ]; then git clone https://github.com/stefanberger/libtpms; fi
   - cd libtpms
   - if [ -n "${LIBTPMS_GIT_CHECKOUT}" ]; then
@@ -65,8 +71,7 @@ script:
   - if [ -n "${RUN_TEST}" ]; then
         sudo make install
         && sudo ${PREFIX}/bin/swtpm_setup
-              --tpmstate /tmp --create-ek-cert --create-platform-cert
-              --runas ${TSS_USER:-tss} --tpm2
+              --tpmstate /tmp --create-ek-cert --create-platform-cert --tpm2
          || { exit 1; };
     fi
 after_failure:
@@ -77,14 +82,14 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX}"
            CHECK="distcheck"
            RUN_TEST="1"
-      before_script:
-      - pep8 $(find . -type f | grep -E "\.py$")
     - dist: bionic
       env: PREFIX="/usr"
            CONFIG="--with-openssl --prefix=/usr --enable-test-coverage"
            SUDO="sudo"
            CHECK="check"
            SWTPM_TEST_IBMTSS2="1"
+      after_success:
+      - pylint3 --max-line-length=100 src/swtpm_setup/py_swtpm_setup/*.py || exit 1;
       before_script:
       - sudo apt-get -y install tss2
       - sudo pip install cpp-coveralls
@@ -103,9 +108,6 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
            CHECK="check"
-      before_script:
-        # Tspi_NV_WriteValue has an I/O error when using asan
-        - echo -e '#!/usr/bin/env bash\nexit 0' > tests/test_parameters
     - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CONFIG="--disable-use-openssl-functions"
@@ -115,9 +117,6 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
            CHECK="check"
-      before_script:
-        # Tspi_NV_WriteValue has an I/O error when using asan
-        - echo -e '#!/usr/bin/env bash\nexit 0' > tests/test_parameters
     - env: CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBS="-lubsan"
@@ -140,7 +139,6 @@ matrix:
            SWTPM_TEST_EXPENSIVE=0
            CHECK="check"
            LD_LIBRARY_PATH=${PREFIX}/lib:${PREFIX}/lib/swtpm
-           RUN_TEST="1"
            SUDO="sudo"
       os: osx
       compiler: clang
@@ -156,3 +154,4 @@ matrix:
       - HOMEBREW_NO_AUTO_UPDATE=1 brew install socat
       # To run the pkcs11 test with softhsm we need SUDO (above)
       - HOMEBREW_NO_AUTO_UPDATE=1 brew install softhsm
+      - pip3 install setuptools
