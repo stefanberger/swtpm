@@ -342,6 +342,11 @@ if test "x$SOCAT" = "x"; then
 	AC_MSG_ERROR([socat is required: socat package])
 fi
 
+AC_PATH_PROG([FLOCK], flock)
+if test "x$FLOCK" = "x"; then
+	AC_MSG_ERROR([flock is required: flock package])
+fi
+
 AC_PATH_PROG([PYTHON], python3)
 if test "x$PYTHON" = "x"; then
 	AC_MSG_ERROR([python3 is required])
