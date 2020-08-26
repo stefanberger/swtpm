@@ -131,7 +131,7 @@ for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 	# We expect sequences of 4 0-bytes in unencrypted state
 	# and no such sequences in encrypted state.
 	nullseq="$(cat $TPMDIR/tpm-00.permall | \
-			od -t x1 -A n | tr -d '\n' |
+			od -t x1 -A n | tr -d '\n' | tr -s ' ' |
 			grep "00 00 00 00")"
 	if [[ "${PARAMETERS[$i]}" =~ (keyfile|pwdfile) ]]; then
 		if [ -n "${nullseq}" ]; then
