@@ -10,6 +10,17 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 SWTPM_LOCALCA=${TOPSRC}/samples/swtpm-localca
 
 workdir=$(mktemp -d)
+if [ $? -ne 0 ]; then
+	exit 1
+fi
+
+# Have softhsm_setup use 'workdir'.
+export SOFTHSM_SETUP_CONFIGDIR="${workdir}"
+
+# Since we will be using the pkcs11 module as well via certtool
+# we have to set the environment variable to point to its config file.
+# This has to be the same as for swtpm_setup sets it.
+export SOFTHSM2_CONF="${workdir}"/softhsm2.conf
 
 ek="80" # 2048 bit key must have highest bit set
 for ((i = 1; i < 256; i++)); do
