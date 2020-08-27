@@ -17,6 +17,8 @@ fi
 NAME=swtpm-test
 PIN=${PIN:-1234}
 SO_PIN=${SO_PIN:-1234}
+SOFTHSM_SETUP_CONFIGDIR=${SOFTHSM_SETUP_CONFIGDIR:-~/.config/softhsm2}
+export SOFTHSM2_CONF=${SOFTHSM_SETUP_CONFIGDIR}/softhsm2.conf
 
 UNAME_S="$(uname -s)"
 
@@ -31,8 +33,8 @@ Darwin)
 esac
 
 teardown_softhsm() {
-	local configdir=~/.config/softhsm2
-	local configfile=${configdir}/softhsm2.conf
+	local configdir=${SOFTHSM_SETUP_CONFIGDIR}
+	local configfile=${SOFTHSM2_CONF}
 	local bakconfigfile=${configfile}.bak
 	local tokendir=${configdir}/tokens
 
@@ -61,8 +63,8 @@ teardown_softhsm() {
 
 setup_softhsm() {
 	local msg tokenuri keyuri
-	local configdir=~/.config/softhsm2
-	local configfile=${configdir}/softhsm2.conf
+	local configdir=${SOFTHSM_SETUP_CONFIGDIR}
+	local configfile=${SOFTHSM2_CONF}
 	local bakconfigfile=${configfile}.bak
 	local tokendir=${configdir}/tokens
 	local rc
