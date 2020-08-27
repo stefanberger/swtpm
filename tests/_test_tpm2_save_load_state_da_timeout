@@ -142,6 +142,7 @@ while :; do
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 01 00 00 00 0a 00 00 09 21'
 	# busy systems may run the above at >= $timeout and get an unexpected result; check time again
+	timenow=$(date +%s)
 	if [ "$RES" != "$exp" ] && [ $timenow -lt $timeout ]; then
 		echo "Error: Did not get expected failure from TPM2_NV_Write() with good password. Lockout should be enabled."
 		echo "expected: $exp"
@@ -284,6 +285,7 @@ while :; do
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 01 00 00 00 0a 00 00 09 21'
 	# busy systems may run the above at >= $timeout and get an unexpected result; check time again
+	timenow=$(date +%s)
 	if [ "$RES" != "$exp" ] && [ $timenow -lt $timeout ]; then
 		echo "Error: Did not get expected failure from TPM2_NV_Write() with good password. Lockout should be enabled."
 		echo "expected: $exp"
