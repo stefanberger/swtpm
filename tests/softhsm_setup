@@ -2,7 +2,7 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-# This script does not work with softhsm2 2.0.0 but with >= 2.3.0
+# This script may not work with softhsm2 2.0.0 but with >= 2.2.0
 
 if [ -z "$(type -P p11tool)" ]; then
 	echo "Need p11tool from gnutls"
@@ -13,48 +13,6 @@ if [ -z "$(type -P softhsm2-util)" ]; then
 	echo "Need softhsm2-util from softhsm2 package"
 	exit 77
 fi
-
-MYKEY="
------BEGIN PRIVATE KEY-----
-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
-ifNpEJG5p2K2AKnYFw6Dt49S
------END PRIVATE KEY-----"
 
 NAME=swtpm-test
 PIN=${PIN:-1234}
@@ -77,6 +35,8 @@ teardown_softhsm() {
 	local configfile=${configdir}/softhsm2.conf
 	local bakconfigfile=${configfile}.bak
 	local tokendir=${configdir}/tokens
+
+	softhsm2-util --token "${NAME}" --delete-token &>/dev/null
 
 	case "${UNAME_S}" in
 	Darwin*)
@@ -159,31 +119,53 @@ _EOF_
 		if [ $? -ne 0 ]; then
 			echo "Could not initialize token"
 			echo "$msg"
-			return 1
+			return 2
 		fi
 
 		slot=$(echo "$msg" | \
 		       sed -n 's/.* reassigned to slot \([0-9]*\)$/\1/p')
 		if [ -z "$slot" ]; then
-			echo "Could not parse slot number from output."
-			echo "$msg"
-			return 1
+			slot=$(softhsm2-util --show-slots | \
+			       grep -E "^Slot " | head -n1 |
+			       sed -n 's/Slot \([0-9]*\)/\1/p')
+			if [ -z "$slot" ]; then
+				echo "Could not parse slot number from output."
+				echo "$msg"
+				return 3
+			fi
 		fi
 
-		msg=$(softhsm2-util \
-			--slot "$slot" --label mykey --id 01 \
-			--import <(echo "${MYKEY}") --pin ${PIN} 2>&1)
+		msg=$(p11tool --list-tokens 2>&1 | \
+			grep "token=${NAME}" | tail -n1)
 		if [ $? -ne 0 ]; then
-			echo "Could not import key"
+			echo "Could not list existing tokens"
 			echo "$msg"
-			return 1
+		fi
+		tokenuri=$(echo "$msg" | sed -n 's/.*URL: \([[:print:]*]\)/\1/p')
+		if [ -z "${tokenuri}" ]; then
+			echo "Could not get tokenuri!"
+			return 4
 		fi
 
+		# more recent versions of p11tool have --generate-privkey ...
+		msg=$(GNUTLS_PIN=$PIN p11tool \
+			--generate-privkey=rsa --label mykey --login \
+			"${tokenuri}" 2>&1)
+		if [ $? -ne 0 ]; then
+			# ... older versions have --generate-rsa
+			msg=$(GNUTLS_PIN=$PIN p11tool \
+				--generate-rsa --label mykey --login \
+				"${tokenuri}" 2>&1)
+			if [ $? -ne 0 ]; then
+				echo "Could not create RSA key!"
+				echo "$msg"
+				return 5
+			fi
+		fi
 	fi
 
-	getkeyuri_softhsm
+	getkeyuri_softhsm $slot
 	rc=$?
-
 	if [ $rc -ne 0 ]; then
 		teardown_softhsm
 	fi
@@ -191,36 +173,61 @@ _EOF_
 	return $rc
 }
 
-getkeyuri_softhsm() {
+_getkeyuri_softhsm() {
 	local msg tokenuri keyuri
 
 	msg=$(p11tool --list-tokens 2>&1 | grep "token=${NAME}")
 	if [ $? -ne 0 ]; then
 		echo "Could not list existing tokens"
 		echo "$msg"
-		return 1
+		return 5
 	fi
 	tokenuri=$(echo "$msg" | sed -n 's/.*URL: \([[:print:]*]\)/\1/p')
 	if [ -z "$tokenuri" ]; then
 		echo "Could not get token URL"
 		echo "$msg"
-		return 1
+		return 6
 	fi
 	msg=$(p11tool --list-all ${tokenuri} 2>&1)
 	if [ $? -ne 0 ]; then
 		echo "Could not list object under token $tokenuri"
 		echo "$msg"
-		return 1
+		softhsm2-util --show-slots
+		return 7
 	fi
 
 	keyuri=$(echo "$msg" | sed -n 's/.*URL: \([[:print:]*]\)/\1/p')
 	if [ -z "$keyuri" ]; then
 		echo "Could not get key URL"
 		echo "$msg"
-		return 1
+		return 8
 	fi
-	echo "keyuri: $keyuri"
+	echo "$keyuri"
 	return 0
+}
+
+getkeyuri_softhsm() {
+	local keyuri rc
+
+	keyuri=$(_getkeyuri_softhsm)
+	rc=$?
+	if [ $rc -ne 0 ]; then
+		return $rc
+	fi
+	echo "keyuri: $keyuri?pin-value=${PIN}&module-name=softhsm2"
+	return 0
+}
+
+getpubkey_softhsm() {
+	local keyuri rc
+
+	keyuri=$(_getkeyuri_softhsm)
+	rc=$?
+	if [ $rc -ne 0 ]; then
+		return $rc
+	fi
+	GNUTLS_PIN=${PIN} p11tool --export-pubkey "${keyuri}" --login 2>/dev/null
+	return $?
 }
 
 usage() {
@@ -232,7 +239,9 @@ Supported commands are:
 setup      : Setup the user's account for softhsm and create a
              token and key with a test configuration
 
-getkeyuri  : Get the key's URL; must be called after setup
+getkeyuri  : Get the key's URL; may only be called after setup
+
+getpubkey  : Get the public key in PEM format; may only be called after setup
 
 teardown   : Remove the temporary softhsm test configuration
 
@@ -254,6 +263,10 @@ main() {
 		;;
 	getkeyuri)
 		getkeyuri_softhsm
+		ret=$?
+		;;
+	getpubkey)
+		getpubkey_softhsm
 		ret=$?
 		;;
 	teardown)
