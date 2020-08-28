@@ -2,22 +2,32 @@ CHANGES - changes for swtpm
 
 version 0.4.0:
   - swtpm:
-    - Invoke print capabilites after choosing TPM version
+    - Invoke print capabilities after choosing TPM version
     - Add some recent syscalls to seccomp blacklist
   - swtpm_cert:
     - Support --ecc-curveid option to pass curve id
   - swtpm_setup & related scripts:
-    - Added support for RSA 3072 keys and ECC NIST P386 curves; default
-      RSA keysize is still 2048;
+    - Rewrite swtpm_setup.sh in python with TPM 1.2 not requiring tcsd
+      and TPM tools anymore; new dependencies:
+      - python3: pip, cryptography, setuptools
+      dropped dependencies for swtpm_setup:
+      - tcsd, expect, tpm-tools (some still needed for pkcs11 tests)
+    - Added support for RSA 3072 keys (for libtpms-0.8.0) and moved to
+      ECC NIST P384 curve; default RSA key size is still 2048
     - Added support for --rsa-keysize option
     - Extend script to create a CA using a TPM 2 for signing
   - tests:
     - Use the IBM TSS2 v1.5.0's test suite
     - Add test case for loading of an NVRAM completely full with keys
-    - various other
+    - Have softhsm_setup use temporary directory for softhsm config & state
+    - various other improvements
+  - man pages:
+    - Improvements
   - build-sys:
     - clang: properly test for linker flag 'now' and 'relro'
     - Gentoo: explicitly link libswtpm_libtpms with -lcrypto
+    - Ownership of /var/lib/swtpm-localca is now tss:root and
+      mode flags 0750.
 
 version 0.3.0:
   - swtpm:
