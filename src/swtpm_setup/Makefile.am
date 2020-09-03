@@ -19,6 +19,7 @@ $(PY_PACKAGE): $(PY_SWTPM_SETUP_FILES)
 
 all-local: $(PY_PACKAGE)
 
+if PYTHON_INSTALLATION
 install-exec-local: $(PY_PACKAGE)
 	@if ! test $(findstring /usr, "$(DESTDIR)$(bindir)"); then \
 		echo "Warning: Not installing python package to $(DESTDIR)$(bindir)"; \
@@ -35,6 +36,7 @@ uninstall-local:
 		echo "Local pip3 uninstall"; \
 		$(PIP3) uninstall -y $(PY_PACKAGE_NAME); \
 	fi
+endif
 
 # for out-of-tree builds we need to clean up
 clean-local:
