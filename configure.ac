@@ -362,7 +362,7 @@ AC_PATH_PROG([PIP3], pip3)
 if test "x$PIP3" = "x"; then
 	AC_PATH_PROG([PIP3], pip)
 	if test "x$PIP3" = "x"; then
-		AC_MSG_ERROR([pip3 is required])
+		AC_MSG_WARN([pip3 is required to uninstall the built package])
 	else
 		AC_MSG_WARN([Using pip as pip3 tool])
 	fi

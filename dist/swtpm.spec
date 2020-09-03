@@ -30,7 +30,6 @@ BuildRequires:  socat
 BuildRequires:  python3
 BuildRequires:  python3-devel
 BuildRequires:  python3-cryptography
-BuildRequires:  python3-pip
 BuildRequires:  python3-setuptools
 BuildRequires:  python3-twisted
 BuildRequires:  softhsm
