@@ -161,7 +161,7 @@ def tpm_get_specs_and_attributes(swtpm):
         tpm_param = json.loads(res)
     except json.decoder.JSONDecodeError as err:
         logerr(LOGFILE, "Internal error: Could not parse '%s' as JSON: %s\n" %
-               (instr, str(err)))
+               (res, str(err)))
         return [], 1
 
     params = ["--tpm-spec-family", tpm_param["TPMSpecification"]["family"],
