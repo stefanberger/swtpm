@@ -10,7 +10,8 @@ A tool for simulating the manufacturing of a TPM 1.2 or 2.0
 # R0914: Too many local variables (21/15) (too-many-locals)
 # R0101: Too many nested blocks (6/5) (too-many-nested-blocks)
 # W0703: Catching too general exception Exception (broad-except)
-# pylint: disable=W0703,R0913,R0914,R0912,R0101
+# C0302: Too many lines in module (1032/1000) (too-many-lines)
+# pylint: disable=W0703,R0913,R0914,R0912,R0101,C0302
 
 #
 # swtpm_setup.py
@@ -28,6 +29,7 @@ import glob
 import grp
 import json
 import os
+import pwd
 import re
 import subprocess
 import sys
@@ -651,6 +653,41 @@ def print_capabilities(swtpm_prg_l):
 
     return 0
 
+def change_process_owner(user):
+    """ change the process owner to the given one """
+    if not user.isnumeric():
+        try:
+            passwd = pwd.getpwnam(user)
+        except KeyError:
+            logerr(LOGFILE, "Error: User '%s' does not exist.\n" % user)
+            return 1
+
+        try:
+            os.initgroups(passwd.pw_name, passwd.pw_gid)
+        except PermissionError as err:
+            logerr(LOGFILE, "Error: initgroups() failed: %s\n" % str(err))
+            return 1
+        gid = passwd.pw_gid
+        uid = passwd.pw_uid
+    else:
+        if int(user) > 0xffffffff:
+            logerr(LOGFILE, "Error: uid %s outside valid range.\n" % user)
+        gid = int(user)
+        uid = int(user)
+
+    try:
+        os.setgid(gid)
+    except PermissionError as err:
+        logerr(LOGFILE, "Error: setgid(%d) failed: %s\n" % (gid, str(err)))
+        return 1
+
+    try:
+        os.setuid(uid)
+    except PermissionError as err:
+        logerr(LOGFILE, "Error: setuid(%d) failed: %s\n" % (uid, str(err)))
+        return 1
+
+    return 0
 
 # pylint: disable=R0915
 def main():
@@ -721,6 +758,7 @@ def main():
     rsa_keysize_str = "%d" % DEFAULT_RSA_KEYSIZE
     swtpm_keyopt = ""
     fds_to_pass = []
+    runas = ""
 
     for opt, arg in opts:
         if opt in ['--tpm-state', '--tpmstate']:
@@ -772,8 +810,7 @@ def main():
         elif opt == '--cipher':
             cipher = arg
         elif opt == '--runas':
-            # ignored here
-            pass
+            runas = arg
         elif opt == '--logfile':
             LOGFILE = arg
         elif opt == '--overwrite':
@@ -815,6 +852,11 @@ def main():
     if printcapabilities:
         ret = print_capabilities(swtpm_prg_l)
         sys.exit(ret)
+
+    if runas:
+        ret = change_process_owner(runas)
+        if ret != 0:
+            sys.exit(1)
 
     if not got_ownerpass:
         flags |= SETUP_OWNERPASS_ZEROS_F

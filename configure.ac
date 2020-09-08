@@ -563,9 +563,10 @@ AC_CONFIG_FILES([Makefile                   \
 		])
 AC_CONFIG_FILES([samples/swtpm-localca],
 		[chmod 755 samples/swtpm-localca])
+AC_CONFIG_FILES([src/swtpm_setup/swtpm_setup],
+                [chmod 755 src/swtpm_setup/swtpm_setup])
 dnl for out-of-tree builds:
-AC_CONFIG_LINKS([src/swtpm_setup/swtpm_setup.sh:src/swtpm_setup/swtpm_setup.sh \
-                 src/swtpm_setup/py_swtpm_setup/__init__.py:src/swtpm_setup/py_swtpm_setup/__init__.py \
+AC_CONFIG_LINKS([src/swtpm_setup/py_swtpm_setup/__init__.py:src/swtpm_setup/py_swtpm_setup/__init__.py \
                  src/swtpm_setup/py_swtpm_setup/swtpm.py:src/swtpm_setup/py_swtpm_setup/swtpm.py \
                  src/swtpm_setup/py_swtpm_setup/swtpm_utils.py:src/swtpm_setup/py_swtpm_setup/swtpm_utils.py \
                  src/swtpm_setup/py_swtpm_setup/swtpm_setup.py:src/swtpm_setup/py_swtpm_setup/swtpm_setup.py])

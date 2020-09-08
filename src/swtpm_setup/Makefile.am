@@ -4,12 +4,7 @@
 # For the license, see the LICENSE file in the root directory.
 #
 
-bin_PROGRAMS = \
-	swtpm_setup
-
-swtpm_setup_SOURCES = swtpm_setup.c
-
-dist_bin_SCRIPTS = swtpm_setup.sh
+dist_bin_SCRIPTS = swtpm_setup
 
 PY_SWTPM_SETUP_FILES = $(wildcard py_swtpm_setup/*.py)
 
@@ -23,13 +18,6 @@ $(PY_PACKAGE): $(PY_SWTPM_SETUP_FILES)
 	./setup.py sdist
 
 all-local: $(PY_PACKAGE)
-
-# for in-tree testing on Cygwin we need to copy swtpm_setup.exe
-# for it to find swtpm_setup.sh
-all:
-	@if test "$(host_os)" = "cygwin"; then \
-		$(CP) -f .libs/swtpm_setup.exe ./ ; \
-	fi
 
 install-exec-local: $(PY_PACKAGE)
 	@if ! test $(findstring /usr, "$(DESTDIR)$(bindir)"); then \
