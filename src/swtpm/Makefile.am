@@ -65,6 +65,9 @@ libswtpm_libtpms_la_CFLAGS = \
 	$(GLIB_CFLAGS) \
 	$(LIBSECCOMP_CFLAGS)
 
+libswtpm_libtpms_la_LDFLAGS = \
+	$(HARDENING_LDFLAGS)
+
 libswtpm_libtpms_la_LIBADD = \
 	$(LIBTPMS_LIBS) \
 	$(GLIB_LIBS) \
@@ -97,6 +100,9 @@ swtpm_CFLAGS = \
 	$(LIBFUSE_CFLAGS) \
 	-DHAVE_SWTPM_CUSE_MAIN
 
+swtpm_LDFLAGS = \
+	$(HARDENING_LDFLAGS)
+
 swtpm_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \
 	$(LIBFUSE_LIBS) \
@@ -115,6 +121,9 @@ swtpm_cuse_CFLAGS = \
 	$(GLIB_CFLAGS) \
 	$(LIBFUSE_CFLAGS) \
 	$(HARDENING_CFLAGS)
+
+swtpm_cuse_LDFLAGS = \
+	$(HARDENING_LDFLAGS)
 
 swtpm_cuse_LDADD = \
 	-L$(PWD)/.libs -lswtpm_libtpms \

@@ -403,7 +403,7 @@ if test "x$enable_hardening" != "xno"; then
 	AC_MSG_CHECKING([whether linker supports -Wl,-z,relro])
 	AC_LINK_IFELSE(
 		[AC_LANG_SOURCE([[int main() { return 0; }]])],
-		[HARDENING_CFLAGS="$HARDENING_CFLAGS -Wl,-z,relro"
+		[HARDENING_LDFLAGS="$HARDENING_LDFLAGS -Wl,-z,relro"
 		 AC_MSG_RESULT(yes)],
 		[AC_MSG_RESULT(no)]
 	)
@@ -411,12 +411,13 @@ if test "x$enable_hardening" != "xno"; then
 	AC_MSG_CHECKING([whether linker supports -Wl,-z,now])
 	AC_LINK_IFELSE(
 		[AC_LANG_SOURCE([[int main() { return 0; }]])],
-		[HARDENING_CFLAGS="$HARDENING_CFLAGS -Wl,-z,now"
+		[HARDENING_LDFLAGS="$HARDENING_LDFLAGS -Wl,-z,now"
 		 AC_MSG_RESULT(yes)],
 		[AC_MSG_RESULT(no)]
 	)
 	CFLAGS="$save_CFLAGS"
 	AC_SUBST([HARDENING_CFLAGS])
+	AC_SUBST([HARDENING_LDFLAGS])
 fi
 
 AC_ARG_ENABLE([test-coverage],
@@ -585,6 +586,7 @@ echo "Crypto library    : $cryptolib"
 echo
 echo "CFLAGS=$CFLAGS"
 echo "HARDENING_CFLAGS=$HARDENING_CFLAGS"
+echo "HARDENING_LDFLAGS=$HARDENING_LDFLAGS"
 echo "LDFLAGS=$LDFLAGS"
 echo "LIBSECCOMP_LIBS=$LIBSECCOMP_LIBS"
 echo
