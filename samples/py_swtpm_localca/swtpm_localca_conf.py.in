@@ -1,0 +1,11 @@
+
+""" swtpm_localca_conf.py
+
+This module holds compile-time constants
+"""
+
+SWTPM_VER_MAJOR = @SWTPM_VER_MAJOR@
+SWTPM_VER_MINOR = @SWTPM_VER_MINOR@
+SWTPM_VER_MICRO = @SWTPM_VER_MICRO@
+
+SYSCONFDIR = "@SYSCONFDIR@"
