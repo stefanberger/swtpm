@@ -328,7 +328,7 @@ create_localca_cert() {
 			local dir=$(dirname "${SIGNKEY}")
 			local cakey=${dir}/swtpm-localca-rootca-privkey.pem
 			local cacert=${dir}/swtpm-localca-rootca-cert.pem
-			local msg
+			local msg password
 
 			# create a CA first
 			msg=$("${CERTTOOL}" \
@@ -363,12 +363,9 @@ create_localca_cert() {
 			}
 
 			# now our signing CA
-			if [ -n "${SIGNKEY_PASSWORD}" ]; then
-				export GNUTLS_PIN=${SIGNKEY_PASSWORD}
-			fi
-
 			msg=$("${CERTTOOL}" \
 				--generate-privkey \
+				${SIGNKEY_PASSWORD:+--password "${SIGNKEY_PASSWORD}"} \
 				--outfile "${SIGNKEY}" \
 				2>&1)
 			[ $? -ne 0 ] && {
@@ -384,11 +381,21 @@ create_localca_cert() {
 			echo "cert_signing_key" >> "${tmp}"
 			echo "expiration_days = 3650" >> "${tmp}"
 
-			msg=$(GNUTLS_PIN="${SWTPM_ROOTCA_PASSWORD}" "${CERTTOOL}" \
+			if [ -n "${SIGNKEY_PASSWORD}" ] && [ -n "${SWTPM_ROOTCA_PASSWORD}" ]; then
+				GNUTLS_PIN="${SIGNKEY_PASSWORD}"
+				password="${SWTPM_ROOTCA_PASSWORD}"
+			elif [ -n "${SIGNKEY_PASSWORD}" ]; then
+				GNUTLS_PIN="${SIGNKEY_PASSWORD}"
+			else
+				GNUTLS_PIN="${SWTPM_ROOTCA_PASSWORD}"
+			fi
+
+			msg=$(GNUTLS_PIN="${GNUTLS_PIN}" "${CERTTOOL}" \
 				--generate-certificate \
 				--template "${tmp}" \
 				--outfile "${ISSUERCERT}" \
 				--load-privkey "${SIGNKEY}" \
+				${password:+--password "${password}"} \
 				--load-ca-privkey "${cakey}" \
 				--load-ca-certificate "${cacert}" \
 				2>&1)
