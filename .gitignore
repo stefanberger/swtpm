@@ -40,8 +40,11 @@ Makefile
 /include/swtpm.h
 /man/man3/*.3
 /man/man8/*.8
+/samples/dist
+/samples/py_swtpm_localca/swtpm_localca_conf.py
 /samples/swtpm-create-user-config-files
 /samples/swtpm-localca
+/samples/swtpm-localca.conf
 /src/selinux/*.pp.bz2
 /src/selinux/swtpm.pp
 /src/selinux/swtpm_svirt.fc

@@ -341,11 +341,6 @@ if test "x$SOCAT" = "x"; then
 	AC_MSG_ERROR([socat is required: socat package])
 fi
 
-AC_PATH_PROG([FLOCK], flock)
-if test "x$FLOCK" = "x"; then
-	AC_MSG_ERROR([flock is required: flock package])
-fi
-
 AC_PATH_PROG([BASE64], base64)
 if test "x$BASE64" = "x"; then
 	AC_MSG_ERROR([base64 is required: base64 package])
@@ -547,6 +542,7 @@ AC_CONFIG_FILES([Makefile                   \
 		etc/Makefile                \
 		etc/swtpm_setup.conf        \
 		samples/Makefile            \
+		samples/py_swtpm_localca/swtpm_localca_conf.py \
 		samples/swtpm-localca.conf  \
 		samples/swtpm-create-user-config-files \
 		include/Makefile            \
@@ -575,6 +571,9 @@ AC_CONFIG_LINKS([src/swtpm_setup/py_swtpm_setup/__init__.py:src/swtpm_setup/py_s
                  src/swtpm_setup/py_swtpm_setup/swtpm.py:src/swtpm_setup/py_swtpm_setup/swtpm.py \
                  src/swtpm_setup/py_swtpm_setup/swtpm_utils.py:src/swtpm_setup/py_swtpm_setup/swtpm_utils.py \
                  src/swtpm_setup/py_swtpm_setup/swtpm_setup.py:src/swtpm_setup/py_swtpm_setup/swtpm_setup.py])
+AC_CONFIG_LINKS([samples/py_swtpm_localca/__init__.py:samples/py_swtpm_localca/__init__.py \
+                 samples/py_swtpm_localca/swtpm_localca.py:samples/py_swtpm_localca/swtpm_localca.py \
+                 samples/py_swtpm_localca/swtpm_utils.py:samples/py_swtpm_localca/swtpm_utils.py])
 AC_OUTPUT
 
 echo
