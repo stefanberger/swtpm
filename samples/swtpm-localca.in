@@ -285,6 +285,8 @@ create_cert() {
 			swtpm_cert \
 			--subject "$subj" \
 			$options \
+			${SIGNKEY_PASSWORD:+--signkey-pwd file:<(echo -en "$SIGNKEY_PASSWORD")} \
+			${PARENTKEY_PASSWORD:+--parentkey-pwd file:<(echo -en "$PARENTKEY_PASSWORD")} \
 			$tpm_attr_params \
 			--type platform \
 			--signkey "${SIGNKEY}" \

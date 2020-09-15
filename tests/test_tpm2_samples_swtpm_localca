@@ -41,6 +41,7 @@ statedir=${workdir}
 signingkey = ${SIGNINGKEY}
 issuercert = ${ISSUERCERT}
 certserial = ${CERTSERIAL}
+signingkey_password = password
 _EOF_
 
 cat <<_EOF_ > "${workdir}/swtpm-localca.options"
@@ -76,6 +77,27 @@ do
   if [ $? -ne 0 ]; then
     echo "Error: Test with parameters '$params' failed."
     exit 1
+  fi
+
+  # Signing key should always be password protected
+  if [ -z "$(grep "ENCRYPTED PRIVATE KEY" "${SIGNINGKEY}")" ]; then
+    echo "Error: Signing key is not password protected."
+    exit 1
+  fi
+
+  # For the root CA's key we flip the password protection
+  if [ -n "${SWTPM_ROOTCA_PASSWORD}" ] ;then
+     if [ -z "$(grep "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
+       echo "Error: Root CA's private key is not password protected."
+       exit 1
+     fi
+     unset SWTPM_ROOTCA_PASSWORD
+  else
+     if [ -n "$(grep "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
+       echo "Error: Root CA's private key is password protected but should not be."
+       exit 1
+     fi
+     export SWTPM_ROOTCA_PASSWORD=xyz
   fi
 
   if [ ! -r "${workdir}/ek.cert" ]; then
@@ -114,6 +136,9 @@ do
     echo "Error: Could not verify certificate chain."
     exit 1
   fi
+
+  # Delete all keys to have CA re-created
+  rm -rf "${workdir}"/*.pem
 done
 
 echo "Test 1: OK"
