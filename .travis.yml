@@ -90,6 +90,7 @@ matrix:
            SWTPM_TEST_IBMTSS2="1"
       after_success:
       - pylint3 --max-line-length=100 src/swtpm_setup/py_swtpm_setup/*.py || exit 1;
+      - pylint3 --max-line-length=100 samples/py_swtpm_localca/*.py || exit 1;
       before_script:
       - sudo apt-get -y install tss2
       - sudo pip install cpp-coveralls
@@ -149,8 +150,6 @@ matrix:
       - HOMEBREW_NO_AUTO_UPDATE=1 brew install glib
       - HOMEBREW_NO_AUTO_UPDATE=1 brew install gawk
       - HOMEBREW_NO_AUTO_UPDATE=1 brew install gmp
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew tap discoteq/discoteq
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew install flock
       - HOMEBREW_NO_AUTO_UPDATE=1 brew install socat
       # To run the pkcs11 test with softhsm we need SUDO (above)
       - HOMEBREW_NO_AUTO_UPDATE=1 brew install softhsm
