@@ -52,6 +52,15 @@ used.
 This variable can be set to the port on which  B<tcsd> is listening for
 connections. By default port I<30003> will be used.
 
+=item B<env:<environment variable name>=<value>>
+
+Environment variables, that are needed by pkcs11 modules, can be set using
+this format. An example for such an environment variable may look like this:
+
+    env:MY_MODULE_PKCS11_CONFIG = /tmp/mymodule-pkcs11.conf
+
+The line must not contain any trailing spaces.
+
 =back
 
 =head1 EXAMPLE
