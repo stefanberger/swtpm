@@ -21,6 +21,7 @@ A tool for creating TPM 1.2 and TPM 2 certificates localy or using pkcs11
 # (c) Copyright IBM Corporation 2020
 #
 
+import codecs
 import fcntl
 import getopt
 import getpass
@@ -94,6 +95,27 @@ def get_config_value(lines, configname, default=None):
         if match:
             return resolve_string(match.groups()[0])
     return default
+
+
+def get_config_envvars(lines):
+    """ Extract all environment variables from the config file and return a map.
+        Environment variable lines must start with 'env:' and must not contain
+        trailing spaces or a comment starting with '#' """
+    res = {}
+
+    regex = r"^env:([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([^\n]*).*"
+    for line in lines:
+        match = re.match(regex, line)
+        if match:
+            try:
+                encoded = codecs.encode(match.group(2), "latin-1", "backslashreplace")
+                res[match.group(1)] = codecs.decode(encoded, "unicode_escape")
+            except Exception as err:
+                logerr(LOGFILE, "Invalid character in value of %s environment variable: %s\n" %
+                       (match.group(1), str(err)))
+                return {}, 1
+
+    return res, 0
 
 
 def write_file(filename, text):
@@ -630,6 +652,11 @@ def main():
             swtpm_pkcs11_pin = get_config_value(lines, "SWTPM_PKCS11_PIN", "swtpm-tpmca")
             swtpm_cert_env["SWTPM_PKCS11_PIN"] = swtpm_pkcs11_pin
             logit(LOGFILE, "CA uses a PKCS#11 key; using SWTPM_PKCS11_PIN\n")
+        # Get additional environment variables pkcs11 modules may need
+        envvars, ret = get_config_envvars(lines)
+        if ret != 0:
+            sys.exit(1)
+        swtpm_cert_env.update(envvars)
     else:
         # if signkey does not exists it will be created...
         if not os.access(signkey, os.R_OK):
