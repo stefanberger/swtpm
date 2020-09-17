@@ -10,6 +10,10 @@ for the I<swtpm-localca> program.
 Entries may contain shell variables that will be resolved. All shell
 variables must be formatted like this: '${varname}'.
 
+Users may write their own configuration into
+I<${XDG_CONFIG_HOME}/swtpm-localca.conf> or if XDG_CONFIG_HOME
+is not set it may be in I<${HOME}/.config/swtpm-localca.conf>.
+
 The following configuration variables are supported:
 
 =over 4

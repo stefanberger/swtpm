@@ -5,10 +5,14 @@ swtpm_setup.conf - Configuration file for swtpm_setup
 =head1 DESCRIPTION
 
 The file I</etc/swtpm_setup.conf> contains configuration information for
-the swtpm_setup and swtpm_setup.sh programs. It must only contain
+swtpm_setup. It must only contain
 one configuration keyword per line, followed by an equals sign (=) and then
 followed by appropriate configuration information. A comment at the
 end of the line may be introduced by a hash (#) sign.
+
+Users may write their own configuration into
+I<${XDG_CONFIG_HOME}/swtpm_setup.conf> or if XDG_CONFIG_HOME
+is not set it may be in I<${HOME}/.config/swtpm_setup.conf>.
 
 The following keywords are recognized:
 
