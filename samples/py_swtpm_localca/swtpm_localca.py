@@ -623,9 +623,13 @@ def main():
 			"TSS_TCSD_PORT=%s\n" % (tss_tcsd_hostname, tss_tcsd_port))
     elif signkey.startswith("pkcs11:"):
         signkey = signkey.replace(r"\;", ";")
-        swtpm_pkcs11_pin = get_config_value(lines, "SWTPM_PKCS11_PIN", "swtpm-tpmca")
-        swtpm_cert_env["SWTPM_PKCS11_PIN"] = swtpm_pkcs11_pin
-        logit(LOGFILE, "CA uses a PKCS#11 key; using SWTPM_PKCS11_PIN\n")
+        if signkey_password:
+            swtpm_cert_env["SWTPM_PKCS11_PIN"] = signkey_password
+            logit(LOGFILE, "CA uses a PKCS#11 key; using password from 'signingkey_password'\n")
+        else:
+            swtpm_pkcs11_pin = get_config_value(lines, "SWTPM_PKCS11_PIN", "swtpm-tpmca")
+            swtpm_cert_env["SWTPM_PKCS11_PIN"] = swtpm_pkcs11_pin
+            logit(LOGFILE, "CA uses a PKCS#11 key; using SWTPM_PKCS11_PIN\n")
     else:
         # if signkey does not exists it will be created...
         if not os.access(signkey, os.R_OK):
