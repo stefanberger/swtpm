@@ -64,8 +64,8 @@ XCH = os.getenv('XDG_CONFIG_HOME')
 HOME = os.getenv('HOME')
 if XCH and os.access(os.path.join(XCH, SWTPM_SETUP_CONF), os.R_OK):
     DEFAULT_CONFIG_FILE = os.path.join(XCH, SWTPM_SETUP_CONF)
-elif HOME and os.access(os.path.join(HOME, SWTPM_SETUP_CONF), os.R_OK):
-    DEFAULT_CONFIG_FILE = os.path.join(HOME, SWTPM_SETUP_CONF)
+elif HOME and os.access(os.path.join(HOME, ".config", SWTPM_SETUP_CONF), os.R_OK):
+    DEFAULT_CONFIG_FILE = os.path.join(HOME, ".config", SWTPM_SETUP_CONF)
 else:
     DEFAULT_CONFIG_FILE = os.path.join(os.sep + 'etc', SWTPM_SETUP_CONF)
 
