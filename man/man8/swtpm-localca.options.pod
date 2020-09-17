@@ -9,6 +9,10 @@ to pass to the I<swtpm_cert> program and should hold options
 that apply to the creation of all TPM Endorsement Key (EK) and platform
 certificates.
 
+Users may write their own options into
+I<${XDG_CONFIG_HOME}/swtpm-localca.options> or if XDG_CONFIG_HOME
+is not set it may be in I<${HOME}/.config/swtpm-localca.options>.
+
 =head1 EXAMPLE
 
 An example I<swtpm-localca.options> file may look as follows:
