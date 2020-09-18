@@ -251,6 +251,7 @@ def create_localca_cert(lockfile, statedir, signkey, signkey_password, issuercer
                 }
                 if swtpm_rootca_password:
                     certtool_env["GNUTLS_PIN"] = swtpm_rootca_password
+                    cmd.extend(["--password", swtpm_rootca_password]) # older GnuTLS
 
                 try:
                     proc = subprocess.Popen(cmd, env=certtool_env,
@@ -311,11 +312,13 @@ def create_localca_cert(lockfile, statedir, signkey, signkey_password, issuercer
                 }
                 if signkey_password and swtpm_rootca_password:
                     certtool_env["GNUTLS_PIN"] = signkey_password
-                    cmd.extend(["--password", swtpm_rootca_password])
+                    cmd.extend(["--password", swtpm_rootca_password]) # older GnutLS
                 elif signkey_password:
                     certtool_env["GNUTLS_PIN"] = signkey_password
+                    cmd.extend(["--password", signkey_password]) # older GnuTLS
                 elif swtpm_rootca_password:
                     certtool_env["GNUTLS_PIN"] = swtpm_rootca_password
+                    cmd.extend(["--password", swtpm_rootca_password]) # older GnuTLS
 
                 try:
                     proc = subprocess.Popen(cmd, env=certtool_env,
