@@ -699,7 +699,7 @@ def main():
         swtpm_prg += " socket"
 
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], "",
+        opts, _ = getopt.getopt(sys.argv[1:], "h?",
                                 ["tpm-state=", "tpmstate=",
                                  "tpm=",
                                  "swtpm_ioctl=",
@@ -734,7 +734,7 @@ def main():
                                  "tcsd-system-ps-file",
                                  "version",
                                  "print-capabilities",
-                                 "help", "h"])
+                                 "help"])
     except getopt.GetoptError as err:
         print(err)
         usage(sys.argv[0])
