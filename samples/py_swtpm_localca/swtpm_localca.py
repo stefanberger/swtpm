@@ -512,7 +512,7 @@ def main():
     global LOGFILE # pylint: disable=W0603
 
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], "",
+        opts, _ = getopt.getopt(sys.argv[1:], "h?",
                                 ["type=",
                                  "ek=",
                                  "dir=",
@@ -529,7 +529,7 @@ def main():
                                  "tpm2",
                                  "allow-signing",
                                  "decryption",
-                                 "help", "h", "-?"])
+                                 "help"])
     except getopt.GetoptError as err:
         print(err)
         usage(sys.argv[0])
