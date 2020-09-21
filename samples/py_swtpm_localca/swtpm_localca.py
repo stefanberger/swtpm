@@ -217,6 +217,7 @@ def create_localca_cert(lockfile, statedir, signkey, signkey_password, issuercer
             # First the root CA
             cmd = [certtool, "--generate-privkey", "--outfile", cakey]
             if swtpm_rootca_password:
+                # neither env. variable nor template file work...
                 cmd.extend(["--password", swtpm_rootca_password])
 
             try:
@@ -234,11 +235,12 @@ def create_localca_cert(lockfile, statedir, signkey, signkey_password, issuercer
 
             temp = tempfile.NamedTemporaryFile()
             try:
-                temp.write(
-                    "cn=swtpm-localca-rootca\n"
-                    "ca\n"
-                    "cert_signing_key\n"
-                    "expiration_days = 3650\n".encode())
+                filecontent = \
+                    "cn=swtpm-localca-rootca\n" \
+                    "ca\n" \
+                    "cert_signing_key\n" \
+                    "expiration_days = 3650\n"
+                temp.write(filecontent.encode())
                 temp.seek(0)
                 cmd = [certtool,
                        "--generate-self-signed",
@@ -251,7 +253,6 @@ def create_localca_cert(lockfile, statedir, signkey, signkey_password, issuercer
                 }
                 if swtpm_rootca_password:
                     certtool_env["GNUTLS_PIN"] = swtpm_rootca_password
-                    cmd.extend(["--password", swtpm_rootca_password]) # older GnuTLS
 
                 try:
                     proc = subprocess.Popen(cmd, env=certtool_env,
@@ -292,11 +293,14 @@ def create_localca_cert(lockfile, statedir, signkey, signkey_password, issuercer
 
             temp = tempfile.NamedTemporaryFile()
             try:
-                temp.write(
-                    "cn=swtpm-localca\n"
-                    "ca\n"
-                    "cert_signing_key\n"
-                    "expiration_days = 3650\n".encode())
+                filecontent = \
+                    "cn=swtpm-localca\n" \
+                    "ca\n" \
+                    "cert_signing_key\n" \
+                    "expiration_days = 3650\n"
+                if swtpm_rootca_password and signkey_password:
+                    filecontent += "password = %s\n" % swtpm_rootca_password
+                temp.write(filecontent.encode())
                 temp.seek(0)
 
                 cmd = [certtool,
@@ -310,15 +314,10 @@ def create_localca_cert(lockfile, statedir, signkey, signkey_password, issuercer
                 certtool_env = {
                     "PATH": os.getenv("PATH")
                 }
-                if signkey_password and swtpm_rootca_password:
+                if signkey_password:
                     certtool_env["GNUTLS_PIN"] = signkey_password
-                    cmd.extend(["--password", swtpm_rootca_password]) # older GnutLS
-                elif signkey_password:
-                    certtool_env["GNUTLS_PIN"] = signkey_password
-                    cmd.extend(["--password", signkey_password]) # older GnuTLS
                 elif swtpm_rootca_password:
                     certtool_env["GNUTLS_PIN"] = swtpm_rootca_password
-                    cmd.extend(["--password", swtpm_rootca_password]) # older GnuTLS
 
                 try:
                     proc = subprocess.Popen(cmd, env=certtool_env,
