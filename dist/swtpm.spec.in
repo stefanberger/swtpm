@@ -147,7 +147,6 @@ fi
 %{_bindir}/swtpm_cert
 %endif
 %{_bindir}/swtpm_setup
-%{_bindir}/swtpm_setup.sh
 %{_bindir}/swtpm_ioctl
 %{_mandir}/man8/swtpm_bios.8*
 %{_mandir}/man8/swtpm_cert.8*
@@ -166,6 +165,8 @@ fi
 %{_datadir}/swtpm/swtpm-create-user-config-files
 %{python3_sitelib}/py_swtpm_setup/*
 %{python3_sitelib}/swtpm_setup-*/*
+%{python3_sitelib}/py_swtpm_localca/*
+%{python3_sitelib}/swtpm_localca-*/*
 %attr( 750, @TSS_USER@, root) %{_localstatedir}/lib/swtpm-localca
 
 %changelog
