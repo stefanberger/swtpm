@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 if [ -z "${XDG_CONFIG_HOME}" ]; then
-	echo "Environment variable XDG_CONFIG_HOME is not set."
-	exit 1
+	echo "Environment variable XDG_CONFIG_HOME is not set. Using \${HOME}/.config."
+	XDG_CONFIG_HOME="${HOME}/.config"
 fi
 
 SWTPM_LOCALCA_DIR="${XDG_CONFIG_HOME}/var/lib/swtpm-localca"
