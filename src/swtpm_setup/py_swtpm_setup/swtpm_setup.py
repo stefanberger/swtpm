@@ -34,7 +34,7 @@ import sys
 
 from py_swtpm_setup.swtpm_utils import logit, logerr, sha1
 from py_swtpm_setup.swtpm_setup_conf import SWTPM_VER_MAJOR, SWTPM_VER_MINOR, \
-                                            SWTPM_VER_MICRO
+                                            SWTPM_VER_MICRO, SYSCONFDIR
 from py_swtpm_setup.swtpm import Swtpm2, Swtpm12
 
 # default values for passwords
@@ -67,7 +67,7 @@ if XCH and os.access(os.path.join(XCH, SWTPM_SETUP_CONF), os.R_OK):
 elif HOME and os.access(os.path.join(HOME, ".config", SWTPM_SETUP_CONF), os.R_OK):
     DEFAULT_CONFIG_FILE = os.path.join(HOME, ".config", SWTPM_SETUP_CONF)
 else:
-    DEFAULT_CONFIG_FILE = os.path.join(os.sep + 'etc', SWTPM_SETUP_CONF)
+    DEFAULT_CONFIG_FILE = os.path.join(os.sep + SYSCONFDIR, SWTPM_SETUP_CONF)
 
 # default PCR banks to activate for TPM 2
 DEFAULT_PCR_BANKS = "sha1,sha256"
