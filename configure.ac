@@ -168,7 +168,7 @@ PKG_CHECK_MODULES(
 	,
 	AC_MSG_ERROR("no libtpms.pc found; please set PKG_CONFIG_PATH to the directory where libtpms.pc is located")
 )
-LDFLAGS="$LDFLAGS $LIBTPMS_LDFLAGS"
+LDFLAGS="$LDFLAGS $LIBTPMS_LIBS"
 CFLAGS="$CFLAGS $LIBTPMS_CFLAGS"
 AC_CHECK_LIB(tpms,
              TPMLIB_ChooseTPMVersion,[true],
