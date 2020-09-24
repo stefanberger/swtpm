@@ -1,5 +1,14 @@
 CHANGES - changes for swtpm
 
+version 0.4.1:
+  - swtpm_setup:
+    - Do not hardcode '/etc' but use SYSCONFDIR
+    - Fix support for -h and -? options
+    - Add missing .config path when using ${HOME}
+  - swtpm-localca:
+    - Apply password for signing key when creating platform cert
+    - Properly apply passwords for localca signing key
+
 version 0.4.0:
   - swtpm:
     - Invoke print capabilities after choosing TPM version
