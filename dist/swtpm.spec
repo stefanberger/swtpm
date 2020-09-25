@@ -1,6 +1,6 @@
 %bcond_without gnutls
 
-%global gitdate     20200828
+%global gitdate     20200925
 %global gitcommit   enter_commit_here
 %global gitshortcommit  %(c=%{gitcommit}; echo ${c:0:7})
 
@@ -170,6 +170,9 @@ fi
 %attr( 750, tss, root) %{_localstatedir}/lib/swtpm-localca
 
 %changelog
+* Fri Sep 25 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.4.1-20200925git-------
+- v0.4.1 release
+
 * Fri Aug 28 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.4.0-20200218git-------
 - v0.4.0 release
 
