@@ -177,7 +177,6 @@ int main(int argc, char *argv[])
     char *dir;
     char *path_program;
     size_t length;
-    struct passwd *passwd = NULL;
     int i = 1, j;
     const char *userid = NULL;
     bool change_user = true;
@@ -285,11 +284,6 @@ skip:
      * need to pass unmodified argv to swtpm_setup.sh
      */
     execv(path_program, argv);
-
-    if (passwd) {
-        /* should never get here */
-        fprintf(stderr, "As user %s:", passwd->pw_name);
-    }
 
     fprintf(stderr, "Could not execute '%s' : %s\n",
             path_program, strerror(errno));
