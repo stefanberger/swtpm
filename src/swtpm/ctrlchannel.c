@@ -172,15 +172,15 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
     iov[0].iov_len = offsetof(ptm_getstate, u.resp.data);
     iovcnt = 1;
 
-    TPM_PrintAll(" Ctrl Rsp:", " ", iov[0].iov_base, iov[0].iov_len);
+    SWTPM_PrintAll(" Ctrl Rsp:", " ", iov[0].iov_base, iov[0].iov_len);
 
     if (res == 0 && return_length) {
         iov[1].iov_base = &blob[offset];
         iov[1].iov_len = return_length;
         iovcnt = 2;
 
-        TPM_PrintAll(" Ctrl Rsp Continued:", " ",
-                     iov[1].iov_base, min(iov[1].iov_len, 1024));
+        SWTPM_PrintAll(" Ctrl Rsp Continued:", " ",
+                       iov[1].iov_base, min(iov[1].iov_len, 1024));
     }
 
     n = writev_full(fd, iov, iovcnt);
@@ -532,7 +532,7 @@ int ctrlchannel_process_fd(int fd,
         goto err_socket;
     }
 
-    TPM_PrintAll(" Ctrl Cmd:", " ", msg.msg_iov->iov_base, min(n, 1024));
+    SWTPM_PrintAll(" Ctrl Cmd:", " ", msg.msg_iov->iov_base, min(n, 1024));
 
     if ((size_t)n < sizeof(input.cmd)) {
         goto err_bad_input;
@@ -867,7 +867,7 @@ int ctrlchannel_process_fd(int fd,
     }
 
 send_resp:
-    TPM_PrintAll(" Ctrl Rsp:", " ", output.body, min(out_len, 1024));
+    SWTPM_PrintAll(" Ctrl Rsp:", " ", output.body, min(out_len, 1024));
 
     n = write_full(fd, output.body, out_len);
     if (n < 0) {

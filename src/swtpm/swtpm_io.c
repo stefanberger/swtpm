@@ -114,7 +114,7 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
     }
 
     *bufferLength = offset;
-    TPM_PrintAll(" SWTPM_IO_Read:", " ", buffer, *bufferLength);
+    SWTPM_PrintAll(" SWTPM_IO_Read:", " ", buffer, *bufferLength);
 
     return 0;
 }
@@ -212,8 +212,8 @@ TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write 
     size_t      totlen = 0;
     int         i;
 
-    TPM_PrintAll(" SWTPM_IO_Write:", " ",
-                 iovec[1].iov_base, iovec[1].iov_len);
+    SWTPM_PrintAll(" SWTPM_IO_Write:", " ",
+                   iovec[1].iov_base, iovec[1].iov_len);
 
     /* test that connection is open to write */
     if (connection_fd->fd < 0) {
