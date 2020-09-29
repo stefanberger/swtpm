@@ -50,14 +50,14 @@
 #include "logging.h"
 
 /*
- * TPM_AppendPrintf() print and append to buffer
+ * SWTPM_AppendPrintf() print and append to buffer
  *
  * @buffer: pointer to existing buffer or pointer to NULL to start a new buffer
  * @fmt: typical printf fmt
  * @...: varagr printf parameters
  *
  */
-static int TPM_AppendPrintf(char **buffer, const char *fmt, ...)
+static int SWTPM_AppendPrintf(char **buffer, const char *fmt, ...)
 {
     va_list ap;
     int n, len = 0;
@@ -89,10 +89,10 @@ static int TPM_AppendPrintf(char **buffer, const char *fmt, ...)
     return len + n;
 }
 
-/* TPM_PrintAll() prints 'string', the length, and then the entire byte array
+/* SWTPM_PrintAll() prints 'string', the length, and then the entire byte array
  */
-void TPM_PrintAll(const char *string, const char *indentation,
-                  const unsigned char* buff, uint32_t length)
+void SWTPM_PrintAll(const char *string, const char *indentation,
+                    const unsigned char* buff, uint32_t length)
 {
     uint32_t i;
     int indent;
@@ -105,21 +105,21 @@ void TPM_PrintAll(const char *string, const char *indentation,
     if (buff != NULL) {
         logprintf(STDERR_FILENO, "%s length %u\n", string, length);
 
-        TPM_AppendPrintf(&linebuffer, "%s", indentation);
+        SWTPM_AppendPrintf(&linebuffer, "%s", indentation);
         for (i = 0 ; i < length ; i++) {
             if (i && !( i % 16 )) {
-                TPM_AppendPrintf(&linebuffer, "\n");
+                SWTPM_AppendPrintf(&linebuffer, "\n");
 
                 logprintfA(STDERR_FILENO, 0, linebuffer);
 
                 free(linebuffer);
                 linebuffer = NULL;
-                TPM_AppendPrintf(&linebuffer, "%s", indentation);
+                SWTPM_AppendPrintf(&linebuffer, "%s", indentation);
             }
 
-            TPM_AppendPrintf(&linebuffer, "%.2X ", buff[i]);
+            SWTPM_AppendPrintf(&linebuffer, "%.2X ", buff[i]);
         }
-        TPM_AppendPrintf(&linebuffer, "\n");
+        SWTPM_AppendPrintf(&linebuffer, "\n");
         logprintf(STDERR_FILENO, "%s", linebuffer);
         free(linebuffer);
     }
