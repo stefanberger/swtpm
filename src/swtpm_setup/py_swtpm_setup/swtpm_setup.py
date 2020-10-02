@@ -568,6 +568,9 @@ def usage(prgname):
         "--tcsd-system-ps-file <file>\n"
         "                 : This option is deprecated and has no effect.\n"
         "\n"
+        "--print-capabilities\n"
+        "                 : Print JSON formatted capabilites added after v0.1 and exit.\n"
+        "\n"
         "--version        : Display version and exit\n"
         "\n"
         "--help,-h,-?     : Display this help screen".format_map({
