@@ -202,13 +202,22 @@ function wait_port_open()
 	local timeout=$3
 
 	local loops=$((timeout * 10)) loop
+	local NETSTAT=$(type -P netstat)
 
 	for ((loop = 0; loop < loops; loop++)); do
-		if [ -n "$(netstat -naptl 2>/dev/null |
-			   grep "LISTEN" |
-			   grep " $pid/" |
-			   grep ":$port ")" ]; then
-			return 1
+		if [ -n "$NETSTAT" ]; then
+			if [ -n "$(netstat -naptl 2>/dev/null |
+				   grep "LISTEN" |
+				   grep " $pid/" |
+				   grep ":$port ")" ]; then
+				return 1
+			fi
+		else
+			if [ -n "$(ss -nptl |
+				   grep ",pid=${pid}," |
+				   grep ":$port ")" ]; then
+				return 1
+			fi
 		fi
 		sleep 0.1
 	done
@@ -226,13 +235,22 @@ function wait_port_closed()
 	local timeout=$3
 
 	local loops=$((timeout * 10)) loop
+	local NETSTAT=$(type -P netstat)
 
 	for ((loop = 0; loop < loops; loop++)); do
-		if [ -z "$(netstat -naptl 2>/dev/null |
-			   grep "LISTEN" |
-			   grep " $pid/" |
-			   grep ":$port ")" ]; then
-			return 1
+		if [ -n "$NETSTAT" ]; then
+			if [ -z "$(netstat -naptl 2>/dev/null |
+				   grep "LISTEN" |
+				   grep " $pid/" |
+				   grep ":$port ")" ]; then
+				return 1
+			fi
+		else
+			if [ -z "$(ss -nptl |
+				   grep ",pid=${pid}," |
+				   grep ":$port ")" ]; then
+				return 1
+			fi
 		fi
 		sleep 0.1
 	done

@@ -188,15 +188,14 @@ else
 fi
 AM_CONDITIONAL([HAVE_TCSD], test "$have_tcsd" != "no")
 
-dnl If we have the tcsd package, we can build swtpm_setup, but need netstat also
+dnl We either need netstat (more common across systems) or 'ss' for test cases
 AC_PATH_PROG([NETSTAT], [netstat])
-case $host_os in
-linux-*)
-    if test "x$NETSTAT" = "x" && test "$have_tcsd" != "no"; then
-        AC_MSG_ERROR([netstat tool is missing for tests: net-tools package])
-    fi
-    ;;
-esac
+if test "x$NETSTAT" = "x"; then
+	AC_PATH_PROG([SS], [ss])
+	if test "x$SS" = "x"; then
+		AC_MSG_ERROR(['netstat' and 'ss' tools are missing for tests: net-tools OR iproute/iproute2 package])
+	fi
+fi
 
 AC_MSG_CHECKING([for whether to build with CUSE interface])
 AC_ARG_WITH([cuse],
