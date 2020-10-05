@@ -19,22 +19,28 @@ $(PY_PACKAGE): $(PY_SWTPM_SETUP_FILES)
 
 all-local: $(PY_PACKAGE)
 
+python-install: $(PY_PACKAGE)
+	echo "Installing python to DESTDIR '/$(DESTDIR)'"
+	./setup.py install --prefix=$(prefix) --root "/$(DESTDIR)" --install-layout deb 2>/dev/null || \
+		./setup.py install --prefix=$(prefix) --root "/$(DESTDIR)" 2>/dev/null
+
+python-uninstall:
+	echo "Local pip3 uninstall"
+	$(PIP3) uninstall -y $(PY_PACKAGE_NAME)
+
 if PYTHON_INSTALLATION
 install-exec-local: $(PY_PACKAGE)
 	@if ! test $(findstring /usr, "$(DESTDIR)$(bindir)"); then \
 		echo "Warning: Not installing python package to $(DESTDIR)$(bindir)"; \
 	else \
-		echo "Installing python to DESTDIR '/$(DESTDIR)'"; \
-		./setup.py install --prefix=$(prefix) --root "/$(DESTDIR)" --install-layout deb 2>/dev/null || \
-		./setup.py install --prefix=$(prefix) --root "/$(DESTDIR)" 2>/dev/null ; \
+		$(MAKE) python-install; \
 	fi
 
 uninstall-local:
 	@if ! test $(findstring /usr, "$(DESTDIR)$(bindir)"); then \
 		echo "Cleanup for distcheck build not implemented" ; \
 	else \
-		echo "Local pip3 uninstall"; \
-		$(PIP3) uninstall -y $(PY_PACKAGE_NAME); \
+		$(MAKE) python-uninstall; \
 	fi
 endif
 
