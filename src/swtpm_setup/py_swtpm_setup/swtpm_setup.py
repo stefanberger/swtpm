@@ -837,7 +837,7 @@ def main():
 
     if len(LOGFILE) > 0:
         try:
-            fobj = open(LOGFILE, "w")
+            fobj = open(LOGFILE, "a") # do not truncate
             fobj.close()
         except PermissionError:
             sys.stderr.write("Cannot write to logfile %s.\n", LOGFILE)
