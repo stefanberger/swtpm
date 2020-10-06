@@ -452,6 +452,21 @@ def check_state_overwrite(flags, tpm_state_path):
     return 0
 
 
+def delete_state(flags, tpm_state_path):
+    """ Delete the TPM's state file """
+    if flags & SETUP_TPM2_F:
+        statefile = "tpm2-00.permall"
+    else:
+        statefile = "tpm-00.permall"
+
+    filepath = os.path.join(tpm_state_path, statefile)
+    try:
+        os.unlink(os.path.join(tpm_state_path, statefile))
+    except Exception as err:
+        logerr(LOGFILE, "Could not remove state file %s: %s\n" % \
+               (filepath, str(err)))
+
+
 def versioninfo():
     """ Display version info """
     print('TPM emulator setup tool version %d.%d.%d' %
@@ -1025,6 +1040,7 @@ def main():
         logit(LOGFILE, "Successfully authored TPM state.\n")
     else:
         logerr(LOGFILE, "An error occurred. Authoring the TPM state failed.\n")
+        delete_state(flags, tpm_state_path)
 
     logit(LOGFILE, "Ending vTPM manufacturing @ %s\n" %
           datetime.datetime.now(tz=tzinfo).strftime("%a %d %h %Y %I:%M:%S %p %Z"))
