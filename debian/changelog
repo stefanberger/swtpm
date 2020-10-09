@@ -1,3 +1,9 @@
+swtpm (0.6.0~dev1) UNRELEASED; urgency=medium
+
+  * Developer release 1
+
+ -- Stefan Berger <stefanb@linux.ibm.com>  Fri, 09 Oct 2020 14:14:00 -0500
+
 swtpm (0.5.0) RELEASED; urgency=medium
 
   * Stable release
