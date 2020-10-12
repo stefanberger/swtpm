@@ -221,9 +221,10 @@ static const char *usage =
 "                       instead;\n"
 "                       mode allows a user to set the file mode bits of the state\n"
 "                       files; the default mode is 0640;\n"
-"--flags [not-need-init]\n"
+"--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none]\n"
 "                    :  not-need-init: commands can be sent without needing to\n"
 "                       send an INIT via control channel;\n"
+"                       startup-...: send Startup command with this type;\n"
 "-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
 "                       user\n"
 "--tpm2              :  choose TPM2 functionality\n"
@@ -488,6 +489,35 @@ static void ptm_write_fatal_error_response(TPMLIB_TPMVersion l_tpmversion)
                                       &ptm_res_len,
                                       &ptm_res_tot,
                                       l_tpmversion);
+}
+
+/*
+ * ptm_send_startup: Send a TPM/TPM2_Startup
+ */
+static int ptm_send_startup(uint16_t startupType, TPMLIB_TPMVersion l_tpmversion)
+{
+    uint32_t command_length;
+    unsigned char command[sizeof(struct tpm_startup)];
+    uint32_t max_command_length = sizeof(command);
+    int ret = 0;
+    TPM_RESULT rc = TPM_SUCCESS;
+
+    command_length = tpmlib_create_startup_cmd(
+                               startupType,
+                               tpmversion,
+                               command, max_command_length);
+    if (command_length > 0)
+        rc = TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
+                           (unsigned char *)command, command_length);
+
+    if (rc || command_length == 0) {
+        if (rc) {
+            logprintf(STDERR_FILENO, "Could not send Startup: 0x%x\n", rc);
+            ret = -1;
+        }
+    }
+
+    return ret;
 }
 
 /************************************ read() support ***************************/
@@ -1640,10 +1670,10 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     }
 
     if (param.startupType != _TPM_ST_NONE) {
-        logprintf(STDERR_FILENO,
-                  "--flags with startup types are not supported\n");
-        ret = -1;
-        goto exit;
+        if (ptm_send_startup(param.startupType, tpmversion) < 0) {
+            ret = -1;
+            goto exit;
+        }
     }
 
 #if GLIB_MINOR_VERSION >= 32
