@@ -134,6 +134,8 @@ struct cuse_param {
     char *localitydata;
     char *seccompdata;
     unsigned int seccomp_action;
+    char *flagsdata;
+    uint16_t startupType;
 };
 
 /* single message to send to the worker thread */
@@ -219,6 +221,9 @@ static const char *usage =
 "                       instead;\n"
 "                       mode allows a user to set the file mode bits of the state\n"
 "                       files; the default mode is 0640;\n"
+"--flags [not-need-init]\n"
+"                    :  not-need-init: commands can be sent without needing to\n"
+"                       send an INIT via control channel;\n"
 "-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
 "                       user\n"
 "--tpm2              :  choose TPM2 functionality\n"
@@ -1394,6 +1399,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {"migration-key" , required_argument, 0, 'K'},
         {"pid"           , required_argument, 0, 'p'},
         {"tpmstate"      , required_argument, 0, 's'},
+        {"flags"         , required_argument, 0, 'F'},
         {"tpm2"          ,       no_argument, 0, '2'},
         {"help"          ,       no_argument, 0, 'h'},
         {"version"       ,       no_argument, 0, 'v'},
@@ -1405,7 +1411,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {NULL            , 0                , 0, 0  },
     };
     struct cuse_info cinfo;
-    struct cuse_param param;
+    struct cuse_param param = {
+        .startupType = _TPM_ST_NONE,
+    };
     const char *devname = NULL;
     char *cinfo_argv[1] = { 0 };
     unsigned int num;
@@ -1415,6 +1423,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     char path[PATH_MAX];
     int ret = 0;
     bool printcapabilities = false;
+    bool need_init_cmd = true;
+    TPM_RESULT res;
 
     memset(&cinfo, 0, sizeof(cinfo));
     memset(&param, 0, sizeof(param));
@@ -1496,6 +1506,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case 'L':
             param.localitydata = optarg;
             break;
+        case 'F':
+            param.flagsdata = optarg;
+            break;
         case '2':
             tpmversion = TPMLIB_TPM_VERSION_2;
             break;
@@ -1555,7 +1568,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_pid_options(param.piddata) < 0 ||
         handle_tpmstate_options(param.tpmstatedata) < 0 ||
         handle_seccomp_options(param.seccompdata, &param.seccomp_action) < 0 ||
-        handle_locality_options(param.localitydata, &locality_flags) < 0) {
+        handle_locality_options(param.localitydata, &locality_flags) < 0 ||
+        handle_flags_options(param.flagsdata, &need_init_cmd,
+                             &param.startupType) < 0) {
         ret = -3;
         goto exit;
     }
@@ -1615,6 +1630,21 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     }
 
     worker_thread_init();
+
+    if (!need_init_cmd) {
+        if (tpm_start(0, tpmversion, &res) < 0) {
+            ret = -1;
+            goto exit;
+        }
+        tpm_running = true;
+    }
+
+    if (param.startupType != _TPM_ST_NONE) {
+        logprintf(STDERR_FILENO,
+                  "--flags with startup types are not supported\n");
+        ret = -1;
+        goto exit;
+    }
 
 #if GLIB_MINOR_VERSION >= 32
     g_mutex_init(FILE_OPS_LOCK);
