@@ -141,20 +141,6 @@ This operation requires root privileges.
 
 The control channel enables out-of-band control of the TPM, such as resetting the TPM.
 
-=item B<--flags [not-need-init] [,startup-clear|startup-state|startup-deactivated|startup-none]>
-
-The I<not-need-init> flag enables the TPM to accept TPM commands right after
-start without requiring a INIT to be sent to it through the command channel
-(see the '-i' option of swtpm_ioctl).
-
-The I<startup> options cause a TPM_Startup or TPM2_Startup command to
-automatically be sent. The I<startup-deactivated> option is only valid for
-a TPM 2.0. These options imply I<not-need-init>, except for the
-I<startup-none> option, which results in no command being sent.
-
-If I<--vtpm-proxy> is used, I<startup-clear> is automatically chosen but
-this can be changed with this option.
-
 =back
 
 
@@ -281,6 +267,20 @@ The I<log> action is only available if libseccomp supports logging.
 
 This option is only available on Linux and only if swtpm was compiled with
 libseccomp support.
+
+=item B<--flags [not-need-init] [,startup-clear|startup-state|startup-deactivated|startup-none]>
+
+The I<not-need-init> flag enables the TPM to accept TPM commands right after
+start without requiring an INIT to be sent to it through the command channel
+(see the '-i' option of swtpm_ioctl).
+
+The I<startup> options cause a TPM_Startup or TPM2_Startup command to
+automatically be sent. The I<startup-deactivated> option is only valid for
+a TPM 1.2. These options imply I<not-need-init>, except for the
+I<startup-none> option, which results in no command being sent.
+
+If I<--vtpm-proxy> is used, I<startup-clear> is automatically chosen but
+this can be changed with this option.
 
 =item B<--print-capabilities> (since v0.2)
 
