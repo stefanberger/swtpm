@@ -12,6 +12,7 @@ SWTPM_LOCALCA_CONF="${XDG_CONFIG_HOME}/swtpm-localca.conf"
 SWTPM_LOCALCA_OPTIONS="${XDG_CONFIG_HOME}/swtpm-localca.options"
 
 FLAG_OVERWRITE=1
+FLAG_ROOT=2
 
 function help() {
 	cat <<_EOF_
@@ -19,6 +20,9 @@ Usage: $1 [options]
 
 The following options are supported:
 --overwrite	: Overwrite existing config files
+
+--root          : Allow the installation of the config files under the root account.
+                  This will shadow the default configuration files under @SYSCONFDIR@.
 
 --help|-h|-?	: Display this help screen and exit
 
@@ -31,11 +35,20 @@ function main() {
 	while [ $# -ne 0 ]; do
 		case "$1" in
 		--overwrite) flags=$((flags | FLAG_OVERWRITE));;
+		--root) flags=$((flags | FLAG_ROOT));;
 		--help|-h|-?) help $0; exit 0;;
 		*) echo -e "Unknown option $1\n" >&2; help $0; exit 1;;
 		esac
 		shift
 	done
+
+	if [ "$(id -u)" = "0" ]; then
+		if [[ $((flags & FLAG_ROOT)) -eq 0 ]]; then
+			echo "Requiring the --root flag since the configuration files will shadow"
+			echo "those in @SYSCONFDIR@."
+			exit 1
+		fi
+	fi
 
 	if [[ $((flags & FLAG_OVERWRITE)) -eq 0 ]]; then
 		for f in "${SWTPM_SETUP_CONF}" \
