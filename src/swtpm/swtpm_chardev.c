@@ -220,6 +220,44 @@ static void swtpm_cleanup(struct ctrlchannel *cc)
     tpmstate_global_free();
 }
 
+#ifdef WITH_VTPM_PROXY
+static int swtpm_chardev_create_vtpm_proxy(struct mainLoopParams *mlp,
+                                           bool *need_init_cmd) {
+    struct vtpm_proxy_new_dev vtpm_new_dev = {
+        .flags = 0,
+    };
+    int _errno;
+
+    if (mlp->tpmversion == TPMLIB_TPM_VERSION_2)
+        vtpm_new_dev.flags = VTPM_PROXY_FLAG_TPM2;
+
+    /* Will be adjusted for TPM 2 */
+    mlp->startupType = TPM_ST_CLEAR;
+    *need_init_cmd = false;
+
+    if (mlp->fd >= 0) {
+        logprintf(STDERR_FILENO,
+                  "Cannot use vTPM proxy with a provided device.\n");
+        return -1;
+    }
+
+    if (create_vtpm_proxy(&vtpm_new_dev, &_errno))
+        return -1;
+
+    mlp->fd = vtpm_new_dev.fd;
+
+    mlp->flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
+    SWTPM_IO_SetSocketFD(mlp->fd);
+
+    fprintf(stdout, "New TPM device: /dev/tpm%u (major/minor = %u/%u)\n",
+            vtpm_new_dev.tpm_num,
+            vtpm_new_dev.major, vtpm_new_dev.minor);
+    mlp->locality_flags |= LOCALITY_FLAG_ALLOW_SETLOCALITY;
+
+    return 0;
+}
+#endif
+
 int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *iface)
 {
     TPM_RESULT rc = 0;
@@ -415,36 +453,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
 #ifdef WITH_VTPM_PROXY
     if (use_vtpm_proxy) {
-        struct vtpm_proxy_new_dev vtpm_new_dev = {
-            .flags = 0,
-        };
-        int _errno;
-
-        if (mlp.tpmversion == TPMLIB_TPM_VERSION_2)
-            vtpm_new_dev.flags = VTPM_PROXY_FLAG_TPM2;
-
-        /* Will be adjusted for TPM 2 */
-        mlp.startupType = TPM_ST_CLEAR;
-        need_init_cmd = false;
-
-        if (mlp.fd >= 0) {
-            logprintf(STDERR_FILENO,
-                      "Cannot use vTPM proxy with a provided device.\n");
+        if (swtpm_chardev_create_vtpm_proxy(&mlp, &need_init_cmd) < 0)
             exit(EXIT_FAILURE);
-        }
-
-        if (create_vtpm_proxy(&vtpm_new_dev, &_errno))
-            exit(EXIT_FAILURE);
-
-        mlp.fd = vtpm_new_dev.fd;
-
-        mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
-        SWTPM_IO_SetSocketFD(mlp.fd);
-
-        fprintf(stdout, "New TPM device: /dev/tpm%u (major/minor = %u/%u)\n",
-                vtpm_new_dev.tpm_num,
-                vtpm_new_dev.major, vtpm_new_dev.minor);
-        mlp.locality_flags |= LOCALITY_FLAG_ALLOW_SETLOCALITY;
     }
 #endif
 
