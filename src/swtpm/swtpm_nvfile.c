@@ -210,7 +210,7 @@ static TPM_RESULT SWTPM_NVRAM_Lock_Lockfile(const char *directory,
         return TPM_FAIL;
     }
 
-    *fd = open(lockfile, O_WRONLY|O_CREAT|O_TRUNC, 0660);
+    *fd = open(lockfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, 0660);
     if (*fd < 0) {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_Lock_Lockfile: Could not open lockfile: %s\n",
