@@ -51,6 +51,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <sys/stat.h>
 
 #include <arpa/inet.h>
 
@@ -1010,7 +1011,7 @@ main(int argc, char *argv[])
     unsigned long long serial = 1;
     time_t now;
     int err;
-    FILE *cert_file;
+    int cert_file_fd;
     const char *subject = NULL;
     const char *error = NULL;
     int days = 365;
@@ -1695,8 +1696,9 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                             ? GNUTLS_X509_FMT_PEM
                             : GNUTLS_X509_FMT_DER, &out);
     if (cert_filename) {
-        cert_file = fopen(cert_filename, "wb");
-        if (cert_file == NULL) {
+        cert_file_fd = open(cert_filename, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,
+                            S_IRUSR|S_IWUSR);
+        if (cert_file_fd < 0) {
             fprintf(stderr, "Could not open %s for writing the certificate: %s\n",
                     cert_filename,
                     strerror(errno));
@@ -1711,22 +1713,22 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                 },
                 .tag = htobe16(TCG_TAG_PCCLIENT_FULL_CERT),
             };
-            if (sizeof(hdr) != fwrite(&hdr, 1, sizeof(hdr), cert_file)) {
+            if (sizeof(hdr) != write(cert_file_fd, &hdr, sizeof(hdr))) {
                 fprintf(stderr, "Could not write certificate header: %s\n",
                         strerror(errno));
-                fclose(cert_file);
+                close(cert_file_fd);
                 unlink(cert_filename);
                 goto cleanup;
             }
         }
-        if (out.size != fwrite(out.data, 1, out.size, cert_file)) {
+        if ((ssize_t)out.size != write(cert_file_fd, out.data, out.size)) {
             fprintf(stderr, "Could not write certificate into file: %s\n",
                     strerror(errno));
-            fclose(cert_file);
+            close(cert_file_fd);
             unlink(cert_filename);
             goto cleanup;
         }
-        fclose(cert_file);
+        close(cert_file_fd);
     } else {
         fprintf(stdout, "%s\n", out.data);
     }
