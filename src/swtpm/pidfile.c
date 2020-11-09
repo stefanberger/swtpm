@@ -37,11 +37,13 @@
 
 #include "config.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
 
 #include "pidfile.h"
 #include "logging.h"
@@ -77,40 +79,49 @@ int pidfile_set_fd(int newpidfilefd)
  */
 int pidfile_write(pid_t pid)
 {
-    FILE *f;
+    int fd;
+    char buffer[32];
+    ssize_t nwritten;
 
     if (g_pidfile) {
-        f = fopen(g_pidfile, "w+");
+        fd = open(g_pidfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,
+                  S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     } else if (pidfilefd >= 0) {
-        f = fdopen(pidfilefd, "w");
-        if (f) {
-            g_pidfile = fd_to_filename(pidfilefd);
-            if (!g_pidfile)
-                goto error;
-        }
+        fd = pidfilefd;
+        g_pidfile = fd_to_filename(pidfilefd);
+        if (!g_pidfile)
+            goto error;
     } else {
         return 0;
     }
 
-    if (!f) {
+    if (fd < 0) {
         logprintf(STDERR_FILENO, "Could not open pidfile %s : %s\n",
                   g_pidfile, strerror(errno));
         goto error;
     }
 
-    if (fprintf(f, "%d", pid) < 0) {
-        logprintf(STDERR_FILENO, "Could not write to pidfile : %s\n",
-                  strerror(errno));
-        goto error;
+    if (snprintf(buffer, sizeof(buffer), "%d", pid) >= (int)sizeof(buffer)) {
+        logprintf(STDERR_FILENO, "Could not write pid to buffer\n");
+        goto error_close;
     }
 
-    fclose(f);
+    nwritten = write_full(fd, buffer, strlen(buffer));
+    if (nwritten < 0 || nwritten != (ssize_t)strlen(buffer)) {
+        logprintf(STDERR_FILENO, "Could not write to pidfile : %s\n",
+                  strerror(errno));
+        goto error_close;
+    }
+
+    close(fd);
 
     return 0;
 
+error_close:
+    if (fd != pidfilefd)
+        close(fd);
+
 error:
-    if (f)
-        fclose(f);
     return -1;
 }
 
