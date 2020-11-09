@@ -155,27 +155,41 @@ port = ${TCSD_LISTEN_PORT}
 system_ps_file = ${TCSD_SYSTEM_PS_FILE}
 _EOF_
 
-	chown ${TSS_USER}:${TSS_GROUP} "${TCSD_CONF}"
-	if [ "${TSS_USER}" == "${TSS_GROUP}" ]; then
-		chmod 0600 "${TCSD_CONF}"
-	else
-		chmod 0640 "${TCSD_CONF}"
-	fi
+	# Due to recent changes in tcsd we have to try with TSS_USER=tss and TSS_USER=root
+	# Before the following worked:
+	#   - tss:tss  0600   for  TSS_USER=tss and TSS_GROUP=tss
+	#   - root:tss 0640   for  TSS_USER=root and TSS_GROUP=tss
+	# After the changes:
+	#   - root:tss 0640   for  TSS_USER=tss and TSS_GROUP=tss
+	while :; do
+		chown ${TSS_USER}:${TSS_GROUP} "${TCSD_CONF}"
+		if [ "${TSS_USER}" == "${TSS_GROUP}" ]; then
+			chmod 0600 "${TCSD_CONF}"
+		else
+			chmod 0640 "${TCSD_CONF}"
+		fi
 
-	bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c "${TCSD_CONF}" -e -f &>/dev/null & echo \$! > "${TCSD_PIDFILE}"; wait" &
-	BASH_PID=$!
+		bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c "${TCSD_CONF}" -e -f &>/dev/null & echo \$! > "${TCSD_PIDFILE}"; wait" &
+		BASH_PID=$!
 
-	if wait_for_file "${TCSD_PIDFILE}" 3; then
-		echo "Error: Could not get TCSD's PID file"
-		exit 1
-	fi
+		if wait_for_file "${TCSD_PIDFILE}" 3; then
+			echo "Error: Could not get TCSD's PID file"
+			exit 1
+		fi
 
-	TCSD_PID=$(cat "${TCSD_PIDFILE}")
-	kill_quiet -0 "${TCSD_PID}"
-	if [ $? -ne 0 ]; then
-		echo "Error: TCSD with pid ${TCSD_PID} must have terminated"
-		exit 1
-	fi
+		TCSD_PID=$(cat "${TCSD_PIDFILE}")
+		kill_quiet -0 "${TCSD_PID}"
+		if [ $? -ne 0 ]; then
+			# Try again with root unless we already tried
+			if [ "$TSS_USER" != "root" ]; then
+				TSS_USER="root"
+				continue
+			fi
+			echo "Error: TCSD with pid ${TCSD_PID} must have terminated"
+			exit 1
+		fi
+		break
+	done
 
 	${SWTPM_CREATE_TPMCA} \
 		--dir "${SWTPM_LOCALCA_DIR}" \
