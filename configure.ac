@@ -372,7 +372,7 @@ AC_MSG_CHECKING([for python cryptography package])
 $PYTHON -c "import cryptography"
 AS_IF([ test $? = 0 ],
        [AC_MSG_RESULT([yes])],
-       [AC_MSG_ERROR([python setuptools is required])])
+       [AC_MSG_ERROR([python cryptography is required])])
 
 AC_ARG_ENABLE([python-installation],
   AS_HELP_STRING([--disable-python-installation], [Disable running setup.py install for swtpm_setup]))
