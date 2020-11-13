@@ -1,5 +1,11 @@
 CHANGES - changes for swtpm
 
+version 0.5.1:
+  - swtpm
+    - Addressed potential symlink attack issue (CVS-2020-28407)
+  - build-sys:
+    - Fix configure python cryptography error message
+
 version 0.5.0:
   - swtpm:
     - Write files atomically using a temp file and then renaming
