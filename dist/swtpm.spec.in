@@ -1,6 +1,6 @@
 %bcond_without gnutls
 
-%global gitdate     20200925
+%global gitdate     20201113
 %global gitcommit   enter_commit_here
 %global gitshortcommit  %(c=%{gitcommit}; echo ${c:0:7})
 
@@ -170,6 +170,9 @@ fi
 %attr( 750, @TSS_USER@, root) %{_localstatedir}/lib/swtpm-localca
 
 %changelog
+* Fri Nov 13 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.4.2-0.20201113git-------
+- v0.4.2 release: Addressed potential symlink attack issue (CVE-2020-28407)
+
 * Fri Sep 25 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.4.1-20200925git-------
 - v0.4.1 release
 
