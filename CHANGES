@@ -1,5 +1,9 @@
 CHANGES - changes for swtpm
 
+version 0.4.2:
+  - swtpm:
+    - Addressed potential symlink attack issue (CVS-2020-28407)
+
 version 0.4.1:
   - swtpm_setup:
     - Do not hardcode '/etc' but use SYSCONFDIR
