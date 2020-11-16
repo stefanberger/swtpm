@@ -1,3 +1,9 @@
+swtpm (0.4.2) RELEASED; urgency=medium
+
+  * Addressed potential symlink attack issue (CVE-2020-28407)
+
+ -- Stefan Berger <stefanb@linux.ibm.com>  Fri, 13 Nov 2020 09:52:00 -0500
+
 swtpm (0.4.1-1) RELEASED; urgency=medium
 
   * Stable release
