@@ -1,8 +1,8 @@
 CHANGES - changes for swtpm
 
 version 0.5.1:
-  - swtpm
-    - Addressed potential symlink attack issue (CVS-2020-28407)
+  - swtpm & swtpm_setup:
+    - Addressed potential symlink attack issue (CVE-2020-28407)
   - build-sys:
     - Fix configure python cryptography error message
 
