@@ -836,6 +836,9 @@ def main():
         srkpass = DEFAULT_SRK_PASSWORD
 
     if len(LOGFILE) > 0:
+        if os.path.islink(LOGFILE):
+            sys.stderr.write("Logfile must not be a symlink.\n")
+            sys.exit(1)
         try:
             fobj = open(LOGFILE, "a") # do not truncate
             fobj.close()
