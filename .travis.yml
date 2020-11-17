@@ -126,31 +126,3 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX}"
            SUDO="sudo"
            CHECK="check"
-    - env: NPROC="sysctl -n hw.ncpu"
-           LIBTPMS_CFLAGS="-I/usr/local/opt/openssl/include"
-           LIBTPMS_LDFLAGS="-L/usr/local/opt/openssl/lib"
-           LIBTPMS_PREFIX="${HOME}"
-           LIBTPMS_GIT_CHECKOUT="origin/stable-0.6.0"
-           CFLAGS="-I/usr/local/opt/openssl/include -I${HOME}/include"
-           LDFLAGS="-L/usr/local/opt/openssl/lib -L${HOME}/lib"
-           PKG_CONFIG_PATH="${HOME}/lib/pkgconfig"
-           PREFIX="${HOME}"
-           TSS_USER=$(id -u -n)
-           CONFIG="--with-openssl --prefix=${PREFIX} --with-tss-user=${TSS_USER} --with-tss-group=$(id -g -n)"
-           SWTPM_TEST_EXPENSIVE=0
-           CHECK="check"
-           LD_LIBRARY_PATH=${PREFIX}/lib:${PREFIX}/lib/swtpm
-           SUDO="sudo"
-      os: osx
-      compiler: clang
-      before_script:
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade gnutls || true
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew install expect
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew install libtasn
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew install glib
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew install gawk
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew install gmp
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew install socat
-      # To run the pkcs11 test with softhsm we need SUDO (above)
-      - HOMEBREW_NO_AUTO_UPDATE=1 brew install softhsm
-      - pip3 install setuptools
