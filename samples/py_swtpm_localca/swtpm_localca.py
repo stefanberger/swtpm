@@ -574,6 +574,9 @@ def main():
             sys.exit(0)
 
     if len(LOGFILE) > 0:
+        if os.path.islink(LOGFILE):
+            sys.stderr.write("Logfile must not be a symlink.\n")
+            sys.exit(1)
         try:
             fobj = open(LOGFILE, "a") # do not truncate
             fobj.close()
