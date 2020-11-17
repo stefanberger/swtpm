@@ -85,9 +85,9 @@ int log_init(const char *filename, bool truncate)
     }
 
     if (!truncate) {
-        flags = O_WRONLY|O_CREAT|O_APPEND;
+        flags = O_WRONLY|O_CREAT|O_APPEND|O_NOFOLLOW;
     } else {
-        flags = O_WRONLY|O_CREAT|O_TRUNC;
+        flags = O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW;
     }
 
     logfd = open(filename, flags, S_IRUSR|S_IWUSR);
