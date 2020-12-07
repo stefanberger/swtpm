@@ -223,7 +223,7 @@ def call_create_certs(flags, config_file, certsdir, ekparam, vmid, swtpm):
                     cmd[2] = entry[1]
                     logit(LOGFILE, "  Invoking %s\n" % (" ".join(cmd)))
                     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                    stdout, _ = proc.communicate(timeout=10)
+                    stdout, _ = proc.communicate(timeout=30)
                     for line in stdout.decode().split("\n"):
                         if len(line) > 0:
                             logit(LOGFILE, "%s: %s\n" % (prgname, line))
