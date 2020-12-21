@@ -482,7 +482,7 @@ int ctrlchannel_process_fd(int fd,
 {
     struct input input = {0, };
     struct output {
-        uint8_t body[4096];
+        uint8_t body[sizeof(struct ptm_hdata)]; /* ptm_hdata is largest */
     } output;
     ssize_t n;
     struct iovec iov = {
