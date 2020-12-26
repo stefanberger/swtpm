@@ -1,5 +1,15 @@
 CHANGES - changes for swtpm
 
+version 0.5.2:
+  - swtpm:
+    - Fix potential buffer overflow related to largely unused data hashing
+      function in control channel
+    - swtpm: Unconditionally close fd if writing of pidfile fails (coverity)
+  - swtpm_setup:
+    - Increase timeout from 10s to 30s for slower machines
+  - Travis:
+    - Not building on OS X anymore due to additional costs
+
 version 0.5.1:
   - swtpm & swtpm_setup:
     - Addressed potential symlink attack issue (CVE-2020-28407)
