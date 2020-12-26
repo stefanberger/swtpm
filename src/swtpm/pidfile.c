@@ -118,8 +118,7 @@ int pidfile_write(pid_t pid)
     return 0;
 
 error_close:
-    if (fd != pidfilefd)
-        close(fd);
+    close(fd);
 
 error:
     return -1;
