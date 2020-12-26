@@ -91,6 +91,8 @@ int pidfile_write(pid_t pid)
         g_pidfile = fd_to_filename(pidfilefd);
         if (!g_pidfile)
             goto error;
+
+        pidfile_set_fd(-1); /* will be closed */
     } else {
         return 0;
     }
