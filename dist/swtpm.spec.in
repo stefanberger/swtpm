@@ -1,6 +1,6 @@
 %bcond_without gnutls
 
-%global gitdate     20201113
+%global gitdate     20201226
 %global gitcommit   enter_commit_here
 %global gitshortcommit  %(c=%{gitcommit}; echo ${c:0:7})
 
@@ -183,6 +183,9 @@ fi
 %{_datadir}/swtpm/swtpm-create-tpmca
 
 %changelog
+* Sat Dec 26 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.5.2-0.20201226git-------
+- v0.5.2 release: Bugfixes for stable release
+
 * Fri Nov 13 2020 Stefan Berger <stefanb@linux.ibm.com> - 0.5.1-0.20201113git-------
 - v0.5.1 release: Addressed potential symlink attack issue (CVE-2020-28407)
 
