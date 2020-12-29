@@ -4,7 +4,7 @@ swtpm_ioctl - Utility for sending control commands to swtpm
 
 =head1 SYNOPSIS
 
-B<swtpm_ioctl [COMMAND] E<lt>deviceE<gt>>
+B<swtpm_ioctl [COMMAND] [E<lt>deviceE<gt>>]
 
 =head1 DESCRIPTION
 
