@@ -56,6 +56,7 @@ TESTS += \
 	test_tpm2_hashing2 \
 	test_tpm2_hashing3 \
 	test_tpm2_migration_key \
+	test_tpm2_partial_reads \
 	test_tpm2_print_capabilities \
 	test_tpm2_resume_volatile \
 	test_tpm2_savestate \

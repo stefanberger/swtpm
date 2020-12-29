@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+# set -x
+
+cd $(dirname "$0")
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+
+export SWTPM_INTERFACE=cuse
+
+VTPM_NAME="vtpm-test-tpm2-partial-reads"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH=$(mktemp -d)
+CMD_PATH="${TPM_PATH}/cmd"
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill_quiet -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+function swtpm_read_n_bytes_fd100()
+{
+	dd bs=1 count=$1 if=/proc/self/fd/100 2>/dev/null | \
+		od -t x1 -A n | \
+		tr -s ' ' | \
+		tr -d '\n' | \
+		sed 's/ $//g'
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source test_cuse
+source common
+
+run_swtpm ${SWTPM_INTERFACE} --tpm2
+
+kill_quiet -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	exit 1
+fi
+
+# Prepare the TPM2_Startup
+echo -en '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00' > "${CMD_PATH}"
+
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+
+# Startup the TPM2
+cat "${CMD_PATH}" >&100
+
+# Read 4 and then 6 bytes of the response
+res1=$(swtpm_read_n_bytes_fd100 4)
+exp1=' 80 01 00 00'
+if [ "$res1" != "$exp1" ]; then
+	echo "1st Startup: Unexpected 1st response part"
+	echo "Expected: $exp1"
+	echo "Actual  : $res1"
+	exit 1
+fi
+
+res2=$(swtpm_read_n_bytes_fd100 6)
+exp2=' 00 0a 00 00 00 00'
+if [ "$res2" != "$exp2" ]; then
+	echo "1st Startup: Unexpected 2nd response part"
+	echo "Expected: $exp2"
+	echo "Actual  : $res2"
+	exit 1
+fi
+
+# Startup the TPM2 again (will fail, but that's ok)
+cat "${CMD_PATH}" >&100
+
+# Read 4 and then only 4 bytes of the response
+res1=$(swtpm_read_n_bytes_fd100 4)
+exp1=' 80 01 00 00'
+if [ "$res1" != "$exp1" ]; then
+	echo "2nd Startup: Unexpected 1st response part"
+	echo "Expected: $exp1"
+	echo "Actual  : $res1"
+	exit 1
+fi
+
+res2=$(swtpm_read_n_bytes_fd100 4)
+exp2=' 00 0a 00 00'
+if [ "$res2" != "$exp2" ]; then
+	echo "2nd Startup: Unexpected 2nd part"
+	echo "Expected: $exp2"
+	echo "Actual  : $res2"
+	exit 1
+fi
+
+# Startup the TPM2 again (will fail, but that's ok)
+cat "${CMD_PATH}" >&100
+
+# Read 4 and then 6 bytes of the response
+res1=$(swtpm_read_n_bytes_fd100 4)
+exp1=' 80 01 00 00'
+if [ "$res1" != "$exp1" ]; then
+	echo "3rd Startup: Unexpected 1st response part"
+	echo "Expected: $exp1"
+	echo "Actual  : $res1"
+	exit 1
+fi
+
+res2=$(swtpm_read_n_bytes_fd100 6)
+exp2=' 00 0a 00 00 01 00'
+if [ "$res2" != "$exp2" ]; then
+	echo "3rd Startup: Unexpected 2nd part"
+	echo "Expected: $exp2"
+	echo "Actual  : $res2"
+	exit 1
+fi
+
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone ${SWTPM_PID} 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e $STATE_FILE ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

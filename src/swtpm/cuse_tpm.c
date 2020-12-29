@@ -91,6 +91,9 @@ static unsigned char *ptm_request;
 /* buffer containing the TPM response */
 static unsigned char *ptm_response;
 
+/* offset from where to read from; reset when ptm_response is set */
+static size_t ptm_read_offset;
+
 /* the sizes of the data in the buffers */
 static uint32_t ptm_req_len, ptm_res_len, ptm_res_tot;
 
@@ -401,6 +404,7 @@ static void worker_thread(gpointer data, gpointer user_data)
     case MESSAGE_TPM_CMD:
         TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
                        ptm_request, ptm_req_len);
+        ptm_read_offset = 0;
         break;
     case MESSAGE_IOCTL:
         break;
@@ -489,6 +493,7 @@ static void ptm_write_fatal_error_response(TPMLIB_TPMVersion l_tpmversion)
                                       &ptm_res_len,
                                       &ptm_res_tot,
                                       l_tpmversion);
+    ptm_read_offset = 0;
 }
 
 /*
@@ -506,9 +511,11 @@ static int ptm_send_startup(uint16_t startupType, TPMLIB_TPMVersion l_tpmversion
                                startupType,
                                tpmversion,
                                command, max_command_length);
-    if (command_length > 0)
+    if (command_length > 0) {
         rc = TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
                            (unsigned char *)command, command_length);
+        ptm_read_offset = 0;
+    }
 
     if (rc || command_length == 0) {
         if (rc) {
@@ -530,23 +537,22 @@ static int ptm_send_startup(uint16_t startupType, TPMLIB_TPMVersion l_tpmversion
  */
 static void ptm_read_result(fuse_req_t req, size_t size)
 {
-    int len;
+    size_t len = 0;
 
     if (tpm_running) {
         /* wait until results are ready */
         worker_thread_wait_done();
     }
 
-    len = ptm_res_len;
-
-    if (ptm_res_len > size) {
-        len = size;
-        ptm_res_len -= size;
-    } else {
-        ptm_res_len = 0;
+    if (ptm_read_offset < ptm_res_len) {
+        len = ptm_res_len - ptm_read_offset;
+        if (size < len)
+           len = size;
     }
 
-    fuse_reply_buf(req, (const char *)ptm_response, len);
+    fuse_reply_buf(req, (const char *)&ptm_response[ptm_read_offset], len);
+
+    ptm_read_offset += len;
 }
 
 /*
@@ -871,8 +877,10 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
         tpmlib_process(&ptm_response, &ptm_res_len, &ptm_res_tot,
                        (unsigned char *)buf, ptm_req_len,
                        locality_flags, &locality, tpmversion);
-        if (ptm_res_len)
+        if (ptm_res_len) {
+            ptm_read_offset = 0;
             goto skip_process;
+        }
 
         if (tpmlib_is_request_cancelable(l_tpmversion,
                                          (const unsigned char*)buf,
@@ -889,6 +897,7 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
             /* direct processing */
             TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
                            (unsigned char *)buf, ptm_req_len);
+            ptm_read_offset = 0;
         }
     } else {
         /* TPM not initialized; return error */
