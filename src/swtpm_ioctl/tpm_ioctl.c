@@ -994,9 +994,7 @@ int main(int argc, char *argv[])
             goto exit;
         }
 
-        if (!tpm_device) {
-            tpm_device = argv[optind];
-        }
+        tpm_device = argv[optind];
     }
 
     is_chardev = (tpm_device != NULL);
