@@ -287,7 +287,7 @@ struct input {
     uint32_t cmd;
     /* ptm_hdata is the largest buffer to receive */
     uint8_t body[sizeof(ptm_hdata)];
-} input;
+};
 
 /*
  * ctrlchannel_recv_cmd: Receive a command on the control channel
