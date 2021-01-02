@@ -309,11 +309,14 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
     }
 
     while (true) {
-        filebuffer = realloc(filebuffer, filelen);
+        unsigned char *tmp = filebuffer;
+
+        filebuffer = realloc(tmp, filelen);
         if (!filebuffer) {
             logprintf(STDERR_FILENO,
                       "Could not allocate %zu bytes for filebuffer\n",
                       filelen);
+            free(tmp);
             goto exit;
         }
 
