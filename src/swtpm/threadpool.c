@@ -52,19 +52,15 @@ GThreadPool *pool;
 
 GCond thread_busy_signal;
 GMutex thread_busy_lock;
-GMutex file_ops_lock;
 #  define THREAD_BUSY_SIGNAL &thread_busy_signal
 #  define THREAD_BUSY_LOCK &thread_busy_lock
-#  define FILE_OPS_LOCK &file_ops_lock
 
 # else
 
 GCond *thread_busy_signal;
 GMutex *thread_busy_lock;
-GMutex *file_ops_lock;
 #  define THREAD_BUSY_SIGNAL thread_busy_signal
 #  define THREAD_BUSY_LOCK thread_busy_lock
-#  define FILE_OPS_LOCK file_ops_lock
 
 # endif
 #else

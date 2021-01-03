@@ -109,12 +109,12 @@ static struct fuse_session *ptm_fuse_session;
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
-GMutex file_ops_lock;
+static GMutex file_ops_lock;
 #  define FILE_OPS_LOCK &file_ops_lock
 
 # else
 
-GMutex *file_ops_lock;
+static GMutex *file_ops_lock;
 #  define FILE_OPS_LOCK file_ops_lock
 
 # endif
