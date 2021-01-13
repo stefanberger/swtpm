@@ -35,6 +35,14 @@ if [ $(id -u) -eq 0 ]; then
 	FILEOWNER="$(id -u nobody) $(id -G nobody | cut -d" " -f1)"
 fi
 
+# make sure --print-capabiities exits with '0'
+msg=$($SWTPM_EXE chardev --print-capabilities 2>&1)
+if [ $? -ne 0 ]; then
+	echo "Error: swtpm chardev --print-capabilities failed"
+	echo "$msg"
+	exit 1
+fi
+
 FILEMODE=621
 # use a pseudo terminal
 exec 100<>/dev/ptmx
