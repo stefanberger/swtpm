@@ -448,17 +448,6 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     }
 #endif
 
-    if (mlp.fd < 0) {
-        logprintf(STDERR_FILENO,
-                  "Error: Missing character device or file descriptor\n");
-        exit(EXIT_FAILURE);
-    } else if (mlp.fd < 3) {
-        /* no std{in,out,err} */
-        logprintf(STDERR_FILENO,
-            "Error: Cannot accept file descriptors with values 0, 1, or 2\n");
-        exit(EXIT_FAILURE);
-    }
-
     /*
      * choose the TPM version early so that getting/setting
      * buffer size works.
@@ -475,6 +464,17 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     }
 
     SWTPM_NVRAM_Set_TPMVersion(mlp.tpmversion);
+
+    if (mlp.fd < 0) {
+        logprintf(STDERR_FILENO,
+                  "Error: Missing character device or file descriptor\n");
+        exit(EXIT_FAILURE);
+    } else if (mlp.fd < 3) {
+        /* no std{in,out,err} */
+        logprintf(STDERR_FILENO,
+            "Error: Cannot accept file descriptors with values 0, 1, or 2\n");
+        exit(EXIT_FAILURE);
+    }
 
     if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0) {
         goto exit_failure;
