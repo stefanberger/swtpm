@@ -34,7 +34,7 @@ This option can be used instead of providing the device as the last parameter.
 Connect to the given server and port; if no server is given, 127.0.0.1 is used;
 if port is not given, the default port 6545 is used.
 
-=item B<--unixio E<lt>pathE<gt>>
+=item B<--unix E<lt>pathE<gt>>
 
 Connect to the given UnixIO path.
 
