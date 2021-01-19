@@ -374,6 +374,16 @@ AS_IF([ test $? = 0 ],
        [AC_MSG_RESULT([yes])],
        [AC_MSG_ERROR([python cryptography is required])])
 
+AC_MSG_CHECKING([python cryptography version])
+V="$($PYTHON -c "
+from distutils.version import StrictVersion;
+import cryptography as cry;
+print(cry.__version__);
+exit(StrictVersion(cry.__version__) < StrictVersion('2.1.4'));")"
+AS_IF([ test $? = 0],
+       [AC_MSG_RESULT([yes - found $V])],
+       [AC_MSG_ERROR([python cryptogrphy 2.1.4 or later is required, found $V])])
+
 AC_ARG_ENABLE([python-installation],
   AS_HELP_STRING([--disable-python-installation], [Disable running setup.py install for swtpm_setup]))
 AM_CONDITIONAL([PYTHON_INSTALLATION], [test "x$enable_python_installation" != "xno"])
