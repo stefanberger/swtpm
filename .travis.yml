@@ -50,7 +50,7 @@ before_install:
       sudo apt-get -y install trousers
     fi
 script:
-  - sudo pip3 install --upgrade pip
+  - sudo pip3 install --upgrade pip==20.3.3
   - sudo pip3 install --upgrade wheel
   - sudo pip3 install --upgrade cryptography
   - if [ ! -d libtpms ]; then git clone https://github.com/stefanberger/libtpms; fi
