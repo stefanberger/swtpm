@@ -61,6 +61,15 @@ class Swtpm:
         self.ctrl_client_socket = None
         self.ctrl_swtpm_socket = None
 
+        # Probe the socket domain; Linux only has socket.AF_UNIX, Cygwin AF_INET
+        self.socket_domain = socket.AF_UNIX
+        try:
+            s1, s2 = socket.socketpair(self.socket_domain)
+            s1.close()
+            s2.close()
+        except OSError:
+            self.socket_domain = socket.AF_INET
+
     def start(self):
         """ The start method starts the TPM 2 """
 
@@ -80,11 +89,11 @@ class Swtpm:
 
         ctr = 0
         while ctr < 100:
-            self.data_client_socket, self.data_swtpm_socket = socket.socketpair(socket.AF_UNIX,
+            self.data_client_socket, self.data_swtpm_socket = socket.socketpair(self.socket_domain,
                                                                                 socket.SOCK_STREAM)
             os.set_inheritable(self.data_swtpm_socket.fileno(), True)
 
-            self.ctrl_client_socket, self.ctrl_swtpm_socket = socket.socketpair(socket.AF_UNIX,
+            self.ctrl_client_socket, self.ctrl_swtpm_socket = socket.socketpair(self.socket_domain,
                                                                                 socket.SOCK_STREAM)
             os.set_inheritable(self.ctrl_swtpm_socket.fileno(), True)
 
