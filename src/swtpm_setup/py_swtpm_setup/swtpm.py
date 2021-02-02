@@ -67,7 +67,7 @@ class Swtpm:
             s1, s2 = socket.socketpair(self.socket_domain)
             s1.close()
             s2.close()
-        except OSError:
+        except ValueError:  # Cygwin gives a ValueError
             self.socket_domain = socket.AF_INET
 
     def start(self):
