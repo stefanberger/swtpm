@@ -46,5 +46,4 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname,
                     const char *iface);
 #endif
 
-#endif /* _SWPTM_MAIN_H */
-
+#endif /* _SWTPM_MAIN_H */
