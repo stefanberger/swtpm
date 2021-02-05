@@ -166,7 +166,7 @@ if [ $? -ne 0 ]; then
 fi
 
 if wait_file_gone ${binkeyfile} 4; then
-	echo "Error: Keyfile $binkeyfile was not removed by ${SWPTM_INTERFACE} TPM."
+	echo "Error: Keyfile $binkeyfile was not removed by ${SWTPM_INTERFACE} TPM."
 	echo "TPM Logfile:"
 	cat $logfile
 	exit 1

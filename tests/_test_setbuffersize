@@ -49,7 +49,7 @@ fi
 cat ${OUTFILE}
 
 if [ -z "$(grep "TPM buffersize" ${OUTFILE} | grep 4096)" ]; then
-	echo "Error: The TPM buffersize of the ${SWPTM_INTERFACE} TPM is not 4096."
+	echo "Error: The TPM buffersize of the ${SWTPM_INTERFACE} TPM is not 4096."
 	exit 1
 fi
                 
@@ -62,7 +62,7 @@ fi
 cat ${OUTFILE}
 
 if [ -z "$(grep "TPM buffersize" ${OUTFILE} | grep 4000)" ]; then
-	echo "Error: The TPM buffersize of the ${SWPTM_INTERFACE} TPM is not 4000."
+	echo "Error: The TPM buffersize of the ${SWTPM_INTERFACE} TPM is not 4000."
 	exit 1
 fi
 
