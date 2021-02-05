@@ -12,7 +12,7 @@ setuptools.setup(
     version="%d.%d.%d" % (SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO),
     author="Stefan Berger et al.",
     author_email="stefanb@linux.ibm.com",
-    url="https::/github.com/stefanberger/swptm",
+    url="https::/github.com/stefanberger/swtpm",
     #packages=setuptools.find_packages(),
     description="Swtpm tool for simulating the manufacturing of a TPM 1.2 or TPM 2",
     python_requires=">=3.2",
