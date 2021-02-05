@@ -77,7 +77,7 @@ if [ -z "$rsa3072" ]; then
 		exit 1
 	fi
 else
-	echo "swptm/libtpms support RSA 3072 bit keys"
+	echo "swtpm/libtpms support RSA 3072 bit keys"
 fi
 
 sed -i 's/export CRYPTOLIBRARY.*/export CRYPTOLIBRARY=openssl/' reg.sh
