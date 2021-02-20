@@ -67,6 +67,7 @@
 #include <netdb.h>
 #include <sys/param.h>
 #include <signal.h>
+#include <poll.h>
 
 #include <swtpm/tpm_ioctl.h>
 
@@ -90,6 +91,9 @@
 #ifndef _IOC_NRMASK
 # define _IOC_NRMASK 255
 #endif
+
+/* poll timeout that takes into account a busy swtpm creating a key */
+#define DEFAULT_POLL_TIMEOUT 10000 /* ms */
 
 static unsigned long ioctl_to_cmd(unsigned long ioctlnum)
 {
@@ -133,7 +137,17 @@ static int ctrlcmd(int fd, unsigned long cmd, void *msg, size_t msg_len_in,
         n = writev(fd, iov, 2);
         if (n > 0) {
             if (msg_len_out > 0) {
-                n = read(fd, msg, msg_len_out);
+                struct pollfd fds = {
+                    .fd = fd,
+                    .events = POLLIN,
+                };
+                n = poll(&fds, 1, DEFAULT_POLL_TIMEOUT);
+                if (n == 1) {
+                    n = read(fd, msg, msg_len_out);
+                } else if (n == 0) {
+                    n = -1;
+                    errno = ETIMEDOUT;
+                }
             } else {
                 /* we read 0 bytes */
                 n = 0;
@@ -649,6 +663,75 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
     return 0;
 }
 
+static int change_fd_flags(int fd, int flags_to_clear, int flags_to_set) {
+    int n;
+    int orig_flags = fcntl(fd, F_GETFL, 0);
+
+    if (orig_flags == -1) {
+        fprintf(stderr, "fcntl(F_GETFL) failed: %s\n", strerror(errno));
+        return -1;
+    } else {
+        int flags = (orig_flags & ~flags_to_clear) | flags_to_set;
+        n = fcntl(fd, F_SETFL, flags);
+        if (n == -1) {
+            fprintf(stderr, "fcntl(F_SETFL) failed: %s\n", strerror(errno));
+            return -1;
+        }
+    }
+    return orig_flags;
+}
+
+/* Create a connection by setting the given file descriptor to non-blocking.
+ * If the function returns successfully, the file descriptor will be blocking
+ * again.
+ */
+static int connect_nonblock(int fd, const struct sockaddr *addr,
+                            socklen_t addrlen, int allowed_errno,
+                            const char *socktype)
+{
+    int n, sockerr;
+    socklen_t optlen = sizeof(sockerr);
+#if !defined(__CYGWIN__)
+    int orig_flags = change_fd_flags(fd, 0, O_NONBLOCK);
+#else
+    int orig_flags = change_fd_flags(fd, 0, 0);
+#endif
+
+    n = connect(fd, addr, addrlen);
+    /* n < 0: it must fail with EAGAIN (Unix socket) and then we have to poll
+     *        and get SO_ERROR
+     * n = 0: connection is established
+     */
+    if (n < 0 && errno != allowed_errno) {
+        fprintf(stderr, "Connect failed: %s\n", strerror(errno));
+        return -1;
+    } else if (n < 0) {
+        struct pollfd pollfd = {
+            .fd = fd,
+            .events = POLLOUT,
+        };
+
+        n = poll(&pollfd, 1, DEFAULT_POLL_TIMEOUT);
+        /* Unix socket may return POLLHUP on error */
+        if (n != 1 || (pollfd.revents & ~POLLOUT) != 0) {
+            fprintf(stderr, "Could not connect using %s socket.\n", socktype);
+            return -1;
+        }
+
+        n = getsockopt(fd, SOL_SOCKET, SO_ERROR, &sockerr, &optlen);
+        if (n < 0) {
+            fprintf(stderr, "getsockopt(SO_ERROR) failed: %s\n",
+                    strerror(errno));
+            return -1;
+        }
+        if (sockerr != 0) {
+            fprintf(stderr, "Could not connect using %s socket.\n", socktype);
+            return -1;
+        }
+    }
+    return change_fd_flags(fd, ~0, orig_flags);
+}
+
 static int open_connection(const char *devname, char *tcp_hostname,
                            unsigned short tcp_port, const char *unix_path)
 {
@@ -707,15 +790,11 @@ static int open_connection(const char *devname, char *tcp_hostname,
         if (fd > 0) {
             addr.sun_family = AF_UNIX;
             strncpy(addr.sun_path, unix_path, unix_path_len);
-
-            if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+            if (connect_nonblock(fd, (struct sockaddr*)&addr,
+                                 sizeof(addr), EAGAIN, "UnixIO") < 0) {
                 close(fd);
                 fd = -1;
             }
-        }
-
-        if (fd < 0) {
-            fprintf(stderr, "Could not connect using UnixIO socket.\n");
         }
     }
 
