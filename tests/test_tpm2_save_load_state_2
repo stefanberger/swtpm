@@ -213,6 +213,11 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+if wait_process_gone ${PID} 4; then
+	echo "Error: swtpm did not shut down"
+	exit 1
+fi
+
 echo "============================" >> $LOGFILE
 
 echo "TPM was shut down"
@@ -246,6 +251,7 @@ PID="$(cat $PID_FILE)"
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
+	cat $LOGFILE
 	exit 1
 fi
 
