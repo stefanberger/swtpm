@@ -177,6 +177,8 @@ _EOF_
 			exit 1
 		fi
 
+		# wait for PID to be written
+		sleep 0.5
 		TCSD_PID=$(cat "${TCSD_PIDFILE}")
 		kill_quiet -0 "${TCSD_PID}"
 		if [ $? -ne 0 ]; then
