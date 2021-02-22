@@ -34,6 +34,7 @@ addons:
         - libasan2
         - softhsm2
         - libseccomp-dev
+        - autoconf-archive
   coverity_scan:
     project:
       name: swtpm
