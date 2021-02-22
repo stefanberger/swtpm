@@ -28,6 +28,9 @@ AC_PREREQ(2.12)
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CONFIG_HEADER(config.h)
 
+AX_IS_RELEASE([dash-version])
+AX_CHECK_ENABLE_DEBUG([info])
+
 SWTPM_VER_MAJOR=`echo $PACKAGE_VERSION | cut -d "." -f1`
 SWTPM_VER_MINOR=`echo $PACKAGE_VERSION | cut -d "." -f2`
 SWTPM_VER_MICRO=`echo $PACKAGE_VERSION | cut -d "." -f3`
@@ -48,30 +51,8 @@ AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([foreign 1.6])
 AM_SILENT_RULES([yes])
 
-DEBUG=""
-AC_MSG_CHECKING([for debug-enabled build])
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [create a debug build]),
-  [if test "$enableval" = "yes"; then
-     DEBUG="yes"
-     AC_MSG_RESULT([yes])
-   else
-     DEBUG="no"
-     AC_MSG_RESULT([no])
-   fi],
-  [DEBUG="no",
-   AC_MSG_RESULT([no])])
-
-# If the user has not set CFLAGS, do something appropriate
-test_CFLAGS=${CFLAGS+set}
-if test "$test_CFLAGS" != set; then
-	if test "$DEBUG" = "yes"; then
-		CFLAGS="-O0 -g -DDEBUG"
-	else
-		CFLAGS="-g -O2"
-	fi
-elif test "$DEBUG" = "yes"; then
-	CFLAGS="$CFLAGS -O0 -g -DDEBUG"
-fi
+AS_IF([test x"$enable_debug" != x"yes"],
+      [AX_CHECK_COMPILE_FLAG([-O2], [CFLAGS="$CFLAGS -O2"])])
 
 AC_HEADER_STDC
 AC_C_CONST
