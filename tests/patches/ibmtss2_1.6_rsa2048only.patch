@@ -1,0 +1,181 @@
+diff --git a/utils/reg.sh b/utils/reg.sh
+index 048863b..3aff350 100755
+--- a/utils/reg.sh
++++ b/utils/reg.sh
+@@ -171,7 +171,7 @@ cleanup()
+ 	rm -f khrpub${HALG}.bin
+     done
+ 
+-    for BITS in 2048 3072
++    for BITS in 2048
+     do
+ 	rm -f signrsa${BITS}priv.bin
+ 	rm -f signrsa${BITS}pub.bin
+diff --git a/utils/regtests/initkeys.sh b/utils/regtests/initkeys.sh
+index 80c6adb..469b5c9 100755
+--- a/utils/regtests/initkeys.sh
++++ b/utils/regtests/initkeys.sh
+@@ -64,7 +64,7 @@ BITS=(2048 3072)
+ 
+ for ((i = 0 ; i < 2 ; i++))
+ do
+-
++    [ $i -eq 1 ] && continue # skip 3072 bits
+     echo "Create an RSA ${BITS[i]} ${SHALG[i]} storage key under the primary key"
+     ${PREFIX}create -hp 80000000 -rsa ${BITS[i]} -halg ${SHALG[i]} -st -kt f -kt p -pol policies/policycccreate-auth.bin -opr storersa${BITS[i]}priv.bin -opu storersa${BITS[i]}pub.bin -tk storersa${BITS[i]}tk.bin -ch storersa${BITS[i]}ch.bin -pwdp sto -pwdk sto > run.out
+     checkSuccess $?
+diff --git a/utils/regtests/testcreateloaded.sh b/utils/regtests/testcreateloaded.sh
+index d3e3eb8..76fb859 100755
+--- a/utils/regtests/testcreateloaded.sh
++++ b/utils/regtests/testcreateloaded.sh
+@@ -50,7 +50,7 @@ echo ""
+ 
+ for HIER in "40000001" "4000000c" "4000000b"
+ do
+-    for ALG in "-rsa 2048" "-rsa 3072" "-ecc nistp256" "-ecc nistp384" "-ecc bnp256" "-rsa"
++    for ALG in "-rsa 2048" "-ecc nistp256" "-ecc nistp384" "-ecc bnp256" "-rsa"
+     do
+ 
+ 	echo "CreateLoaded primary key, parent ${HIER} ${ALG}"
+diff --git a/utils/regtests/testcredential.sh b/utils/regtests/testcredential.sh
+index cb9fec0..ca9d512 100755
+--- a/utils/regtests/testcredential.sh
++++ b/utils/regtests/testcredential.sh
+@@ -287,7 +287,7 @@ NVNAME=(
+ # interate though high range RSA EK certficates
+     for ((i = 0 ; i < 2 ; i++))
+     do
+-
++	[ $i -eq 1 ] && continue # skip 3072 bits
+ 	echo "Create an ${CALG[i]} EK certificate"
+ 	${PREFIX}createekcert -high ${CALG[i]} -cakey cakey.pem -capwd rrrr -pwdp ppp -pwde eee -of tmp.der > run.out
+ 	checkSuccess $?
+diff --git a/utils/regtests/testprimary.sh b/utils/regtests/testprimary.sh
+index f51687f..59b1754 100755
+--- a/utils/regtests/testprimary.sh
++++ b/utils/regtests/testprimary.sh
+@@ -168,7 +168,7 @@ checkSuccess $?
+ 
+ # different algorithms, command line options
+ 
+-for ALG in "-rsa 2048" "-rsa 3072" "-ecc bnp256" "-ecc nistp256" "-ecc nistp384" "-rsa"
++for ALG in "-rsa 2048" "-ecc bnp256" "-ecc nistp256" "-ecc nistp384" "-rsa"
+ 
+ do
+ 
+diff --git a/utils/regtests/testrsa.sh b/utils/regtests/testrsa.sh
+index 4f76522..e835660 100755
+--- a/utils/regtests/testrsa.sh
++++ b/utils/regtests/testrsa.sh
+@@ -55,7 +55,7 @@ echo ""
+ echo "Generate the encryption key with openssl"
+ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+ 
+-    for BITS in 2048 3072
++    for BITS in 2048
+     do
+ 
+ 	echo "Generate the RSA $BITS encryption key with openssl"
+@@ -68,7 +68,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+ 
+ elif [ ${CRYPTOLIBRARY} == "mbedtls" ]; then
+ 
+-    for BITS in 2048 3072
++    for BITS in 2048
+     do
+ 
+ 	echo "Generate the RSA $BITS encryption key with openssl"
+@@ -94,7 +94,7 @@ echo ""
+ echo "RSA decryption key"
+ echo ""
+ 
+-for BITS in 2048 3072
++for BITS in 2048
+ do
+ 
+     echo "Load the RSA $BITS decryption key under the primary key"
+@@ -124,7 +124,7 @@ echo ""
+ echo "RSA decryption key to sign with OID"
+ echo ""
+ 
+-for BITS in 2048 3072
++for BITS in 2048
+ do
+ 
+     echo "Load the RSA $BITS decryption key"
+@@ -166,7 +166,7 @@ echo "Start an HMAC auth session"
+ ${PREFIX}startauthsession -se h > run.out
+ checkSuccess $?
+ 
+-for BITS in 2048 3072
++for BITS in 2048
+ do
+ 
+     for SESS in "" "-se0 02000000 1"
+@@ -254,7 +254,7 @@ echo ""
+ echo "Loadexternal DER encryption key"
+ echo ""
+ 
+-for BITS in 2048 3072
++for BITS in 2048
+ do
+ 
+     echo "Start an HMAC auth session"
+@@ -410,7 +410,7 @@ rm -f deepub.bin
+ rm -f tmpmsg.bin
+ rm -f tmpdig.bin
+ rm -f tmpsig.bin
+-for BITS in 2048 3072
++for BITS in 2048
+ do
+     rm -f tmpkeypairrsa${BITS}.der
+     rm -f tmpkeypairrsa${BITS}.pem
+diff --git a/utils/regtests/testsalt.sh b/utils/regtests/testsalt.sh
+index 1bdc1a7..57ec69e 100755
+--- a/utils/regtests/testsalt.sh
++++ b/utils/regtests/testsalt.sh
+@@ -57,6 +57,7 @@ fi
+ 
+ for ASY in "${SALTALGS[@]}"
+ do
++    [ "$ASY" = "-rsa 3072" ] && continue # skip 3072 bits
+     for HALG in ${ITERATE_ALGS}
+     do
+ 
+diff --git a/utils/regtests/testsign.sh b/utils/regtests/testsign.sh
+index edfa014..bb76605 100755
+--- a/utils/regtests/testsign.sh
++++ b/utils/regtests/testsign.sh
+@@ -44,7 +44,7 @@ echo ""
+ echo "RSA Signing key"
+ echo ""
+ 
+-for BITS in 2048 3072
++for BITS in 2048
+ do
+ 
+     echo "Create an RSA $BITS key pair in PEM format using openssl"
+@@ -410,8 +410,8 @@ done
+ 
+ rm -f tmpkeypairrsa2048.pem
+ rm -f tmpkeypairrsa2048.der
+-rm -f tmpkeypairrsa3072.pem
+-rm -f tmpkeypairrsa3072.der
++rm -f tmpkeypairrsa3072.pem &>/dev/null
++rm -f tmpkeypairrsa3072.der &>/dev/null
+ rm -f tmpkeypaireccnistp256.pem
+ rm -f tmpkeypaireccnistp256.der
+ rm -f tmpkeypaireccnistp384.pem
+diff --git a/utils/regtests/testx509.sh b/utils/regtests/testx509.sh
+index 813085f..f5737a8 100755
+--- a/utils/regtests/testx509.sh
++++ b/utils/regtests/testx509.sh
+@@ -59,7 +59,7 @@ SKEY=(rsa2048 rsa3072 eccnistp256 eccnistp384)
+ 
+ for ((i = 0 ; i < 4 ; i++))
+ do
+-
++    [ $i -eq 1 ] && continue # skip 3072 bits
+     echo "Load the ${SALG[i]} ${SKEY[i]} issuer key 80000001 under the primary key"
+     ${PREFIX}load -hp 80000000 -ipr sign${SKEY[i]}rpriv.bin -ipu sign${SKEY[i]}rpub.bin -pwdp sto > run.out
+     checkSuccess $?
