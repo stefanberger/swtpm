@@ -37,7 +37,9 @@ BINFILE=$TPMDIR/binfile
 SIGFILE=$TPMDIR/sigfile
 SIGFILE2=$TPMDIR/sigfile2
 TMP2FILE=$TPMDIR/tmpfile2
-
+PRIVKEY=$TPMDIR/privkey.pem
+PUBKEY=$TPMDIR/pubkey.pem
+PUBKEYCONTEXT=$TPMDIR/pubkey.context
 
 HKEYPRIV=${TESTDIR}/data/tpm2state3/hkey.priv
 HKEYPUB=${TESTDIR}/data/tpm2state3/hkey.pub
@@ -46,6 +48,13 @@ source ${TESTDIR}/test_common
 source ${TESTDIR}/common
 
 trap "cleanup" SIGTERM EXIT
+
+case "$(uname -s)" in
+Darwin)
+	CERTTOOL=gnutls-certtool;;
+*)
+	CERTTOOL=certtool;;
+esac
 
 function cleanup()
 {
@@ -698,6 +707,46 @@ function test_primary_volatile_load()
 	fi
 }
 
+# libtpms issue #195: Create an external key and load it into the TPM 2
+# and do a context save/load cycle
+function test_external_key()
+{
+	local create="$1"
+	local check="$2"
+
+	if [ $create -eq 1 ]; then
+		${CERTTOOL} --generate-privkey --bits 2048 --outfile ${PRIVKEY} &>/dev/null
+		${CERTTOOL} --pubkey-info --load-privkey ${PRIVKEY} > ${PUBKEY}
+		$TOOLSPATH/${PREFIX}loadexternal -hi o -ipem ${PUBKEY} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: loadexternal failed."
+			exit 1
+		fi
+		if [ -z "$(grep 80000001 $TMPFILE)" ]; then
+			echo "Error: loadexternal did not result in expected handle 80000001"
+			exit 1
+		fi
+	fi
+
+	if [ $check -eq 1 ]; then
+		$TOOLSPATH/${PREFIX}contextsave -ha 80000001 -of ${PUBKEYCONTEXT}
+		if [ $? -ne 0 ]; then
+			echo "Error: contextsave on loaded public key failed."
+			exit 1
+		fi
+		$TOOLSPATH/${PREFIX}flushcontext -ha 80000001
+		$TOOLSPATH/${PREFIX}contextload -if ${PUBKEYCONTEXT} > $TMPFILE
+		if [ $? -ne 0 ]; then
+			echo "Error: contextload on context of public key failed."
+			exit 1
+		fi
+		if [ -z "$(grep 80000001 $TMPFILE)" ]; then
+			echo "Error: contextload did not result in expected handle 80000001"
+			exit 1
+		fi
+	fi
+}
+
 export TPM_SERVER_TYPE=raw
 export TPM_SERVER_NAME=127.0.0.1
 export TPM_INTERFACE_TYPE=socsim
@@ -1232,6 +1281,7 @@ if [ $? -ne 0 ]; then
 fi
 
 test_primary_volatile_load 1 0 0
+test_external_key 1 1
 
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -v 2>&1)
 if [ $? -ne 0 ]; then
@@ -1288,6 +1338,7 @@ if [ $? -ne 0 ]; then
 fi
 
 test_primary_volatile_load 0 1 0
+test_external_key 0 1
 
 ${TOOLSPATH}/${PREFIX}shutdown -c
 if [ $? -ne 0 ]; then
@@ -1336,6 +1387,7 @@ if [ $? -ne 0 ]; then
 fi
 
 test_primary_volatile_load 0 1 1
+test_external_key 0 1
 # Create the orderly nv indices and have them cleared (for coverage)
 test_nvram_state 1 1
 
