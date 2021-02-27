@@ -7,6 +7,13 @@ SWTPM_SETUP=${SWTPM_SETUP:-${ROOT}/src/swtpm_setup/swtpm_setup}
 SWTPM_CERT=${SWTPM_CERT:-${ROOT}/src/swtpm_cert/swtpm_cert}
 ECHO=$(type -P echo)
 
+case "$(uname -s)" in
+Darwin)
+	CERTTOOL=gnutls-certtool;;
+*)
+	CERTTOOL=certtool;;
+esac
+
 # Note: Do not use file descriptors above 127 due to OpenBSD.
 
 # Kill a process quietly
