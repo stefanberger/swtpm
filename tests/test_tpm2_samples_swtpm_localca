@@ -22,19 +22,14 @@ CERTSERIAL=${workdir}/certserial
 
 PATH=${TOPBUILD}/src/swtpm_cert:$PATH
 
+source ${TESTDIR}/common
+
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
 	rm -rf "${workdir}"
 }
-
-case "$(uname -s)" in
-Darwin)
-	CERTTOOL=gnutls-certtool;;
-*)
-	CERTTOOL=certtool;;
-esac
 
 cat <<_EOF_ > "${workdir}/swtpm-localca.conf"
 statedir=${workdir}

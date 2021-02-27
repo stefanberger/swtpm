@@ -33,6 +33,8 @@ CERTSERIAL=${workdir}/certserial
 
 PATH=${TOPBUILD}/src/swtpm_cert:$PATH
 
+source ${TESTDIR}/common
+
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
@@ -40,13 +42,6 @@ function cleanup()
 	rm -rf ${workdir}
 	${TESTDIR}/softhsm_setup teardown
 }
-
-case "$(uname -s)" in
-Darwin)
-	CERTTOOL=gnutls-certtool;;
-*)
-	CERTTOOL=certtool;;
-esac
 
 unset GNUTLS_PIN
 export PIN="abcdef"

@@ -49,13 +49,6 @@ source ${TESTDIR}/common
 
 trap "cleanup" SIGTERM EXIT
 
-case "$(uname -s)" in
-Darwin)
-	CERTTOOL=gnutls-certtool;;
-*)
-	CERTTOOL=certtool;;
-esac
-
 function cleanup()
 {
 	rm -rf $TPMDIR

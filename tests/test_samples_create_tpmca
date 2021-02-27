@@ -76,13 +76,6 @@ function cleanup()
 trap "cleanup" SIGTERM EXIT
 source ${TESTDIR}/common
 
-case "$(uname -s)" in
-Darwin)
-	CERTTOOL=gnutls-certtool;;
-*)
-	CERTTOOL=certtool;;
-esac
-
 PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
 
 # run the test with the given owner and SRK passwords
