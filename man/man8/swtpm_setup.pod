@@ -54,6 +54,12 @@ Create an endorsement key (EK).
 
 Create an EK that can sign. This option requires --tpm2.
 
+This option will create a non-standard EK. When re-creating the EK, TPM 2
+tools have to use the EK Template that is witten at an NV index corresponding
+to the created EK (e.g., NV index 0x01c00004 for RS 2048 EK). Otherwise the
+tool-created EK will not correspond to the actual key being used or the
+modulus shown in the EK certificate.
+
 Note that the TCG specification "EK Credential Profile For TPM Family 2.0; Level 0"
 suggests in its section on "EK Usage" that "the Endorsement Key can be a
 created as a decryption or signing key." However, some platforms will
