@@ -1,0 +1,72 @@
+From 850ce946fc5ba79f03d46e8cb7695dcadb5f397d Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.vnet.ibm.com>
+Date: Fri, 26 Feb 2021 18:45:57 -0500
+Subject: [PATCH 1/9] Deactivate test cases accessing rootcerts.txt
+
+rootcerts.txt contains files in a drive we don't have access to
+---
+ utils/regtests/testcredential.sh | 18 +++++++++---------
+ utils/regtests/testunseal.sh     |  4 ++--
+ 2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/utils/regtests/testcredential.sh b/utils/regtests/testcredential.sh
+index cb9fec0..16fd66a 100755
+--- a/utils/regtests/testcredential.sh
++++ b/utils/regtests/testcredential.sh
+@@ -300,9 +300,9 @@ NVNAME=(
+ 	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -noflush > run.out
+ 	checkSuccess $?
+ 
+-	echo "Validate the ${CALG[i]} EK certificate against the root"
+-	${PREFIX}createek -high ${CALG[i]} -root certificates/rootcerts.txt > run.out
+-	checkSuccess $?
++	#echo "Validate the ${CALG[i]} EK certificate against the root"
++	#${PREFIX}createek -high ${CALG[i]} -root certificates/rootcerts.txt > run.out
++	#checkSuccess $?
+ 
+ 	echo "Create a signing key under the ${CALG[i]} EK using the password"
+ 	${PREFIX}create -hp 80000001 -si -pwdp kkk > run.out
+@@ -402,9 +402,9 @@ NVNAME=(
+ 	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -noflush > run.out
+ 	checkSuccess $?
+ 
+-	echo "Validate the ${CALG[i]} EK certificate against the root"
+-	${PREFIX}createek -high ${CALG[i]} -root certificates/rootcerts.txt > run.out
+-	checkSuccess $?
++	#echo "Validate the ${CALG[i]} EK certificate against the root"
++	#${PREFIX}createek -high ${CALG[i]} -root certificates/rootcerts.txt > run.out
++	#checkSuccess $?
+ 
+ 	echo "Create a signing key under the ${CALG[i]} EK using the password"
+ 	${PREFIX}create -hp 80000001 -si -pwdp kkk > run.out
+@@ -540,9 +540,9 @@ NVNAME=(
+ 	${PREFIX}createek ${ALG} -pwde eee -cp -noflush > run.out
+ 	checkSuccess $?
+ 
+-	echo "Validate the ${ALG} EK certificate against the root"
+-	${PREFIX}createek ${ALG} -root certificates/rootcerts.txt > run.out
+-	checkSuccess $?
++	#echo "Validate the ${ALG} EK certificate against the root"
++	#${PREFIX}createek ${ALG} -root certificates/rootcerts.txt > run.out
++	#checkSuccess $?
+ 
+ 	echo "Start a policy session"
+ 	${PREFIX}startauthsession -se p > run.out
+diff --git a/utils/regtests/testunseal.sh b/utils/regtests/testunseal.sh
+index aae3d4e..1755740 100755
+--- a/utils/regtests/testunseal.sh
++++ b/utils/regtests/testunseal.sh
+@@ -724,8 +724,8 @@ echo ""
+ 
+ echo "PROVISION: Create the EK for the salted session 80000000"
+ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+-${PREFIX}createek -rsa 2048 -cp -noflush -root certificates/rootcerts.txt > run.out
+-elif [ ${CRYPTOLIBRARY} == "mbedtls" ]; then
++#${PREFIX}createek -rsa 2048 -cp -noflush -root certificates/rootcerts.txt > run.out
++#elif [ ${CRYPTOLIBRARY} == "mbedtls" ]; then
+ ${PREFIX}createek -rsa 2048 -cp -noflush > run.out
+ fi
+ checkSuccess $?
+-- 
+2.26.2
+

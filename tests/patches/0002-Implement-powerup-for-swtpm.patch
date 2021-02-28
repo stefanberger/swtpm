@@ -1,0 +1,148 @@
+From f0f9aec53193b1c81f2de2cc9cc52a0c82afa523 Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.vnet.ibm.com>
+Date: Sun, 28 Feb 2021 16:39:51 -0500
+Subject: [PATCH 2/9] Implement powerup for swtpm
+
+---
+ utils/reg.sh                   | 12 ++++++++++++
+ utils/regtests/inittpm.sh      |  4 ++--
+ utils/regtests/testevent.sh    |  2 +-
+ utils/regtests/testnvpin.sh    |  4 ++--
+ utils/regtests/testpcr.sh      |  2 +-
+ utils/regtests/testshutdown.sh |  6 +++---
+ 6 files changed, 21 insertions(+), 9 deletions(-)
+
+diff --git a/utils/reg.sh b/utils/reg.sh
+index 048863b..61f23d9 100755
+--- a/utils/reg.sh
++++ b/utils/reg.sh
+@@ -1,6 +1,12 @@
+ #!/bin/bash
+ #
+ 
++SWTPM_IOCTL=${SWTPM_IOCTL:-$(type -P swtpm_ioctl)}
++if [ -z "${SWTPM_IOCTL}" ]; then
++	echo "SWTPM_IOCTL not set and could not find swtpm_ioctl in PATH"
++	exit 1
++fi
++
+ #################################################################################
+ #										#
+ #			TPM2 regression test					#
+@@ -244,6 +250,12 @@ initprimary()
+     checkSuccess $?
+ }
+ 
++powerup()
++{
++    ${SWTPM_IOCTL} -i --tcp ${TPM_SERVER_NAME}:${TPM_PLATFORM_PORT}
++    return $?
++}
++export -f powerup
+ 
+ export -f checkSuccess
+ export -f checkWarning
+diff --git a/utils/regtests/inittpm.sh b/utils/regtests/inittpm.sh
+index eaefab4..2c87bb2 100755
+--- a/utils/regtests/inittpm.sh
++++ b/utils/regtests/inittpm.sh
+@@ -46,7 +46,7 @@ echo "Initialize TPM"
+ echo ""
+ 
+ echo "Power cycle"
+-${PREFIX}powerup > run.out
++powerup > run.out
+ checkSuccess $?
+ 
+ echo "Startup"
+@@ -62,7 +62,7 @@ ${PREFIX}pcrallocate +sha1 +sha256 +sha384 +sha512 > run.out
+ checkSuccess $?
+     
+ echo "Power cycle"
+-${PREFIX}powerup > run.out
++powerup > run.out
+ checkSuccess $?
+ 
+ echo "Startup"
+diff --git a/utils/regtests/testevent.sh b/utils/regtests/testevent.sh
+index 6336920..6d78ba5 100755
+--- a/utils/regtests/testevent.sh
++++ b/utils/regtests/testevent.sh
+@@ -66,7 +66,7 @@ do
+     do
+ 
+ 	echo "Power cycle to reset IMA PCR"
+-	${PREFIX}powerup > run.out
++	powerup > run.out
+ 	checkSuccess $?
+ 
+ 	echo "Startup"
+diff --git a/utils/regtests/testnvpin.sh b/utils/regtests/testnvpin.sh
+index 89d14a7..c045af1 100755
+--- a/utils/regtests/testnvpin.sh
++++ b/utils/regtests/testnvpin.sh
+@@ -240,7 +240,7 @@ ${PREFIX}nvwrite -ha 01000000 -hia p -id 0 1 > run.out
+ checkFailure $?
+ 
+ echo "Reboot"
+-${PREFIX}powerup > run.out
++powerup > run.out
+ checkSuccess $?
+ 
+ echo "Startup"
+@@ -448,7 +448,7 @@ ${PREFIX}nvwrite -ha 01000000 -hia p -id 0 1 > run.out
+ checkFailure $?
+ 
+ echo "Reboot"
+-${PREFIX}powerup > run.out
++powerup > run.out
+ checkSuccess $?
+ 
+ echo "Startup"
+diff --git a/utils/regtests/testpcr.sh b/utils/regtests/testpcr.sh
+index ef8fa2c..e2ac737 100755
+--- a/utils/regtests/testpcr.sh
++++ b/utils/regtests/testpcr.sh
+@@ -191,7 +191,7 @@ do
+     checkSuccess $?
+ 
+     echo "powerup"
+-    ${PREFIX}powerup > run.out
++    powerup > run.out
+     checkSuccess $?
+ 
+     echo "startup"
+diff --git a/utils/regtests/testshutdown.sh b/utils/regtests/testshutdown.sh
+index 566471b..7be9f1c 100755
+--- a/utils/regtests/testshutdown.sh
++++ b/utils/regtests/testshutdown.sh
+@@ -147,7 +147,7 @@ ${PREFIX}shutdown -s > run.out
+ checkSuccess $?
+ 
+ echo "Power cycle"
+-${PREFIX}powerup > run.out
++powerup > run.out
+ checkSuccess $?
+ 
+ echo "Startup state"
+@@ -255,7 +255,7 @@ ${PREFIX}shutdown -s > run.out
+ checkSuccess $?
+ 
+ echo "Power cycle"
+-${PREFIX}powerup > run.out
++powerup > run.out
+ checkSuccess $?
+ 
+ echo "Startup clear"
+@@ -331,7 +331,7 @@ ${PREFIX}shutdown -c > run.out
+ checkSuccess $?
+ 
+ echo "Power cycle"
+-${PREFIX}powerup > run.out
++powerup > run.out
+ checkSuccess $?
+ 
+ echo "Startup clear"
+-- 
+2.26.2
+
