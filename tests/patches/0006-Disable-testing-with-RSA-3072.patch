@@ -1,8 +1,25 @@
+From ca400b52d26bf4f518964faf2b2353d25a057fce Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.vnet.ibm.com>
+Date: Sun, 28 Feb 2021 16:35:02 -0500
+Subject: [PATCH 6/9] Disable testing with RSA 3072
+
+---
+ utils/reg.sh                       |  2 +-
+ utils/regtests/initkeys.sh         |  2 +-
+ utils/regtests/testcreateloaded.sh |  2 +-
+ utils/regtests/testcredential.sh   |  2 +-
+ utils/regtests/testprimary.sh      |  2 +-
+ utils/regtests/testrsa.sh          | 14 +++++++-------
+ utils/regtests/testsalt.sh         |  1 +
+ utils/regtests/testsign.sh         |  6 +++---
+ utils/regtests/testx509.sh         |  2 +-
+ 9 files changed, 17 insertions(+), 16 deletions(-)
+
 diff --git a/utils/reg.sh b/utils/reg.sh
-index 048863b..3aff350 100755
+index de7e181..9de1eaa 100755
 --- a/utils/reg.sh
 +++ b/utils/reg.sh
-@@ -171,7 +171,7 @@ cleanup()
+@@ -186,7 +186,7 @@ cleanup()
  	rm -f khrpub${HALG}.bin
      done
  
@@ -38,7 +55,7 @@ index d3e3eb8..76fb859 100755
  
  	echo "CreateLoaded primary key, parent ${HIER} ${ALG}"
 diff --git a/utils/regtests/testcredential.sh b/utils/regtests/testcredential.sh
-index cb9fec0..ca9d512 100755
+index 16fd66a..a68960d 100755
 --- a/utils/regtests/testcredential.sh
 +++ b/utils/regtests/testcredential.sh
 @@ -287,7 +287,7 @@ NVNAME=(
@@ -179,3 +196,6 @@ index 813085f..f5737a8 100755
      echo "Load the ${SALG[i]} ${SKEY[i]} issuer key 80000001 under the primary key"
      ${PREFIX}load -hp 80000000 -ipr sign${SKEY[i]}rpriv.bin -ipu sign${SKEY[i]}rpub.bin -pwdp sto > run.out
      checkSuccess $?
+-- 
+2.26.2
+

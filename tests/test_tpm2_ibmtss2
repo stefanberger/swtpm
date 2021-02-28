@@ -8,6 +8,8 @@ ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 ABSTESTDIR=$(cd ${TESTDIR} &>/dev/null;echo ${PWD})
 
+PATCHESDIR=${ABSTESTDIR}/patches
+
 SWTPM_SERVER_PORT=65426
 SWTPM_SERVER_NAME=127.0.0.1
 SWTPM_CTRL_PORT=65427
@@ -48,18 +50,42 @@ if [ $? -ne 0 ]; then
 fi
 
 # A v1.6.0 bug work-around:
-pushd utils/regtests &>/dev/null
 # We cannot run the EK certificate tests since rootcerts.txt points to
 # files we do not have
-for line in 303 304 305 405 406 407 543 544 545; do
-	sed -i "${line}s/./\#\0/" testcredential.sh
-done
-for line in 727 728;do
-	sed -i "${line}s/./\#\0/" testunseal.sh
-done
-# We do not run the UEFI tests
-sed -i '2 i exit 0' testevent.sh
-popd &>/dev/null
+git am < ${PATCHESDIR}/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch
+
+# Implement 'powerup' for swtpm
+git am < ${PATCHESDIR}/0002-Implement-powerup-for-swtpm.patch
+
+# set CRYPTOLIBRARY=openssl
+git am < ${PATCHESDIR}/0003-Set-CRYPTOLIBRARY-to-openssl.patch
+
+# Store volatile state at every step
+git am < ${PATCHESDIR}/0004-Store-volatile-state-at-every-step.patch
+
+# Disable 'Events' test
+git am < ${PATCHESDIR}/0005-Disable-tests-related-to-events.patch
+
+rsa3072=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 4 |
+          sed -n 's/.*"RSAKeySizes":\[\([0-9,]*\)\].*/\1/p' |
+          grep 3072)
+if [ -z "$rsa3072" ]; then
+	echo "Modifying test cases related to RSA 3072 keys."
+	git am < ${PATCHESDIR}/0006-Disable-testing-with-RSA-3072.patch
+else
+	echo "swtpm/libtpms support RSA 3072 bit keys"
+fi
+
+# Adjust test suite to TPM 2.0 revision libtpms is implementing
+revision=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 1 |
+           sed 's/.*,"revision":\([^\}]*\).*/\1/')
+echo "Libtpms implements TPM 2.0 revision ${revision}."
+if [ $revision -lt 155 ]; then
+	echo "Removing revision 155 and later test cases."
+	git am < ${PATCHESDIR}/0007-Disable-rev155-test-cases.patch
+	git am < ${PATCHESDIR}/0008-Disable-x509-test-cases.patch
+	git am < ${PATCHESDIR}/0009-Disable-getcapability-TPM_CAP_ACT.patch
+fi
 
 autoreconf --force --install
 unset CFLAGS LDFLAGS LIBS
@@ -68,54 +94,12 @@ make -j4
 
 pushd utils
 
-rsa3072=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 4 |
-          sed -n 's/.*"RSAKeySizes":\[\([0-9,]*\)\].*/\1/p' |
-          grep 3072)
-if [ -z "$rsa3072" ]; then
-	echo "Modifying test cases related to RSA 3072 keys."
-
-	patch -p2 < "${ABSTESTDIR}/patches/ibmtss2_1.6_rsa2048only.patch"
-	if [ $? -ne 0 ]; then
-		echo "Patching of testsuite failed"
-		exit 1
-	fi
-else
-	echo "swtpm/libtpms support RSA 3072 bit keys"
-fi
-
-sed -i 's/export CRYPTOLIBRARY.*/export CRYPTOLIBRARY=openssl/' reg.sh
-
-# Adjust test suite to TPM 2.0 revision libtpms is implementing
-revision=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 1 |
-           sed 's/.*,"revision":\([^\}]*\).*/\1/')
-echo "Libtpms implements TPM 2.0 revision ${revision}."
-if [ $revision -lt 155 ]; then
-	echo "Removing revision 155 test cases."
-	for t in regtests/testattest155.sh regtests/testx509.sh
-	do
-		rm "${t}"
-		touch "${t}"
-		chmod 777 "${t}"
-	done
-	# CAP_ACT was introduced later than 155
-	for line in 123 124 125; do
-		sed -i "${line}s/./\#\0/" regtests/testgetcap.sh
-	done
-fi
-
 export TPM_SERVER_NAME=127.0.0.1
 export TPM_INTERFACE_TYPE=socsim
 export TPM_COMMAND_PORT=${SWTPM_SERVER_PORT}
 export TPM_PLATFORM_PORT=${SWTPM_CTRL_PORT}
 
 export SWTPM_IOCTL
-
-cat <<_EOF_ > powerup
-#!/usr/bin/env bash
-\${SWTPM_IOCTL} -i --tcp \${TPM_SERVER_NAME}:\${TPM_PLATFORM_PORT}
-exit \$?
-_EOF_
-chmod 755 powerup
 
 ./startup
 if [ $? -ne 0 ]; then

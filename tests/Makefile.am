@@ -141,7 +141,15 @@ EXTRA_DIST=$(TESTS) \
 	data/tpm2state5/signature.bin \
 	data/tpm2state5/tpm2-00.permall \
 	load_vtpm_proxy \
-	patches/ibmtss2_1.6_rsa2048only.patch \
+	patches/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch \
+	patches/0002-Implement-powerup-for-swtpm.patch \
+	patches/0003-Set-CRYPTOLIBRARY-to-openssl.patch \
+	patches/0004-Store-volatile-state-at-every-step.patch \
+	patches/0005-Disable-tests-related-to-events.patch \
+	patches/0006-Disable-testing-with-RSA-3072.patch \
+	patches/0007-Disable-rev155-test-cases.patch \
+	patches/0008-Disable-x509-test-cases.patch \
+	patches/0009-Disable-getcapability-TPM_CAP_ACT.patch \
 	patches/libtpm.patch \
 	softhsm_setup \
 	test_clientfds.py \

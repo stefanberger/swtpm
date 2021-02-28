@@ -1,0 +1,28 @@
+From 0e64682da7e1da7b8ffdf1103b99546d31a599da Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.vnet.ibm.com>
+Date: Sun, 28 Feb 2021 16:38:10 -0500
+Subject: [PATCH 9/9] Disable getcapability TPM_CAP_ACT
+
+---
+ utils/regtests/testgetcap.sh | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/utils/regtests/testgetcap.sh b/utils/regtests/testgetcap.sh
+index 4e370cf..cd6607d 100755
+--- a/utils/regtests/testgetcap.sh
++++ b/utils/regtests/testgetcap.sh
+@@ -120,8 +120,8 @@ echo "Get Capability TPM_CAP_AUTH_POLICIES"
+ ${PREFIX}getcapability -cap 9 -pr 40000000 > run.out
+ checkSuccess $?
+ 
+-echo "Get Capability TPM_CAP_ACT"
+-${PREFIX}getcapability -cap a -pr 40000110 > run.out
+-checkSuccess $?
++#echo "Get Capability TPM_CAP_ACT"
++#${PREFIX}getcapability -cap a -pr 40000110 > run.out
++#checkSuccess $?
+ 
+ 
+-- 
+2.26.2
+
