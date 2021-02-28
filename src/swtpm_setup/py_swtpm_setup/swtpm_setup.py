@@ -505,6 +505,7 @@ def usage(prgname):
         "\n"
         "--allow-signing  : Create an EK that can be used for signing;\n"
         "                   this option requires --tpm2.\n"
+        "                   Note: Careful, this option will create a non-standard EK!\n"
         "\n"
         "--decryption     : Create an EK that can be used for key encipherment;\n"
         "                   this is the default unless --allow-signing is given;\n"
