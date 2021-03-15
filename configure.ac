@@ -282,14 +282,22 @@ if test "x$with_gnutls" != "xno"; then
 fi
 
 if test "x$with_gnutls" != "xno"; then
-     AC_PATH_PROG([GNUTLS_CERTTOOL], certtool)
-     if test "x$GNUTLS_CERTTOOL" = "x"; then
-         if test "x$with_gnutls" = "xyes"; then
-             AC_MSG_ERROR("Could not find certtool. Is gnutls-utils/gnutls-bin installed?")
-         else
-             with_gnutls=no
-         fi
-     fi
+    AC_PATH_PROG([GNUTLS_CERTTOOL], certtool)
+    if test "x$GNUTLS_CERTTOOL" = "x"; then
+        if test "x$with_gnutls" = "xyes"; then
+            AC_MSG_ERROR("Could not find certtool. Is gnutls-utils/gnutls-bin installed?")
+        else
+            with_gnutls=no
+        fi
+    fi
+    dnl certtool changed how it takes private key passwords
+    dnl 3.3.29 is too old (RHEL 7); we need at least gnutls 3.4.0
+    AC_MSG_CHECKING([for gnutls 3.4.0 or later])
+    $(pkg-config gnutls --atleast-version=3.4.0)
+    if test $? -ne 0; then
+        AC_MSG_ERROR([gnutls 3.4.0 is required])
+    fi
+    AC_MSG_RESULT([yes])
 fi
 
 if test "x$with_gnutls" != "xno"; then
