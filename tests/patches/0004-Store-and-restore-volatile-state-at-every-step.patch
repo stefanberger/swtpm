@@ -1,0 +1,58 @@
+From 30fd9216f9b984cd1e55da4c793e948ba5bc5a22 Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.vnet.ibm.com>
+Date: Sun, 28 Feb 2021 16:42:11 -0500
+Subject: [PATCH 4/9] Store and restore volatile state at every step
+
+---
+ utils/reg.sh | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/utils/reg.sh b/utils/reg.sh
+index 33e3299..01f6940 100755
+--- a/utils/reg.sh
++++ b/utils/reg.sh
+@@ -124,6 +124,16 @@ printUsage ()
+     echo "-51 Events"
+ }
+ 
++storeAndRestoreVolatileState()
++{
++    if [ ${SWTPM_TEST_STORE_VOLATILE:-0} -ne 0 ]; then
++        echo ">>> Storing and re-storing volatile state <<<"
++        ${SWTPM_IOCTL} -v --tcp ${TPM_SERVER_NAME}:${TPM_PLATFORM_PORT}
++        ${SWTPM_IOCTL} -i --tcp ${TPM_SERVER_NAME}:${TPM_PLATFORM_PORT}
++    fi
++}
++export -f storeAndRestoreVolatileState
++
+ checkSuccess()
+ {
+ if [ $1 -ne 0 ]; then
+@@ -133,7 +143,7 @@ if [ $1 -ne 0 ]; then
+ else
+     echo " INFO:"
+ fi
+-
++storeAndRestoreVolatileState
+ }
+ 
+ # FIXME should not increment past 254
+@@ -146,6 +156,7 @@ if [ $1 -ne 0 ]; then
+ else
+     echo " INFO:"
+ fi
++storeAndRestoreVolatileState
+ }
+ 
+ checkFailure()
+@@ -157,6 +168,7 @@ if [ $1 -eq 0 ]; then
+ else
+     echo " INFO:"
+ fi
++storeAndRestoreVolatileState
+ }
+ 
+ cleanup()
+-- 
+2.29.2
+

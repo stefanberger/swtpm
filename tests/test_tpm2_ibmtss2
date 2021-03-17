@@ -65,8 +65,8 @@ git am < ${PATCHESDIR}/0002-Implement-powerup-for-swtpm.patch
 # set CRYPTOLIBRARY=openssl
 git am < ${PATCHESDIR}/0003-Set-CRYPTOLIBRARY-to-openssl.patch
 
-# Store volatile state at every step
-git am < ${PATCHESDIR}/0004-Store-volatile-state-at-every-step.patch
+# Store and restore volatile state at every step
+git am < ${PATCHESDIR}/0004-Store-and-restore-volatile-state-at-every-step.patch
 
 # Disable 'Events' test
 git am < ${PATCHESDIR}/0005-Disable-tests-related-to-events.patch
