@@ -67,6 +67,7 @@ script:
       && ${SUDO} make clean
       && export SWTPM_TEST_EXPENSIVE=${SWTPM_TEST_EXPENSIVE:-1}
       && export SWTPM_TEST_IBMTSS2=${SWTPM_TEST_IBMTSS2:-0}
+      && export SWTPM_TEST_STORE_VOLATILE=${SWTPM_TEST_STORE_VOLATILE:-0}
       && ${SUDO} make -j$(${NPROC:-nproc}) ${CHECK} VERBOSE=1
   - if [ -n "${RUN_TEST}" ]; then
         sudo make install
@@ -88,6 +89,7 @@ matrix:
            SUDO="sudo"
            CHECK="check"
            SWTPM_TEST_IBMTSS2="1"
+           SWTPM_TEST_STORE_VOLATILE="1"
       after_success:
       - pylint3 --max-line-length=100 src/swtpm_setup/py_swtpm_setup/*.py || exit 1;
       - pylint3 --max-line-length=100 samples/py_swtpm_localca/*.py || exit 1;

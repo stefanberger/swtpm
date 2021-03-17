@@ -144,7 +144,7 @@ EXTRA_DIST=$(TESTS) \
 	patches/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch \
 	patches/0002-Implement-powerup-for-swtpm.patch \
 	patches/0003-Set-CRYPTOLIBRARY-to-openssl.patch \
-	patches/0004-Store-volatile-state-at-every-step.patch \
+	patches/0004-Store-and-restore-volatile-state-at-every-step.patch \
 	patches/0005-Disable-tests-related-to-events.patch \
 	patches/0006-Disable-testing-with-RSA-3072.patch \
 	patches/0007-Disable-rev155-test-cases.patch \
