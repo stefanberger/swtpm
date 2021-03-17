@@ -49,6 +49,11 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# To be able to apply the patches we need to to set some variables
+# for user that don't have this set up properly
+git config --local user.name test
+git config --local user.email test@test.test
+
 # A v1.6.0 bug work-around:
 # We cannot run the EK certificate tests since rootcerts.txt points to
 # files we do not have
