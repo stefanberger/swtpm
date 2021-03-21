@@ -287,6 +287,7 @@ handle_log_options(char *options)
     if (!ovs) {
         logprintf(STDERR_FILENO, "Error parsing logging options: %s\n",
                   error);
+        free(error);
         return -1;
     }
     logfile = option_get_string(ovs, "file", NULL);
@@ -358,7 +359,6 @@ parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
     int pwdfile_fd = -1;
 
     ovs = options_parse(options, key_opt_desc, &error);
-
     if (!ovs) {
         logprintf(STDERR_FILENO, "Error parsing key options: %s\n",
                   error);
@@ -443,6 +443,7 @@ exit:
 
 error:
     ret = -1;
+    free(error);
 
     goto exit;
 }
@@ -524,7 +525,7 @@ parse_pid_options(char *options, char **pidfile, int *pidfilefd)
     ovs = options_parse(options, pid_opt_desc, &error);
     if (!ovs) {
         logprintf(STDERR_FILENO, "Error parsing pid options: %s\n",
-                error);
+                  error);
         goto error;
     }
 
@@ -558,6 +559,7 @@ error:
     option_values_free(ovs);
     if (*pidfilefd >= 0)
         close(*pidfilefd);
+    free(error);
 
     return -1;
 }
@@ -611,7 +613,6 @@ parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode)
     const char *directory = NULL;
 
     ovs = options_parse(options, tpmstate_opt_desc, &error);
-
     if (!ovs) {
         logprintf(STDERR_FILENO, "Error parsing tpmstate options: %s\n",
                   error);
@@ -637,6 +638,7 @@ parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode)
     return 0;
 
 error:
+    free(error);
     option_values_free(ovs);
 
     return -1;
@@ -959,6 +961,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
     return 0;
 
 error:
+    free(error);
     option_values_free(ovs);
 
     return -1;
@@ -1101,6 +1104,7 @@ error:
         *c = NULL;
     }
     option_values_free(ovs);
+    free(error);
 
     return -1;
 }
@@ -1146,6 +1150,7 @@ static int parse_locality_options(char *options, uint32_t *flags)
 
 error:
     option_values_free(ovs);
+    free(error);
 
     return -1;
 }
@@ -1204,6 +1209,7 @@ static int parse_flags_options(char *options, bool *need_init_cmd,
 
 error:
     option_values_free(ovs);
+    free(error);
 
     return -1;
 }
@@ -1262,6 +1268,7 @@ static int parse_seccomp_options(char *options, unsigned int *seccomp_action)
 
 error:
     option_values_free(ovs);
+    free(error);
 
     return -1;
 }
