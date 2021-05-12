@@ -108,7 +108,7 @@ if [ ! -r $volatilestatefile ]; then
 fi
 
 size=$(get_filesize $volatilestatefile)
-expsize="^([568][0-9]{3})$"
+expsize="^([5689][0-9]{3})$"
 if ! [[ $size =~ $expsize ]]; then
 	echo "Error: Unexpected size of volatile state file."
 	echo "       Expected file with size of $expsize, found $size bytes."
