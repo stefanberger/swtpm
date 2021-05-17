@@ -1,5 +1,9 @@
 CHANGES - changes for swtpm
 
+version 0.6.0
+  - swtpm_setup:
+    - Rewritten in 'C'; needs json-glib
+
 version 0.5.0:
   - swtpm:
     - Write files atomically using a temp file and then renaming
