@@ -22,6 +22,7 @@ BuildRequires:  autoconf
 BuildRequires:  libtool
 BuildRequires:  libtpms-devel >= 0.6.0
 BuildRequires:  glib2-devel
+BuildRequires:  json-glib-devel
 BuildRequires:  gmp-devel
 BuildRequires:  expect
 BuildRequires:  net-tools
@@ -29,7 +30,6 @@ BuildRequires:  openssl-devel
 BuildRequires:  socat
 BuildRequires:  python3
 BuildRequires:  python3-devel
-BuildRequires:  python3-cryptography
 BuildRequires:  python3-setuptools
 BuildRequires:  python3-twisted
 BuildRequires:  softhsm

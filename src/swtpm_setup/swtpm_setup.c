@@ -1,0 +1,1475 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+/*
+ * swtpm_setup.c: Tool to simulate TPM 1.2 & TPM 2 manufacturing
+ *
+ * Author: Stefan Berger, stefanb@linux.ibm.com
+ *
+ * Copyright (c) IBM Corporation, 2021
+ */
+
+#include "config.h"
+
+#include <errno.h>
+#include <getopt.h>
+#include <grp.h>
+#include <limits.h>
+#include <pwd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/types.h>
+
+#include <glib.h>
+#include <glib/gstdio.h>
+#include <glib/gprintf.h>
+
+#include <glib-object.h>
+#include <json-glib/json-glib.h>
+
+#include "swtpm.h"
+#include "swtpm_setup_conf.h"
+#include "swtpm_setup_utils.h"
+#include "swtpm_utils.h"
+
+#include <openssl/sha.h>
+
+/* default values for passwords */
+#define DEFAULT_OWNER_PASSWORD "ooo"
+#define DEFAULT_SRK_PASSWORD   "sss"
+
+#define SETUP_CREATE_EK_F           1
+#define SETUP_TAKEOWN_F             2
+#define SETUP_EK_CERT_F             4
+#define SETUP_PLATFORM_CERT_F       8
+#define SETUP_LOCK_NVRAM_F          16
+#define SETUP_SRKPASS_ZEROS_F       32
+#define SETUP_OWNERPASS_ZEROS_F     64
+#define SETUP_STATE_OVERWRITE_F     128
+#define SETUP_STATE_NOT_OVERWRITE_F 256
+#define SETUP_TPM2_F                512
+#define SETUP_ALLOW_SIGNING_F       1024
+#define SETUP_TPM2_ECC_F            2048
+#define SETUP_CREATE_SPK_F          4096
+#define SETUP_DISPLAY_RESULTS_F     8192
+#define SETUP_DECRYPTION_F          16384
+
+/* default configuration file */
+#define SWTPM_SETUP_CONF "swtpm_setup.conf"
+
+#define DEFAULT_PCR_BANKS "sha1,sha256"
+
+/* Default logging goes to stderr */
+gchar *gl_LOGFILE = NULL;
+
+#define DEFAULT_RSA_KEYSIZE 2048
+
+
+static const struct flag_to_certfile {
+    unsigned long flag;
+    const char *filename;
+    const char *type;
+} flags_to_certfiles[] = {
+    {.flag = SETUP_EK_CERT_F      , .filename= "ek.cert",        .type = "ek" },
+    {.flag = SETUP_PLATFORM_CERT_F, .filename = "platform.cert", .type = "platform" },
+    {.flag = 0,                     .filename = NULL,            .type = NULL},
+};
+
+/* initialize the path of the config_file */
+static int init(gchar **config_file)
+{
+    const char *xch = getenv("XDG_CONFIG_HOME");
+    const char *home = getenv("HOME");
+    char path[PATH_MAX];
+    const char *p = NULL;
+    int ret = 0;
+
+    if (xch != NULL &&
+        (p = pathjoin(path, sizeof(path), xch, SWTPM_SETUP_CONF, NULL)) != NULL &&
+        access(p, R_OK) == 0) {
+        /* p is good */
+    } else if (home != NULL &&
+        (p = pathjoin(path, sizeof(path), home, ".config", SWTPM_SETUP_CONF)) != NULL &&
+        access(p, R_OK) == 0) {
+        /* p is good */
+    } else {
+        p = pathjoin(path, sizeof(path), G_DIR_SEPARATOR_S, SYSCONFDIR, SWTPM_SETUP_CONF);
+    }
+    *config_file = g_strdup(p);
+
+    return ret;
+}
+
+/* Get the spec and attributes parameters from swtpm */
+static int tpm_get_specs_and_attributes(struct swtpm *swtpm, gchar ***params)
+{
+    int ret;
+    g_autofree gchar *json = NULL;
+    JsonParser *jp = NULL;
+    GError *error = NULL;
+    JsonReader *jr = NULL;
+    JsonNode *root;
+    static const struct parse_rule {
+         const char *node1;
+         const char *node2;
+         gboolean is_int;
+         const char *optname;
+    } parser_rules[7] = {
+         {"TPMSpecification", "family", FALSE, "--tpm-spec-family"},
+         {"TPMSpecification", "level", TRUE, "--tpm-spec-level"},
+         {"TPMSpecification", "revision", TRUE, "--tpm-spec-revision"},
+         {"TPMAttributes", "manufacturer", FALSE, "--tpm-manufacturer"},
+         {"TPMAttributes", "model", FALSE, "--tpm-model"},
+         {"TPMAttributes", "version", FALSE, "--tpm-version"},
+         {NULL, NULL, FALSE, NULL},
+    };
+    size_t idx;
+
+    ret = swtpm->cops->ctrl_get_tpm_specs_and_attrs(swtpm, &json);
+    if (ret != 0) {
+        logerr(gl_LOGFILE, "Could not get the TPM spec and attribute parameters.\n");
+        return 1;
+    }
+
+    jp = json_parser_new();
+
+    if (!json_parser_load_from_data(jp, json, -1, &error)) {
+        logerr(gl_LOGFILE, "JSON parser failed: %s\n", error->message);
+        g_error_free(error);
+        goto error;
+    }
+
+    *params = NULL;
+    root = json_parser_get_root(jp);
+
+    for (idx = 0; parser_rules[idx].node1 != NULL; idx++) {
+        jr = json_reader_new(root);
+        if (json_reader_read_member(jr, parser_rules[idx].node1) &&
+            json_reader_read_member(jr, parser_rules[idx].node2)) {
+            gchar *str;
+
+            if (parser_rules[idx].is_int)
+                str = g_strdup_printf("%ld", (long)json_reader_get_int_value(jr));
+            else
+                str = g_strdup(json_reader_get_string_value(jr));
+
+            *params = concat_arrays(*params,
+                                    (gchar*[]){
+                                        g_strdup(parser_rules[idx].optname),
+                                        str,
+                                        NULL
+                                    }, TRUE);
+        } else {
+            logerr(gl_LOGFILE, "Could not find [%s][%s] in '%s'\n",
+                   parser_rules[idx].node1, parser_rules[idx].node2, json);
+            ret = 1;
+            break;
+        }
+        g_object_unref(jr);
+        jr = NULL;
+    }
+
+    if (ret) {
+        g_strfreev(*params);
+        *params = NULL;
+        g_object_unref(jr);
+    }
+error:
+    g_object_unref(jp);
+
+    return ret;
+}
+
+/* Call an external tool to create the certificates */
+static int call_create_certs(unsigned long flags, const gchar *configfile, const gchar *certsdir,
+                             const gchar *ekparam, const gchar *vmid, struct swtpm *swtpm)
+{
+    gchar **config_file_lines = NULL; /* must free */
+    g_autofree gchar *create_certs_tool = NULL;
+    g_autofree gchar *create_certs_tool_config = NULL;
+    g_autofree gchar *create_certs_tool_options = NULL;
+    g_autofree gchar **cmd = NULL;
+    gchar **params = NULL; /* must free */
+    g_autofree gchar *prgname = NULL;
+    gboolean success;
+    gint exit_status;
+    size_t idx, j;
+    gchar *s;
+    int ret;
+
+    ret = tpm_get_specs_and_attributes(swtpm, &params);
+    if (ret != 0)
+        goto error;
+
+    ret = read_file_lines(configfile, &config_file_lines);
+    if (ret != 0)
+        goto error;
+
+    create_certs_tool = get_config_value(config_file_lines, "create_certs_tool");
+    create_certs_tool_config = get_config_value(config_file_lines, "create_certs_tool_config");
+    create_certs_tool_options = get_config_value(config_file_lines, "create_certs_tool_options");
+
+    ret = 0;
+
+    if (create_certs_tool != NULL) {
+        g_autofree gchar *create_certs_tool_path = g_find_program_in_path(create_certs_tool);
+        if (create_certs_tool_path == NULL) {
+            logerr(gl_LOGFILE, "Could not find %s in PATH.\n", create_certs_tool);
+            ret = 1;
+            goto error;
+        }
+
+        if (flags & SETUP_TPM2_F) {
+            params = concat_arrays(params,
+                                (gchar*[]){
+                                    g_strdup("--tpm2"),
+                                    NULL
+                                }, TRUE);
+        }
+        cmd = concat_arrays((gchar*[]) {
+                                create_certs_tool_path,
+                                "--type", "_",  /* '_' must be at index '2' ! */
+                                "--ek", (gchar *)ekparam,
+                                "--dir", (gchar *)certsdir,
+                                NULL
+                            }, NULL, FALSE);
+        if (gl_LOGFILE != NULL)
+            cmd = concat_arrays(cmd, (gchar*[]){"--logfile", (gchar *)gl_LOGFILE, NULL}, TRUE);
+        if (vmid != NULL)
+            cmd = concat_arrays(cmd, (gchar*[]){"--vmid", (gchar *)vmid, NULL}, TRUE);
+        cmd = concat_arrays(cmd, params, TRUE);
+        if (create_certs_tool_config != NULL)
+            cmd = concat_arrays(cmd, (gchar*[]){"--configfile", create_certs_tool_config, NULL}, TRUE);
+        if (create_certs_tool_options != NULL)
+            cmd = concat_arrays(cmd, (gchar*[]){"--optsfile", create_certs_tool_options, NULL}, TRUE);
+
+        s = g_strrstr(create_certs_tool, G_DIR_SEPARATOR_S);
+        if (s)
+            prgname = strdup(&s[1]);
+        else
+            prgname = strdup(create_certs_tool);
+
+        for (idx = 0; flags_to_certfiles[idx].filename != NULL; idx++) {
+            if (flags & flags_to_certfiles[idx].flag) {
+                g_autofree gchar *standard_output = NULL;
+                GError *error = NULL;
+                gchar **lines;
+
+                cmd[2] = (gchar *)flags_to_certfiles[idx].type; /* replaces the "_" above */
+
+                s = g_strjoinv(" ", cmd);
+                logit(gl_LOGFILE, "  Invoking %s\n", s);
+                g_free(s);
+
+                success = g_spawn_sync(NULL, cmd, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+                                       &standard_output, NULL, &exit_status, &error);
+                if (!success) {
+                    logerr(gl_LOGFILE, "An error occurred running %s: %s\n",
+                           create_certs_tool, error->message);
+                    g_error_free(error);
+                    ret = 1;
+                    break;
+                } else if (exit_status != 0) {
+                    logerr(gl_LOGFILE, "%s exit with status %d: %s\n",
+                           prgname, exit_status, standard_output);
+                    ret = 1;
+                    break;
+                }
+
+                lines = g_strsplit(standard_output, "\n", -1);
+                for (j = 0; lines[j] != NULL; j++) {
+                    if (strlen(lines[j]) > 0)
+                        logit(gl_LOGFILE, "%s: %s\n", prgname, lines[j]);
+                }
+                g_strfreev(lines);
+
+                g_free(standard_output);
+                standard_output = NULL;
+            }
+        }
+    }
+
+error:
+    g_strfreev(config_file_lines);
+    g_strfreev(params);
+
+    return ret;
+}
+
+/* Create EK and certificate for a TPM 2 */
+static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file,
+                                   const gchar *certsdir, const gchar *vmid,
+                                   unsigned int rsa_keysize, struct swtpm2 *swtpm2)
+{
+    g_autofree gchar *filecontent = NULL;
+    size_t filecontent_len;
+    g_autofree gchar *certfile = NULL;
+    g_autofree gchar *ekparam = NULL;
+    size_t idx;
+    int ret;
+
+    if (flags & SETUP_CREATE_EK_F) {
+        ret = swtpm2->ops->create_ek(&swtpm2->swtpm, !!(flags & SETUP_TPM2_ECC_F), rsa_keysize,
+                                     !!(flags & SETUP_ALLOW_SIGNING_F),
+                                     !!(flags & SETUP_DECRYPTION_F),
+                                     !!(flags & SETUP_LOCK_NVRAM_F),
+                                     &ekparam);
+        if (ret != 0)
+            return 1;
+    }
+
+    if (flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F)) {
+        ret = call_create_certs(flags, config_file, certsdir, ekparam, vmid, &swtpm2->swtpm);
+        if (ret != 0)
+            return 1;
+
+        for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
+            if (flags & flags_to_certfiles[idx].flag) {
+                g_free(certfile);
+                certfile = g_strjoin(G_DIR_SEPARATOR_S, certsdir, flags_to_certfiles[idx].filename, NULL);
+
+                g_free(filecontent);
+                filecontent = NULL;
+                ret = read_file(certfile, &filecontent, &filecontent_len);
+                if (ret != 0)
+                    return 1;
+
+                if (flags_to_certfiles[idx].flag == SETUP_EK_CERT_F) {
+                    ret = swtpm2->ops->write_ek_cert_nvram(&swtpm2->swtpm,
+                                                   !!(flags & SETUP_TPM2_ECC_F), rsa_keysize,
+                                                   !!(flags & SETUP_LOCK_NVRAM_F),
+                                                   (const unsigned char*)filecontent, filecontent_len);
+                } else {
+                    ret = swtpm2->ops->write_platform_cert_nvram(&swtpm2->swtpm,
+                                                     !!(flags & SETUP_LOCK_NVRAM_F),
+                                                     (const unsigned char *)filecontent, filecontent_len);
+                }
+                unlink(certfile);
+
+                if (ret != 0)
+                    return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+/* Create endorsement keys and certificates for a TPM 2 */
+static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_file,
+                                     const gchar *certsdir, const gchar *vmid,
+                                     unsigned int rsa_keysize, struct swtpm2 *swtpm2)
+{
+     int ret;
+
+     /* 1st key will be RSA */
+     flags = flags & ~SETUP_TPM2_ECC_F;
+     ret = tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2);
+     if (ret != 0)
+         return 1;
+
+     /* 2nd key will be an ECC; no more platform cert */
+     flags = (flags & ~SETUP_PLATFORM_CERT_F) | SETUP_TPM2_ECC_F;
+     return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2);
+}
+
+/* Simulate manufacturing a TPM 2: create keys and certificates */
+static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
+                     const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
+                     const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
+                     unsigned int rsa_keysize)
+{
+    g_autofree gchar *certsdir = g_strdup(tpm2_state_path);
+    struct swtpm2 *swtpm2;
+    struct swtpm *swtpm;
+    int ret;
+
+    swtpm2 = swtpm2_new(swtpm_prg_l, tpm2_state_path, swtpm_keyopt, gl_LOGFILE,
+                        fds_to_pass, n_fds_to_pass);
+    if (swtpm2 == NULL)
+        return 1;
+    swtpm = &swtpm2->swtpm;
+
+    ret = swtpm->cops->start(swtpm);
+    if (ret != 0) {
+        logerr(gl_LOGFILE, "Could not start the TPM 2.\n");
+        goto error;
+    }
+
+    if ((flags & SETUP_CREATE_SPK_F)) {
+        ret = swtpm2->ops->create_spk(swtpm, !!(flags & SETUP_TPM2_ECC_F), rsa_keysize);
+        if (ret != 0)
+            goto destroy;
+    }
+
+    ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2);
+    if (ret != 0)
+        goto destroy;
+
+    if (strcmp(pcr_banks, "-") != 0) {
+        gchar **all_pcr_banks = NULL;
+
+        ret = swtpm2->ops->get_all_pcr_banks(swtpm, &all_pcr_banks);
+        if (ret == 0) {
+            gchar **active_pcr_banks = NULL;
+            gchar **pcr_banks_l = g_strsplit(pcr_banks, ",", -1);
+            ret = swtpm2->ops->set_active_pcr_banks(swtpm, pcr_banks_l, all_pcr_banks,
+                                                    &active_pcr_banks);
+            g_strfreev(pcr_banks_l);
+            if (ret == 0) {
+                g_autofree gchar *active_pcr_banks_join = g_strjoinv(",", active_pcr_banks);
+                g_autofree gchar *all_pcr_banks_join = g_strjoinv(",", all_pcr_banks);
+                logit(gl_LOGFILE, "Successfully activated PCR banks %s among %s.\n",
+                      active_pcr_banks_join, all_pcr_banks_join);
+            }
+            g_strfreev(active_pcr_banks);
+        }
+        g_strfreev(all_pcr_banks);
+
+        if (ret != 0)
+            goto destroy;
+    }
+
+    ret = swtpm2->ops->shutdown(swtpm);
+
+destroy:
+    swtpm->cops->destroy(swtpm);
+
+error:
+    swtpm_free(swtpm);
+
+    return ret;
+}
+
+/* Create the owner password digest */
+static void tpm12_get_ownerpass_digest(unsigned long flags, const gchar *ownerpass,
+                                       unsigned char ownerpass_digest[SHA_DIGEST_LENGTH])
+{
+    const gchar zeros[SHA_DIGEST_LENGTH]= {0, };
+    size_t len;
+
+    if (ownerpass == NULL) {
+        if (flags & SETUP_OWNERPASS_ZEROS_F) {
+            ownerpass = zeros;
+            len = sizeof(zeros);
+        } else {
+            ownerpass = DEFAULT_OWNER_PASSWORD;
+            len = strlen(ownerpass);
+        }
+    } else {
+        len = strlen(ownerpass);
+    }
+    SHA1((const unsigned char *)ownerpass, len, ownerpass_digest);
+}
+
+/* Create the SRK password digest */
+static void tpm12_get_srkpass_digest(unsigned long flags, const gchar *srkpass,
+                                     unsigned char srkpass_digest[SHA_DIGEST_LENGTH])
+{
+    const gchar zeros[SHA_DIGEST_LENGTH]= {0, };
+    size_t len;
+
+    if (srkpass == NULL) {
+        if (flags & SETUP_SRKPASS_ZEROS_F) {
+            srkpass = zeros;
+            len = sizeof(zeros);
+        } else {
+            srkpass = DEFAULT_SRK_PASSWORD;
+            len = strlen(srkpass);
+        }
+    } else {
+        len = strlen(srkpass);
+    }
+    SHA1((const unsigned char *)srkpass, len, srkpass_digest);
+}
+
+/* Take ownership of a TPM 1.2 */
+static int tpm12_take_ownership(unsigned long flags, const gchar *ownerpass,
+                                const gchar *srkpass, gchar *pubek, size_t pubek_len,
+                                struct swtpm12 *swtpm12)
+{
+    unsigned char ownerpass_digest[SHA_DIGEST_LENGTH];
+    unsigned char srkpass_digest[SHA_DIGEST_LENGTH];
+
+    tpm12_get_ownerpass_digest(flags, ownerpass, ownerpass_digest);
+    tpm12_get_srkpass_digest(flags, srkpass, srkpass_digest);
+
+    return swtpm12->ops->take_ownership(&swtpm12->swtpm, ownerpass_digest, srkpass_digest,
+                                        (const unsigned char *)pubek, pubek_len);
+}
+
+/* Create the certificates for a TPM 1.2 */
+static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
+                              const gchar *certsdir, const gchar *ekparam,
+                              const gchar *vmid, struct swtpm12 *swtpm12)
+{
+    g_autofree gchar *filecontent = NULL;
+    g_autofree gchar *certfile = NULL;
+    gsize filecontent_len;
+    size_t idx;
+    int ret;
+
+    ret = call_create_certs(flags, config_file, certsdir, ekparam, vmid, &swtpm12->swtpm);
+    if (ret != 0)
+        return 1;
+
+    for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
+        if (flags & flags_to_certfiles[idx].flag) {
+            g_free(certfile);
+            certfile = g_strjoin(G_DIR_SEPARATOR_S, certsdir,
+                                 flags_to_certfiles[idx].filename, NULL);
+
+            g_free(filecontent);
+            filecontent = NULL;
+            ret = read_file(certfile, &filecontent, &filecontent_len);
+            if (ret != 0)
+                return 1;
+
+            if (flags_to_certfiles[idx].flag == SETUP_EK_CERT_F) {
+                ret = swtpm12->ops->write_ek_cert_nvram(&swtpm12->swtpm,
+                                                (const unsigned char*)filecontent, filecontent_len);
+                if (ret == 0)
+                    logit(gl_LOGFILE, "Successfully created NVRAM area for EK certificate.\n");
+            } else {
+                ret = swtpm12->ops->write_platform_cert_nvram(&swtpm12->swtpm,
+                                                  (const unsigned char*)filecontent, filecontent_len);
+                if (ret == 0)
+                    logit(gl_LOGFILE, "Successfully created NVRAM area for Platform certificate.\n");
+            }
+            unlink(certfile);
+            if (ret != 0)
+                return 1;
+        }
+    }
+
+    return 0;
+}
+
+/* Simulate manufacturing a TPM 1.2: create keys and certificate and possibly take ownership */
+static int init_tpm(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
+                    const gchar *tpm_state_path, const gchar *ownerpass, const gchar *srkpass,
+                    const gchar *vmid, const gchar *swtpm_keyopt,
+                    int *fds_to_pass, size_t n_fds_to_pass)
+{
+    g_autofree gchar *certsdir = g_strdup(tpm_state_path);
+    struct swtpm12 *swtpm12;
+    struct swtpm *swtpm;
+    g_autofree gchar *pubek = NULL;
+    size_t pubek_len;
+    int ret = 1;
+
+    swtpm12 = swtpm12_new(swtpm_prg_l, tpm_state_path, swtpm_keyopt, gl_LOGFILE,
+                          fds_to_pass, n_fds_to_pass);
+    if (swtpm12 == NULL)
+        return 1;
+    swtpm = &swtpm12->swtpm;
+
+    ret = swtpm->cops->start(swtpm);
+    if (ret != 0) {
+        logerr(gl_LOGFILE, "Could not start the TPM 1.2.\n");
+        goto error;
+    }
+
+    ret = swtpm12->ops->run_swtpm_bios(swtpm);
+    if (ret != 0)
+         goto destroy;
+
+    if ((flags & SETUP_CREATE_EK_F)) {
+        ret = swtpm12->ops->create_endorsement_key_pair(swtpm, &pubek, &pubek_len);
+        if (ret != 0)
+            goto destroy;
+
+        logit(gl_LOGFILE, "Successfully created EK.\n");
+
+        /* can only take owernship if created an EK */
+        if ((flags & SETUP_TAKEOWN_F)) {
+            ret = tpm12_take_ownership(flags, ownerpass, srkpass, pubek, pubek_len, swtpm12);
+            if (ret != 0)
+                goto destroy;
+
+            logit(gl_LOGFILE, "Successfully took ownership of the TPM.\n");
+        }
+
+        /* can only create EK cert if created an EK */
+        if ((flags & SETUP_EK_CERT_F)) {
+            g_autofree gchar *ekparam = print_as_hex((unsigned char *)pubek, pubek_len);
+
+            ret = tpm12_create_certs(flags, config_file, certsdir, ekparam, vmid, swtpm12);
+            if (ret != 0)
+                goto destroy;
+        }
+    }
+
+    if ((flags & SETUP_LOCK_NVRAM_F)) {
+        ret = swtpm12->ops->nv_lock(swtpm);
+        if (ret == 0)
+            logit(gl_LOGFILE, "Successfully locked NVRAM access.\n");
+    }
+
+destroy:
+    swtpm->cops->destroy(swtpm);
+
+error:
+    swtpm_free(swtpm);
+
+    return ret;
+}
+
+/* Check whether we are allowed to overwrite existing state.
+ * This function returns 2 if the state exists but flag is set to not to overwrite it,
+ * 0 in case we can overwrite it, 1 if the state exists.
+ */
+static int check_state_overwrite(unsigned int flags, const char *tpm_state_path)
+{
+    const char *statefile;
+    char path[PATH_MAX];
+    const char *p = NULL;
+
+    if (flags & SETUP_TPM2_F)
+        statefile = "tpm2-00.permall";
+    else
+        statefile = "tpm-00.permall";
+
+    p = pathjoin(path, sizeof(path), tpm_state_path, statefile, NULL);
+    if (!p)
+        return 1;
+
+    if (access(p, R_OK|W_OK) == 0) {
+        if (flags & SETUP_STATE_NOT_OVERWRITE_F) {
+            logit(gl_LOGFILE, "Not overwriting existing state file.\n");
+            return 2;
+        }
+        if (flags & SETUP_STATE_OVERWRITE_F)
+            return 0;
+        logerr(gl_LOGFILE, "Found existing TPM state file %s.\n", statefile);
+        return 1;
+    }
+
+    return 0;
+}
+
+/* Delete a TPM 1.2 or TPM 2 statefile tpm-00.permall or tpm2-00.permall.
+ * Return 1 in case the file could not be removed, 0 otherwise.
+ */
+static int delete_state(unsigned int flags, const char *tpm_state_path)
+{
+    const char *statefile;
+    char path[PATH_MAX];
+    const char *p = NULL;
+
+    if (flags & SETUP_TPM2_F)
+        statefile = "tpm2-00.permall";
+    else
+        statefile = "tpm-00.permall";
+
+    p = pathjoin(path, sizeof(path), tpm_state_path, statefile, NULL);
+    if (!p)
+        return 1;
+
+    if (unlink(p) != 0)
+        return 1;
+
+    return 0;
+}
+
+static void versioninfo(void)
+{
+    printf("TPM emulator setup tool version %d.%d.%d\n",
+           SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO);
+}
+
+static void usage(const char *prgname, const char *default_config_file)
+{
+    versioninfo();
+    printf(
+        "Usage: %s [options]\n"
+        "\n"
+        "The following options are supported:\n"
+        "\n"
+        "--runas <user>   : Run this program under the given user's account.\n"
+        "\n"
+        "--tpm-state <dir>: Path to a directory where the TPM's state will be written\n"
+        "                   into; this is a mandatory argument\n"
+        "\n"
+        "--tpmstate <dir> : This is an alias for --tpm-state <dir>.\n"
+        "\n"
+        "--tpm <executable>\n"
+        "                 : Path to the TPM executable; this is an optional argument and\n"
+        "                   by default 'swtpm' in the PATH is used.\n"
+        "\n"
+        "--swtpm_ioctl <executable>\n"
+        "                 : Path to the swtpm_ioctl executable; this is deprecated\n"
+        "                   argument.\n"
+        "\n"
+        "--tpm2           : Setup a TPM 2; by default a TPM 1.2 is setup.\n"
+        "\n"
+        "--createek       : Create the EK; for a TPM 2 an RSA and ECC EK will be\n"
+        "                   created\n"
+        "\n"
+        "--allow-signing  : Create an EK that can be used for signing;\n"
+        "                   this option requires --tpm2.\n"
+        "                   Note: Careful, this option will create a non-standard EK!\n"
+        "\n"
+        "--decryption     : Create an EK that can be used for key encipherment;\n"
+        "                   this is the default unless --allow-signing is given;\n"
+        "                   this option requires --tpm2.\n"
+        "\n"
+        "--ecc            : This option allows to create a TPM 2's ECC key as storage\n"
+        "                   primary key; a TPM 2 always gets an RSA and an ECC EK key.\n"
+        "\n"
+        "--take-ownership : Take ownership; this option implies --createek\n"
+        "  --ownerpass  <password>\n"
+        "                 : Provide custom owner password; default is %s\n"
+        "  --owner-well-known:\n"
+        "                 : Use an owner password of 20 zero bytes\n"
+        "  --srkpass <password>\n"
+        "                 : Provide custom SRK password; default is %s\n"
+        "  --srk-well-known:\n"
+        "                 : Use an SRK password of 20 zero bytes\n"
+        "--create-ek-cert : Create an EK certificate; this implies --createek\n"
+        "\n"
+        "--create-platform-cert\n"
+        "                 : Create a platform certificate; this implies --create-ek-cert\n"
+        "\n"
+        "--create-spk     : Create storage primary key; this requires --tpm2\n"
+        "\n"
+        "--lock-nvram     : Lock NVRAM access\n"
+        "\n"
+        "--display        : At the end display as much info as possible about the\n"
+        "                   configuration of the TPM\n"
+        "\n"
+        "--config <config file>\n"
+        "                 : Path to configuration file; default is %s\n"
+        "\n"
+        "--logfile <logfile>\n"
+        "                 : Path to log file; default is logging to stderr\n"
+        "\n"
+        "--keyfile <keyfile>\n"
+        "                 : Path to a key file containing the encryption key for the\n"
+        "                   TPM to encrypt its persistent state with. The content\n"
+        "                   must be a 32 hex digit number representing a 128bit AES key.\n"
+        "                   This parameter will be passed to the TPM using\n"
+        "                   '--key file=<file>'.\n"
+        "\n"
+        "--keyfile-fd <fd>: Like --keyfile but a file descriptor is given to read the\n"
+        "                   encryption key from.\n"
+        "\n"
+        "--pwdfile <pwdfile>\n"
+        "                 : Path to a file containing a passphrase from which the\n"
+        "                   TPM will derive the 128bit AES key. The passphrase can be\n"
+        "                   32 bytes long.\n"
+        "                   This parameter will be passed to the TPM using\n"
+        "                   '--key pwdfile=<file>'.\n"
+        "\n"
+        "--pwdfile-fd <fd>: Like --pwdfile but a file descriptor is given to to read\n"
+        "                   the passphrase from.\n"
+        "\n"
+        "--cipher <cipher>: The cipher to use; either aes-128-cbc or aes-256-cbc;\n"
+        "                   the default is aes-128-cbc; the same cipher must be\n"
+        "                   used on the swtpm command line\n"
+        "\n"
+        "--overwrite      : Overwrite existing TPM state by re-initializing it; if this\n"
+        "                   option is not given, this program will return an error if\n"
+        "                   existing state is detected\n"
+        "\n"
+        "--not-overwrite  : Do not overwrite existing TPM state but silently end\n"
+        "\n"
+        "--pcr-banks <banks>\n"
+        "                 : Set of PCR banks to activate. Provide a comma separated list\n"
+        "                   like 'sha1,sha256'. '-' to skip and leave all banks active.\n"
+        "                   Default: %s\n"
+        "\n"
+        "--rsa-keysize <keysize>\n"
+        "                 : The RSA key size of the EK key; 3072 bits may be supported\n"
+        "                   if libtpms supports it.\n"
+        "                   Default: %u\n"
+        "\n"
+        "--tcsd-system-ps-file <file>\n"
+        "                 : This option is deprecated and has no effect.\n"
+        "\n"
+        "--print-capabilities\n"
+        "                 : Print JSON formatted capabilites added after v0.1 and exit.\n"
+        "\n"
+        "--version        : Display version and exit\n"
+        "\n"
+        "--help,-h,-?     : Display this help screen\n\n",
+            prgname,
+            DEFAULT_OWNER_PASSWORD,
+            DEFAULT_SRK_PASSWORD,
+            default_config_file,
+            DEFAULT_PCR_BANKS,
+            DEFAULT_RSA_KEYSIZE
+        );
+}
+
+/* Get the support RSA key sizes.
+ *  This function returns an array of ints like the following
+ *  - [ 1024, 2048, 3072 ]
+ *  - [] (empty array, indicating only 2048 bit RSA keys are supported)
+ */
+static int get_rsa_keysizes(unsigned long flags, gchar **swtpm_prg_l,
+                            unsigned int **keysizes, size_t *n_keysizes)
+{
+    gboolean success;
+    gchar *standard_output = NULL;
+    int exit_status = 0;
+    GError *error = NULL;
+    int ret = 1;
+    const gchar *needle = "\"rsa-keysize-";
+    unsigned int keysize;
+    gchar **argv = NULL;
+    char *p;
+    int n;
+
+    *n_keysizes = 0;
+
+    if (flags & SETUP_TPM2_F) {
+        gchar *my_argv[] = { "--tpm2", "--print-capabilities", NULL };
+
+        argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
+
+        success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+                               &standard_output, NULL, &exit_status, &error);
+        if (!success) {
+            logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
+            goto error;
+        }
+
+        p = standard_output;
+        /* A crude way of parsing the json output just looking for "rsa-keysize-%u" */
+        while ((p = g_strstr_len(p, -1, needle)) != NULL) {
+            p += strlen(needle);
+            n = sscanf(p, "%u\"", &keysize);
+            if (n == 1) {
+                *keysizes = g_realloc(*keysizes, (*n_keysizes + 1) * sizeof(unsigned int));
+                (*keysizes)[*n_keysizes] = keysize;
+                (*n_keysizes)++;
+            }
+        }
+    }
+    ret = 0;
+
+error:
+    g_free(argv);
+    g_free(standard_output);
+
+    return ret;
+}
+
+/* Return the RSA key size capabilities in a NULL-terminated array */
+static int get_rsa_keysize_caps(unsigned long flags, gchar **swtpm_prg_l,
+                                gchar ***keysize_strs)
+{
+    unsigned int *keysizes = NULL;
+    size_t n_keysizes = 0;
+    size_t i, j;
+    int ret = get_rsa_keysizes(flags, swtpm_prg_l, &keysizes, &n_keysizes);
+    if (ret)
+        return ret;
+
+    *keysize_strs = g_malloc0(sizeof(char *) * (n_keysizes + 1));
+    for (i = 0, j = 0; i < n_keysizes; i++) {
+        if (keysizes[i] >= 2048)
+            (*keysize_strs)[j++] = g_strdup_printf("tpm2-rsa-keysize-%u", keysizes[i]);
+    }
+
+    g_free(keysizes);
+
+    return 0;
+}
+
+/* Print teh JSON object of swtpm_setup's capabilities */
+static int print_capabilities(char **swtpm_prg_l)
+{
+    g_autofree gchar *param = g_strdup("");
+    gchar **keysize_strs = NULL;
+    gchar *tmp;
+    size_t i;
+    int ret = 0;
+
+    ret = get_rsa_keysize_caps(SETUP_TPM2_F, swtpm_prg_l, &keysize_strs);
+    if (ret)
+        return 1;
+
+    for (i = 0; keysize_strs[i] != NULL; i++) {
+        tmp = g_strdup_printf("%s, \"%s\"", param, keysize_strs[i]);
+        g_free(param);
+        param = tmp;
+    }
+
+    printf("{ \"type\": \"swtpm_setup\", "
+           "\"features\": [ \"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
+           "%s ] }\n", param);
+
+    g_strfreev(keysize_strs);
+
+    return 0;
+}
+
+static int change_process_owner(const char *user)
+{
+    char *endptr;
+    unsigned long long uid = strtoull(user, &endptr, 10);
+    gid_t gid;
+    struct passwd *passwd;
+    int ret = 1;
+
+    if (*endptr != '\0') {
+        /* assuming a name */
+        passwd = getpwnam(user);
+        if (passwd == NULL) {
+            logerr(gl_LOGFILE, "Error: User '%s' does not exist.\n", user);
+            goto error;
+        }
+
+        if (initgroups(passwd->pw_name, passwd->pw_gid) != 0) {
+            logerr(gl_LOGFILE, "Error: initgroups() failed: %s\n", strerror(errno));
+            goto error;
+        }
+
+        gid = passwd->pw_gid;
+        uid = passwd->pw_uid;
+    } else {
+        if (uid > 0xffffffff) {
+            logerr(gl_LOGFILE, "Error: uid %s outside valid range.\n", user);
+            goto error;
+        }
+        gid = (gid_t)uid;
+    }
+
+    if (setgid(gid) != 0) {
+        logerr(gl_LOGFILE, "Error: setgid(%d) failed: %s\n", gid, strerror(errno));
+        goto error;
+    }
+
+    if (setuid(uid) != 0) {
+        logerr(gl_LOGFILE, "Error: setuid(%d) failed: %s\n", uid, strerror(errno));
+        goto error;
+    }
+
+    ret = 0;
+
+error:
+    return ret;
+}
+
+/* Delete swtpm's state file. Those are the files with suffixes
+ * 'permall', 'volatilestate', and 'savestate'.
+ */
+static int delete_swtpm_statefiles(const gchar *tpm_state_path)
+{
+    GError *error = NULL;
+    GDir *dir = g_dir_open(tpm_state_path, 0, &error);
+    int ret = 1;
+
+    if (dir == NULL) {
+        logerr(gl_LOGFILE, "%s\n", error->message);
+        g_error_free(error);
+        return 1;
+    }
+    while (1) {
+        const gchar *fn = g_dir_read_name(dir);
+
+        if (fn == NULL) {
+            if (errno != 0 && errno != ENOENT) {
+                logerr(gl_LOGFILE, "Error getting next filename: %s\n", strerror(errno));
+                break;
+            } else {
+                ret = 0;
+                break;
+            }
+        }
+        if (g_str_has_suffix(fn, "permall") ||
+            g_str_has_suffix(fn, "volatilestate") ||
+            g_str_has_suffix(fn, "savestate")) {
+            g_autofree gchar *fullname = g_strjoin(G_DIR_SEPARATOR_S,
+                                                   tpm_state_path, fn, NULL);
+            if (unlink(fullname) != 0) {
+                logerr(gl_LOGFILE, "Coud not remove %s: %s\n", fn, strerror(errno));
+                break;
+            }
+        }
+    }
+
+    g_dir_close(dir);
+
+    return ret;
+}
+
+int main(int argc, char *argv[])
+{
+    int opt, option_index = 0;
+    const static struct option long_options[] = {
+        {"tpm-state", required_argument, NULL, 't'},
+        {"tpmstate", required_argument, NULL, 't'}, /* alias for tpm-state */
+        {"tpm", required_argument, NULL, 'T'},
+        {"swtpm_ioctl", required_argument, NULL, '_'},
+        {"tpm2", no_argument, NULL, '2'},
+        {"ecc", no_argument, NULL, 'e'},
+        {"createek", no_argument, NULL, 'c'},
+        {"create-spk", no_argument, NULL, 'C'},
+        {"take-ownership", no_argument, NULL, 'o'},
+        {"ownerpass", required_argument, NULL, 'O'},
+        {"owner-well-known", no_argument, NULL, 'w'},
+        {"srkpass", required_argument, NULL, 'S'},
+        {"srk-well-known", no_argument, NULL, 's'},
+        {"create-ek-cert", no_argument, NULL, 'E'},
+        {"create-platform-cert", no_argument, NULL, 'P'},
+        {"lock-nvram", no_argument, NULL, 'L'},
+        {"display", no_argument, NULL, 'i'},
+        {"config", required_argument, NULL, 'f'},
+        {"vmid", required_argument, NULL, 'm'},
+        {"keyfile", required_argument, NULL, 'x'},
+        {"keyfile-fd", required_argument, NULL, 'X'},
+        {"pwdfile", required_argument, NULL, 'k'},
+        {"pwdfile-fd", required_argument, NULL, 'K'},
+        {"cipher", required_argument, NULL, 'p'},
+        {"runas", required_argument, NULL, 'r'},
+        {"logfile", required_argument, NULL, 'l'},
+        {"overwrite", no_argument, NULL, 'v'},
+        {"not-overwrite", no_argument, NULL, 'V'},
+        {"allow-signing", no_argument, NULL, 'a'},
+        {"decryption", no_argument, NULL, 'd'},
+        {"pcr-banks", required_argument, NULL, 'b'},
+        {"rsa-keysize", required_argument, NULL, 'A'},
+        {"tcsd-system-ps-file", required_argument, NULL, 'F'},
+        {"version", no_argument, NULL, '1'},
+        {"print-capabilities", no_argument, NULL, 'y'},
+        {"help", no_argument, NULL, 'h'},
+        {NULL, 0, NULL, 0}
+    };
+    unsigned long flags = 0;
+    g_autofree gchar *swtpm_prg = NULL;
+    g_autofree gchar *tpm_state_path = NULL;
+    g_autofree gchar *config_file = NULL;
+    g_autofree gchar *ownerpass = NULL;
+    gboolean got_ownerpass = FALSE;
+    g_autofree gchar *srkpass = NULL;
+    gboolean got_srkpass = FALSE;
+    g_autofree gchar *vmid = NULL;
+    g_autofree gchar *pcr_banks = NULL;
+    gboolean printcapabilities = FALSE;
+    g_autofree gchar *keyfile = NULL;
+    long int keyfile_fd = -1;
+    g_autofree gchar *pwdfile = NULL;
+    long int pwdfile_fd = -1;
+    g_autofree gchar *cipher = g_strdup("aes-128-cbc");
+    g_autofree gchar *rsa_keysize_str = g_strdup_printf("%d", DEFAULT_RSA_KEYSIZE);
+    unsigned int rsa_keysize;
+    g_autofree gchar *swtpm_keyopt = NULL;
+    g_autofree gchar *runas = NULL;
+    gchar *tmp;
+    gchar **swtpm_prg_l = NULL;
+    gchar **tmp_l = NULL;
+    size_t i, n;
+    struct stat statbuf;
+    const struct passwd *curr_user;
+    struct group *curr_grp;
+    char *endptr;
+    char path[PATH_MAX];
+    char *p;
+    g_autofree gchar *lockfile = NULL;
+    int fds_to_pass[1] = { -1 };
+    unsigned n_fds_to_pass = 0;
+    char tmpbuffer[200];
+    time_t now;
+    struct tm *tm;
+    int ret = 1;
+
+    if (init(&config_file) < 0)
+        goto error;
+
+    swtpm_prg = g_find_program_in_path("swtpm");
+    if (swtpm_prg) {
+        tmp = g_strconcat(swtpm_prg, " socket", NULL);
+        g_free(swtpm_prg);
+        swtpm_prg = tmp;
+    }
+
+    while ((opt = getopt_long(argc, argv, "h?",
+                              long_options, &option_index)) != -1) {
+        switch (opt) {
+        case 't': /* --tpmstate, --tpm-state */
+            g_free(tpm_state_path);
+            tpm_state_path = g_strdup(optarg);
+            break;
+        case 'T': /* --tpm */
+            g_free(swtpm_prg);
+            swtpm_prg = g_strdup(optarg);
+            break;
+        case '_': /* --swtpm_ioctl */
+            fprintf(stdout, "Warning: --swtpm_ioctl is deprecated and has no effect.");
+            break;
+        case '2': /* --tpm2 */
+            flags |= SETUP_TPM2_F;
+            break;
+        case 'e': /* --ecc */
+            flags |= SETUP_TPM2_ECC_F;
+            break;
+        case 'c': /* --createek */
+            flags |= SETUP_CREATE_EK_F;
+            break;
+        case 'C': /* --create-spk */
+            flags |= SETUP_CREATE_SPK_F;
+            break;
+        case 'o': /* --take-ownership */
+            flags |= SETUP_CREATE_EK_F | SETUP_TAKEOWN_F;
+            break;
+        case 'O': /* --ownerpass */
+            g_free(ownerpass);
+            ownerpass = g_strdup(optarg);
+            got_ownerpass = TRUE;
+            break;
+        case 'w': /* --owner-well-known */
+            flags |= SETUP_OWNERPASS_ZEROS_F;
+            got_ownerpass = TRUE;
+            break;
+        case 'S': /* --srk-pass */
+            g_free(srkpass);
+            srkpass = g_strdup(optarg);
+            got_srkpass = TRUE;
+            break;
+        case 's': /* --srk-well-known */
+            flags |= SETUP_SRKPASS_ZEROS_F;
+            got_srkpass = TRUE;
+            break;
+        case 'E': /* --create-ek-cert */
+            flags |= SETUP_CREATE_EK_F | SETUP_EK_CERT_F;
+            break;
+        case 'P': /* --create-platform-cert */
+            flags |= SETUP_CREATE_EK_F | SETUP_PLATFORM_CERT_F;
+            break;
+        case 'L': /* --lock-nvram */
+            flags |= SETUP_LOCK_NVRAM_F;
+            break;
+        case 'i': /* --display */
+            flags |= SETUP_DISPLAY_RESULTS_F;
+            break;
+        case 'f': /* --config */
+            g_free(config_file);
+            config_file = g_strdup(optarg);
+            break;
+        case 'm': /* --vmid */
+            g_free(vmid);
+            vmid = g_strdup(optarg);
+            break;
+        case 'x': /* --keyfile */
+            g_free(keyfile);
+            keyfile = g_strdup(optarg);
+            break;
+        case 'X': /* --pwdfile-fd' */
+            keyfile_fd = strtoull(optarg, &endptr, 10);
+            if (*endptr != '\0' && keyfile_fd >= INT_MAX) {
+                fprintf(stderr, "Invalid file descriptor '%s'\n", optarg);
+                goto error;
+            }
+            break;
+        case 'k': /* --pwdfile */
+            g_free(pwdfile);
+            pwdfile = g_strdup(optarg);
+            break;
+        case 'K': /* --pwdfile-fd' */
+            pwdfile_fd = strtoull(optarg, &endptr, 10);
+            if (*endptr != '\0' || pwdfile_fd >= INT_MAX) {
+                fprintf(stderr, "Invalid file descriptor '%s'\n", optarg);
+                goto error;
+            }
+            break;
+        case 'p': /* --cipher */
+            g_free(cipher);
+            cipher = g_strdup(optarg);
+            break;
+        case 'r': /* --runas */
+            g_free(runas);
+            runas = g_strdup(optarg);
+            break;
+        case 'l': /* --logfile */
+            g_free(gl_LOGFILE);
+            gl_LOGFILE = g_strdup(optarg);
+            break;
+        case 'v': /* --overwrite */
+            flags |= SETUP_STATE_OVERWRITE_F;
+            break;
+        case 'V': /* --not-overwrite */
+            flags |= SETUP_STATE_NOT_OVERWRITE_F;
+            break;
+        case 'a': /* --allow-signing */
+            flags |= SETUP_ALLOW_SIGNING_F;
+            break;
+        case 'd': /* --decryption */
+            flags |= SETUP_DECRYPTION_F;
+            break;
+        case 'b': /* --pcr-banks */
+            tmp = g_strconcat(pcr_banks ? pcr_banks: "",
+                              pcr_banks ? "," : "", g_strstrip(optarg), NULL);
+            g_free(pcr_banks);
+            pcr_banks = tmp;
+            break;
+        case 'A': /* --rsa-keysize */
+            g_free(rsa_keysize_str);
+            rsa_keysize_str = strdup(optarg);
+            break;
+        case 'F': /* --tcsd-system-ps-file */
+            printf("Warning: --tcsd-system-ps-file is deprecated and has no effect.");
+            break;
+        case '1': /* --version */
+            versioninfo();
+            ret = 0;
+            goto error;
+        case 'y': /* --print-capabilities */
+            printcapabilities = TRUE;
+            break;
+        case '?':
+        case 'h': /* --help */
+            usage(argv[0], config_file);
+            ret = 0;
+            goto out;
+        default:
+            fprintf(stderr, "Unknown option code %d\n", opt);
+            usage(argv[0], config_file);
+            goto error;
+        }
+    }
+
+    if (swtpm_prg == NULL) {
+        logerr(gl_LOGFILE,
+               "Default TPM 'swtpm' could not be found and was not provided using --tpm\n.");
+        goto error;
+    }
+
+    swtpm_prg_l = split_cmdline(swtpm_prg);
+    tmp = g_find_program_in_path(swtpm_prg_l[0]);
+    if (!tmp) {
+        logerr(gl_LOGFILE, "TPM at %s is not an executable.\n", swtpm_prg);
+        goto error;
+    }
+    g_free(tmp);
+
+    if (printcapabilities) {
+        ret = print_capabilities(swtpm_prg_l);
+        goto out;
+    }
+
+    if (runas) {
+        ret = change_process_owner(runas);
+        if (ret != 0)
+            goto error;
+    }
+
+    if (!got_ownerpass)
+        ownerpass = g_strdup(DEFAULT_OWNER_PASSWORD);
+    if (!got_srkpass)
+        srkpass = g_strdup(DEFAULT_SRK_PASSWORD);
+
+    /* check pcr_banks */
+    tmp_l = g_strsplit(pcr_banks ? pcr_banks : "", ",", -1);
+    for (i = 0, n = 0; tmp_l[i]; i++)
+        n += strlen(tmp_l[i]);
+    g_strfreev(tmp_l);
+    if (n == 0)
+        pcr_banks = g_strdup(DEFAULT_PCR_BANKS);
+
+    if (gl_LOGFILE != NULL) {
+        FILE *tmpfile;
+        if (stat(gl_LOGFILE, &statbuf) == 0 &&
+            (statbuf.st_mode & S_IFMT) == S_IFLNK) {
+            fprintf(stderr, "Logfile must not be a symlink.\n");
+            goto error;
+        }
+        tmpfile = fopen(gl_LOGFILE, "a");
+        if (tmpfile == NULL) {
+            fprintf(stderr, "Cannot write to logfile %s.\n", gl_LOGFILE);
+            goto error;
+        }
+        fclose(tmpfile);
+    }
+
+    curr_user = getpwuid(getuid());
+
+    // Check tpm_state_path directory and access rights
+    if (tpm_state_path == NULL) {
+        logerr(gl_LOGFILE, "--tpm-state must be provided\n");
+        goto error;
+    }
+    if (stat(tpm_state_path, &statbuf) != 0 || (statbuf.st_mode & S_IFMT) != S_IFDIR) {
+        logerr(gl_LOGFILE,
+               "User %s cannot access directory %s. Make sure it exists and is a directory.\n",
+               curr_user ? curr_user->pw_name : "<unknown>", tpm_state_path);
+        goto error;
+    }
+    if (access(tpm_state_path, R_OK) != 0) {
+        logerr(gl_LOGFILE, "Need read rights on directory %s for user %s.\n",
+               tpm_state_path, curr_user ? curr_user->pw_name : "<unknown>");
+        goto error;
+    }
+    if (access(tpm_state_path, W_OK) != 0) {
+        logerr(gl_LOGFILE, "Need write rights on directory %s for user %s.\n",
+               tpm_state_path, curr_user ? curr_user->pw_name : "<unknown>");
+        goto error;
+    }
+
+    if (flags & SETUP_TPM2_F) {
+        if (flags & SETUP_TAKEOWN_F) {
+            logerr(gl_LOGFILE, "Taking ownership is not supported for TPM 2.\n");
+            goto error;
+        }
+    } else {
+        if (flags & SETUP_TPM2_ECC_F) {
+            logerr(gl_LOGFILE, "--ecc requires --tpm2.\n");
+            goto error;
+        }
+        if (flags & SETUP_CREATE_SPK_F) {
+            logerr(gl_LOGFILE, "--create-spk requires --tpm2.\n");
+            goto error;
+        }
+    }
+
+    ret = check_state_overwrite(flags, tpm_state_path);
+    if (ret == 1) {
+        goto error;
+    } else if (ret == 2) {
+        ret = 0;
+        goto out;
+    }
+
+    ret = delete_swtpm_statefiles(tpm_state_path);
+    if (ret != 0)
+        goto error;
+
+    p = pathjoin(path, sizeof(path), tpm_state_path, ".lock", NULL);
+    if (!p)
+        goto error;
+    lockfile = g_strdup(p);
+    if (stat(lockfile, &statbuf) == 0 && access(lockfile, R_OK|W_OK) != 0) {
+        logerr(gl_LOGFILE, "User %s cannot read/write lockfile %s.\n",
+               curr_user ? curr_user->pw_name : "<unknown>", lockfile);
+        goto error;
+    }
+
+    if (access(config_file, R_OK) != 0) {
+        logerr(gl_LOGFILE, "User %s cannot read config file %s.\n",
+               curr_user ? curr_user->pw_name : "<unknown>", config_file);
+        goto error;
+    }
+
+    if (cipher != NULL) {
+        if (strcmp(cipher, "aes-128-cbc") != 0 &&
+            strcmp(cipher, "aes-cbc") != 0 &&
+            strcmp(cipher, "aes-256-cbc") != 0) {
+            logerr(gl_LOGFILE, "Unsupported cipher %s.\n", cipher);
+            goto error;
+        }
+        tmp = g_strdup_printf(",mode=%s", cipher);
+        g_free(cipher);
+        cipher = tmp;
+    }
+
+    if (keyfile != NULL) {
+        if (access(keyfile, R_OK) != 0) {
+            logerr(gl_LOGFILE, "User %s cannot read keyfile %s.\n",
+                   curr_user ? curr_user->pw_name : "<unknown>", keyfile);
+            goto error;
+        }
+        swtpm_keyopt = g_strdup_printf("file=%s%s", keyfile, cipher);
+        logit(gl_LOGFILE, "  The TPM's state will be encrypted with a provided key.\n");
+    } else if (pwdfile != NULL) {
+        if (access(pwdfile, R_OK) != 0) {
+            logerr(gl_LOGFILE, "User %s cannot read passphrase file %s.\n",
+                   curr_user ? curr_user->pw_name : "<unknown>", pwdfile);
+            goto error;
+        }
+        swtpm_keyopt = g_strdup_printf("pwdfile=%s%s", pwdfile, cipher);
+        logit(gl_LOGFILE, "  The TPM's state will be encrypted using a key derived from a passphrase.\n");
+    } else if (keyfile_fd >= 0) {
+        fds_to_pass[n_fds_to_pass++] = keyfile_fd;
+        swtpm_keyopt = g_strdup_printf("fd=%ld%s", keyfile_fd, cipher);
+        logit(gl_LOGFILE, "  The TPM's state will be encrypted with a provided key (fd).\n");
+    } else if (pwdfile_fd >= 0) {
+        fds_to_pass[n_fds_to_pass++] = pwdfile_fd;
+        swtpm_keyopt = g_strdup_printf("pwdfd=%ld%s", pwdfile_fd, cipher);
+        logit(gl_LOGFILE, "  The TPM's state will be encrypted using a key derived from a passphrase (fd).\n");
+    }
+
+    if (strcmp(rsa_keysize_str, "max") == 0) {
+        unsigned int *keysizes = NULL;
+        size_t n_keysizes;
+
+        ret = get_rsa_keysizes(flags, swtpm_prg_l, &keysizes, &n_keysizes);
+        if (ret)
+            goto error;
+        g_free(rsa_keysize_str);
+        if (n_keysizes > 0) {
+            /* last one is the biggest one */
+            rsa_keysize_str = g_strdup_printf("%u", keysizes[n_keysizes - 1]);
+        } else {
+            rsa_keysize_str = g_strdup("2048");
+        }
+        g_free(keysizes);
+    }
+    if (strcmp(rsa_keysize_str, "2048") == 0 || strcmp(rsa_keysize_str, "3072") == 0) {
+        unsigned int *keysizes = NULL;
+        size_t n_keysizes;
+        gboolean found = FALSE;
+
+        ret = get_rsa_keysizes(flags, swtpm_prg_l, &keysizes, &n_keysizes);
+        if (ret)
+            goto error;
+
+        rsa_keysize = strtoull(rsa_keysize_str, NULL, 10);
+        for (i = 0; i < n_keysizes && found == FALSE; i++)
+            found = (keysizes[i] == rsa_keysize);
+        if (!found && rsa_keysize != 2048) {
+            logerr(gl_LOGFILE, "%u bit RSA keys are not supported by libtpms.\n", rsa_keysize);
+            goto error;
+        }
+        g_free(keysizes);
+    } else {
+        logit(gl_LOGFILE, "Unsupported RSA key size %s.\n", rsa_keysize_str);
+        goto error;
+    }
+
+    now = time(NULL);
+    tm = localtime(&now);
+    if (strftime(tmpbuffer, sizeof(tmpbuffer), "%a %d %h %Y %I:%M:%S %p %Z", tm) == 0) {
+        logerr(gl_LOGFILE, "Could not format time/date string.\n");
+        goto error;
+    }
+    curr_grp = getgrgid(getgid());
+    logit(gl_LOGFILE, "Starting vTPM manufacturing as %s:%s @ %s\n",
+          curr_user ? curr_user->pw_name : "<unknown>",
+          curr_grp ? curr_grp->gr_name : "<unknown>",
+          tmpbuffer);
+
+    if ((flags & SETUP_TPM2_F) == 0) {
+        ret = init_tpm(flags, swtpm_prg_l, config_file, tpm_state_path, ownerpass, srkpass, vmid,
+                       swtpm_keyopt, fds_to_pass, n_fds_to_pass);
+    } else {
+        ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
+                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize);
+    }
+
+    if (ret == 0) {
+        logit(gl_LOGFILE, "Successfully authored TPM state.\n");
+    } else {
+        logerr(gl_LOGFILE, "An error occurred. Authoring the TPM state failed.\n");
+        delete_state(flags, tpm_state_path);
+    }
+
+    now = time(NULL);
+    tm = localtime(&now);
+    if (strftime(tmpbuffer, sizeof(tmpbuffer), "%a %d %h %Y %I:%M:%S %p %Z", tm) == 0) {
+        logerr(gl_LOGFILE, "Could not format time/date string.\n");
+        goto error;
+    }
+    logit(gl_LOGFILE, "Ending vTPM manufacturing @ %s\n",
+          tmpbuffer);
+
+out:
+error:
+    g_strfreev(swtpm_prg_l);
+    g_free(gl_LOGFILE);
+
+    exit(ret);
+}

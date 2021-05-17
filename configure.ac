@@ -218,6 +218,30 @@ if test "$with_cuse" != "no"; then
     fi
 fi
 
+JSON_GLIB_CFLAGS=$(pkg-config --cflags json-glib-1.0)
+if test $? -ne 0; then
+   AC_MSG_ERROR("Is libjson-glib-dev/json-glib-devel installed? -- could not get cflags")
+fi
+AC_SUBST([JSON_GLIB_CFLAGS])
+
+JSON_GLIB_LIBS=$(pkg-config --libs json-glib-1.0)
+if test $? -ne 0; then
+   AC_MSG_ERROR("Is libjson-glib-dev/json-glib-devel installed? -- could not get libs")
+fi
+AC_SUBST([JSON_GLIB_LIBS])
+
+GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
+if test $? -ne 0; then
+   AC_MSG_ERROR("Is libglib-2.0-dev/glib2-devel installed? -- could not get cflags")
+fi
+AC_SUBST([GLIB_CFLAGS])
+
+GLIB_LIBS=$(pkg-config --libs glib-2.0)
+if test $? -ne 0; then
+   AC_MSG_ERROR("Is libglib-2.0-dev/glib2-devel installed? -- could not get cflags")
+fi
+AC_SUBST([GLIB_LIBS])
+
 dnl with_cuse is now yes or no
 if test "$with_cuse" != "no"; then
     LIBFUSE_LIBS=$(pkg-config fuse --libs)
@@ -228,18 +252,6 @@ if test "$with_cuse" != "no"; then
     AC_SUBST([LIBFUSE_LIBS])
     AC_DEFINE_UNQUOTED([WITH_CUSE], 1,
                        [whether to build with CUSE interface])
-
-    GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
-    if test $? -ne 0; then
-        AC_MSG_ERROR("Is glib-2.0 installed? -- could not get cflags")
-    fi
-    AC_SUBST([GLIB_CFLAGS])
-
-    GLIB_LIBS=$(pkg-config --libs glib-2.0)
-    if test $? -ne 0; then
-        AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs")
-    fi
-    AC_SUBST([GLIB_LIBS])
 
     GTHREAD_LIBS=$(pkg-config --libs gthread-2.0)
     if test $? -ne 0; then
@@ -375,22 +387,6 @@ $PYTHON -c "import setuptools"
 AS_IF([ test $? = 0 ],
        [AC_MSG_RESULT([yes])],
        [AC_MSG_ERROR([python setuptools is required])])
-
-AC_MSG_CHECKING([for python cryptography package])
-$PYTHON -c "import cryptography"
-AS_IF([ test $? = 0 ],
-       [AC_MSG_RESULT([yes])],
-       [AC_MSG_ERROR([python cryptography is required])])
-
-AC_MSG_CHECKING([python cryptography version])
-V="$($PYTHON -c "
-from distutils.version import StrictVersion;
-import cryptography as cry;
-print(cry.__version__);
-exit(StrictVersion(cry.__version__) < StrictVersion('2.1.4'));")"
-AS_IF([ test $? = 0],
-       [AC_MSG_RESULT([yes - found $V])],
-       [AC_MSG_ERROR([python cryptogrphy 2.1.4 or later is required, found $V])])
 
 AC_ARG_ENABLE([python-installation],
   AS_HELP_STRING([--disable-python-installation], [Disable running setup.py install for swtpm_setup]))
@@ -577,7 +573,8 @@ AC_CONFIG_FILES([Makefile                   \
 		src/swtpm_cert/Makefile     \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_setup/Makefile    \
-		src/swtpm_setup/py_swtpm_setup/swtpm_setup_conf.py \
+		src/swtpm_setup/swtpm_setup_conf.h \
+		src/utils/Makefile          \
 		man/Makefile                \
 		man/man3/Makefile           \
 		man/man8/Makefile           \
@@ -586,13 +583,7 @@ AC_CONFIG_FILES([Makefile                   \
 		])
 AC_CONFIG_FILES([samples/swtpm-localca],
 		[chmod 755 samples/swtpm-localca])
-AC_CONFIG_FILES([src/swtpm_setup/swtpm_setup],
-                [chmod 755 src/swtpm_setup/swtpm_setup])
 dnl for out-of-tree builds:
-AC_CONFIG_LINKS([src/swtpm_setup/py_swtpm_setup/__init__.py:src/swtpm_setup/py_swtpm_setup/__init__.py \
-                 src/swtpm_setup/py_swtpm_setup/swtpm.py:src/swtpm_setup/py_swtpm_setup/swtpm.py \
-                 src/swtpm_setup/py_swtpm_setup/swtpm_utils.py:src/swtpm_setup/py_swtpm_setup/swtpm_utils.py \
-                 src/swtpm_setup/py_swtpm_setup/swtpm_setup.py:src/swtpm_setup/py_swtpm_setup/swtpm_setup.py])
 AC_CONFIG_LINKS([samples/py_swtpm_localca/__init__.py:samples/py_swtpm_localca/__init__.py \
                  samples/py_swtpm_localca/swtpm_localca.py:samples/py_swtpm_localca/swtpm_localca.py \
                  samples/py_swtpm_localca/swtpm_utils.py:samples/py_swtpm_localca/swtpm_utils.py])

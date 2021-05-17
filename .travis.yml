@@ -18,12 +18,12 @@ addons:
         - bash
         - dh-exec
         - pylint3
-        - python3-cryptography
         - python3-pip
         - python3-setuptools
         - python3-twisted
         - libfuse-dev
         - libglib2.0-dev
+        - libjson-glib-dev
         - libgmp-dev
         - expect
         - libtasn1-dev

@@ -57,8 +57,8 @@ Makefile
 /src/swtpm_bios/swtpm_bios
 /src/swtpm_cert/swtpm_cert
 /src/swtpm_ioctl/swtpm_ioctl
-/src/swtpm_setup/dist
-/src/swtpm_setup/py_swtpm_setup/swtpm_setup_conf.py
+src/swtpm_setup/swtpm_setup
+src/swtpm_setup/swtpm_setup_conf.h
 /test-driver
 tests/*.log
 tests/*.trs

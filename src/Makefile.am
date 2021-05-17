@@ -5,6 +5,7 @@
 #
 
 SUBDIRS = \
+	utils \
 	swtpm \
 	swtpm_bios \
 	swtpm_cert \

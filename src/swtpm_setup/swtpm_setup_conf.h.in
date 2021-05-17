@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+/*
+ * swtpm_setup_conf.h: Compile-time constants
+ *
+ * Author: Stefan Berger, stefanb@linux.ibm.com
+ *
+ * Copyright (c) IBM Corporation, 2021
+ */
+
+#ifndef SWTPM_SETUP_CONF_H
+#define SWTPM_SETUP_CONF_H
+
+#define SWTPM_VER_MAJOR @SWTPM_VER_MAJOR@
+#define SWTPM_VER_MINOR @SWTPM_VER_MINOR@
+#define SWTPM_VER_MICRO @SWTPM_VER_MICRO@
+
+#define SYSCONFDIR "@SYSCONFDIR@"
+
+#endif /* SWTPM_SETUP_CONF_H */
