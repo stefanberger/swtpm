@@ -553,6 +553,11 @@ if test "$with_seccomp" != "no"; then
                      [whether to build in seccomp profile (Linux only)])
 fi
 
+AM_CFLAGS="$CFLAGS"
+AM_LDFLAGS="$LDFLAGS"
+AC_SUBST([AM_CFLAGS])
+AC_SUBST([AM_LDFLAGS])
+
 AC_CONFIG_FILES([Makefile                   \
 		debian/swtpm-tools.postinst \
 		dist/swtpm.spec             \
@@ -604,10 +609,10 @@ echo
 echo "Version to build  : $PACKAGE_VERSION"
 echo "Crypto library    : $cryptolib"
 echo
-echo "CFLAGS=$CFLAGS"
+echo "AM_CFLAGS=$AM_CFLAGS"
 echo "HARDENING_CFLAGS=$HARDENING_CFLAGS"
 echo "HARDENING_LDFLAGS=$HARDENING_LDFLAGS"
-echo "LDFLAGS=$LDFLAGS"
+echo "AM_LDFLAGS=$AM_LDFLAGS"
 echo "LIBSECCOMP_LIBS=$LIBSECCOMP_LIBS"
 echo
 echo "TSS_USER=$TSS_USER"
