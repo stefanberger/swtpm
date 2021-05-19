@@ -73,9 +73,9 @@ enum cert_type_t {
 #define ALLOW_SIGNING_F  2 /* EK can be used for signing */
 #define DECRYPTION_F     4 /* EK can be used for decryption; default */
 
-extern const ASN1_ARRAY_TYPE tpm_asn1_tab[];
+extern const asn1_static_node tpm_asn1_tab[];
 
-ASN1_TYPE _tpm_asn;
+asn1_node _tpm_asn;
 
 typedef struct tdTCG_PCCLIENT_STORED_CERT {
     uint16_t tag;
@@ -333,7 +333,7 @@ asn_free(void)
 }
 
 static int
-encode_asn1(gnutls_datum_t *asn1, ASN1_TYPE at)
+encode_asn1(gnutls_datum_t *asn1, asn1_node at)
 {
     int err;
 
@@ -361,7 +361,7 @@ encode_asn1(gnutls_datum_t *asn1, ASN1_TYPE at)
 }
 
 static int
-build_tpm_manufacturer_info(ASN1_TYPE *at,
+build_tpm_manufacturer_info(asn1_node *at,
                             const char *manufacturer,
                             const char *tpm_model,
                             const char *tpm_version)
@@ -443,7 +443,7 @@ create_tpm_manufacturer_info(const char *manufacturer,
                              const char *tpm_version,
                              gnutls_datum_t *asn1)
 {
-    ASN1_TYPE at = ASN1_TYPE_EMPTY;
+    asn1_node at = NULL;
     int err;
 
     err = asn_init();
@@ -475,7 +475,7 @@ create_tpm_manufacturer_info(const char *manufacturer,
 }
 
 static int
-build_platf_manufacturer_info(ASN1_TYPE *at,
+build_platf_manufacturer_info(asn1_node *at,
                               const char *manufacturer,
                               const char *platf_model,
                               const char *platf_version,
@@ -569,7 +569,7 @@ create_platf_manufacturer_info(const char *manufacturer,
                                gnutls_datum_t *asn1,
                                bool forTPM2)
 {
-    ASN1_TYPE at = ASN1_TYPE_EMPTY;
+    asn1_node at = NULL;
     int err;
 
     err = asn_init();
@@ -612,9 +612,9 @@ create_tpm_and_platform_manuf_info(
                                gnutls_datum_t *asn1,
                                bool forTPM2)
 {
-    ASN1_TYPE at = ASN1_TYPE_EMPTY;
-    ASN1_TYPE tpm_at = ASN1_TYPE_EMPTY;
-    ASN1_TYPE platf_at = ASN1_TYPE_EMPTY;
+    asn1_node at = NULL;
+    asn1_node tpm_at = NULL;
+    asn1_node platf_at = NULL;
     int err;
     gnutls_datum_t datum = {
         .data = NULL,
@@ -725,7 +725,7 @@ create_tpm_specification_info(const char *spec_family,
                               unsigned int spec_revision,
                               gnutls_datum_t *asn1)
 {
-    ASN1_TYPE at = ASN1_TYPE_EMPTY;
+    asn1_node at = NULL;
     int err;
     unsigned int bigendian;
     unsigned char twoscomp[1 + sizeof(bigendian)] = { 0, };
@@ -797,7 +797,7 @@ create_tpm_specification_info(const char *spec_family,
 static int
 create_cert_extended_key_usage(const char *oid, gnutls_datum_t *asn1)
 {
-    ASN1_TYPE at = ASN1_TYPE_EMPTY;
+    asn1_node at = NULL;
     int err;
 
     err = asn_init();
