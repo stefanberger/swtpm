@@ -124,6 +124,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
     }
 
     if (rc == 0) {
+        memset(&key, 0, sizeof(key)); /* coverity */
         if (AES_set_encrypt_key(tpm_symmetric_key_data->userKey,
                                 userKeyLength * 8,
                                 &key) < 0) {
@@ -211,6 +212,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
     }
 
     if (rc == 0) {
+        memset(&key, 0, sizeof(key)); /* coverity */
         if (AES_set_decrypt_key(tpm_symmetric_key_data->userKey,
                                 userKeyLength * 8,
                                 &key) < 0) {
