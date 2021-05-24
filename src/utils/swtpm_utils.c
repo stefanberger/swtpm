@@ -321,3 +321,106 @@ int read_file_lines(const char *filename, gchar ***config_file_lines)
 
     return 0;
 }
+
+static ssize_t write_to_fd(int fd, const unsigned char *data, size_t data_len)
+{
+    ssize_t n;
+
+    n = write(fd, data, data_len);
+    if (n < 0) {
+        logerr(gl_LOGFILE, "Could not write to file: %s\n", strerror(errno));
+    } else if ((size_t)n != data_len) {
+        logerr(gl_LOGFILE, "Could not write all bytes to the file.\n");
+        n = -1;
+    }
+    return n;
+}
+
+/* Write to a file with the given name */
+int write_file(const gchar *filename, const unsigned char *data, size_t data_len)
+{
+    ssize_t n;
+    int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC,
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH );
+    if (fd < 0) {
+        logerr(gl_LOGFILE, "Could not open file %s for writing: %s\n",
+               filename, strerror(errno));
+        return 1;
+    }
+
+    n = write_to_fd(fd, data, data_len);
+    close(fd);
+    if (n < 0)
+        return 1;
+
+    return 0;
+}
+
+int write_to_tempfile(gchar **filename, const unsigned char *data, size_t data_len)
+{
+    GError *error = NULL;
+    int fd = g_file_open_tmp("XXXXXX", filename, &error);
+    ssize_t n;
+
+    if (error) {
+        logerr(gl_LOGFILE, "Could not create temporary file: %s\n", error->message);
+        g_error_free(error);
+        return 1;
+    }
+
+    n = write_to_fd(fd, data, data_len);
+    if (n < 0)
+        goto error;
+
+    n = lseek(fd, 0, SEEK_SET);
+    if (n < 0) {
+        logerr(gl_LOGFILE, "Could not seek(0) on file '%s': %s\n", filename, strerror(errno));
+        goto error;
+    }
+    return fd;
+
+error:
+    close(fd);
+    return -1;
+}
+
+/* replace occurences of 'torep' with 'rep' in a string 'in' */
+gchar *str_replace(const char *in, const char *torep, const char *rep)
+{
+    char *res;
+    const char *s, *b;
+    size_t torep_len;
+    size_t rep_len;
+    size_t ctr = 0;
+    size_t off = 0;
+
+    if (in == NULL || torep == NULL || rep == NULL)
+        return NULL;
+
+    torep_len = strlen(torep);
+    if (torep_len == 0)
+        return NULL;
+
+    rep_len = strlen(rep);
+
+    s = in;
+    while ((s = strstr(s, torep)) != NULL) {
+        s += torep_len;
+        ctr++;
+    }
+
+    res = g_malloc(strlen(in) - ctr * torep_len + ctr * rep_len + 1);
+
+    b = s = in;
+    while ((s = strstr(s, torep)) != NULL) {
+        strncpy(&res[off], b, s - b);
+        off += (s - b);
+        s += torep_len;
+        b = s;
+        strcpy(&res[off], rep);
+        off += rep_len;
+    }
+    strcpy(&res[off], b);
+
+    return res;
+}

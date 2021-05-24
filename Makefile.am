@@ -27,7 +27,4 @@ selinux-install selinux-uninstall:
 	@cd src/selinux && $(MAKE) $(AM_MAKEFLAGS) $@
 endif
 
-python-install python-uninstall:
-	@cd samples && $(MAKE) $(AM_MAKEFLAGS) $@
-	@cd src/swtpm_setup && $(MAKE) $(AM_MAKEFLAGS) $@
-.PHONY: python-install python-uninstall selinux-install selinux-uninstall
+.PHONY: selinux-install selinux-uninstall

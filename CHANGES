@@ -3,6 +3,8 @@ CHANGES - changes for swtpm
 version 0.6.0
   - swtpm_setup:
     - Rewritten in 'C'; needs json-glib
+  - swtpm-localca:
+    - Rewritten in 'C'
 
 version 0.5.0:
   - swtpm:

@@ -28,9 +28,6 @@ BuildRequires:  expect
 BuildRequires:  net-tools
 BuildRequires:  openssl-devel
 BuildRequires:  socat
-BuildRequires:  python3
-BuildRequires:  python3-devel
-BuildRequires:  python3-setuptools
 BuildRequires:  python3-twisted
 BuildRequires:  softhsm
 BuildRequires:  trousers >= 0.3.9

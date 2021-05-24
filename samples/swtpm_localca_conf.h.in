@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+/*
+ * swtpm_setup_conf.h: Compile-time constants
+ *
+ * Author: Stefan Berger, stefanb@linux.ibm.com
+ *
+ * Copyright (c) IBM Corporation, 2021
+ */
+
+#ifndef SWTPM_LOCALCA_CONF_H
+#define SWTPM_LOCALCA_CONF_H
+
+#define SYSCONFDIR "@SYSCONFDIR@"
+
+#endif /* SWTPM_LOCALCA_CONF_H */
