@@ -217,6 +217,9 @@ struct ptm_getinfo {
     } u;
 };
 
+#define SWTPM_INFO_TPMSPECIFICATION ((uint64_t)1 << 0)
+#define SWTPM_INFO_TPMATTRIBUTES    ((uint64_t)1 << 1)
+
 typedef uint64_t ptm_cap;
 typedef struct ptm_est ptm_est;
 typedef struct ptm_reset_est ptm_reset_est;
