@@ -6,54 +6,44 @@
 
 samplesconfdir = $(datadir)/@PACKAGE@
 samplessysconfdir = $(sysconfdir)
+# swtpm-localca was always installed in /usr/samples/swtpm-localca
+bindir = $(samplesconfdir)
 
 samplesconf_SCRIPTS = \
 	swtpm-create-tpmca \
-	swtpm-create-user-config-files \
-	swtpm-localca
+	swtpm-create-user-config-files
 
 samplessysconf_DATA = \
 	swtpm-localca.conf \
 	swtpm-localca.options
 
-PY_SWTPM_LOCALCA_FILES = $(wildcard py_swtpm_localca/*.py)
+noinst_HEADERS = \
+	swtpm_localca.h \
+	swtpm_localca_utils.h
 
-PY_PACKAGE_NAME=swtpm_localca
-PY_PACKAGE_NV=$(PY_PACKAGE_NAME)-$(SWTPM_VER_MAJOR).$(SWTPM_VER_MINOR).$(SWTPM_VER_MICRO)
-PY_PACKAGE=dist/$(PY_PACKAGE_NV).tar.gz
+bin_PROGRAMS = \
+	swtpm-localca
 
-# for out-of-tree builds we need to copy setup.py
-$(PY_PACKAGE): $(PY_SWTPM_LOCALCA_FILES)
-	@$(CP) $(srcdir)/setup.py ./ &>/dev/null || true
-	./setup.py sdist
+$(top_builddir)/src/utils/libswtpm_utils.la:
+	$(MAKE) -C$(dir $@)
 
-all-local: $(PY_PACKAGE)
+swtpm_localca_DEPENDENCIES = \
+	$(top_builddir)/src/utils/libswtpm_utils.la
 
-python-install: $(PY_PACKAGE)
-	echo "Installing python to DESTDIR '/$(DESTDIR)'"
-	./setup.py install --prefix=$(prefix) --root "/$(DESTDIR)" --install-layout deb 2>/dev/null || \
-		./setup.py install --prefix=$(prefix) --root "/$(DESTDIR)" 2>/dev/null
+swtpm_localca_SOURCES = \
+	swtpm_localca.c \
+	swtpm_localca_utils.c
 
-python-uninstall:
-	echo "Local pip3 uninstall"
-	$(PIP3) uninstall -y $(PY_PACKAGE_NAME)
+swtpm_localca_LDADD = \
+	$(top_builddir)/src/utils/libswtpm_utils.la
 
-if PYTHON_INSTALLATION
-install-exec-local: $(PY_PACKAGE)
-	@if ! test $(findstring /usr, "$(DESTDIR)$(bindir)"); then \
-		echo "Warning: Not installing python package to $(DESTDIR)$(bindir)"; \
-	else \
-		$(MAKE) python-install; \
-	fi
+swtpm_localca_LDFLAGS = \
+	-L$(top_builddir)/src/utils -lswtpm_utils \
+	$(GLIB_LIBS)
 
-uninstall-local:
-	@if ! test $(findstring /usr, "$(DESTDIR)$(bindir)"); then \
-		echo "Cleanup for distcheck build not implemented" ; \
-	else \
-		$(MAKE) python-uninstall; \
-	fi
-endif
-
+swtpm_localca_CFLAGS = \
+	-I$(top_srcdir)/src/utils \
+	$(GLIB_CFLAGS)
 
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(localstatedir)/lib/swtpm-localca
@@ -62,19 +52,8 @@ install-data-local:
 		chmod 0750 $(DESTDIR)$(localstatedir)/lib/swtpm-localca || true; \
 	fi
 
-# for out-of-tree builds we need to clean up
-clean-local:
-	if test "$(top_srcdir)" != "$(top_builddir)"; then \
-		rm -f setup.py; \
-	fi
-	rm -rf py_swtpm_localca/__pycache__/
-	rm -rf swtpm_localca.egg-info/
-	rm -rf dist
-
 EXTRA_DIST= \
-	setup.py \
 	swtpm-create-tpmca \
 	swtpm-create-user-config-files \
-	swtpm-localca \
 	swtpm-localca.conf \
 	swtpm-localca.options

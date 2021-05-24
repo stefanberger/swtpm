@@ -33,4 +33,9 @@ gchar **split_cmdline(const gchar *cmdline);
 int read_file(const gchar *filename, gchar **buffer, gsize *buffer_len);
 int read_file_lines(const char *filename, gchar ***config_file_lines);
 
+int write_file(const gchar *filename, const unsigned char *data, size_t data_len);
+int write_to_tempfile(gchar **filename, const unsigned char *data, size_t data_len);
+
+gchar *str_replace(const char *in, const char *torep, const char *rep);
+
 #endif /* SWTPM_UTILS_H */

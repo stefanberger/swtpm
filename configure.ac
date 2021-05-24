@@ -382,16 +382,6 @@ if test "x$PIP3" = "x"; then
 	fi
 fi
 
-AC_MSG_CHECKING([for python setuptools package])
-$PYTHON -c "import setuptools"
-AS_IF([ test $? = 0 ],
-       [AC_MSG_RESULT([yes])],
-       [AC_MSG_ERROR([python setuptools is required])])
-
-AC_ARG_ENABLE([python-installation],
-  AS_HELP_STRING([--disable-python-installation], [Disable running setup.py install for swtpm_setup]))
-AM_CONDITIONAL([PYTHON_INSTALLATION], [test "x$enable_python_installation" != "xno"])
-
 AC_ARG_ENABLE([hardening],
   AS_HELP_STRING([--disable-hardening], [Disable hardening flags]))
 
@@ -560,9 +550,9 @@ AC_CONFIG_FILES([Makefile                   \
 		etc/Makefile                \
 		etc/swtpm_setup.conf        \
 		samples/Makefile            \
-		samples/py_swtpm_localca/swtpm_localca_conf.py \
 		samples/swtpm-localca.conf  \
 		samples/swtpm-create-user-config-files \
+		samples/swtpm_localca_conf.h \
 		include/Makefile            \
 		include/swtpm/Makefile      \
 		include/swtpm.h             \
@@ -581,12 +571,6 @@ AC_CONFIG_FILES([Makefile                   \
 		tests/Makefile              \
 		tests/test_config           \
 		])
-AC_CONFIG_FILES([samples/swtpm-localca],
-		[chmod 755 samples/swtpm-localca])
-dnl for out-of-tree builds:
-AC_CONFIG_LINKS([samples/py_swtpm_localca/__init__.py:samples/py_swtpm_localca/__init__.py \
-                 samples/py_swtpm_localca/swtpm_localca.py:samples/py_swtpm_localca/swtpm_localca.py \
-                 samples/py_swtpm_localca/swtpm_utils.py:samples/py_swtpm_localca/swtpm_utils.py])
 AC_OUTPUT
 
 echo
