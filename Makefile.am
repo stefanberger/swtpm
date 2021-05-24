@@ -25,10 +25,9 @@ EXTRA_DIST = \
 if WITH_SELINUX
 selinux-install selinux-uninstall:
 	@cd src/selinux && $(MAKE) $(AM_MAKEFLAGS) $@
-.PHONY: selinux-install selinux-uninstall
 endif
 
 python-install python-uninstall:
 	@cd samples && $(MAKE) $(AM_MAKEFLAGS) $@
 	@cd src/swtpm_setup && $(MAKE) $(AM_MAKEFLAGS) $@
-.PHONY: python-install python-uninstall
+.PHONY: python-install python-uninstall selinux-install selinux-uninstall
