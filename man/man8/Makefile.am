@@ -43,3 +43,5 @@ endif
 		--section=8 $< > $@
 
 EXTRA_DIST = $(man8_MANS) $(man8_PODS)
+
+CLEANFILES = swtpm_cuse.8
