@@ -333,7 +333,7 @@ def init_tpm2(flags, swtpm_prg_l, config_file, tpm2_state_path, vmid, pcr_banks,
 
 def tpm12_get_ownerpass_digest(flags, ownerpass):
     """ Get the owner password digest given the flags and possible owner password """
-    if not ownerpass:
+    if ownerpass is None:
         if flags & SETUP_OWNERPASS_ZEROS_F:
             ownerpass = ('\0' * 20)
         else:
@@ -344,7 +344,7 @@ def tpm12_get_ownerpass_digest(flags, ownerpass):
 
 def tpm12_get_srkpass_digest(flags, srkpass):
     """ Get the SRK password digest given the flags and possible SRK password """
-    if not srkpass:
+    if srkpass is None:
         if flags & SETUP_SRKPASS_ZEROS_F:
             srkpass = ('\0' * 20)
         else:
@@ -481,9 +481,7 @@ def usage(prgname):
         "\n"
         "The following options are supported:\n"
         "\n"
-        "--runas <user>   : Use the given user id to switch to and run this program;\n"
-        "                   this parameter is interpreted by swtpm_setup that switches\n"
-        "                   to this user and invokes swtpm_setup.sh.\n"
+        "--runas <user>   : Run this program under the given user's account.\n"
         "\n"
         "--tpm-state <dir>: Path to a directory where the TPM's state will be written\n"
         "                   into; this is a mandatory argument\n"
@@ -548,7 +546,7 @@ def usage(prgname):
         "                   This parameter will be passed to the TPM using\n"
         "                   '--key file=<file>'.\n"
         "\n"
-        "--keyfile-fd <fd>: Like --keyfile but file descriptor is given to read\n"
+        "--keyfile-fd <fd>: Like --keyfile but a file descriptor is given to read the\n"
         "                   encryption key from.\n"
         "\n"
         "--pwdfile <pwdfile>\n"
@@ -558,14 +556,14 @@ def usage(prgname):
         "                   This parameter will be passed to the TPM using\n"
         "                   '--key pwdfile=<file>'.\n"
         "\n"
-        "--pwdfile-fd <fd>: Like --pwdfile but file descriptor to read passphrase\n"
-        "                   from is given.\n"
+        "--pwdfile-fd <fd>: Like --pwdfile but a file descriptor is given to read\n"
+        "                   the passphrase from.\n"
         "\n"
         "--cipher <cipher>: The cipher to use; either aes-128-cbc or aes-256-cbc;\n"
         "                   the default is aes-128-cbc; the same cipher must be\n"
         "                   used on the swtpm command line\n"
         "\n"
-        "--overwrite      : Overwrite existing TPM state be re-initializing it; if this\n"
+        "--overwrite      : Overwrite existing TPM state by re-initializing it; if this\n"
         "                   option is not given, this program will return an error if\n"
         "                   existing state is detected\n"
         "\n"
@@ -801,11 +799,13 @@ def main():
             got_ownerpass = True
         elif opt == '--owner-well-known':
             flags |= SETUP_OWNERPASS_ZEROS_F
+            got_ownerpass = True
         elif opt == '--srkpass':
             srkpass = arg
             got_srkpass = True
         elif opt == '--srk-well-known':
             flags |= SETUP_SRKPASS_ZEROS_F
+            got_srkpass = True
         elif opt == '--create-ek-cert':
             flags |= SETUP_CREATE_EK_F | SETUP_EK_CERT_F
         elif opt == '--create-platform-cert':
@@ -878,9 +878,9 @@ def main():
             sys.exit(1)
 
     if not got_ownerpass:
-        flags |= SETUP_OWNERPASS_ZEROS_F
+        ownerpass = DEFAULT_OWNER_PASSWORD
     if not got_srkpass:
-        flags |= SETUP_SRKPASS_ZEROS_F
+        srkpass = DEFAULT_SRK_PASSWORD
 
     # sequeeze ',' and remove leading and trailing ','
     pcr_banks = re.sub(r',$', '',
@@ -888,13 +888,6 @@ def main():
                               re.sub(r',,+', ',', pcr_banks)))
     if len(pcr_banks) == 0:
         pcr_banks = DEFAULT_PCR_BANKS
-
-    # set owner password to default if user didn't provide any password wish
-    # and wants to take ownership
-    if flags & SETUP_TAKEOWN_F and \
-        flags & SETUP_OWNERPASS_ZEROS_F and \
-        not got_srkpass:
-        srkpass = DEFAULT_SRK_PASSWORD
 
     if len(LOGFILE) > 0:
         if os.path.islink(LOGFILE):
