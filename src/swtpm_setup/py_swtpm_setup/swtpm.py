@@ -269,7 +269,7 @@ TPM2_ALG_SHA384 = 0x000c
 TPM2_ALG_SHA512 = 0x000d
 TPM2_ALG_SHA3_256 = 0x0027
 TPM2_ALG_SHA3_384 = 0x0028
-TPM2_ALG_SHA3_512 = 0x0028
+TPM2_ALG_SHA3_512 = 0x0029
 TPM2_ALG_NULL = 0x0010
 TPM2_ALG_SM3 = 0x0012
 TPM2_ALG_ECC = 0x0023
@@ -698,7 +698,7 @@ class Swtpm2(Swtpm):
             self._createprimary_ecc(TPM2_RH_ENDORSEMENT, keyflags, symkeydata, authpolicy,
                                     TPM2_ECC_NIST_P384, TPM2_ALG_SHA384, NONCE_EMPTY, off)
         if ret != 0:
-            logerr(self.logfile, "create_spk_ecc failed\n")
+            logerr(self.logfile, "createprimary_ek_ecc_nist_p384 failed\n")
 
         return ek_template, ekparam, handle, ret
 
@@ -796,7 +796,7 @@ class Swtpm2(Swtpm):
             if ret != 0:
                 return 1
 
-            offset += stepsize
+            offset += len(buf)
 
         return 0
 
@@ -984,7 +984,7 @@ class Swtpm12(Swtpm):
         req = struct.pack(fmt,
                           TPM_TAG_RQU_COMMAND, struct.calcsize(fmt), TPM_ORD_PHYSICAL_ENABLE)
 
-        _, ret = self.transfer(req, "TSC_PhysicalEnable")
+        _, ret = self.transfer(req, "TPM_PhysicalEnable")
         return ret
 
     def physical_set_deactivated(self, state):
