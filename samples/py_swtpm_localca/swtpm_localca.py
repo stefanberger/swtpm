@@ -537,7 +537,7 @@ def main():
     flags = 0
     typ = ""
     ekparams = ""
-    directory = ""
+    directory = "."  # default to current directory
     vmid = ""
     optsfile = DEFAULT_LOCALCA_OPTIONS
     configfile = DEFAULT_LOCALCA_CONFIG
@@ -602,11 +602,11 @@ def main():
     if not statedir:
         logerr(LOGFILE, "Missing 'statedir' config value in config file %s.\n" % configfile)
         sys.exit(1)
+    if makedir(statedir, "statedir") != 0:
+        sys.exit(1)
     if not os.access(statedir, os.W_OK | os.R_OK):
         logerr(LOGFILE, "Need read/write rights on statedir %s for user %s.\n" %
                (statedir, getpass.getuser()))
-    if makedir(statedir, "statedir") != 0:
-        sys.exit(1)
 
     lockfile = os.path.join(statedir, ".lock.swtpm-localca")
     if os.path.exists(lockfile) and not os.access(lockfile, os.W_OK | os.R_OK):
