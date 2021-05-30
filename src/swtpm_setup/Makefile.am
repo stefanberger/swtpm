@@ -17,6 +17,12 @@ swtpm_setup_SOURCES = \
 	swtpm_setup.c \
 	swtpm_setup_utils.c
 
+$(top_builddir)/src/utils/libswtpm_utils.la:
+	$(MAKE) -C$(dir $@)
+
+swtpm_setup_DEPENDENCIES = \
+	$(top_builddir)/src/utils/libswtpm_utils.la
+
 swtpm_setup_LDADD = \
 	$(top_builddir)/src/utils/libswtpm_utils.la
 
