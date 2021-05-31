@@ -47,8 +47,10 @@ cat <<_EOF_ > "${workdir}/swtpm-localca.options"
 --platform-model "QEMU A.B"
 _EOF_
 
+export MY_SWTPM_LOCALCA="${SWTPM_LOCALCA}"
+
 cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
-create_certs_tool=${SWTPM_LOCALCA}
+create_certs_tool=\${MY_SWTPM_LOCALCA}
 create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=${workdir}/swtpm-localca.options
 _EOF_
