@@ -41,46 +41,39 @@ void append_to_file(const char *pathname, const char *str)
     }
 }
 
-void logit(const char *logfile, const char *fmt, ...)
+static void alog(FILE *stream, const char *logfile, const char *fmt, va_list ap)
 {
     char *str = NULL;
-    va_list ap;
     int n;
 
-    va_start(ap, fmt);
     n = vasprintf(&str, fmt, ap);
-    va_end(ap);
-
     if (n < 0)
         return;
 
     if (logfile == NULL)
-        fprintf(stdout, "%s", str);
+        fprintf(stream, "%s", str);
     else
         append_to_file(logfile, str);
 
     free(str);
 }
 
-void logerr(const char *logfile, const char *fmt, ...)
+void logit(const char *logfile, const char *fmt, ...)
 {
-    char *str = NULL;
     va_list ap;
-    int n;
 
     va_start(ap, fmt);
-    n = vasprintf(&str, fmt, ap);
+    alog(stdout, logfile, fmt, ap);
     va_end(ap);
+}
 
-    if (n < 0)
-        return;
+void logerr(const char *logfile, const char *fmt, ...)
+{
+    va_list ap;
 
-    if (logfile == NULL)
-        fprintf(stderr, "%s", str);
-    else
-        append_to_file(logfile, str);
-
-    free(str);
+    va_start(ap, fmt);
+    alog(stderr, logfile, fmt, ap);
+    va_end(ap);
 }
 
 /* Join paths of up to 3 parts into a pre-allocated buffer. The last part is optional */
