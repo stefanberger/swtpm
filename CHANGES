@@ -1,10 +1,24 @@
 CHANGES - changes for swtpm
 
-version 0.6.0
+version 0.6.0:
+  - swtpm:
+    - Fix --print-capabilities for 'swtpm chardev'
+    - Various cleanups and fixes (coverity)
+    - Addressed potential symlink attack issue (CVE-2020-28407)
   - swtpm_setup:
     - Rewritten in 'C'; needs json-glib
+    - Addressed potential symlink attack issue (CVE-2020-28407)
+  - swtpm_ioctl:
+    - Use timeouts for communicating with swtpm (Unix socket)
   - swtpm-localca:
     - Rewritten in 'C'
+  - tests:
+    - Use the IBM TSS2 v1.6.0's test suite
+    - Store and also restore the volatile state at every step when running
+      IBM TSS2 test suite
+    - Various cleanup
+  - build-sys:
+    - Add HARDENING_CFLAGS and _LDFLAGS to all C programs
 
 version 0.5.0:
   - swtpm:
