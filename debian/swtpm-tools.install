@@ -17,10 +17,6 @@ cat <<_EOF_
 /etc/swtpm-localca.conf
 /etc/swtpm-localca.options
 /etc/swtpm_setup.conf
-/usr/lib/python3/dist-packages/py_swtpm_setup/*
-/usr/lib/python3/dist-packages/swtpm_setup-*/*
-/usr/lib/python3/dist-packages/py_swtpm_localca/*
-/usr/lib/python3/dist-packages/swtpm_localca-*/*
 _EOF_
 if test -n "$(find $(dirname "$0")/tmp -name swtpm_cert)"; then
 echo "/usr/bin/swtpm_cert"
