@@ -95,7 +95,7 @@ int get_config_envvars(gchar **config_file_lines, gchar ***env)
     for (idx = 0; config_file_lines[idx] != NULL; idx++) {
         const gchar *line = config_file_lines[idx];
         if (regexec(&preg, line, 3, pmatch, 0) == 0) {
-            g_autofree gchar *key, *value;
+            g_autofree gchar *key = NULL, *value = NULL;
 
             key = g_strndup(&line[pmatch[1].rm_so],
                             pmatch[1].rm_eo - pmatch[1].rm_so);
