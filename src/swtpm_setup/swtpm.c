@@ -51,7 +51,7 @@ struct tpm_resp_header {
 static int swtpm_start(struct swtpm *self)
 {
     g_autofree gchar *tpmstate_dir = g_strdup_printf("dir=%s", self->state_path);
-    g_autofree gchar *pidfile_file;
+    g_autofree gchar *pidfile_file = NULL;
     g_autofree gchar *server_fd = NULL;
     g_autofree gchar *ctrl_fd = NULL;
     g_autofree gchar *keyopts = NULL;
@@ -1242,7 +1242,7 @@ static int swtpm_tpm2_nv_writelock(struct swtpm *self, uint32_t nvindex)
 {
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_NV_WRITELOCK);
     struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0);
-    g_autofree unsigned char *req;
+    g_autofree unsigned char *req = NULL;
     ssize_t req_len;
 
     req_len = memconcat(&req,
