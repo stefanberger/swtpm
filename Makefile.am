@@ -20,6 +20,7 @@ EXTRA_DIST = \
 	LICENSE \
 	COPYING \
 	README \
+	swtpm.spec \
 	autogen.sh
 
 if WITH_SELINUX
