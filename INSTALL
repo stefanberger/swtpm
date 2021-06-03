@@ -56,9 +56,7 @@ To build an rpm on a Fedora or RHEL host do:
 
 ./autogen.sh
 make dist
-mkdir -p ~/rpmbuild/SOURCES
-cp swtpm-0.x.y-tar.gz ~/rpmbuild/SOURCES
-rpmbuild -ba dist/swtpm.spec
+rpmbuild -ta swtpm-*.tar.gz
 
 
 To build a Debian package on a Debian compatible host do:

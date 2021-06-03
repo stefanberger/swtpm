@@ -546,7 +546,7 @@ AC_SUBST([AM_LDFLAGS])
 
 AC_CONFIG_FILES([Makefile                   \
 		debian/swtpm-tools.postinst \
-		dist/swtpm.spec             \
+		swtpm.spec                  \
 		etc/Makefile                \
 		etc/swtpm_setup.conf        \
 		samples/Makefile            \
