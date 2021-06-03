@@ -7,7 +7,7 @@
 # Macros needed by SELinux
 %global selinuxtype targeted
 %global moduletype  contrib
-%global modulename  @PACKAGE@
+%global modulename  swtpm
 
 Summary: TPM Emulator
 Name:           swtpm
@@ -166,8 +166,8 @@ fi
 %config(noreplace) %{_sysconfdir}/swtpm_setup.conf
 %config(noreplace) %{_sysconfdir}/swtpm-localca.options
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf
-%dir %{_datadir}/@PACKAGE@
-%{_datadir}/@PACKAGE@/swtpm-localca
+%dir %{_datadir}/swtpm
+%{_datadir}/swtpm/swtpm-localca
 %{_datadir}/swtpm/swtpm-create-user-config-files
 %{python3_sitelib}/py_swtpm_setup/*
 %{python3_sitelib}/swtpm_setup-*/*
