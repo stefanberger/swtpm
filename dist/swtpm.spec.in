@@ -1,9 +1,5 @@
 %bcond_without gnutls
 
-%global gitdate     20201007
-%global gitcommit   enter_commit_here
-%global gitshortcommit  %(c=%{gitcommit}; echo ${c:0:7})
-
 # Macros needed by SELinux
 %global selinuxtype targeted
 %global moduletype  contrib
@@ -12,10 +8,10 @@
 Summary: TPM Emulator
 Name:           swtpm
 Version:        @VERSION@
-Release:        0.%{gitdate}git%{gitshortcommit}%{?dist}
+Release:        1%{?dist}
 License:        BSD
 Url:            https://github.com/stefanberger/swtpm
-Source0:        %{url}/archive/%{gitcommit}/%{name}-%{gitshortcommit}.tar.gz
+Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  automake
 BuildRequires:  autoconf
@@ -85,7 +81,7 @@ Requires:      expect gnutls-utils trousers >= 0.3.9
 Tools for creating a local CA based on a pkcs11 device
 
 %prep
-%autosetup -n %{name}-%{gitcommit}
+%autosetup
 
 %build
 
