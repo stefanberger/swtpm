@@ -51,7 +51,7 @@ struct tpm_resp_header {
 static int swtpm_start(struct swtpm *self)
 {
     g_autofree gchar *tpmstate_dir = g_strdup_printf("dir=%s", self->state_path);
-    g_autofree gchar *pidfile_file;
+    g_autofree gchar *pidfile_file = NULL;
     g_autofree gchar *server_fd = NULL;
     g_autofree gchar *ctrl_fd = NULL;
     g_autofree gchar *keyopts = NULL;
