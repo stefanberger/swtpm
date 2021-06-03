@@ -61,7 +61,8 @@ static int swtpm_start(struct swtpm *self)
     GError *error;
     unsigned ctr;
 
-    self->pidfile = g_strdup_printf("%s%s\n", self->state_path, ".swtpm_setup.pidfile");
+    self->pidfile = g_strjoin(G_DIR_SEPARATOR_S,
+                              self->state_path, ".swtpm_setup.pidfile", NULL);
     pidfile_file = g_strdup_printf("file=%s", self->pidfile);
 
     argv = concat_arrays(self->swtpm_exec_l,
@@ -108,8 +109,8 @@ static int swtpm_start(struct swtpm *self)
 
 #if 0
     {
-        g_autofree gchar *join = g_strjoinv("| ", argv);
-        fprintf(stderr, "Starting swtpm: %s\n", join);
+        g_autofree gchar *join = g_strjoinv(" ", argv);
+        logit(self->logfile, "Starting swtpm: %s\n", join);
     }
 #endif
 
