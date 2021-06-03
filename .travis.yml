@@ -19,7 +19,6 @@ addons:
         - dh-exec
         - pylint3
         - python3-pip
-        - python3-setuptools
         - python3-twisted
         - libfuse-dev
         - libglib2.0-dev
@@ -52,7 +51,6 @@ before_install:
 script:
   - sudo pip3 install --upgrade pip==20.3.3
   - sudo pip3 install --upgrade wheel
-  - sudo pip3 install --upgrade cryptography
   - if [ ! -d libtpms ]; then git clone https://github.com/stefanberger/libtpms; fi
   - cd libtpms
   - if [ -n "${LIBTPMS_GIT_CHECKOUT}" ]; then
