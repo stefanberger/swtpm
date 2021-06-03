@@ -33,7 +33,7 @@ gchar *get_config_value(gchar **config_file_lines, const gchar *configname)
     for (idx = 0; config_file_lines[idx] != NULL; idx++) {
         const gchar *line = config_file_lines[idx];
         if (regexec(&preg, line, 2, pmatch, 0) == 0) {
-            g_autofree gchar *tmp;
+            g_autofree gchar *tmp = NULL;
 
             tmp = g_strndup(&line[pmatch[1].rm_so],
                             pmatch[1].rm_eo - pmatch[1].rm_so);
