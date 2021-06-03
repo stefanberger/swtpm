@@ -17,9 +17,7 @@ addons:
         - sed
         - bash
         - dh-exec
-        - pylint3
         - python3-pip
-        - python3-setuptools
         - python3-twisted
         - libfuse-dev
         - libglib2.0-dev
@@ -51,8 +49,6 @@ before_install:
     fi
 script:
   - sudo pip3 install --upgrade pip==20.3.3
-  - sudo pip3 install --upgrade wheel
-  - sudo pip3 install --upgrade cryptography
   - if [ ! -d libtpms ]; then git clone https://github.com/stefanberger/libtpms; fi
   - cd libtpms
   - if [ -n "${LIBTPMS_GIT_CHECKOUT}" ]; then
@@ -90,9 +86,6 @@ matrix:
            CHECK="check"
            SWTPM_TEST_IBMTSS2="1"
            SWTPM_TEST_STORE_VOLATILE="1"
-      after_success:
-      - pylint3 --max-line-length=100 src/swtpm_setup/py_swtpm_setup/*.py || exit 1;
-      - pylint3 --max-line-length=100 samples/py_swtpm_localca/*.py || exit 1;
       before_script:
       - sudo apt-get -y install tss2
       - sudo pip install cpp-coveralls
