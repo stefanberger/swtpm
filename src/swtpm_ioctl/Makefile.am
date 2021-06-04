@@ -13,7 +13,11 @@ swtpm_ioctl_SOURCES = tpm_ioctl.c
 
 swtpm_ioctl_CFLAGS = \
 	-I$(top_builddir)/include \
-	-I$(top_srcdir)/include
+	-I$(top_srcdir)/include \
+	$(HARDENING_CFLAGS)
+
+swtpm_ioctl_LDFLAGS = \
+	$(HARDENING_LDFLAGS)
 
 EXTRA_DIST = \
 	README
