@@ -12,7 +12,11 @@ bin_PROGRAMS = \
 
 swtpm_bios_CFLAGS = \
 	-I$(top_builddir)/include \
-	-I$(top_srcdir)/include
+	-I$(top_srcdir)/include \
+	$(HARDENING_CFLAGS)
+
+swtpm_bios_LDFLAGS = \
+	$(HARDENING_LDFLAGS)
 
 swtpm_bios_SOURCES = tpm_bios.c
 

@@ -39,10 +39,12 @@ swtpm_localca_LDADD = \
 
 swtpm_localca_LDFLAGS = \
 	-L$(top_builddir)/src/utils -lswtpm_utils \
+	$(HARDENING_LDFLAGS) \
 	$(GLIB_LIBS)
 
 swtpm_localca_CFLAGS = \
 	-I$(top_srcdir)/src/utils \
+	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS)
 
 install-data-local:
