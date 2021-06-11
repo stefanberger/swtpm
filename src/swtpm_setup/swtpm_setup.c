@@ -315,7 +315,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                                      !!(flags & SETUP_ALLOW_SIGNING_F),
                                      !!(flags & SETUP_DECRYPTION_F),
                                      !!(flags & SETUP_LOCK_NVRAM_F),
-                                     &ekparam);
+                                     &ekparam, NULL);
         if (ret != 0)
             return 1;
     }
