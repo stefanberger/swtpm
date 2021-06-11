@@ -44,7 +44,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # The are some variable parameters at the end, use regex
-exp='\{ "type": "swtpm_setup", "features": \[ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd", "tpm12-not-need-root"(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")? \] \}'
+exp='\{ "type": "swtpm_setup", "features": \[ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd", "tpm12-not-need-root", "cmdarg-write-ek-cert-files"(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")? \] \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_SETUP} to --print-capabilities:"
 	echo "Actual   : ${msg}"

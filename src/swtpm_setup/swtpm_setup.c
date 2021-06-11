@@ -55,6 +55,7 @@
 #define SETUP_CREATE_SPK_F          4096
 #define SETUP_DISPLAY_RESULTS_F     8192
 #define SETUP_DECRYPTION_F          16384
+#define SETUP_WRITE_EK_CERT_FILES_F 32768
 
 /* default configuration file */
 #define SWTPM_SETUP_CONF "swtpm_setup.conf"
@@ -72,7 +73,7 @@ static const struct flag_to_certfile {
     const char *filename;
     const char *type;
 } flags_to_certfiles[] = {
-    {.flag = SETUP_EK_CERT_F      , .filename= "ek.cert",        .type = "ek" },
+    {.flag = SETUP_EK_CERT_F      , .filename = "ek.cert",       .type = "ek" },
     {.flag = SETUP_PLATFORM_CERT_F, .filename = "platform.cert", .type = "platform" },
     {.flag = 0,                     .filename = NULL,            .type = NULL},
 };
@@ -298,15 +299,69 @@ error:
     return ret;
 }
 
+static char *create_ek_certfile_name(const gchar *user_certsdir, const gchar *key_description)
+{
+    g_autofree gchar *filename = g_strdup_printf("ek-%s.crt", key_description);
+
+    return g_strjoin(G_DIR_SEPARATOR_S, user_certsdir, filename, NULL);
+}
+
+/*
+ * Remove the cert file unless the user wants a copy of it (EK only).
+ */
+static int certfile_move_or_delete(unsigned long flags, gboolean is_ek, const gchar *certfile,
+                                   const gchar *user_certsdir, const gchar *key_description)
+{
+    g_autofree gchar *content = NULL;
+    g_autofree gchar *cf = NULL;
+    gsize content_length;
+    GError *error = NULL;
+    size_t offset = 0;
+
+    if (is_ek && (flags & SETUP_WRITE_EK_CERT_FILES_F) && user_certsdir != NULL) {
+        if (!g_file_get_contents(certfile, &content, &content_length, &error))
+            goto error;
+
+        cf = create_ek_certfile_name(user_certsdir, key_description);
+        if (!(flags & SETUP_TPM2_F)) {
+            /* A TPM 1.2 certificate has a 7 byte header at the beginning
+             * that we now remove */
+            if (content_length >= 8)
+                offset = 7;
+        }
+        if (!g_file_set_contents(cf, &content[offset], content_length - offset,
+                                 &error))
+            goto error;
+        if (g_chmod(cf, S_IRUSR | S_IWUSR | S_IRGRP) < 0) {
+            logerr(gl_LOGFILE, "Failed to chmod file '%s': %s\n", cf, strerror(errno));
+            goto error_unlink;
+        }
+    }
+    unlink(certfile);
+
+    return 0;
+
+error:
+    logerr(gl_LOGFILE, "%s\n", error->message);
+    g_error_free(error);
+
+error_unlink:
+    unlink(certfile);
+
+    return 1;
+}
+
 /* Create EK and certificate for a TPM 2 */
 static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file,
                                    const gchar *certsdir, const gchar *vmid,
-                                   unsigned int rsa_keysize, struct swtpm2 *swtpm2)
+                                   unsigned int rsa_keysize, struct swtpm2 *swtpm2,
+                                   const gchar *user_certsdir)
 {
     g_autofree gchar *filecontent = NULL;
     size_t filecontent_len;
     g_autofree gchar *certfile = NULL;
     g_autofree gchar *ekparam = NULL;
+    const char *key_description;
     size_t idx;
     int ret;
 
@@ -315,7 +370,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                                      !!(flags & SETUP_ALLOW_SIGNING_F),
                                      !!(flags & SETUP_DECRYPTION_F),
                                      !!(flags & SETUP_LOCK_NVRAM_F),
-                                     &ekparam, NULL);
+                                     &ekparam, &key_description);
         if (ret != 0)
             return 1;
     }
@@ -346,9 +401,14 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                                                      !!(flags & SETUP_LOCK_NVRAM_F),
                                                      (const unsigned char *)filecontent, filecontent_len);
                 }
-                unlink(certfile);
 
-                if (ret != 0)
+                if (ret != 0) {
+                    unlink(certfile);
+                    return 1;
+                }
+
+                if (certfile_move_or_delete(flags, !!(flags_to_certfiles[idx].flag & SETUP_EK_CERT_F),
+                                            certfile, user_certsdir, key_description) != 0)
                     return 1;
             }
         }
@@ -360,26 +420,29 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
 /* Create endorsement keys and certificates for a TPM 2 */
 static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_file,
                                      const gchar *certsdir, const gchar *vmid,
-                                     unsigned int rsa_keysize, struct swtpm2 *swtpm2)
+                                     unsigned int rsa_keysize, struct swtpm2 *swtpm2,
+                                     const gchar *user_certsdir)
 {
      int ret;
 
      /* 1st key will be RSA */
      flags = flags & ~SETUP_TPM2_ECC_F;
-     ret = tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2);
+     ret = tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
+                                   user_certsdir);
      if (ret != 0)
          return 1;
 
      /* 2nd key will be an ECC; no more platform cert */
      flags = (flags & ~SETUP_PLATFORM_CERT_F) | SETUP_TPM2_ECC_F;
-     return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2);
+     return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
+                                    user_certsdir);
 }
 
 /* Simulate manufacturing a TPM 2: create keys and certificates */
 static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                      const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
                      const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
-                     unsigned int rsa_keysize)
+                     unsigned int rsa_keysize, const gchar *user_certsdir)
 {
     g_autofree gchar *certsdir = g_strdup(tpm2_state_path);
     struct swtpm2 *swtpm2;
@@ -404,7 +467,8 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
             goto destroy;
     }
 
-    ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2);
+    ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
+                                    user_certsdir);
     if (ret != 0)
         goto destroy;
 
@@ -503,7 +567,8 @@ static int tpm12_take_ownership(unsigned long flags, const gchar *ownerpass,
 /* Create the certificates for a TPM 1.2 */
 static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
                               const gchar *certsdir, const gchar *ekparam,
-                              const gchar *vmid, struct swtpm12 *swtpm12)
+                              const gchar *vmid, struct swtpm12 *swtpm12,
+                              const gchar *user_certsdir)
 {
     g_autofree gchar *filecontent = NULL;
     g_autofree gchar *certfile = NULL;
@@ -538,8 +603,14 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
                 if (ret == 0)
                     logit(gl_LOGFILE, "Successfully created NVRAM area for Platform certificate.\n");
             }
-            unlink(certfile);
-            if (ret != 0)
+
+            if (ret != 0) {
+                unlink(certfile);
+                return 1;
+            }
+
+            if (certfile_move_or_delete(flags, !!(flags_to_certfiles[idx].flag & SETUP_EK_CERT_F),
+                                        certfile, user_certsdir, "rsa2048") != 0)
                 return 1;
         }
     }
@@ -551,7 +622,7 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
 static int init_tpm(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                     const gchar *tpm_state_path, const gchar *ownerpass, const gchar *srkpass,
                     const gchar *vmid, const gchar *swtpm_keyopt,
-                    int *fds_to_pass, size_t n_fds_to_pass)
+                    int *fds_to_pass, size_t n_fds_to_pass, const gchar *user_certsdir)
 {
     g_autofree gchar *certsdir = g_strdup(tpm_state_path);
     struct swtpm12 *swtpm12;
@@ -596,7 +667,8 @@ static int init_tpm(unsigned long flags, gchar **swtpm_prg_l, const gchar *confi
         if ((flags & SETUP_EK_CERT_F)) {
             g_autofree gchar *ekparam = print_as_hex((unsigned char *)pubek, pubek_len);
 
-            ret = tpm12_create_certs(flags, config_file, certsdir, ekparam, vmid, swtpm12);
+            ret = tpm12_create_certs(flags, config_file, certsdir, ekparam, vmid, swtpm12,
+                                     user_certsdir);
             if (ret != 0)
                 goto destroy;
         }
@@ -786,6 +858,9 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   if libtpms supports it.\n"
         "                   Default: %u\n"
         "\n"
+        "--write-ek-cert-files <directory>\n"
+        "                 : Write EK cert files into the given directory\n"
+        "\n"
         "--tcsd-system-ps-file <file>\n"
         "                 : This option is deprecated and has no effect.\n"
         "\n"
@@ -902,6 +977,7 @@ static int print_capabilities(char **swtpm_prg_l)
 
     printf("{ \"type\": \"swtpm_setup\", "
            "\"features\": [ \"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
+           ", \"cmdarg-write-ek-cert-files\""
            "%s ] }\n", param);
 
     g_strfreev(keysize_strs);
@@ -1035,6 +1111,7 @@ int main(int argc, char *argv[])
         {"decryption", no_argument, NULL, 'd'},
         {"pcr-banks", required_argument, NULL, 'b'},
         {"rsa-keysize", required_argument, NULL, 'A'},
+        {"write-ek-cert-files", required_argument, NULL, '3'},
         {"tcsd-system-ps-file", required_argument, NULL, 'F'},
         {"version", no_argument, NULL, '1'},
         {"print-capabilities", no_argument, NULL, 'y'},
@@ -1061,6 +1138,7 @@ int main(int argc, char *argv[])
     unsigned int rsa_keysize;
     g_autofree gchar *swtpm_keyopt = NULL;
     g_autofree gchar *runas = NULL;
+    g_autofree gchar *user_certsdir = NULL;
     gchar *tmp;
     gchar **swtpm_prg_l = NULL;
     gchar **tmp_l = NULL;
@@ -1212,6 +1290,11 @@ int main(int argc, char *argv[])
             g_free(rsa_keysize_str);
             rsa_keysize_str = strdup(optarg);
             break;
+        case '3': /* --write-ek-cert-files */
+            g_free(user_certsdir);
+            user_certsdir = g_strdup(optarg);
+            flags |= SETUP_WRITE_EK_CERT_FILES_F;
+            break;
         case 'F': /* --tcsd-system-ps-file */
             printf("Warning: --tcsd-system-ps-file is deprecated and has no effect.");
             break;
@@ -1296,6 +1379,11 @@ int main(int argc, char *argv[])
     }
     if (check_directory_access(tpm_state_path, R_OK|W_OK, curr_user) != 0)
         goto error;
+
+    if ((flags & SETUP_WRITE_EK_CERT_FILES_F)) {
+        if (check_directory_access(user_certsdir, W_OK, curr_user) != 0)
+            goto error;
+    }
 
     if (flags & SETUP_TPM2_F) {
         if (flags & SETUP_TAKEOWN_F) {
@@ -1431,10 +1519,10 @@ int main(int argc, char *argv[])
 
     if ((flags & SETUP_TPM2_F) == 0) {
         ret = init_tpm(flags, swtpm_prg_l, config_file, tpm_state_path, ownerpass, srkpass, vmid,
-                       swtpm_keyopt, fds_to_pass, n_fds_to_pass);
+                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, user_certsdir);
     } else {
         ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
-                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize);
+                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize, user_certsdir);
     }
 
     if (ret == 0) {
