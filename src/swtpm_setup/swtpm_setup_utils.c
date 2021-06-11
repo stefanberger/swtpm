@@ -19,7 +19,8 @@
 /* Get a configuration value given its name */
 gchar *get_config_value(gchar **config_file_lines, const gchar *configname)
 {
-    g_autofree gchar *regex = g_strdup_printf("^%s\\s*=\\s*([^#\n]*).*", configname);
+    g_autofree gchar *regex = g_strdup_printf("^%s[[:space:]]*=[[:space:]]*([^#\n]*).*",
+                                              configname);
     gchar *result = NULL;
     regmatch_t pmatch[2];
     regex_t preg;
