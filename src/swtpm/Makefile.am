@@ -111,7 +111,7 @@ swtpm_LDFLAGS = \
 	$(HARDENING_LDFLAGS)
 
 swtpm_LDADD = \
-	-L$(PWD)/.libs -lswtpm_libtpms \
+	libswtpm_libtpms.la \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
 	$(GTHREAD_LIBS) \
@@ -135,7 +135,7 @@ swtpm_cuse_LDFLAGS = \
 	$(HARDENING_LDFLAGS)
 
 swtpm_cuse_LDADD = \
-	-L$(PWD)/.libs -lswtpm_libtpms \
+	libswtpm_libtpms.la \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
 	$(GTHREAD_LIBS) \
