@@ -23,10 +23,10 @@
 #       This file is derived from tpm-tool's configure.in.
 #
 
-AC_INIT(swtpm, 0.7.0)
-AC_PREREQ(2.12)
+AC_INIT([swtpm],[0.6.0])
+AC_PREREQ([2.71])
 AC_CONFIG_SRCDIR(Makefile.am)
-AC_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 
 SWTPM_VER_MAJOR=`echo $PACKAGE_VERSION | cut -d "." -f1`
 SWTPM_VER_MINOR=`echo $PACKAGE_VERSION | cut -d "." -f2`
@@ -50,7 +50,7 @@ AM_SILENT_RULES([yes])
 
 DEBUG=""
 AC_MSG_CHECKING([for debug-enabled build])
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [create a debug build]),
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[create a debug build]),
   [if test "$enableval" = "yes"; then
      DEBUG="yes"
      AC_MSG_RESULT([yes])
@@ -73,12 +73,32 @@ elif test "$DEBUG" = "yes"; then
 	CFLAGS="$CFLAGS -O0 -g -DDEBUG"
 fi
 
-AC_HEADER_STDC
+m4_warn([obsolete],
+[The preprocessor macro `STDC_HEADERS' is obsolete.
+  Except in unusual embedded environments, you can safely include all
+  ISO C90 headers unconditionally.])dnl
+# Autoupdate added the next two lines to ensure that your configure
+# script's behavior did not change.  They are probably safe to remove.
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 AC_C_CONST
 AC_C_INLINE
 
 AC_TYPE_SIZE_T
-AC_TYPE_SIGNAL
+m4_warn([obsolete],
+[your code may safely assume C89 semantics that RETSIGTYPE is void.
+Remove this warning and the `AC_CACHE_CHECK' when you adjust the code.])dnl
+AC_CACHE_CHECK([return type of signal handlers],[ac_cv_type_signal],[AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([#include <sys/types.h>
+#include <signal.h>
+],
+		 [return *(signal (0, 0)) (0) == 1;])],
+		   [ac_cv_type_signal=int],
+		   [ac_cv_type_signal=void])])
+AC_DEFINE_UNQUOTED([RETSIGTYPE],[$ac_cv_type_signal],[Define as the return type of signal handlers
+		    (`int' or `void').])
+
 
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -199,8 +219,7 @@ fi
 
 AC_MSG_CHECKING([for whether to build with CUSE interface])
 AC_ARG_WITH([cuse],
-            AC_HELP_STRING([--with-cuse],
-                           [build with CUSE interface]),
+            AS_HELP_STRING([--with-cuse],[build with CUSE interface]),
             [],
             [with_cuse=check]
 )
@@ -276,8 +295,7 @@ AM_CONDITIONAL([WITH_CHARDEV],[test "$with_chardev" = "yes"])
 AC_MSG_RESULT($with_cuse)
 
 AC_ARG_WITH([gnutls],
-            AC_HELP_STRING([--with-gnutls],
-                           [build with gnutls library]),
+            AS_HELP_STRING([--with-gnutls],[build with gnutls library]),
             [],
             [with_gnutls=check]
 )
@@ -431,15 +449,13 @@ if test "x$enable_test_coverage" = "xyes"; then
 fi
 
 AC_ARG_WITH([tss-user],
-            AC_HELP_STRING([--with-tss-user=TSS_USER],
-                           [The tss user to use]),
+            AS_HELP_STRING([--with-tss-user=TSS_USER],[The tss user to use]),
             [TSS_USER="$withval"],
             [TSS_USER="tss"]
 )
 
 AC_ARG_WITH([tss-group],
-            AC_HELP_STRING([--with-tss-group=TSS_GROUP],
-                           [The tss group to use]),
+            AS_HELP_STRING([--with-tss-group=TSS_GROUP],[The tss group to use]),
             [TSS_GROUP="$withval"],
             [TSS_GROUP="tss"]
 )
@@ -518,8 +534,7 @@ esac
 
 AC_MSG_CHECKING([for whether to build with seccomp profile])
 AC_ARG_WITH([seccomp],
-  AC_HELP_STRING([--with-seccomp],
-                 [build with seccomp profile]),
+  AS_HELP_STRING([--with-seccomp],[build with seccomp profile]),
   AC_MSG_RESULT([$with_seccomp]),
   [with_seccomp=$with_seccomp_default]
   AC_MSG_RESULT([$with_seccomp])
