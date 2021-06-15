@@ -173,9 +173,9 @@ static TPM_RESULT SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
   2 - the file name
 
   For the IBM cryptographic coprocessor version, the root path is hard coded.
-  
+
   For the Linux and Windows versions, the path comes from an environment variable.  This variable is
-  used once in TPM_NVRAM_Init().
+  used once in SWTPM_NVRAM_Init().
 
   One root path is used for all virtual TPM's, so it can be a static variable.
 */
@@ -234,7 +234,7 @@ exit:
     return rc;
 }
 
-/* TPM_NVRAM_Init() is called once at startup.  It does any NVRAM required initialization.
+/* SWTPM_NVRAM_Init() is called once at startup.  It does any NVRAM required initialization.
 
    This function sets some static variables that are used by all TPM's.
 */
@@ -270,7 +270,7 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
     }
     if (rc == 0) {
         strcpy(state_directory, tpm_state_path);
-        TPM_DEBUG("TPM_NVRAM_Init: Rooted state path %s\n", state_directory);
+        TPM_DEBUG("SWTPM_NVRAM_Init: Rooted state path %s\n", state_directory);
     }
 
     if (rc == 0 && lockfile_fd < 0)
@@ -527,7 +527,7 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
         lrc = write_full(fd, filedata, filedata_length);
         if (lrc != filedata_length) {
             logprintf(STDERR_FILENO,
-                      "TPM_NVRAM_StoreData: Error (fatal), data write "
+                      "SWTPM_NVRAM_StoreData: Error (fatal), data write "
                       "of %u only wrote %u\n", filedata_length, lrc);
             rc = TPM_FAIL;
         }
@@ -623,7 +623,7 @@ static TPM_RESULT SWTPM_NVRAM_GetFilenameForName(char *filename,        /* outpu
     return res;
 }
 
-/* TPM_NVRAM_DeleteName() deletes the 'name' from NVRAM
+/* SWTPM_NVRAM_DeleteName() deletes the 'name' from NVRAM
 
    Returns:
         0 on success, or if the file does not exist and mustExist is FALSE
