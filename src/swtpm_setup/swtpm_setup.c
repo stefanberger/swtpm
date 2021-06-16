@@ -834,6 +834,7 @@ static int get_rsa_keysizes(unsigned long flags, gchar **swtpm_prg_l,
                                &standard_output, NULL, &exit_status, &error);
         if (!success) {
             logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
+            g_error_free(error);
             goto error;
         }
 
