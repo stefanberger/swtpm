@@ -2,16 +2,13 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
-TESTDIR=${abs_top_testdir:=$(dirname "$0")}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
-PATH=$ROOT/src/swtpm:$PATH
+source ${TESTDIR}/common
 
-SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_LOCALCA=${ROOT}/samples/swtpm-localca
-SWTPM=${ROOT}/src/swtpm/swtpm
 
 workdir=$(mktemp -d)
 
@@ -66,7 +63,7 @@ $SWTPM_SETUP \
 	--create-ek-cert \
 	--config ${workdir}/swtpm_setup.conf \
 	--logfile ${workdir}/logfile \
-	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}"
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."

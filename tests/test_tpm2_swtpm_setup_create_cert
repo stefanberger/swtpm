@@ -4,13 +4,12 @@
 
 TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
 TOPSRC=${abs_top_srcdir:-$(dirname "$0")/..}
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-PATH=${TOPBUILD}/src/swtpm:$PATH
+source ${TESTDIR}/common
 
-SWTPM_SETUP=${TOPBUILD}/src/swtpm_setup/swtpm_setup
 SWTPM_LOCALCA=${TOPBUILD}/samples/swtpm-localca
-SWTPM=${TOPBUILD}/src/swtpm/swtpm
 
 workdir=$(mktemp -d "/tmp/path with spaces.XXXXXX")
 
@@ -75,7 +74,7 @@ for keysize in $(echo $keysizes); do
 		--create-platform-cert \
 		--config "${workdir}/swtpm_setup.conf" \
 		--logfile "${workdir}/logfile" \
-		--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--rsa-keysize ${keysize} \
 		--overwrite
 
@@ -115,7 +114,7 @@ $SWTPM_SETUP \
 	--create-ek-cert \
 	--config "${workdir}/swtpm_setup.conf" \
 	--logfile "${workdir}/logfile" \
-	--tpm "${SWTPM} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 	--overwrite
 
 if [ $? -ne 0 ]; then
