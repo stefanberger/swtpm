@@ -58,7 +58,7 @@ static int swtpm_start(struct swtpm *self)
     g_autofree gchar **argv = NULL;
     struct stat statbuf;
     gboolean success;
-    GError *error;
+    GError *error = NULL;
     unsigned ctr;
 
     self->pidfile = g_strjoin(G_DIR_SEPARATOR_S,
