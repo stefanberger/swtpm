@@ -1294,22 +1294,8 @@ int main(int argc, char *argv[])
         logerr(gl_LOGFILE, "--tpm-state must be provided\n");
         goto error;
     }
-    if (stat(tpm_state_path, &statbuf) != 0 || (statbuf.st_mode & S_IFMT) != S_IFDIR) {
-        logerr(gl_LOGFILE,
-               "User %s cannot access directory %s. Make sure it exists and is a directory.\n",
-               curr_user ? curr_user->pw_name : "<unknown>", tpm_state_path);
+    if (check_directory_access(tpm_state_path, R_OK|W_OK, curr_user) != 0)
         goto error;
-    }
-    if (access(tpm_state_path, R_OK) != 0) {
-        logerr(gl_LOGFILE, "Need read rights on directory %s for user %s.\n",
-               tpm_state_path, curr_user ? curr_user->pw_name : "<unknown>");
-        goto error;
-    }
-    if (access(tpm_state_path, W_OK) != 0) {
-        logerr(gl_LOGFILE, "Need write rights on directory %s for user %s.\n",
-               tpm_state_path, curr_user ? curr_user->pw_name : "<unknown>");
-        goto error;
-    }
 
     if (flags & SETUP_TPM2_F) {
         if (flags & SETUP_TAKEOWN_F) {

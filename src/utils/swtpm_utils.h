@@ -10,6 +10,8 @@
 #ifndef SWTPM_UTILS_H
 #define SWTPM_UTILS_H
 
+#include <pwd.h>
+
 #include <glib.h>
 
 #define min(X,Y) (X) < (Y) ? (X) : (Y)
@@ -37,5 +39,7 @@ int write_file(const gchar *filename, const unsigned char *data, size_t data_len
 int write_to_tempfile(gchar **filename, const unsigned char *data, size_t data_len);
 
 gchar *str_replace(const char *in, const char *torep, const char *rep);
+
+int check_directory_access(const gchar *directory, int mode, const struct passwd *curr_user);
 
 #endif /* SWTPM_UTILS_H */

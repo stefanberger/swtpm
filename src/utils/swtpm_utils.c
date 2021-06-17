@@ -417,3 +417,26 @@ gchar *str_replace(const char *in, const char *torep, const char *rep)
 
     return res;
 }
+
+int check_directory_access(const gchar *directory, int mode, const struct passwd *curr_user)
+{
+    struct stat statbuf;
+
+    if (stat(directory, &statbuf) != 0 || (statbuf.st_mode & S_IFMT) != S_IFDIR) {
+        logerr(gl_LOGFILE,
+               "User %s cannot access directory %s. Make sure it exists and is a directory.\n",
+               curr_user ? curr_user->pw_name : "<unknown>", directory);
+        return 1;
+    }
+    if ((mode & R_OK) && access(directory, R_OK) != 0) {
+        logerr(gl_LOGFILE, "Need read rights on directory %s for user %s.\n",
+               directory, curr_user ? curr_user->pw_name : "<unknown>");
+        return 1;
+    }
+    if ((mode & W_OK) && access(directory, W_OK) != 0) {
+        logerr(gl_LOGFILE, "Need write rights on directory %s for user %s.\n",
+               directory, curr_user ? curr_user->pw_name : "<unknown>");
+        return 1;
+    }
+    return 0;
+}
