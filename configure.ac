@@ -23,10 +23,10 @@
 #       This file is derived from tpm-tool's configure.in.
 #
 
-AC_INIT(swtpm, 0.7.0)
-AC_PREREQ(2.12)
+AC_INIT([swtpm],[0.6.0])
+AC_PREREQ([2.69])
 AC_CONFIG_SRCDIR(Makefile.am)
-AC_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 
 SWTPM_VER_MAJOR=`echo $PACKAGE_VERSION | cut -d "." -f1`
 SWTPM_VER_MINOR=`echo $PACKAGE_VERSION | cut -d "." -f2`
@@ -50,7 +50,7 @@ AM_SILENT_RULES([yes])
 
 DEBUG=""
 AC_MSG_CHECKING([for debug-enabled build])
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [create a debug build]),
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[create a debug build]),
   [if test "$enableval" = "yes"; then
      DEBUG="yes"
      AC_MSG_RESULT([yes])
@@ -73,12 +73,12 @@ elif test "$DEBUG" = "yes"; then
 	CFLAGS="$CFLAGS -O0 -g -DDEBUG"
 fi
 
-AC_HEADER_STDC
+AC_CHECK_INCLUDES_DEFAULT
+
 AC_C_CONST
 AC_C_INLINE
 
 AC_TYPE_SIZE_T
-AC_TYPE_SIGNAL
 
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -199,8 +199,7 @@ fi
 
 AC_MSG_CHECKING([for whether to build with CUSE interface])
 AC_ARG_WITH([cuse],
-            AC_HELP_STRING([--with-cuse],
-                           [build with CUSE interface]),
+            AS_HELP_STRING([--with-cuse],[build with CUSE interface]),
             [],
             [with_cuse=check]
 )
@@ -276,8 +275,7 @@ AM_CONDITIONAL([WITH_CHARDEV],[test "$with_chardev" = "yes"])
 AC_MSG_RESULT($with_cuse)
 
 AC_ARG_WITH([gnutls],
-            AC_HELP_STRING([--with-gnutls],
-                           [build with gnutls library]),
+            AS_HELP_STRING([--with-gnutls],[build with gnutls library]),
             [],
             [with_gnutls=check]
 )
@@ -431,15 +429,13 @@ if test "x$enable_test_coverage" = "xyes"; then
 fi
 
 AC_ARG_WITH([tss-user],
-            AC_HELP_STRING([--with-tss-user=TSS_USER],
-                           [The tss user to use]),
+            AS_HELP_STRING([--with-tss-user=TSS_USER],[The tss user to use]),
             [TSS_USER="$withval"],
             [TSS_USER="tss"]
 )
 
 AC_ARG_WITH([tss-group],
-            AC_HELP_STRING([--with-tss-group=TSS_GROUP],
-                           [The tss group to use]),
+            AS_HELP_STRING([--with-tss-group=TSS_GROUP],[The tss group to use]),
             [TSS_GROUP="$withval"],
             [TSS_GROUP="tss"]
 )
@@ -518,8 +514,7 @@ esac
 
 AC_MSG_CHECKING([for whether to build with seccomp profile])
 AC_ARG_WITH([seccomp],
-  AC_HELP_STRING([--with-seccomp],
-                 [build with seccomp profile]),
+  AS_HELP_STRING([--with-seccomp],[build with seccomp profile]),
   AC_MSG_RESULT([$with_seccomp]),
   [with_seccomp=$with_seccomp_default]
   AC_MSG_RESULT([$with_seccomp])
@@ -538,11 +533,6 @@ if test "$with_seccomp" != "no"; then
   AC_DEFINE_UNQUOTED([WITH_SECCOMP], 1,
                      [whether to build in seccomp profile (Linux only)])
 fi
-
-AM_CFLAGS="$CFLAGS"
-AM_LDFLAGS="$LDFLAGS"
-AC_SUBST([AM_CFLAGS])
-AC_SUBST([AM_LDFLAGS])
 
 AC_CONFIG_FILES([Makefile                   \
 		debian/swtpm-tools.postinst \
@@ -584,10 +574,10 @@ echo
 echo "Version to build  : $PACKAGE_VERSION"
 echo "Crypto library    : $cryptolib"
 echo
-echo "        AM_CFLAGS = $AM_CFLAGS"
+echo "           CFLAGS = $CFLAGS"
 echo " HARDENING_CFLAGS = $HARDENING_CFLAGS"
 echo "HARDENING_LDFLAGS = $HARDENING_LDFLAGS"
-echo "       AM_LDFLAGS = $AM_LDFLAGS"
+echo "          LDFLAGS = $LDFLAGS"
 echo "  LIBSECCOMP_LIBS = $LIBSECCOMP_LIBS"
 echo " JSON_GLIB_CFLAGS = $JSON_GLIB_CFLAGS"
 echo "   JSON_GLIB_LIBS = $JSON_GLIB_LIBS"
