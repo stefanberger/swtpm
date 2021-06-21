@@ -68,7 +68,7 @@ function cleanup()
 		echo "y" | tpm2_ptool destroy ${PID} &>/dev/null
 	fi
 	if [ -n "${TPM2_ABRMD_PID}" ]; then
-		kill_quiet -15 ${TPM2_ABRMD_PID}
+		kill_quiet -9 ${TPM2_ABRMD_PID}
 	fi
 	if [ -n "${SWTPM_PID}" ]; then
 		kill_quiet -9 ${SWTPM_PID}
