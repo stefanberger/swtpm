@@ -807,7 +807,15 @@ int main(int argc, char *argv[])
         if (signkey_password != NULL) {
             swtpm_cert_env = g_environ_setenv(swtpm_cert_env,
                                               "SWTPM_PKCS11_PIN", g_strdup(signkey_password), TRUE);
-            logit(gl_LOGFILE, "CA uses a PKCS#11 key; using SWTPM_PKCSS1_PIN\n");
+            logit(gl_LOGFILE, "CA uses a PKCS#11 key; using SWTPM_PKCS11_PIN\n");
+        } else {
+            g_autofree gchar *swtpm_pkcs11_pin = NULL;
+
+            swtpm_pkcs11_pin = get_config_value(config_file_lines,
+                                                "SWTPM_PKCS11_PIN", "swtpm-tpmca");
+            swtpm_cert_env = g_environ_setenv(swtpm_cert_env,
+                                              "SWTPM_PKCS11_PIN", swtpm_pkcs11_pin, TRUE);
+            logit(gl_LOGFILE, "CA uses a PKCS#11 key; using SWTPM_PKCS11_PIN\n");
         }
         ret = get_config_envvars(config_file_lines, &swtpm_cert_env);
         if (ret != 0)
