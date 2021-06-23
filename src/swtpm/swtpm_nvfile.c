@@ -457,6 +457,7 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
     uint32_t      lrc;
     int           irc;
     int           fd = -1;
+    int           dir_fd = -1;
     char          tmpfile[FILENAME_MAX];  /* rooted temporary file */
     char          filename[FILENAME_MAX]; /* rooted file name from name */
     unsigned char *filedata = NULL;
@@ -532,6 +533,18 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
             rc = TPM_FAIL;
         }
     }
+    if (rc == 0 && fd >= 0) {
+        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing file %s\n", tmpfile);
+        irc = fsync(fd);
+        if (irc != 0) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData: Error (fatal) syncing file, %s\n",
+                      strerror(errno));
+            rc = TPM_FAIL;
+        } else {
+            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced file %s\n", tmpfile);
+        }
+    }
     if (fd >= 0) {
         TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing file %s\n", tmpfile);
         irc = close(fd);             /* @1 */
@@ -554,6 +567,46 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
             rc = TPM_FAIL;
         } else {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Renamed file to %s\n", filename);
+        }
+    }
+
+    /*
+     * Quote from linux man 2 fsync:
+     *  Calling fsync() does not necessarily ensure that the entry in the
+     *  directory containing the file has also reached disk. For that an
+     *  explicit fsync() on a file descriptor for the directory is also needed.
+     */
+    if (rc == 0 && fd >= 0) {
+        TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening dir %s\n", state_directory);
+        dir_fd = open(state_directory, O_RDONLY);
+        if (dir_fd < 0) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData: Error (fatal) opening %s for "
+                      "fsync failed, %s\n", state_directory, strerror(errno));
+            rc = TPM_FAIL;
+        }
+    }
+    if (rc == 0 && dir_fd >= 0) {
+        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing dir %s\n", state_directory);
+        irc = fsync(dir_fd);
+        if (irc != 0) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData: Error (fatal) syncing dir, %s\n",
+                      strerror(errno));
+            rc = TPM_FAIL;
+        } else {
+            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced dir %s\n", state_directory);
+        }
+    }
+    if (dir_fd >= 0) {
+        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing dir %s\n", state_directory);
+        irc = close(dir_fd);
+        if (irc != 0) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData: Error (fatal) closing dir\n");
+            rc = TPM_FAIL;
+        } else {
+            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closed dir %s\n", state_directory);
         }
     }
 
