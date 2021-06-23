@@ -4,9 +4,6 @@
 # For the license, see the COPYING file in the root directory.
 #
 
-AM_CFLAGS = @AM_CFLAGS@
-AM_LDFLAGS = @AM_LDFLAGS@
-
 noinst_HEADERS = \
 	capabilities.h \
 	common.h \
@@ -64,13 +61,11 @@ libswtpm_libtpms_la_CFLAGS = \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
-	$(AM_CFLAGS) \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(LIBSECCOMP_CFLAGS)
 
 libswtpm_libtpms_la_LDFLAGS = \
-	$(AM_LDFLAGS) \
 	$(HARDENING_LDFLAGS)
 
 libswtpm_libtpms_la_LIBADD = \
@@ -100,18 +95,16 @@ swtpm_CFLAGS = \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
-	$(AM_CFLAGS) \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(LIBFUSE_CFLAGS) \
 	-DHAVE_SWTPM_CUSE_MAIN
 
 swtpm_LDFLAGS = \
-	$(AM_LDFLAGS) \
 	$(HARDENING_LDFLAGS)
 
 swtpm_LDADD = \
-	-L$(PWD)/.libs -lswtpm_libtpms \
+	libswtpm_libtpms.la \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
 	$(GTHREAD_LIBS) \
@@ -125,17 +118,15 @@ swtpm_cuse_SOURCES = \
 swtpm_cuse_CFLAGS = \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include/swtpm \
-	$(AM_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(LIBFUSE_CFLAGS) \
 	$(HARDENING_CFLAGS)
 
 swtpm_cuse_LDFLAGS = \
-	$(AM_LDFLAGS) \
 	$(HARDENING_LDFLAGS)
 
 swtpm_cuse_LDADD = \
-	-L$(PWD)/.libs -lswtpm_libtpms \
+	libswtpm_libtpms.la \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
 	$(GTHREAD_LIBS) \
