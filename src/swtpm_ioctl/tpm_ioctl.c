@@ -858,7 +858,7 @@ static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
     return 0;
 }
 
-static void versioninfo(const char *prgname)
+static void versioninfo(void)
 {
     fprintf(stdout,
 "TPM emulator control tool version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
@@ -867,7 +867,7 @@ static void versioninfo(const char *prgname)
 
 static void usage(const char *prgname)
 {
-    versioninfo(prgname);
+    versioninfo();
     fprintf(stdout,
 "\n"
 "Usage: %s command <device path>\n"
@@ -1044,7 +1044,7 @@ int main(int argc, char *argv[])
             }
             break;
         case 'V':
-            versioninfo(argv[0]);
+            versioninfo();
             ret = EXIT_SUCCESS;
             goto exit;
         case 'H':
