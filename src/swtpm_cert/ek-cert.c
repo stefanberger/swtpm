@@ -61,6 +61,7 @@
 #include "sys_dependencies.h"
 #include "tpm_asn1.h"
 #include "swtpm.h"
+#include "compiler_dependencies.h"
 
 enum cert_type_t {
     CERT_TYPE_EK = 1,
@@ -92,7 +93,7 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
 #define TCG_TAG_PCCLIENT_FULL_CERT 0x1002
 
 static void
-versioninfo(const char *prg)
+versioninfo()
 {
     fprintf(stdout,
         "TPM certificate tool version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
@@ -102,7 +103,7 @@ versioninfo(const char *prg)
 static void
 usage(const char *prg)
 {
-    versioninfo(prg);
+    versioninfo();
     fprintf(stdout,
         "\nUsage: %s [options]\n"
         "\n"
@@ -894,9 +895,11 @@ exit:
     return err;
 }
 
-static int mypinfunc(void *userdata, int attempt, const char *tokenurl,
-                     const char *token_label,
-                     unsigned int flags,
+static int mypinfunc(void *userdata SWTPM_ATTR_UNUSED,
+                     int attempt SWTPM_ATTR_UNUSED,
+                     const char *tokenurl SWTPM_ATTR_UNUSED,
+                     const char *token_label SWTPM_ATTR_UNUSED,
+                     unsigned int flags SWTPM_ATTR_UNUSED,
                      char *pin, size_t pin_max)
 {
     const char *userpin = getenv("SWTPM_PKCS11_PIN");
@@ -1238,7 +1241,7 @@ main(int argc, char *argv[])
             capabilities_print_json();
             exit(0);
         case 'v': /* --version */
-            versioninfo(argv[0]);
+            versioninfo();
             exit(0);
         case 'h': /* --help */
             usage(argv[0]);
