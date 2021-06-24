@@ -64,6 +64,7 @@
 #include "mainloop.h"
 #include "utils.h"
 #include "sys_dependencies.h"
+#include "compiler_dependencies.h"
 
 /* local variables */
 static TPM_MODIFIER_INDICATOR locality;
@@ -73,7 +74,7 @@ bool mainloop_terminate;
 
 TPM_RESULT
 mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
-                         uint32_t tpmnum)
+                         uint32_t tpmnum SWTPM_ATTR_UNUSED)
 {
     *loc = locality;
 

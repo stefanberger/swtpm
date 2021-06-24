@@ -245,7 +245,8 @@ static const char *usage =
 "\n";
 
 static TPM_RESULT
-ptm_io_getlocality(TPM_MODIFIER_INDICATOR *loc, uint32_t tpmnum)
+ptm_io_getlocality(TPM_MODIFIER_INDICATOR *loc,
+                   uint32_t tpmnum SWTPM_ATTR_UNUSED)
 {
     *loc = locality;
     return TPM_SUCCESS;
@@ -396,7 +397,7 @@ static int cached_stateblob_copy(void *dest, size_t destlen,
 /*
  * worker_thread: the worker thread
  */
-static void worker_thread(gpointer data, gpointer user_data)
+static void worker_thread(gpointer data, gpointer user_data SWTPM_ATTR_UNUSED)
 {
     struct thread_message *msg = (struct thread_message *)data;
 
@@ -499,7 +500,8 @@ static void ptm_write_fatal_error_response(TPMLIB_TPMVersion l_tpmversion)
 /*
  * ptm_send_startup: Send a TPM/TPM2_Startup
  */
-static int ptm_send_startup(uint16_t startupType, TPMLIB_TPMVersion l_tpmversion)
+static int ptm_send_startup(uint16_t startupType,
+                            TPMLIB_TPMVersion l_tpmversion SWTPM_ATTR_UNUSED)
 {
     uint32_t command_length;
     unsigned char command[sizeof(struct tpm_startup)];
@@ -597,8 +599,8 @@ static void ptm_read_stateblob(fuse_req_t req, size_t size)
  * Depending on the current state of the transfer interface (read/write)
  * return either the results of TPM commands or a data of a TPM state blob.
  */
-static void ptm_read(fuse_req_t req, size_t size, off_t off,
-                     struct fuse_file_info *fi)
+static void ptm_read(fuse_req_t req, size_t size, off_t off SWTPM_ATTR_UNUSED,
+                     struct fuse_file_info *fi SWTPM_ATTR_UNUSED)
 {
     switch (tx_state.state) {
     case TX_STATE_RW_COMMAND:
@@ -918,7 +920,8 @@ cleanup:
  *            on what is being transferred using the write()
  */
 static void ptm_write(fuse_req_t req, const char *buf, size_t size,
-                      off_t off, struct fuse_file_info *fi)
+                      off_t off SWTPM_ATTR_UNUSED,
+                      struct fuse_file_info *fi SWTPM_ATTR_UNUSED)
 {
     switch (tx_state.state) {
     case TX_STATE_RW_COMMAND:
@@ -959,7 +962,8 @@ static void ptm_open(fuse_req_t req, struct fuse_file_info *fi)
  *            needed buffer
  */
 static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
-                      struct fuse_file_info *fi, unsigned flags,
+                      struct fuse_file_info *fi SWTPM_ATTR_UNUSED,
+                      unsigned flags SWTPM_ATTR_UNUSED,
                       const void *in_buf, size_t in_bufsz, size_t out_bufsz)
 {
     TPM_RESULT res = TPM_FAIL;

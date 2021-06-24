@@ -89,6 +89,7 @@
 #include "tpmlib.h"
 #include "tlv.h"
 #include "utils.h"
+#include "compiler_dependencies.h"
 
 /* local structures */
 typedef struct {
@@ -1394,7 +1395,7 @@ err_exit:
 TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                     uint32_t length,
                                     TPM_BOOL is_encrypted,
-                                    uint32_t tpm_number,
+                                    uint32_t tpm_number SWTPM_ATTR_UNUSED,
                                     uint32_t blobtype)
 {
     TPM_RESULT res;
