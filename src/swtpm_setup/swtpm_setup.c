@@ -1002,7 +1002,7 @@ static int delete_swtpm_statefiles(const gchar *tpm_state_path)
 int main(int argc, char *argv[])
 {
     int opt, option_index = 0;
-    const static struct option long_options[] = {
+    static const struct option long_options[] = {
         {"tpm-state", required_argument, NULL, 't'},
         {"tpmstate", required_argument, NULL, 't'}, /* alias for tpm-state */
         {"tpm", required_argument, NULL, 'T'},
