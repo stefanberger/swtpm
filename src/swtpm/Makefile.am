@@ -117,6 +117,7 @@ swtpm_cuse_SOURCES = \
 
 swtpm_cuse_CFLAGS = \
 	-I$(top_builddir)/include \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	$(GLIB_CFLAGS) \
 	$(LIBFUSE_CFLAGS) \

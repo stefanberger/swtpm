@@ -41,6 +41,8 @@
 
 #include <stdbool.h>
 
+#include "compiler_dependencies.h"
+
 int handle_log_options(char *options);
 int handle_key_options(char *options);
 int handle_migration_key_options(char *options);
@@ -56,8 +58,8 @@ int handle_flags_options(char *options, bool *need_init_cmd,
 #ifdef WITH_SECCOMP
 int handle_seccomp_options(char *options, unsigned int *seccomp_action);
 #else
-static inline int handle_seccomp_options(char *options,
-                                         unsigned int *seccomp_action)
+static inline int handle_seccomp_options(char *options SWTPM_ATTR_UNUSED,
+                                         unsigned int *seccomp_action SWTPM_ATTR_UNUSED)
 {
     return 0;
 }
