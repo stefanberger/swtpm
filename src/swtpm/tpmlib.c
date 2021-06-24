@@ -57,6 +57,7 @@
 #include "vtpm_proxy.h"
 #endif
 #include "utils.h"
+#include "compiler_dependencies.h"
 
 /*
  * convert the blobtype integer into a string that libtpms
@@ -323,14 +324,14 @@ TPM_RESULT tpmlib_process(unsigned char **rbuffer,
 
 #else
 
-TPM_RESULT tpmlib_process(unsigned char **rbuffer,
-                          uint32_t *rlength,
-                          uint32_t *rTotal,
-                          unsigned char *command,
-                          uint32_t command_length,
-                          uint32_t locality_flags,
-                          TPM_MODIFIER_INDICATOR *locality,
-                          TPMLIB_TPMVersion tpmversion)
+TPM_RESULT tpmlib_process(unsigned char **rbuffer SWTPM_ATTR_UNUSED,
+                          uint32_t *rlength SWTPM_ATTR_UNUSED,
+                          uint32_t *rTotal SWTPM_ATTR_UNUSED,
+                          unsigned char *command SWTPM_ATTR_UNUSED,
+                          uint32_t command_length SWTPM_ATTR_UNUSED,
+                          uint32_t locality_flags SWTPM_ATTR_UNUSED,
+                          TPM_MODIFIER_INDICATOR *locality SWTPM_ATTR_UNUSED,
+                          TPMLIB_TPMVersion tpmversion SWTPM_ATTR_UNUSED)
 {
     return TPM_SUCCESS;
 }
