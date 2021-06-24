@@ -591,7 +591,7 @@ static int tpm12_bios(int do_more, int contselftest, unsigned char startupparm,
 	return ret;
 }
 
-static int tpm2_bios(int do_more, int contselftest, unsigned char startupparm,
+static int tpm2_bios(int contselftest, unsigned char startupparm,
 		     int set_password)
 {
 	int ret = 0;
@@ -780,7 +780,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (tpm2) {
-		ret = tpm2_bios(do_more, contselftest, startupparm_tpm2,
+		ret = tpm2_bios(contselftest, startupparm_tpm2,
 				unassert_pp);
 	} else {
 		ret = tpm12_bios(do_more, contselftest, startupparm,
