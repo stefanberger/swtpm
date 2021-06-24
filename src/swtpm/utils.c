@@ -214,7 +214,7 @@ char *fd_to_filename(int fd)
     return path;
 
 #else
-
+    (void)fd;
     logprintf(STDERR_FILENO,
               "Cannot convert file descriptor to filename on this platform.\n");
     return NULL;
