@@ -585,7 +585,7 @@ static void usage(const char *prgname)
 int main(int argc, char *argv[])
 {
     int opt, option_index = 0;
-    const static struct option long_options[] = {
+    static const struct option long_options[] = {
         {"type", required_argument, NULL, 't'},
         {"ek", required_argument, NULL, 'e'},
         {"dir", required_argument, NULL, 'd'},
