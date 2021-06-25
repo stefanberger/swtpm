@@ -57,7 +57,7 @@
 #include "main.h"
 #include "swtpm_debug.h"
 #include "swtpm_io.h"
-#include "swtpm_nvfile.h"
+#include "swtpm_nvstore.h"
 #include "server.h"
 #include "common.h"
 #include "logging.h"
@@ -431,7 +431,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             goto exit_failure;
     }
 
-    SWTPM_NVRAM_Set_TPMVersion(mlp.tpmversion);
+    tpmstate_set_version(mlp.tpmversion);
 
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||

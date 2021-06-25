@@ -37,6 +37,7 @@
 
 #include "config.h"
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -45,32 +46,44 @@
 
 #include "tpmstate.h"
 #include "logging.h"
+#include "swtpm_nvstore.h"
 
-static char *g_tpmstatedir;
+static char *g_backend_uri;
 static mode_t g_tpmstate_mode = 0640;
-
-int tpmstate_set_dir(char *tpmstatedir)
-{
-   g_tpmstatedir = strdup(tpmstatedir);
-   if (!g_tpmstatedir) {
-       logprintf(STDERR_FILENO, "Out of memory.\n");
-       return -1;
-   }
-
-   return 0;
-}
+static TPMLIB_TPMVersion g_tpmstate_version = TPMLIB_TPM_VERSION_1_2;
 
 void tpmstate_global_free(void)
 {
-    free(g_tpmstatedir);
-    g_tpmstatedir = NULL;
+    free(g_backend_uri);
+    g_backend_uri = NULL;
 }
 
-const char *tpmstate_get_dir(void)
+int tpmstate_set_backend_uri(char *backend_uri)
 {
-    if (g_tpmstatedir)
-        return g_tpmstatedir;
-    return getenv("TPM_PATH");
+    g_backend_uri = strdup(backend_uri);
+    if (!g_backend_uri) {
+        logprintf(STDERR_FILENO, "Out of memory.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+const char *tpmstate_get_backend_uri(void)
+{
+    if (g_backend_uri)
+        return g_backend_uri;
+
+    if (getenv("TPM_PATH")) {
+        if (asprintf(&g_backend_uri, "dir://%s", getenv("TPM_PATH")) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Could not asprintf TPM backend uri\n");
+            return NULL;
+        }
+        return g_backend_uri;
+    }
+
+    return NULL;
 }
 
 int tpmstate_set_mode(mode_t mode)
@@ -83,4 +96,14 @@ int tpmstate_set_mode(mode_t mode)
 mode_t tpmstate_get_mode(void)
 {
     return g_tpmstate_mode;
+}
+
+void tpmstate_set_version(TPMLIB_TPMVersion version)
+{
+    g_tpmstate_version = version;
+}
+
+TPMLIB_TPMVersion tpmstate_get_version(void)
+{
+    return g_tpmstate_version;
 }

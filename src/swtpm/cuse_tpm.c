@@ -70,7 +70,7 @@
 #include "locality.h"
 #include "logging.h"
 #include "tpm_ioctl.h"
-#include "swtpm_nvfile.h"
+#include "swtpm_nvstore.h"
 #include "tpmlib.h"
 #include "main.h"
 #include "utils.h"
@@ -432,7 +432,8 @@ static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
                      TPM_RESULT *res)
 {
     DIR *dir;
-    const char *tpmdir = tpmstate_get_dir();
+    const char *uri = tpmstate_get_backend_uri();
+    const char *tpmdir = uri + strlen("dir://");
 
     *res = TPM_FAIL;
 
@@ -1461,7 +1462,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     char *cinfo_argv[1] = { 0 };
     unsigned int num;
     struct passwd *passwd;
-    const char *tpmdir;
+    const char *uri = NULL;
     int n, tpmfd;
     char path[PATH_MAX];
     int ret = 0;
@@ -1598,7 +1599,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
-    SWTPM_NVRAM_Set_TPMVersion(tpmversion);
+    tpmstate_set_version(tpmversion);
 
     if (!cinfo.dev_info_argv) {
         logprintf(STDERR_FILENO, "Error: device name missing\n");
@@ -1635,8 +1636,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         }
     }
 
-    tpmdir = tpmstate_get_dir();
-    if (tpmdir == NULL) {
+    uri = tpmstate_get_backend_uri();
+    if (uri == NULL) {
         logprintf(STDERR_FILENO,
                   "Error: No TPM state directory is defined; "
                   "TPM_PATH is not set\n");
