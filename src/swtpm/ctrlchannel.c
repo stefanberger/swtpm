@@ -56,7 +56,7 @@
 #include "logging.h"
 #include "tpm_ioctl.h"
 #include "tpmlib.h"
-#include "swtpm_nvfile.h"
+#include "swtpm_nvstore.h"
 #include "locality.h"
 #include "mainloop.h"
 #include "utils.h"

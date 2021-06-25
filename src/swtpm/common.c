@@ -37,6 +37,7 @@
 
 #include "config.h"
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -62,7 +63,7 @@
 #include "key.h"
 #include "locality.h"
 #include "logging.h"
-#include "swtpm_nvfile.h"
+#include "swtpm_nvstore.h"
 #include "pidfile.h"
 #include "tpmstate.h"
 #include "ctrlchannel.h"
@@ -656,6 +657,7 @@ int
 handle_tpmstate_options(char *options)
 {
     char *tpmstatedir = NULL;
+    char *tpmbackend_uri = NULL;
     int ret = 0;
     mode_t mode;
 
@@ -665,11 +667,18 @@ handle_tpmstate_options(char *options)
     if (parse_tpmstate_options(options, &tpmstatedir, &mode) < 0)
         return -1;
 
-    if (tpmstate_set_dir(tpmstatedir) < 0 ||
+    if (asprintf(&tpmbackend_uri, "dir://%s", tpmstatedir) < 0) {
+        logprintf(STDERR_FILENO,
+                  "Could not asprintf TPM backend uri\n");
+        return -1;
+    }
+
+    if (tpmstate_set_backend_uri(tpmbackend_uri) < 0 ||
         tpmstate_set_mode(mode) < 0)
         ret = -1;
 
     free(tpmstatedir);
+    free(tpmbackend_uri);
 
     return ret;
 }

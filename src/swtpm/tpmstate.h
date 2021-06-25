@@ -39,11 +39,16 @@
 #define _SWTPM_TPMSTATE_H_
 
 #include <sys/types.h>
+#include <libtpms/tpm_library.h>
 
-int tpmstate_set_dir(char *tpmstatdir);
-const char *tpmstate_get_dir(void);
+int tpmstate_set_backend_uri(char *backend_uri);
+const char *tpmstate_get_backend_uri(void);
+
 int tpmstate_set_mode(mode_t mode);
 mode_t tpmstate_get_mode(void);
 void tpmstate_global_free(void);
+
+void tpmstate_set_version(TPMLIB_TPMVersion version);
+TPMLIB_TPMVersion tpmstate_get_version(void);
 
 #endif /* _SWTPM_TPMSTATE_H_ */

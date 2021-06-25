@@ -36,26 +36,16 @@
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.		*/
 /********************************************************************************/
 
-#ifndef _SWTPM_NVFILE_H
-#define _SWTPM_NVFILE_H
+#ifndef _SWTPM_NVSTORE_H
+#define _SWTPM_NVSTORE_H
 
+#include <stdio.h>
 #include <libtpms/tpm_types.h>
+#include <libtpms/tpm_library.h>
 
 #include "key.h"
 
-/* characters in the TPM base file name, 14 for file name, slash, NUL terminator, etc.
-
-   This macro is used once during initialization to ensure that the TPM_PATH environment variable
-   length will not cause the rooted file name to overflow file name buffers.
-*/
-
-#define TPM_FILENAME_MAX 20
-
-#include <libtpms/tpm_library.h>
-
 TPM_RESULT SWTPM_NVRAM_Init(void);
-
-void SWTPM_NVRAM_Set_TPMVersion(TPMLIB_TPMVersion version);
 
 /*
   Basic abstraction for read and write
@@ -107,5 +97,22 @@ static inline TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void)
     return SWTPM_NVRAM_MigrationKey_Size() > 0;
 }
 
-#endif /* _SWTPM_NVFILE_H */
+struct nvram_backend_ops {
+    TPM_RESULT (*prepare)(const char *uri);
+    TPM_RESULT (*load)(unsigned char **data,
+                       uint32_t *length,
+                       uint32_t tpm_number,
+                       const char *name,
+                       const char *uri);
+    TPM_RESULT (*store)(unsigned char *edata,
+                        uint32_t data_length,
+                        uint32_t tpm_number,
+                        const char *name,
+                        const char *uri);
+    TPM_RESULT (*delete)(uint32_t tpm_number,
+                         const char *name,
+                         TPM_BOOL mustExist,
+                         const char *uri);
+};
 
+#endif /* _SWTPM_NVSTORE_H */
