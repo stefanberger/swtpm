@@ -384,16 +384,16 @@ AC_ARG_ENABLE([hardening],
 if test "x$enable_hardening" != "xno"; then
 	TMP="$($CC -fstack-protector-strong $srcdir/include/swtpm/tpm_ioctl.h 2>&1)"
 	if echo $TMP | $GREP 'unrecognized command line option' >/dev/null; then
-		HARDENING_CFLAGS="-fstack-protector -Wstack-protector "
+		HARDENING_CFLAGS="-fstack-protector -Wstack-protector"
 	else
-		HARDENING_CFLAGS="-fstack-protector-strong -Wstack-protector "
+		HARDENING_CFLAGS="-fstack-protector-strong -Wstack-protector"
 	fi
 
 	dnl Must not have -O0 but must have a -O for -D_FORTIFY_SOURCE=2
 	TMP1="$(echo $CFLAGS | sed -n 's/.*\(-O0\).*/\1/p')"
 	TMP2="$(echo $CFLAGS | sed -n 's/.*\(-O\).*/\1/p')"
 	if test -z "$TMP1" && test -n "$TMP2"; then
-		HARDENING_CFLAGS="$HARDENING_CFLAGS -D_FORTIFY_SOURCE=2 "
+		HARDENING_CFLAGS="$HARDENING_CFLAGS -D_FORTIFY_SOURCE=2"
 	fi
 	dnl Check linker for 'relro' and 'now'
 	save_CFLAGS="$CFLAGS"
