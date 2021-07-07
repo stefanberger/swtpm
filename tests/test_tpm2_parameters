@@ -20,8 +20,8 @@ PARAMETERS=(
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display"
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt"
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
-	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc"
-	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc"
+	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc"
+	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc"
 	"--createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram"
 	"--ecc --createek"
 	"--ecc --createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display"
@@ -33,8 +33,8 @@ PARAMETERS=(
 	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt"
 	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc"
 	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc"
-	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile-fd 100 --cipher aes-256-cbc"
-	"--ecc --createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile-fd 101 --cipher aes-256-cbc"
+	"--ecc --createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile-fd 100 --cipher aes-256-cbc"
+	"--ecc --createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile-fd 101 --cipher aes-256-cbc"
 	"--ecc --createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram"
 )
 
@@ -48,8 +48,8 @@ PARAMETERS_3072=(
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --rsa-keysize 3072"
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt --rsa-keysize 3072"
 	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --rsa-keysize 3072"
-	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc --rsa-keysize 3072"
-	"--createek --allow-signing --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc --rsa-keysize 3072"
+	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc --rsa-keysize 3072"
+	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc --rsa-keysize 3072"
 	"--createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram --rsa-keysize 3072"
 )
 
