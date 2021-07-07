@@ -13,6 +13,7 @@ STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 MY_VOLATILE_STATE_FILE=$TPM_PATH/my.volatilestate
 MY_PERMANENT_STATE_FILE=$TPM_PATH/my.permanent
+MY_SAVESTATE_STATE_FILE=$TPM_PATH/my.savestate
 SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
 SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
@@ -125,6 +126,17 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
+# Send SaveState command
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0a\x00\x00\x00\x98')
+exp=' 00 c4 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_SaveState()"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
 run_swtpm_ioctl ${SWTPM_INTERFACE} --save permanent $MY_PERMANENT_STATE_FILE
 if [ $? -ne 0 ]; then
 	echo "Error: Could not write permanent state file $MY_PERMANENT_STATE_FILE."
@@ -154,6 +166,21 @@ if [ ! -r $MY_VOLATILE_STATE_FILE ]; then
 	exit 1
 fi
 echo "Saved volatile state."
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} --save savestate $MY_SAVESTATE_STATE_FILE
+if [ $? -ne 0 ]; then
+	echo "Error: Could not write savestate state file $MY_SAVESTATE_STATE_FILE."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+if [ ! -r $MY_SAVESTATE_STATE_FILE ]; then
+	echo "Error: Savestate state file $MY_SAVESTATE_STATE_FILE does not exist."
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+echo "Saved savestate state."
 
 #ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
 #sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
@@ -197,6 +224,15 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 echo "Loaded volatile state."
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} --load savestate $MY_SAVESTATE_STATE_FILE
+if [ $? -ne 0 ]; then
+	echo "Could not load savestate state into vTPM"
+	echo "TPM Logfile:"
+	cat $logfile
+	exit 1
+fi
+echo "Loaded savestate state."
 
 #ls -l $(dirname $MY_VOLATILE_STATE_FILE)/*
 #sha1sum $(dirname $MY_VOLATILE_STATE_FILE)/*
