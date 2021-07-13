@@ -3,6 +3,7 @@ cat <<_EOF_
 /usr/bin/swtpm_bios
 /usr/bin/swtpm_setup
 /usr/bin/swtpm_ioctl
+/usr/bin/swtpm_localca
 /usr/share/man/man8/swtpm_bios.8*
 /usr/share/man/man8/swtpm_cert.8*
 /usr/share/man/man8/swtpm_ioctl.8*

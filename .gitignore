@@ -42,6 +42,7 @@ Makefile
 /man/man3/*.3
 /man/man8/*.8
 /samples/swtpm-create-user-config-files
+/samples/swtpm_localca
 /samples/swtpm-localca
 /samples/swtpm-localca.conf
 /samples/swtpm_localca_conf.h

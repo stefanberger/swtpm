@@ -6,12 +6,11 @@
 
 samplesconfdir = $(datadir)/@PACKAGE@
 samplessysconfdir = $(sysconfdir)
-# swtpm-localca was always installed in /usr/samples/swtpm-localca
-bindir = $(samplesconfdir)
 
 samplesconf_SCRIPTS = \
 	swtpm-create-tpmca \
-	swtpm-create-user-config-files
+	swtpm-create-user-config-files \
+	swtpm-localca
 
 samplessysconf_DATA = \
 	swtpm-localca.conf \
@@ -22,7 +21,7 @@ noinst_HEADERS = \
 	swtpm_localca_utils.h
 
 bin_PROGRAMS = \
-	swtpm-localca
+	swtpm_localca
 
 $(top_builddir)/src/utils/libswtpm_utils.la:
 	$(MAKE) -C$(dir $@)
