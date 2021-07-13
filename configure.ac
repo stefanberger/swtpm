@@ -125,12 +125,17 @@ fi
 if test "x$prefix" = "xNONE"; then
 	prefix="/usr/local"
 fi
+if test "x$exec_prefix" = "xNONE"; then
+	exec_prefix=$prefix
+fi
 SYSCONFDIR=`eval echo $sysconfdir`
 DATAROOTDIR=`eval echo $datarootdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
+BINDIR=`eval echo $bindir`
 AC_SUBST([SYSCONFDIR])
 AC_SUBST([DATAROOTDIR])
 AC_SUBST([LOCALSTATEDIR])
+AC_SUBST([BINDIR])
 
 cryptolib=openssl
 
@@ -559,6 +564,8 @@ AC_CONFIG_FILES([Makefile                   \
 		tests/Makefile              \
 		tests/test_config           \
 		])
+AC_CONFIG_FILES([samples/swtpm-localca],
+                [chmod 755 samples/swtpm-localca])
 AC_OUTPUT
 
 echo
