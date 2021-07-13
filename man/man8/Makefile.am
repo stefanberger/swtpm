@@ -12,29 +12,35 @@ man8_PODS = \
 	swtpm_cuse.pod \
 	swtpm_ioctl.pod \
 	swtpm_setup.pod \
-	swtpm_setup.conf.pod
+	swtpm_setup.conf.pod \
 	swtpm-create-tpmca.pod \
 	swtpm-localca.pod \
 	swtpm-localca.options.pod \
 	swtpm-localca.conf.pod
 
-man8_MANS = \
+man8_generated_MANS = \
 	swtpm.8 \
 	swtpm_bios.8 \
 	swtpm_cert.8 \
 	swtpm_ioctl.8 \
 	swtpm_setup.8 \
 	swtpm_setup.conf.8 \
-	swtpm_setup.sh.8 \
 	swtpm-create-tpmca.8 \
 	swtpm-localca.8 \
 	swtpm-localca.options.8 \
 	swtpm-localca.conf.8
 
 if WITH_CUSE
-man8_MANS += \
+man8_generated_MANS += \
 	swtpm_cuse.8
 endif
+
+man8_existing_MANS = \
+	swtpm_setup.sh.8
+
+man8_MANS = \
+	$(man8_existing_MANS) \
+	$(man8_generated_MANS)
 
 %.8 : %.pod
 	@pod2man -r "swtpm" \
@@ -42,6 +48,6 @@ endif
 		-n $(basename $@) \
 		--section=8 $< > $@
 
-EXTRA_DIST = $(man8_MANS) $(man8_PODS)
+EXTRA_DIST = $(man8_existing_MANS) $(man8_PODS)
 
-CLEANFILES = swtpm_cuse.8
+CLEANFILES = $(man8_generated_MANS)
