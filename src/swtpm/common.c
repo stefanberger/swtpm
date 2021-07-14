@@ -145,6 +145,10 @@ static const OptionDesc tpmstate_opt_desc[] = {
         .name = "mode",
         .type = OPT_TYPE_MODE_T,
     },
+    {
+        .name = "backend-uri",
+        .type = OPT_TYPE_STRING,
+    },
     END_OPTION_DESC
 };
 
@@ -603,15 +607,18 @@ handle_pid_options(char *options)
  * @options: the 'pid' options to parse
  * @tpmstatedir: Point to pointer for tpmstatedir
  * @mode: the mode of the TPM's state files
+ * @tpmbackend_uri: Point to pointer for backend URI
  *
  * Returns 0 on success, -1 on failure.
  */
 static int
-parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode)
+parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode,
+                       char **tpmbackend_uri)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
     const char *directory = NULL;
+    const char *backend_uri = NULL;
 
     ovs = options_parse(options, tpmstate_opt_desc, &error);
     if (!ovs) {
@@ -621,16 +628,25 @@ parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode)
     }
 
     directory = option_get_string(ovs, "dir", NULL);
-    if (!directory) {
-        logprintf(STDERR_FILENO,
-                  "The file parameter is required for the tpmstate option.\n");
-        goto error;
-    }
     *mode = option_get_mode_t(ovs, "mode", 0640);
+    backend_uri = option_get_string(ovs, "backend-uri", NULL);
 
-    *tpmstatedir = strdup(directory);
-    if (!*tpmstatedir) {
-        logprintf(STDERR_FILENO, "Out of memory.");
+    if (directory) {
+        *tpmstatedir = strdup(directory);
+        if (!*tpmstatedir) {
+            logprintf(STDERR_FILENO, "Out of memory.");
+            goto error;
+        }
+    } else if (backend_uri) {
+        *tpmbackend_uri = strdup(backend_uri);
+        if (!*tpmbackend_uri) {
+            logprintf(STDERR_FILENO, "Out of memory.");
+            goto error;
+        }
+    } else {
+        logprintf(STDERR_FILENO,
+                  "The dir or backend-uri parameters is required "
+                  "for the tpmstate option.\n");
         goto error;
     }
 
@@ -658,27 +674,50 @@ handle_tpmstate_options(char *options)
 {
     char *tpmstatedir = NULL;
     char *tpmbackend_uri = NULL;
+    char *temp_uri = NULL;
     int ret = 0;
     mode_t mode;
 
     if (!options)
         return 0;
 
-    if (parse_tpmstate_options(options, &tpmstatedir, &mode) < 0)
-        return -1;
-
-    if (asprintf(&tpmbackend_uri, "dir://%s", tpmstatedir) < 0) {
-        logprintf(STDERR_FILENO,
-                  "Could not asprintf TPM backend uri\n");
-        return -1;
+    if (parse_tpmstate_options(options, &tpmstatedir, &mode,
+                               &tpmbackend_uri) < 0) {
+        ret = -1;
+        goto error;
     }
 
-    if (tpmstate_set_backend_uri(tpmbackend_uri) < 0 ||
-        tpmstate_set_mode(mode) < 0)
-        ret = -1;
+    if (tpmstatedir) {
+        /* Default tpmstate store dir backend */
+        if (asprintf(&temp_uri, "dir://%s", tpmstatedir) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Could not asprintf TPM backend uri\n");
+            ret = -1;
+            temp_uri = NULL;
+            goto error;
+        }
 
+        if (tpmstate_set_backend_uri(temp_uri) < 0 ||
+            tpmstate_set_mode(mode) < 0) {
+            ret = -1;
+            goto error;
+        }
+    } else {
+        if (tpmstate_set_backend_uri(tpmbackend_uri) < 0) {
+            ret = -1;
+            goto error;
+        }
+        if (strncmp(tpmbackend_uri, "dir://", 6) == 0 &&
+            tpmstate_set_mode(mode) < 0) {
+            ret = -1;
+            goto error;
+        }
+    }
+
+error:
     free(tpmstatedir);
     free(tpmbackend_uri);
+    free(temp_uri);
 
     return ret;
 }

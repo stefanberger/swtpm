@@ -71,7 +71,7 @@ validate_pidfile $PID $PID_FILE
 
 ${SWTPM_BIOS} &>/dev/null
 if [ $? -ne 0 ]; then
-	echo "Test 1 failed: tpm_bios did not work"
+	echo "Test 1 failed: ${SWTPM_BIOS} did not work"
 	exit 1
 fi
 
@@ -174,5 +174,68 @@ if [ $RES -ne 0 ]; then
 fi
 
 echo "Test 3 passed"
+cleanup
+
+# Test 4: --tpmstate backend-uri=dir:// parameter test
+TPMDIR=`mktemp -d`
+PID_FILE=$TPMDIR/${SWTPM}.pid
+FILEMODE=641
+
+$SWTPM_EXE socket \
+	-p $PORT \
+	--tpmstate backend-uri=dir://$TPMDIR,mode=$FILEMODE \
+	--pid file=$PID_FILE \
+	--flags not-need-init \
+	${SWTPM_TEST_SECCOMP_OPT} &
+PID=$!
+
+if wait_port_open $PORT $PID 4; then
+	echo "Test 4 failed: TPM did not open port $PORT"
+	exit 1
+fi
+
+kill_quiet -0 $PID
+if [ $? -ne 0 ]; then
+	echo "Test 4 failed: TPM process not running"
+	exit 1
+fi
+
+if wait_for_file $PID_FILE 3; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not write pidfile."
+	exit 1
+fi
+
+validate_pidfile $PID $PID_FILE
+
+${SWTPM_BIOS} &>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Test 4 failed: ${SWTPM_BIOS} did not work"
+	exit 1
+fi
+
+filemode=$(get_filemode ${TPMDIR}/tpm-00.permall)
+if [ "$filemode" != "$FILEMODE" ]; then
+	echo "Filemode bits are wrong"
+	echo "Expected: $FILEMODE"
+	echo "Actual  : $filemode"
+	exit 1
+fi
+
+kill_quiet -SIGTERM $PID &>/dev/null
+wait_process_gone $PID 2
+
+exec 20<&1-; exec 21<&2-
+kill_quiet -0 $PID &>/dev/null
+RES=$?
+exec 1<&20-; exec 2<&21-
+
+if [ $RES -eq 0 ]; then
+	kill_quiet -SIGKILL $PID
+	echo "Test 4 failed: TPM process did not terminate on SIGTERM"
+	exit 1
+fi
+
+echo "Test 4 passed"
+cleanup
 
 exit 0
