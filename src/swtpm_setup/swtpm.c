@@ -679,23 +679,23 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
 
     if (rsa_keysize == 2048) {
         authpolicy_len = 32;
-        memcpy(authpolicy, (unsigned char []){
+        memcpy(authpolicy, ((unsigned char []){
             0x83, 0x71, 0x97, 0x67, 0x44, 0x84, 0xb3, 0xf8, 0x1a, 0x90, 0xcc, 0x8d,
             0x46, 0xa5, 0xd7, 0x24, 0xfd, 0x52, 0xd7, 0x6e, 0x06, 0x52, 0x0b, 0x64,
             0xf2, 0xa1, 0xda, 0x1b, 0x33, 0x14, 0x69, 0xaa
-        }, authpolicy_len);
+        }), authpolicy_len);
         keyflags = 0;
         symkeylen = 128;
         havenonce = TRUE;
         addlen = 0;
     } else if (rsa_keysize == 3072) {
         authpolicy_len = 48;
-        memcpy(authpolicy, (unsigned char []){
+        memcpy(authpolicy, ((unsigned char []){
             0xB2, 0x6E, 0x7D, 0x28, 0xD1, 0x1A, 0x50, 0xBC, 0x53, 0xD8, 0x82, 0xBC,
             0xF5, 0xFD, 0x3A, 0x1A, 0x07, 0x41, 0x48, 0xBB, 0x35, 0xD3, 0xB4, 0xE4,
             0xCB, 0x1C, 0x0A, 0xD9, 0xBD, 0xE4, 0x19, 0xCA, 0xCB, 0x47, 0xBA, 0x09,
             0x69, 0x96, 0x46, 0x15, 0x0F, 0x9F, 0xC0, 0x00, 0xF3, 0xF8, 0x0E, 0x12
-        }, authpolicy_len);
+        }), authpolicy_len);
         keyflags = 0x40;
         symkeylen = 256;
         havenonce = FALSE;
@@ -712,7 +712,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
         keyflags |= 0x000600b2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
-        memcpy(symkeydata, (unsigned char[]) {AS2BE(TPM2_ALG_NULL)}, symkeydata_len);
+        memcpy(symkeydata, ((unsigned char[]) {AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
         off = 72 + addlen;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
@@ -720,7 +720,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
         keyflags |= 0x000400b2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
-        memcpy(symkeydata, (unsigned char[]) {AS2BE(TPM2_ALG_NULL)}, symkeydata_len);
+        memcpy(symkeydata, ((unsigned char[]) {AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
         off = 72 + addlen;
     } else {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
@@ -729,7 +729,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
         // symmetric: TPM_ALG_AES, 128bit or 256bit, TPM_ALG_CFB
         symkeydata_len = 6;
         memcpy(symkeydata,
-               (unsigned char[]) {AS2BE(TPM2_ALG_AES), AS2BE(symkeylen), AS2BE(TPM2_ALG_CFB)},
+               ((unsigned char[]) {AS2BE(TPM2_ALG_AES), AS2BE(symkeylen), AS2BE(TPM2_ALG_CFB)}),
                symkeydata_len);
         off = 76 + addlen;
     }
@@ -1009,7 +1009,7 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
 
     symkeydata_len = 6;
     memcpy(symkeydata,
-           (unsigned char[]) {AS2BE(TPM2_ALG_AES), AS2BE(symkeylen), AS2BE(TPM2_ALG_CFB)},
+           ((unsigned char[]) {AS2BE(TPM2_ALG_AES), AS2BE(symkeylen), AS2BE(TPM2_ALG_CFB)}),
            symkeydata_len);
 
     return swtpm_tpm2_createprimary_rsa(self, TPM2_RH_OWNER, keyflags,
@@ -1065,7 +1065,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         keyflags = 0x000600f2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
-        memcpy(symkeydata, (unsigned char[]){AS2BE(TPM2_ALG_NULL)}, symkeydata_len);
+        memcpy(symkeydata, ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
         off = 86;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
@@ -1073,7 +1073,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         keyflags = 0x000400f2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
-        memcpy(symkeydata, (unsigned char[]){AS2BE(TPM2_ALG_NULL)}, symkeydata_len);
+        memcpy(symkeydata, ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
         off = 86;
     } else {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
@@ -1082,7 +1082,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         // symmetric: TPM_ALG_AES, 256bit, TPM_ALG_CFB
         symkeydata_len = 6;
         memcpy(symkeydata,
-               (unsigned char[]){ AS2BE(TPM2_ALG_AES), AS2BE(256), AS2BE(TPM2_ALG_CFB)},
+               ((unsigned char[]){ AS2BE(TPM2_ALG_AES), AS2BE(256), AS2BE(TPM2_ALG_CFB)}),
                symkeydata_len);
         off = 90;
     }
