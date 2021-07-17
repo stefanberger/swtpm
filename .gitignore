@@ -44,6 +44,7 @@ Makefile
 /samples/swtpm-create-user-config-files
 /samples/swtpm_localca
 /samples/swtpm-localca
+/samples/swtpm-localca.2inst
 /samples/swtpm-localca.conf
 /samples/swtpm_localca_conf.h
 /src/selinux/*.pp.bz2

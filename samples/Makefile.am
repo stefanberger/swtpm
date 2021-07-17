@@ -9,8 +9,7 @@ samplessysconfdir = $(sysconfdir)
 
 samplesconf_SCRIPTS = \
 	swtpm-create-tpmca \
-	swtpm-create-user-config-files \
-	swtpm-localca
+	swtpm-create-user-config-files
 
 samplessysconf_DATA = \
 	swtpm-localca.conf \
@@ -52,6 +51,13 @@ install-data-local:
 		chown -R @TSS_USER@:root $(DESTDIR)$(localstatedir)/lib/swtpm-localca || true; \
 		chmod 0750 $(DESTDIR)$(localstatedir)/lib/swtpm-localca || true; \
 	fi
+
+install-exec-local:
+	$(MKDIR_P) $(DESTDIR)$(samplesconfdir)
+	$(INSTALL_SCRIPT) swtpm-localca.2inst $(DESTDIR)$(samplesconfdir)/swtpm-localca
+
+uninstall-local:
+	rm -f $(DESTDIR)$(samplesconfdir)/swtpm-localca
 
 EXTRA_DIST= \
 	swtpm-create-tpmca \

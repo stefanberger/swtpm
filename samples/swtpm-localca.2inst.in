@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+@BINDIR@/swtpm_localca "$@"
+
+exit $?
