@@ -543,6 +543,7 @@ AC_CONFIG_FILES([Makefile                   \
 		etc/Makefile                \
 		etc/swtpm_setup.conf        \
 		samples/Makefile            \
+		samples/swtpm-localca.2inst \
 		samples/swtpm-localca.conf  \
 		samples/swtpm-create-user-config-files \
 		samples/swtpm_localca_conf.h \
