@@ -13,12 +13,13 @@ Building and running the swtpm has dependencies on the following packages:
 - fuse-devel
 - glib2
 - glib2-devel
+- json-glib-devel
 - net-tools
 - python3
 - python3-twisted
 - selinux-policy-devel
+- socat
 - trousers
-- tpm-tools
 - gnutls
 - gnutls-devel
 - libtasn1
@@ -35,8 +36,8 @@ Debian/Ubuntu also needs the following packages to build:
 On RHEL or Fedora use either one of the following methods to install
 the above dependencies:
 
- - sudo dnf builddep ./dist/swtpm.spec  (Fedora >= 22)
- - sudo yum install yum-utils ; sudo yum-builddep ./dist/swtpm.spec  (RHEL and Fedora <= 21)
+ - sudo dnf builddep ./swtpm.spec  (Fedora >= 22)
+ - sudo yum install yum-utils ; sudo yum-builddep ./swtpm.spec  (RHEL and Fedora <= 21)
  - sudo yum install <package name(s)>
 
 On Ubuntu use the following command:
