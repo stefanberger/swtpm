@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm-create-tpmca
+swtpm-create-tpmca - Tool to create a local CA for swtpm-localca
 
 =head1 SYNOPSIS
 
