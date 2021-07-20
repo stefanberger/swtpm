@@ -8,7 +8,6 @@
 *.la
 *.lo
 *.o
-*.patch
 *~
 .deps
 .libs
@@ -67,6 +66,7 @@ tests/*.trs
 tests/test_config
 /debian/*debhelper*
 /debian/*substvars
+/debian/autoreconf.*
 /debian/files
 /debian/swtpm
 /debian/swtpm-cuse
