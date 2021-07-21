@@ -13,7 +13,8 @@ samplesconf_SCRIPTS = \
 
 samplessysconf_DATA = \
 	swtpm-localca.conf \
-	swtpm-localca.options
+	swtpm-localca.options \
+	swtpm_setup.conf
 
 noinst_HEADERS = \
 	swtpm_localca.h \
@@ -63,4 +64,5 @@ EXTRA_DIST= \
 	swtpm-create-tpmca \
 	swtpm-create-user-config-files \
 	swtpm-localca.conf \
-	swtpm-localca.options
+	swtpm-localca.options \
+	swtpm_setup.conf

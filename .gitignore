@@ -34,7 +34,6 @@ Makefile
 /swtpm-*.tar.gz
 /m4/*
 /.pc/*
-/etc/swtpm_setup.conf
 /patches/*
 /include/swtpm.h
 /man/man3/*.3
@@ -45,6 +44,7 @@ Makefile
 /samples/swtpm-localca.2inst
 /samples/swtpm-localca.conf
 /samples/swtpm_localca_conf.h
+/samples/swtpm_setup.conf
 /src/selinux/*.pp.bz2
 /src/selinux/swtpm.pp
 /src/selinux/swtpm_svirt.fc
