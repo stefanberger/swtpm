@@ -5,7 +5,6 @@
 #
 
 SUBDIRS   = \
-	etc \
 	include \
 	man \
 	samples \
