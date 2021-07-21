@@ -12,7 +12,6 @@ cat <<_EOF_
 /usr/share/man/man8/swtpm-localca.8*
 /usr/share/man/man8/swtpm_setup.8*
 /usr/share/man/man8/swtpm_setup.conf.8*
-/usr/share/man/man8/swtpm_setup.sh.8*
 /usr/share/swtpm/swtpm-localca
 /usr/share/swtpm/swtpm-create-user-config-files
 /etc/swtpm-localca.conf
