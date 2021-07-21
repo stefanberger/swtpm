@@ -32,7 +32,6 @@ Makefile
 /missing
 /stamp-h1
 /swtpm-*.tar.gz
-/swtpm.spec
 /m4/*
 /.pc/*
 /etc/swtpm_setup.conf
