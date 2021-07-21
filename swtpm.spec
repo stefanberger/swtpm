@@ -159,7 +159,6 @@ fi
 %{_mandir}/man8/swtpm-localca.8*
 %{_mandir}/man8/swtpm_setup.8*
 %{_mandir}/man8/swtpm_setup.conf.8*
-%{_mandir}/man8/swtpm_setup.sh.8*
 %config(noreplace) %{_sysconfdir}/swtpm_setup.conf
 %config(noreplace) %{_sysconfdir}/swtpm-localca.options
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf
