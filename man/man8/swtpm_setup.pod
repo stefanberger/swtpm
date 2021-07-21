@@ -17,7 +17,7 @@ The following options are supported:
 
 =item B<--runas <userid>>
 
-Use this userid to run swtpm_setup.sh as. Only 'root' can use this option.
+Use this userid to run swtpm_setup as. Only 'root' can use this option.
 
 =item B<--config <file>>
 
