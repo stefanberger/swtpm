@@ -21,7 +21,8 @@ noinst_HEADERS = \
 	swtpm_aes.h \
 	swtpm_debug.h \
 	swtpm_io.h \
-	swtpm_nvfile.h \
+	swtpm_nvstore.h \
+	swtpm_nvstore_file.h \
 	threadpool.h \
 	tlv.h \
 	tpmlib.h \
@@ -46,7 +47,8 @@ libswtpm_libtpms_la_SOURCES = \
 	swtpm_aes.c \
 	swtpm_debug.c \
 	swtpm_io.c \
-	swtpm_nvfile.c \
+	swtpm_nvstore.c \
+	swtpm_nvstore_file.c \
 	tlv.c \
 	tpmlib.c \
 	tpmstate.c \

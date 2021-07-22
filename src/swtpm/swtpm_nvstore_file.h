@@ -36,12 +36,11 @@
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.		*/
 /********************************************************************************/
 
-#ifndef _SWTPM_NVFILE_H
-#define _SWTPM_NVFILE_H
+#ifndef _SWTPM_NVSTORE_FILE_H
+#define _SWTPM_NVSTORE_FILE_H
 
 #include <libtpms/tpm_types.h>
-
-#include "key.h"
+#include <libtpms/tpm_library.h>
 
 /* characters in the TPM base file name, 14 for file name, slash, NUL terminator, etc.
 
@@ -51,61 +50,29 @@
 
 #define TPM_FILENAME_MAX 20
 
-#include <libtpms/tpm_library.h>
+TPM_RESULT
+SWTPM_NVRAM_Prepare_File(const char *uri);
 
-TPM_RESULT SWTPM_NVRAM_Init(void);
+TPM_RESULT
+SWTPM_NVRAM_LoadData_File(unsigned char **data,
+                          uint32_t *length,
+                          uint32_t tpm_number,
+                          const char *name,
+                          const char *uri);
 
-void SWTPM_NVRAM_Set_TPMVersion(TPMLIB_TPMVersion version);
+TPM_RESULT
+SWTPM_NVRAM_StoreData_File(unsigned char *filedata,
+                           uint32_t filedata_length,
+                           uint32_t tpm_number,
+                           const char *name,
+                           const char *uri);
 
-/*
-  Basic abstraction for read and write
-*/
+TPM_RESULT
+SWTPM_NVRAM_DeleteName_File(uint32_t tpm_number,
+                            const char *name,
+                            TPM_BOOL mustExist,
+                            const char *uri);
 
-TPM_RESULT SWTPM_NVRAM_LoadData(unsigned char **data,
-                                uint32_t *length,
-			        uint32_t tpm_number,
-                                const char *name);
-TPM_RESULT SWTPM_NVRAM_StoreData(const unsigned char *data,
-                                 uint32_t length,
-			         uint32_t tpm_number,
-                                 const char *name);
-TPM_RESULT SWTPM_NVRAM_DeleteName(uint32_t tpm_number,
-				  const char *name,
-                                  TPM_BOOL mustExist);
-TPM_RESULT SWTPM_NVRAM_Store_Volatile(void);
+extern struct nvram_backend_ops nvram_file_ops;
 
-TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *data,
-                                   uint32_t length,
-                                   enum encryption_mode mode);
-
-TPM_RESULT SWTPM_NVRAM_Set_MigrationKey(const unsigned char *data,
-                                        uint32_t length,
-                                        enum encryption_mode mode);
-
-TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
-                                    uint32_t *length,
-                                    uint32_t tpm_number,
-                                    const char *name,
-                                    TPM_BOOL decrypt,
-                                    TPM_BOOL *is_encrypted);
-
-TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
-                                    uint32_t length,
-                                    TPM_BOOL is_encrypted,
-                                    uint32_t tpm_number,
-                                    uint32_t blobtype);
-
-size_t SWTPM_NVRAM_FileKey_Size(void);
-static inline TPM_BOOL SWTPM_NVRAM_Has_FileKey(void)
-{
-    return SWTPM_NVRAM_FileKey_Size() > 0;
-}
-
-size_t SWTPM_NVRAM_MigrationKey_Size(void);
-static inline TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void)
-{
-    return SWTPM_NVRAM_MigrationKey_Size() > 0;
-}
-
-#endif /* _SWTPM_NVFILE_H */
-
+#endif /* _SWTPM_NVSTORE_FILE_H */

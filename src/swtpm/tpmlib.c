@@ -51,7 +51,7 @@
 #include "tpmlib.h"
 #include "logging.h"
 #include "tpm_ioctl.h"
-#include "swtpm_nvfile.h"
+#include "swtpm_nvstore.h"
 #include "locality.h"
 #ifdef WITH_VTPM_PROXY
 #include "vtpm_proxy.h"

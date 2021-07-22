@@ -57,7 +57,7 @@
 #include "main.h"
 #include "swtpm_debug.h"
 #include "swtpm_io.h"
-#include "swtpm_nvfile.h"
+#include "swtpm_nvstore.h"
 #include "common.h"
 #include "locality.h"
 #include "logging.h"
@@ -473,7 +473,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
     }
 
-    SWTPM_NVRAM_Set_TPMVersion(mlp.tpmversion);
+    tpmstate_set_version(mlp.tpmversion);
 
     if (mlp.fd < 0) {
         logprintf(STDERR_FILENO,

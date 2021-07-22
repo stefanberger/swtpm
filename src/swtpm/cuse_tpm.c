@@ -70,7 +70,7 @@
 #include "locality.h"
 #include "logging.h"
 #include "tpm_ioctl.h"
-#include "swtpm_nvfile.h"
+#include "swtpm_nvstore.h"
 #include "tpmlib.h"
 #include "main.h"
 #include "utils.h"
@@ -432,7 +432,7 @@ static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
                      TPM_RESULT *res)
 {
     DIR *dir;
-    const char *tpmdir = tpmstate_get_dir();
+    const char *tpmdir = tpmstate_get_backend_uri();
 
     *res = TPM_FAIL;
 
@@ -1597,7 +1597,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
-    SWTPM_NVRAM_Set_TPMVersion(tpmversion);
+    tpmstate_set_version(tpmversion);
 
     if (!cinfo.dev_info_argv) {
         logprintf(STDERR_FILENO, "Error: device name missing\n");
@@ -1634,7 +1634,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         }
     }
 
-    tpmdir = tpmstate_get_dir();
+    tpmdir = tpmstate_get_backend_uri();
     if (tpmdir == NULL) {
         logprintf(STDERR_FILENO,
                   "Error: No TPM state directory is defined; "

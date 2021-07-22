@@ -45,32 +45,39 @@
 
 #include "tpmstate.h"
 #include "logging.h"
+#include "swtpm_nvstore.h"
 
-static char *g_tpmstatedir;
+static char *g_backend_uri;
+static char *g_backend_type;
 static mode_t g_tpmstate_mode = 0640;
+static TPMLIB_TPMVersion g_tpmstate_version = TPMLIB_TPM_VERSION_1_2;
 
-int tpmstate_set_dir(char *tpmstatedir)
+int tpmstate_set_backend_uri(char *backend_uri)
 {
-   g_tpmstatedir = strdup(tpmstatedir);
-   if (!g_tpmstatedir) {
-       logprintf(STDERR_FILENO, "Out of memory.\n");
-       return -1;
-   }
+    g_backend_uri = strdup(backend_uri);
+    if (!g_backend_uri) {
+        logprintf(STDERR_FILENO, "Out of memory.\n");
+        return -1;
+    }
 
-   return 0;
+    return 0;
 }
 
 void tpmstate_global_free(void)
 {
-    free(g_tpmstatedir);
-    g_tpmstatedir = NULL;
+    free(g_backend_uri);
+    free(g_backend_type);
+    g_backend_uri = NULL;
+    g_backend_type = NULL;
 }
 
-const char *tpmstate_get_dir(void)
+const char *tpmstate_get_backend_uri(void)
 {
-    if (g_tpmstatedir)
-        return g_tpmstatedir;
-    return getenv("TPM_PATH");
+    if (g_backend_uri)
+        return g_backend_uri;
+    if (strcmp(tpmstate_get_backend_type(), SWTPM_NVRAM_BACKEND_FILE) == 0)
+        return getenv("TPM_PATH");
+    return NULL;
 }
 
 int tpmstate_set_mode(mode_t mode)
@@ -83,4 +90,32 @@ int tpmstate_set_mode(mode_t mode)
 mode_t tpmstate_get_mode(void)
 {
     return g_tpmstate_mode;
+}
+
+void tpmstate_set_version(TPMLIB_TPMVersion version)
+{
+    g_tpmstate_version = version;
+}
+
+TPMLIB_TPMVersion tpmstate_get_version(void)
+{
+    return g_tpmstate_version;
+}
+
+int tpmstate_set_backend_type(char *backend_type)
+{
+    g_backend_type = strdup(backend_type);
+    if (!g_backend_type) {
+        logprintf(STDERR_FILENO, "Out of memory.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+const char *tpmstate_get_backend_type(void)
+{
+    if (!g_backend_type)
+        return SWTPM_NVRAM_BACKEND_FILE;
+    return g_backend_type;
 }
