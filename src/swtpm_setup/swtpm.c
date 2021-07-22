@@ -425,7 +425,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
                                         unsigned int rsa_keysize, gboolean havenonce, size_t off,
                                         uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
-                                        gchar **ekparam);
+                                        gchar **ekparam, const gchar **user_keytype);
 
 static int swtpm_tpm2_write_nvram(struct swtpm *self, uint32_t nvindex, uint32_t nvindexattrs,
                                   const unsigned char *data, size_t data_len, gboolean lock_nvram,
@@ -666,7 +666,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
                                            gboolean allowsigning, gboolean decryption,
                                            uint32_t *curr_handle,
                                            unsigned char *ektemplate, size_t *ektemplate_len,
-                                           gchar **ekparam)
+                                           gchar **ekparam, const gchar **user_keytype)
 {
     unsigned char authpolicy[48];
     size_t authpolicy_len;
@@ -738,7 +738,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
                                         symkeydata, symkeydata_len,
                                         authpolicy, authpolicy_len, rsa_keysize,
                                         havenonce, off, curr_handle,
-                                        ektemplate, ektemplate_len, ekparam);
+                                        ektemplate, ektemplate_len, ekparam, user_keytype);
 }
 
 /* Create an RSA key with the given parameters */
@@ -748,7 +748,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
                                         unsigned int rsa_keysize, gboolean havenonce, size_t off,
                                         uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
-                                        gchar **ekparam)
+                                        gchar **ekparam, const gchar **user_keytype)
 {
     const unsigned char *nonce;
     size_t nonce_len;
@@ -768,6 +768,8 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
         nonce = NONCE_RSA2048;
         nonce_len = sizeof(NONCE_RSA2048);
         hashalg = TPM2_ALG_SHA256;
+        if (user_keytype)
+            *user_keytype = "rsa2048";
     } else if (rsa_keysize == 3072) {
         if (!havenonce) {
            nonce = NONCE_EMPTY;
@@ -777,6 +779,8 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
            nonce_len = sizeof(NONCE_RSA3072);
         }
         hashalg = TPM2_ALG_SHA384;
+        if (user_keytype)
+            *user_keytype = "rsa3072";
     } else {
         logerr(self->logfile, "Internal error in %s: unsupported RSA keysize %d.\n",
                __func__, rsa_keysize);
@@ -867,7 +871,7 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                                         const unsigned char *nonce, size_t nonce_len,
                                         size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
-                                        gchar **ekparam)
+                                        gchar **ekparam, const gchar **user_keytype)
 {
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_CREATEPRIMARY);
     struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0);
@@ -936,6 +940,8 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     if (curveid == TPM2_ECC_NIST_P384) {
         exp_ksize = 48;
         cid = "secp384r1";
+        if (user_keytype)
+            *user_keytype = cid;
     } else {
         logerr(self->logfile, "Unknown curveid 0x%x\n", curveid);
         return 1;
@@ -988,7 +994,7 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
     return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags, symkeydata, symkeydata_len,
                                         authpolicy, authpolicy_len, TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
                                         NONCE_ECC_384, sizeof(NONCE_ECC_384), off, curr_handle,
-                                        NULL, 0, NULL);
+                                        NULL, 0, NULL, NULL);
 }
 
 static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa_keysize,
@@ -1015,7 +1021,7 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
     return swtpm_tpm2_createprimary_rsa(self, TPM2_RH_OWNER, keyflags,
                                         symkeydata, symkeydata_len,
                                         authpolicy, authpolicy_len, rsa_keysize, TRUE,
-                                        off, curr_handle, NULL, 0, NULL);
+                                        off, curr_handle, NULL, 0, NULL, NULL);
 }
 
 /* Create either an ECC or RSA storage primary key */
@@ -1044,7 +1050,7 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, gboolean isecc, unsigned in
 static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolean allowsigning,
                                                      gboolean decryption, uint32_t *curr_handle,
                                                      unsigned char *ektemplate, size_t *ektemplate_len,
-                                                     gchar **ekparam)
+                                                     gchar **ekparam, const char **user_keytype)
 {
     unsigned char authpolicy[48]= {
         0xB2, 0x6E, 0x7D, 0x28, 0xD1, 0x1A, 0x50, 0xBC, 0x53, 0xD8, 0x82, 0xBC,
@@ -1090,7 +1096,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
     ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags, symkeydata, symkeydata_len,
                                        authpolicy, authpolicy_len, TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
                                        NONCE_EMPTY, sizeof(NONCE_EMPTY), off, curr_handle,
-                                       ektemplate, ektemplate_len, ekparam);
+                                       ektemplate, ektemplate_len, ekparam, user_keytype);
     if (ret != 0)
        logerr(self->logfile, "%s failed\n", __func__);
 
@@ -1100,7 +1106,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
 /* Create an ECC or RSA EK */
 static int swtpm_tpm2_create_ek(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize,
                                 gboolean allowsigning, gboolean decryption, gboolean lock_nvram,
-                                gchar **ekparam)
+                                gchar **ekparam, const  gchar **user_keytype)
 {
     uint32_t tpm2_ek_handle, nvindex, curr_handle;
     const char *keytype;
@@ -1128,10 +1134,11 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, gboolean isecc, unsigned int
     }
     if (isecc)
         ret = swtpm_tpm2_createprimary_ek_ecc_nist_p384(self, allowsigning, decryption, &curr_handle,
-                                                        ektemplate, &ektemplate_len, ekparam);
+                                                        ektemplate, &ektemplate_len, ekparam,
+                                                        user_keytype);
     else
         ret = swtpm_tpm2_createprimary_ek_rsa(self, rsa_keysize, allowsigning, decryption, &curr_handle,
-                                              ektemplate, &ektemplate_len, ekparam);
+                                              ektemplate, &ektemplate_len, ekparam, user_keytype);
 
     if (ret == 0)
         ret = swtpm_tpm2_evictcontrol(self, curr_handle, tpm2_ek_handle);

@@ -194,6 +194,7 @@ The output may contain the following:
       "features": [
         "cmdarg-keyfile-fd",
         "cmdarg-pwdfile-fd",
+        "cmdarg-write-ek-cert-files",
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
         "tpm12-not-need-root"
@@ -224,6 +225,18 @@ or the 'tss' user, depending on configuration and availability of this account,
 could do that.
 
 =back
+
+=item B<--write-ek-cert-files <directory>>
+
+This option causes endorsement key (EK) files to be written into the provided
+directory. The files contain the DER-formatted EKs that were written into the
+NVRAM locations of the TPM 1.2 or TPM 2. The EK files have the filename pattern
+of ek-<key type>.crt. Example for filenames are ek-rsa2048.crt, ek-rsa3072.crt,
+and ek-secp384r1.crt.
+
+The keys that are written for a TPM 2 may change over time as the default
+strength of the EK keys changes. This means that one should look for all
+files with the above filename pattern when looking for the EKs.
 
 =item B<--help, -h>
 

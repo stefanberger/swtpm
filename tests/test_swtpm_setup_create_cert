@@ -63,7 +63,8 @@ $SWTPM_SETUP \
 	--create-ek-cert \
 	--config ${workdir}/swtpm_setup.conf \
 	--logfile ${workdir}/logfile \
-	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--write-ek-cert-files "${workdir}"
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."
@@ -96,6 +97,19 @@ fi
 if [ -z "$(grep "ENCRYPTED PRIVATE KEY" ${workdir}/swtpm-localca-rootca-privkey.pem)" ]; then
 	echo "Error: Root CA's private key should be encrypted"
 	cat ${workdir}/swtpm-localca-rootca-privkey.pem
+	exit 1
+fi
+
+certfile="${workdir}/ek-rsa2048.crt"
+if [ ! -f "${certfile}" ]; then
+	echo "Error: EK file '${certfile}' was not written."
+	ls -l "${workdir}"
+	exit 1
+fi
+
+if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "2048 bits")" ]; then
+	echo "Error: EK file '${certfile}' is not an RSA 2048 bit key."
+	$CERTTOOL --inder --infile "${certfile}" -i
 	exit 1
 fi
 

@@ -16,6 +16,8 @@ workdir=$(mktemp -d "/tmp/path with spaces.XXXXXX")
 SIGNINGKEY=${workdir}/signingkey.pem
 ISSUERCERT=${workdir}/issuercert.pem
 CERTSERIAL=${workdir}/certserial
+USER_CERTSDIR=${workdir}/mycerts
+mkdir -p "${USER_CERTSDIR}"
 
 PATH=${TOPBUILD}/src/swtpm_bios:$PATH
 
@@ -76,7 +78,8 @@ for keysize in $(echo $keysizes); do
 		--logfile "${workdir}/logfile" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--rsa-keysize ${keysize} \
-		--overwrite
+		--overwrite \
+		--write-ek-cert-files "${USER_CERTSDIR}"
 
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not run $SWTPM_SETUP."
@@ -100,7 +103,20 @@ for keysize in $(echo $keysizes); do
 		exit 1
 	fi
 
-	rm -rf ${SIGNINGKEY} ${ISSUERCERT} ${CERTSERIAL}
+	certfile="${USER_CERTSDIR}/ek-rsa${keysize}.crt"
+	if [ ! -f "${certfile}" ]; then
+		echo "Error: EK file '${certfile}' was not written."
+		ls -l "${USER_CERTSDIR}"
+		exit 1
+	fi
+
+	if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "${keysize} bits")" ]; then
+		echo "Error: EK file '${certfile}' is not an RSA ${keysize} bit key."
+		$CERTTOOL --inder --infile "${certfile}" -i
+		exit 1
+	fi
+
+	rm -rf "${SIGNINGKEY}" "${ISSUERCERT}" "${CERTSERIAL}" ${USER_CERTSDIR}/ek-*.crt
 done
 
 echo "Test 1: OK"
@@ -115,7 +131,8 @@ $SWTPM_SETUP \
 	--config "${workdir}/swtpm_setup.conf" \
 	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--overwrite
+	--overwrite \
+	--write-ek-cert-files "${workdir}"
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not run $SWTPM_SETUP."
@@ -136,6 +153,19 @@ fi
 
 if [ ! -r "${CERTSERIAL}" ]; then
 	echo "Error: Cert serial number file ${CERTSERIAL} was not created."
+	exit 1
+fi
+
+certfile="${workdir}/ek-secp384r1.crt"
+if [ ! -f "${certfile}" ]; then
+	echo "Error: EK file '${certfile}' was not written."
+	ls -l "${workdir}"
+	exit 1
+fi
+
+if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "384 bits")" ]; then
+	echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
+	$CERTTOOL --inder --infile "${certfile}" -i
 	exit 1
 fi
 

@@ -48,7 +48,7 @@ struct swtpm2_ops {
     int (*create_spk)(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize);
     int (*create_ek)(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize,
                      gboolean allowsigning, gboolean decryption, gboolean lock_nvram,
-                     gchar **ekparam);
+                     gchar **ekparam, const gchar **keytype);
     int (*get_all_pcr_banks)(struct swtpm *self, gchar ***all_pcr_banks);
     int (*set_active_pcr_banks)(struct swtpm *self, gchar **pcr_banks_l, gchar **all_pcr_banks,
                                 gchar ***active);
