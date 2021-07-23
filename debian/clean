@@ -1,0 +1,3 @@
+include/swtpm/*.gch
+man/*/*.3
+man/*/*.8
