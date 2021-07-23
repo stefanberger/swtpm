@@ -1,22 +1,24 @@
 #!/bin/sh
 cat <<_EOF_
-/usr/bin/swtpm_bios
-/usr/bin/swtpm_setup
-/usr/bin/swtpm_ioctl
-/usr/bin/swtpm_localca
-/usr/share/man/man8/swtpm_bios.8*
-/usr/share/man/man8/swtpm_cert.8*
-/usr/share/man/man8/swtpm_ioctl.8*
-/usr/share/man/man8/swtpm-localca.conf.8*
-/usr/share/man/man8/swtpm-localca.options.8*
-/usr/share/man/man8/swtpm-localca.8*
-/usr/share/man/man8/swtpm_setup.8*
-/usr/share/man/man8/swtpm_setup.conf.8*
-/usr/share/swtpm/swtpm-localca
-/usr/share/swtpm/swtpm-create-user-config-files
 /etc/swtpm-localca.conf
 /etc/swtpm-localca.options
 /etc/swtpm_setup.conf
+/usr/bin/swtpm_bios
+/usr/bin/swtpm_ioctl
+/usr/bin/swtpm_localca
+/usr/bin/swtpm_setup
+/usr/share/man/man8/swtpm-create-tpmca.8*
+/usr/share/man/man8/swtpm-localca.8*
+/usr/share/man/man8/swtpm-localca.conf.8*
+/usr/share/man/man8/swtpm-localca.options.8*
+/usr/share/man/man8/swtpm_bios.8*
+/usr/share/man/man8/swtpm_cert.8*
+/usr/share/man/man8/swtpm_ioctl.8*
+/usr/share/man/man8/swtpm_setup.8*
+/usr/share/man/man8/swtpm_setup.conf.8*
+/usr/share/swtpm/swtpm-create-tpmca
+/usr/share/swtpm/swtpm-create-user-config-files
+/usr/share/swtpm/swtpm-localca
 _EOF_
 if test -n "$(find $(dirname "$0")/tmp -name swtpm_cert)"; then
 echo "/usr/bin/swtpm_cert"

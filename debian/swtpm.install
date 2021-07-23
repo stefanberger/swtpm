@@ -1,3 +1,2 @@
-#! /usr/bin/dh-exec
 /usr/bin/swtpm
 /usr/share/man/man8/swtpm.8*

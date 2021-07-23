@@ -2,50 +2,35 @@ Source: swtpm
 Maintainer: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Section: misc
 Priority: optional
-Build-Depends: automake,
-	       autoconf,
-	       libtool,
-	       debhelper (>= 9),
-	       libtpms-dev,
-	       libfuse-dev,
-	       libglib2.0-dev,
-	       libjson-glib-dev,
-	       libgmp-dev,
-	       expect,
-	       libtasn1-dev,
-	       socat,
-	       python3-twisted,
-	       gnutls-dev,
-	       gnutls-bin,
-	       libssl-dev,
-	       net-tools,
-	       gawk,
-	       softhsm2,
-	       libseccomp-dev
-# linux-image-extra
+Standards-Version: 4.5.1
+Rules-Requires-Root: no
+Build-Depends: debhelper (>= 10),
+               expect,
+               gawk,
+               gnutls-bin,
+               gnutls-dev,
+               libfuse-dev,
+               libglib2.0-dev,
+               libgmp-dev,
+               libjson-glib-dev,
+               libseccomp-dev,
+               libssl-dev,
+               libtasn1-dev,
+               libtool,
+               libtpms-dev,
+               net-tools,
+               python3-twisted,
+               socat,
+               softhsm2
 
 Package: swtpm
 Architecture: any
 Depends: swtpm-libs (= ${binary:Version}),
-	 ${shlibs:Depends},
-	 ${misc:Depends}
-# linux-image-extra
+         ${misc:Depends},
+         ${shlibs:Depends}
 Description: Libtpms-based TPM emulator
  The swtpm package provides TPM emulators that listen for TPM commands
  on sockets, character devices, or CUSE devices.
-
-Package: swtpm-libs
-Architecture: any
-Multi-Arch: same
-Depends: openssl,
-	 libtpms0,
-	 libglib2.0-0,
-	 ${shlibs:Depends},
-	 ${misc:Pre-Depends},
-	 ${misc:Depends}
-Description: Common libraries for TPM emulators
- The swtpm-libs package provides the shared libraries for the swtpm
- and swtpm-cuse packages.
 
 Package: swtpm-dev
 Architecture: any
@@ -53,6 +38,19 @@ Depends: ${misc:Depends}
 Description: Include files for the TPM emulator's CUSE interface
  The swtpm-dev package provides include files for developing clients
  controlling the CUSE TPM through ioctls.
+
+Package: swtpm-libs
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: libglib2.0-0,
+         libtpms0,
+         openssl,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Description: Common libraries for TPM emulators
+ The swtpm-libs package provides the shared libraries for the swtpm
+ and swtpm-cuse packages.
 
 Package: swtpm-tools
 Architecture: any
@@ -64,8 +62,8 @@ Description: Tools for the TPM emulator
       tool basically simulates TPM manufacturing where certificates are
       written into the NVRAM of the TPM
   - swtpm_cert: Creation of certificates for the TPM (x509)
-Depends: swtpm (= ${binary:Version}),
-	 trousers (>= 0.3.9),
-	 ${shlibs:Depends},
-	 ${misc:Depends},
-	 gnutls-bin
+Depends: gnutls-bin,
+         swtpm (= ${binary:Version}),
+         trousers (>= 0.3.9),
+         ${misc:Depends},
+         ${shlibs:Depends}

@@ -1,3 +1,4 @@
-/usr/lib/*/swtpm/*.so
 /usr/include/swtpm/tpm_ioctl.h
+/usr/lib/*/swtpm/*.a
+/usr/lib/*/swtpm/*.so
 /usr/share/man/man3/swtpm_ioctls.3
