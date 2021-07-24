@@ -1,0 +1,32 @@
+#
+# src/swtpm_localca/Makefile.am
+#
+# For the license, see the LICENSE file in the root directory.
+#
+
+bin_PROGRAMS = \
+	swtpm_localca
+
+noinst_HEADERS = \
+	swtpm_localca.h \
+	swtpm_localca_utils.h
+
+swtpm_localca_CFLAGS = \
+	-I$(top_srcdir)/src/utils \
+	$(GLIB_CFLAGS) \
+	$(HARDENING_CFLAGS)
+
+swtpm_localca_DEPENDENCIES = \
+	$(top_builddir)/src/utils/libswtpm_utils.la
+
+swtpm_localca_LDADD = \
+	$(top_builddir)/src/utils/libswtpm_utils.la
+
+swtpm_localca_LDFLAGS = \
+	-L$(top_builddir)/src/utils -lswtpm_utils \
+	$(GLIB_LIBS) \
+	$(HARDENING_LDFLAGS)
+
+swtpm_localca_SOURCES = \
+	swtpm_localca.c \
+	swtpm_localca_utils.c

@@ -1,10 +1,5 @@
 #!/usr/bin/env sh
 
-swtpm_localca_exe="$(dirname "$0")/swtpm_localca"
-if ! [ -x "$swtpm_localca_exe" ]; then
-  swtpm_localca_exe=@BINDIR@/swtpm_localca
-fi
-
-$swtpm_localca_exe "$@"
+@BINDIR@/swtpm_localca "$@"
 
 exit $?
