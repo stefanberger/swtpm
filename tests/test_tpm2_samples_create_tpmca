@@ -42,7 +42,7 @@ SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_CREATE_TPMCA=${SRCDIR}/samples/swtpm-create-tpmca
-SWTPM_LOCALCA=${SRCDIR}/samples/swtpm-localca
+SWTPM_LOCALCA=${ROOT}/src/swtpm_localca/swtpm_localca
 SWTPM=${ROOT}/src/swtpm/swtpm
 SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
 

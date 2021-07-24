@@ -10,6 +10,7 @@ SUBDIRS = \
 	swtpm_bios \
 	swtpm_cert \
 	swtpm_ioctl \
+	swtpm_localca \
 	swtpm_setup
 
 if WITH_SELINUX

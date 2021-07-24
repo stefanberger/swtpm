@@ -39,11 +39,8 @@ Makefile
 /man/man3/*.3
 /man/man8/*.8
 /samples/swtpm-create-user-config-files
-/samples/swtpm_localca
 /samples/swtpm-localca
-/samples/swtpm-localca.2inst
 /samples/swtpm-localca.conf
-/samples/swtpm_localca_conf.h
 /samples/swtpm_setup.conf
 /src/selinux/*.pp.bz2
 /src/selinux/swtpm.pp
@@ -57,6 +54,8 @@ Makefile
 /src/swtpm_bios/swtpm_bios
 /src/swtpm_cert/swtpm_cert
 /src/swtpm_ioctl/swtpm_ioctl
+/src/swtpm_localca/swtpm_localca
+/src/swtpm_localca/swtpm_localca_conf.h
 src/swtpm_setup/swtpm_setup
 src/swtpm_setup/swtpm_setup_conf.h
 /test-driver

@@ -80,10 +80,10 @@ TESTS += \
 	test_swtpm_cert \
 	test_swtpm_setup_create_cert \
 	test_tpm2_parameters \
-	test_tpm2_samples_swtpm_localca \
-	test_tpm2_samples_swtpm_localca_pkcs11 \
 	test_tpm2_swtpm_cert \
 	test_tpm2_swtpm_cert_ecc \
+	test_tpm2_swtpm_localca \
+	test_tpm2_swtpm_localca_pkcs11 \
 	test_tpm2_swtpm_setup_create_cert
 if HAVE_TCSD
 TESTS += \

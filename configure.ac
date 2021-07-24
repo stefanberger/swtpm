@@ -541,10 +541,8 @@ AC_CONFIG_FILES([Makefile                   \
 		debian/swtpm-tools.postinst \
 		swtpm.spec                  \
 		samples/Makefile            \
-		samples/swtpm-localca.2inst \
 		samples/swtpm-localca.conf  \
 		samples/swtpm-create-user-config-files \
-		samples/swtpm_localca_conf.h \
 		samples/swtpm_setup.conf    \
 		include/Makefile            \
 		include/swtpm/Makefile      \
@@ -555,6 +553,8 @@ AC_CONFIG_FILES([Makefile                   \
 		src/swtpm_bios/Makefile     \
 		src/swtpm_cert/Makefile     \
 		src/swtpm_ioctl/Makefile    \
+		src/swtpm_localca/Makefile  \
+		src/swtpm_localca/swtpm_localca_conf.h \
 		src/swtpm_setup/Makefile    \
 		src/swtpm_setup/swtpm_setup_conf.h \
 		src/utils/Makefile          \
