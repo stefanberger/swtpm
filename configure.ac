@@ -579,10 +579,10 @@ echo
 echo "Version to build  : $PACKAGE_VERSION"
 echo "Crypto library    : $cryptolib"
 echo
-echo "           CFLAGS = $CFLAGS"
+echo "        AM_CFLAGS = $AM_CFLAGS"
 echo " HARDENING_CFLAGS = $HARDENING_CFLAGS"
 echo "HARDENING_LDFLAGS = $HARDENING_LDFLAGS"
-echo "          LDFLAGS = $LDFLAGS"
+echo "       AM_LDFLAGS = $AM_LDFLAGS"
 echo "  LIBSECCOMP_LIBS = $LIBSECCOMP_LIBS"
 echo " JSON_GLIB_CFLAGS = $JSON_GLIB_CFLAGS"
 echo "   JSON_GLIB_LIBS = $JSON_GLIB_LIBS"
