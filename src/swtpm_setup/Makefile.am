@@ -4,6 +4,9 @@
 # For the license, see the LICENSE file in the root directory.
 #
 
+MY_CFLAGS = @MY_CFLAGS@
+MY_LDFLAGS = @MY_LDFLAGS@
+
 noinst_HEADERS = \
 	swtpm.h \
 	swtpm_setup.h \
@@ -28,6 +31,7 @@ swtpm_setup_LDADD = \
 
 swtpm_setup_LDFLAGS = \
 	-L$(top_builddir)/src/utils -lswtpm_utils \
+	$(MY_LDFLAGS) \
 	$(HARDENING_LDFLAGS) \
 	$(GLIB_LIBS) \
 	$(JSON_GLIB_LIBS) \
@@ -38,6 +42,8 @@ swtpm_setup_CFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	-I$(top_srcdir)/src/utils \
+	$(MY_CFLAGS) \
+	$(CFLAGS) \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(JSON_GLIB_CFLAGS)
