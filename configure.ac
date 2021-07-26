@@ -537,6 +537,11 @@ if test "$with_seccomp" != "no"; then
                      [whether to build in seccomp profile (Linux only)])
 fi
 
+AM_CFLAGS="$CFLAGS"
+AM_LDFLAGS="$LDFLAGS"
+AC_SUBST([AM_CFLAGS])
+AC_SUBST([AM_LDFLAGS])
+
 AC_CONFIG_FILES([Makefile                   \
 		debian/swtpm-tools.postinst \
 		swtpm.spec                  \
