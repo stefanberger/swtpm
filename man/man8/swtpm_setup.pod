@@ -241,7 +241,7 @@ To simulate manufacturing of a TPM, one would typically run the following comman
 Note: since v0.4 TPM 1.2 setup does not require root rights anymore.
 
 Any user can also simulate the manufacturing of a TPM using the
-swtpm-localca plugin. The following example assumes that the user has
+swtpm_localca utility. The following example assumes that the user has
 set the environment variable XDG_CONFIG_HOME as follows (using bash for
 example):
 

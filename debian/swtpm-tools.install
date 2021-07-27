@@ -14,6 +14,7 @@ cat <<_EOF_
 /usr/share/man/man8/swtpm_bios.8*
 /usr/share/man/man8/swtpm_cert.8*
 /usr/share/man/man8/swtpm_ioctl.8*
+/usr/share/man/man8/swtpm_localca.8*
 /usr/share/man/man8/swtpm_setup.8*
 /usr/share/man/man8/swtpm_setup.conf.8*
 /usr/share/swtpm/swtpm-create-tpmca
