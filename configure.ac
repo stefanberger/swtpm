@@ -532,10 +532,10 @@ if test "$with_seccomp" != "no"; then
                      [whether to build in seccomp profile (Linux only)])
 fi
 
-AM_CFLAGS="$CFLAGS"
-AM_LDFLAGS="$LDFLAGS"
-AC_SUBST([AM_CFLAGS])
-AC_SUBST([AM_LDFLAGS])
+MY_CFLAGS="$CFLAGS"
+MY_LDFLAGS="$LDFLAGS"
+AC_SUBST([MY_CFLAGS])
+AC_SUBST([MY_LDFLAGS])
 
 AC_CONFIG_FILES([Makefile                   \
 		debian/swtpm-tools.postinst \
@@ -577,10 +577,10 @@ echo
 echo "Version to build  : $PACKAGE_VERSION"
 echo "Crypto library    : $cryptolib"
 echo
-echo "        AM_CFLAGS = $AM_CFLAGS"
+echo "        MY_CFLAGS = $MY_CFLAGS"
 echo " HARDENING_CFLAGS = $HARDENING_CFLAGS"
 echo "HARDENING_LDFLAGS = $HARDENING_LDFLAGS"
-echo "       AM_LDFLAGS = $AM_LDFLAGS"
+echo "       MY_LDFLAGS = $MY_LDFLAGS"
 echo "  LIBSECCOMP_LIBS = $LIBSECCOMP_LIBS"
 echo " JSON_GLIB_CFLAGS = $JSON_GLIB_CFLAGS"
 echo "   JSON_GLIB_LIBS = $JSON_GLIB_LIBS"
