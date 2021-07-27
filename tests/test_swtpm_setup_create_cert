@@ -8,7 +8,7 @@ SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
 source ${TESTDIR}/common
 
-SWTPM_LOCALCA=${ROOT}/src/swtpm_localca/swtpm_localca
+SWTPM_LOCALCA=${ROOT}/src/swtpm_localca/swtpm-localca
 
 workdir=$(mktemp -d)
 

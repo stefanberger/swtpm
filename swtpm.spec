@@ -148,9 +148,9 @@ fi
 %if %{with gnutls}
 %{_bindir}/swtpm_cert
 %endif
+%{_bindir}/swtpm-localca
 %{_bindir}/swtpm_setup
 %{_bindir}/swtpm_ioctl
-%{_bindir}/swtpm_localca
 %{_mandir}/man8/swtpm_bios.8*
 %{_mandir}/man8/swtpm_cert.8*
 %{_mandir}/man8/swtpm_ioctl.8*

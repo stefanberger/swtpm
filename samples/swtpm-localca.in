@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 
-@BINDIR@/swtpm_localca "$@"
+@BINDIR@/swtpm-localca "$@"
 
 exit $?

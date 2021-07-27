@@ -7,7 +7,7 @@ TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
 TOPSRC=${abs_top_srcdir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm_localca
+SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm-localca
 
 workdir=$(mktemp -d)
 if [ $? -ne 0 ]; then

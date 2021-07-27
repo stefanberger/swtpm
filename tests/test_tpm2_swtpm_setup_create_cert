@@ -9,7 +9,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 source ${TESTDIR}/common
 
-SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm_localca
+SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm-localca
 
 workdir=$(mktemp -d "/tmp/path with spaces.XXXXXX")
 

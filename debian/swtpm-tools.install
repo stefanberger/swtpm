@@ -3,9 +3,9 @@ cat <<_EOF_
 /etc/swtpm-localca.conf
 /etc/swtpm-localca.options
 /etc/swtpm_setup.conf
+/usr/bin/swtpm-localca
 /usr/bin/swtpm_bios
 /usr/bin/swtpm_ioctl
-/usr/bin/swtpm_localca
 /usr/bin/swtpm_setup
 /usr/share/man/man8/swtpm-create-tpmca.8*
 /usr/share/man/man8/swtpm-localca.8*

@@ -5,7 +5,7 @@
 #
 
 bin_PROGRAMS = \
-	swtpm_localca
+	swtpm-localca
 
 noinst_HEADERS = \
 	swtpm_localca.h \
