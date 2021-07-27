@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm-create-tpmca - Tool to create a local CA for swtpm-localca
+swtpm-create-tpmca - Tool to create a local CA for swtpm_localca
 
 =head1 SYNOPSIS
 
@@ -9,7 +9,7 @@ B<swtpm-create-tpmca [OPTIONS]>
 =head1 DESCRIPTION
 
 B<swtpm-create-tpmca> is a tool to create a TPM 1.2 based CA that
-can be used by B<swtpm-localca> to sign EK and platform certificates.
+can be used by B<swtpm_localca> to sign EK and platform certificates.
 The CA uses a GnuTLS key to sign certificates. To do this,
 GnuTLS talks to the TPM 1.2 using the B<tcsd> (TrouSerS) daemon.
 
@@ -41,7 +41,7 @@ Overwrite the contents of the output directory.
 =item B<--register>
 
 Register the key with TCSD. For the key to be available for signing,
-the same user that created the TPM CA has to run the swtpm-localca
+the same user that created the TPM CA has to run the swtpm_localca tool
 later on. If this option is not passed, the private key is written
 into a file and can be used by others as well.
 
@@ -109,7 +109,7 @@ Display the help screen and exit.
 =head1 EXAMPLE
 
 The following example creates an intermediate TPM CA and writes the keys
-into /var/lib/swtpm-localca and the swtpm-localca configuration to
+into /var/lib/swtpm-localca and the swtpm_localca configuration to
 /etc/swtpm-localca.conf. It can then be used for signing certificates of
 newly created B<swtpm> TPMs.
 
@@ -161,7 +161,7 @@ parameter.
 
 To test either one of the above TPM CAs, run the following command:
 
- #> /usr/share/swtpm/swtpm-localca \
+ #> swtpm_localca \
 	--type ek --ek x=11,y=13 \
 	--dir /tmp --vmid test --tpm2 \
 	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 00 \
@@ -185,7 +185,7 @@ certificates since the TPM does not accept authenticated commands.
 
 =head1 SEE ALSO
 
-B<swtpm-localca>, B<swtpm-localca.conf>, B<tcsd>
+B<swtpm_localca>, B<swtpm-localca.conf>, B<tcsd>
 
 =head1 REPORTING BUGS
 

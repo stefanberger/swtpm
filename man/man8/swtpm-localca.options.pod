@@ -1,6 +1,6 @@
 =head1 NAME
 
-swtpm-localca.options - Options file for swtpm-localca
+swtpm-localca.options - Options file for swtpm_localca
 
 =head1 DESCRIPTION
 
@@ -23,7 +23,7 @@ An example I<swtpm-localca.options> file may look as follows:
 
 =head1 SEE ALSO
 
-B<swtpm-localca>
+B<swtpm_localca>
 
 =head1 REPORTING BUGS
 

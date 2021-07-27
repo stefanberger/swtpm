@@ -1,11 +1,11 @@
 =head1 NAME
 
-swtpm-localca.conf - Configuration file for swtpm-localca
+swtpm-localca.conf - Configuration file for swtpm_localca
 
 =head1 DESCRIPTION
 
 The file I</etc/swtpm-localca.conf> contains configuration variables
-for the I<swtpm-localca> program.
+for the I<swtpm_localca> program.
 
 Entries may contain environment variables that will be resolved. All
 environment variables must be formatted like this: '${varname}'.
@@ -82,7 +82,7 @@ With a PKCS11 URI it may look like this:
 
 =head1 SEE ALSO
 
-B<swtpm-localca>
+B<swtpm_localca>
 
 =head1 REPORTING BUGS
 

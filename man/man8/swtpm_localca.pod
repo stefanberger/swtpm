@@ -1,14 +1,14 @@
 =head1 NAME
 
-swtpm-localca  - Local CA to create EK and platform certs for swtpm
+swtpm_localca  - Local CA to create EK and platform certs for swtpm
 
 =head1 SYNOPSIS
 
-B<swtpm-localca [OPTIONS]>
+B<swtpm_localca [OPTIONS]>
 
 =head1 DESCRIPTION
 
-B<swtpm-localca> is a tool to create TPM Endorsement Key (EK) and platform
+B<swtpm_localca> is a tool to create TPM Endorsement Key (EK) and platform
 certificates on the host. It uses the I<swtpm_cert> program to create
 the certificates.
 
@@ -18,7 +18,7 @@ a variable needs to be set that points to this program.
 It implements command line options that the I<swtpm_setup>
 program uses to provide the necessary parameters to it.
 
-B<swtpm-localca> will automatically try to create the signing key and
+B<swtpm_localca> will automatically try to create the signing key and
 certificate if the configuration points to a missing signing key.
 Since this certificate must be signed by a CA, a root certificate authority
 will also be created and will sign this certificate. The root CA's

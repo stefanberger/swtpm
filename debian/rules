@@ -10,5 +10,8 @@ override_dh_auto_configure:
 override_dh_auto_test:
 	SWTPM_TEST_SECCOMP_OPT="--seccomp action=none" make -j4 check VERBOSE=1
 
+override_dh_clean:
+	dh_clean --exclude=man/man8/swtpm-localca.8
+
 override_dh_makeshlibs:
 	dh_makeshlibs --no-scripts
