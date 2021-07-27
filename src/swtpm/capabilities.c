@@ -47,6 +47,7 @@
 
 #include "capabilities.h"
 #include "logging.h"
+#include "swtpm_nvstore.h"
 
 /* Convert the RSA key size indicators supported by libtpms into capability
  * strings.
@@ -126,6 +127,7 @@ int capabilities_print_json(bool cusetpm)
     const char *with_tpm1 = "";
     const char *with_tpm2 = "";
     char *keysizecaps = NULL;
+    const char *nvram_backend_dir = "\"nvram-backend-dir\"";
 
     ret = get_rsa_keysize_caps(&keysizecaps);
     if (ret < 0)
@@ -140,7 +142,7 @@ int capabilities_print_json(bool cusetpm)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"version\": \"" VERSION "\" "
          "}",
@@ -150,7 +152,8 @@ int capabilities_print_json(bool cusetpm)
          !cusetpm     ? "\"flags-opt-startup\", "      : "",
          cmdarg_seccomp,
          true         ? "\"cmdarg-key-fd\", "          : "",
-         true         ? "\"cmdarg-pwd-fd\""            : "",
+         true         ? "\"cmdarg-pwd-fd\", "          : "",
+         nvram_backend_dir,
          keysizecaps  ? keysizecaps                    : ""
     );
 

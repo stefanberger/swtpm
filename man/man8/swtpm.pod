@@ -301,6 +301,7 @@ may contain the following:
         "cmdarg-seccomp",
         "cmdarg-key-fd",
         "cmdarg-pwd-fd",
+        "nvram-backend-dir",
         "tpm-send-command-header",
         "flags-opt-startup",
         "rsa-keysize-1024",
@@ -341,6 +342,10 @@ The I<--key> option supports the I<fd=> parameter.
 =item B<cmdarg-pwd-fd>
 
 The I<--key> option supports the I<pwdfd=> parameter.
+
+=item B<nvram-backend-dir>
+
+The I<--tpmstate> option supports the I<backend-uri=dir://...> parameter.
 
 =item B<tpm-send-command-header>
 
