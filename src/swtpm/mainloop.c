@@ -158,23 +158,27 @@ int mainLoop(struct mainLoopParams *mlp,
                 connection_fd.fd = mlp->fd;
 
             struct pollfd pollfds[] = {
-                {
+                [DATA_CLIENT_FD] = {
                     .fd = connection_fd.fd,
                     .events = POLLIN | POLLHUP,
                     .revents = 0,
-                }, {
+                },
+                [NOTIFY_FD] = {
                     .fd = notify_fd,
                     .events = POLLIN,
                     .revents = 0,
-                }, {
+                },
+                [CTRL_SERVER_FD] = {
                     .fd = -1,
                     .events = POLLIN,
                     .revents = 0,
-                } , {
+                },
+                [CTRL_CLIENT_FD] = {
                     .fd = ctrlclntfd,
                     .events = POLLIN | POLLHUP,
                     .revents = 0,
-                } , {
+                },
+                [DATA_SERVER_FD] = {
                     /* listen socket for accepting clients */
                     .fd = -1,
                     .events = POLLIN,
