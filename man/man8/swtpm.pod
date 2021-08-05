@@ -159,10 +159,13 @@ the given file I<mode> bits. This value must be given as an octal number startin
 The default value is 0640.
 
 If I<backend-uri> is specified, the TPM state data will be stored to the URI.
-Currently I<backend-uri=dir://<path_to_dir>> is the only one available. In this case,
-URI should specify the path to the directory where files are stored. If I<path_to_dir>
-starts with a '/' then the path is interpreted as an absolute path, otherwise it is
-a path relative to the current directory.
+Currently I<backend-uri=dir://<path_to_dir>> and I<backend-uri=file://<path_to_dir>>
+are available. For 'dir://', the URI should specify the path to the directory where
+files are stored. If I<path_to_dir> starts with a '/' then the path is interpreted
+as an absolute path, otherwise it is a path relative to the current directory.
+For 'file://', the URI should specify a single file or block device where TPM state
+will be stored. A blockdevice must exist already and be big enough to store all
+state.
 
 =item B<--tpm2>
 
@@ -345,7 +348,8 @@ The I<--key> option supports the I<pwdfd=> parameter.
 
 =item B<nvram-backend-dir>
 
-The I<--tpmstate> option supports the I<backend-uri=dir://...> parameter.
+The I<--tpmstate> option supports the I<backend-uri=dir://...> and
+I<backend-uri=file://...> parameters.
 
 =item B<tpm-send-command-header>
 
