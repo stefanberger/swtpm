@@ -63,6 +63,8 @@ TESTS += \
 	test_tpm2_save_load_encrypted_state \
 	test_tpm2_save_load_state \
 	test_tpm2_save_load_state_2 \
+	test_tpm2_save_load_state_2_linear \
+	test_tpm2_save_load_state_2_block \
 	test_tpm2_save_load_state_3 \
 	test_tpm2_save_load_state_da_timeout \
 	test_tpm2_setbuffersize \

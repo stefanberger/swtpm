@@ -34,6 +34,13 @@ LOGFILE=$TPMDIR/logfile
 TMPFILE=$TPMDIR/tmpfile
 BINFILE=$TPMDIR/binfile
 SIGFILE=$TPMDIR/sigfile
+STATEFILE=${STATEFILE:-$TPMDIR/state}
+
+STORE_PARAM="dir=$TPMDIR"
+if [ ${SWTPM_TEST_LINEAR_FILE:-0} -ne 0 ]; then
+	echo "Testing with linear file backend ($STATEFILE)"
+	STORE_PARAM="backend-uri=file://$STATEFILE"
+fi
 
 source ${TESTDIR}/test_common
 source ${TESTDIR}/common
@@ -173,13 +180,13 @@ function fillup_nvram()
 export TPM_SERVER_TYPE=raw
 export TPM_SERVER_NAME=127.0.0.1
 export TPM_INTERFACE_TYPE=socsim
-export TPM_COMMAND_PORT=65446
+export TPM_COMMAND_PORT=${TPM_COMMAND_PORT:-65460}
 export TPM_DATA_DIR=$TPMDIR
 export TPM_SESSION_ENCKEY="807e2bfe898ddaed8fa6310e716a24dc" # for sessions
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
-	--tpmstate dir=$TPMDIR \
+	--tpmstate $STORE_PARAM \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
@@ -233,7 +240,7 @@ echo "TPM was shut down"
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
-	--tpmstate dir=$TPMDIR \
+	--tpmstate $STORE_PARAM \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
@@ -287,13 +294,18 @@ echo "TPM was shut down"
 #################################################################
 # Run TPM2 with previously saved state and verify it's the same
 
+if [ ${SWTPM_TEST_LINEAR_FILE:-0} -ne 0 ]; then
+	echo "Test 1 OK (skipped last with linear file)"
+	exit 0
+fi
+
 rm -f $TPMDIR/*
 cp -f ${TESTDIR}/data/tpm2state5/tpm2-00.permall $TPMDIR/tpm2-00.permall
 cp ${TESTDIR}/data/tpm2state5/signature.bin $SIGFILE
 
 $SWTPM_EXE socket \
 	--server port=${TPM_COMMAND_PORT} \
-	--tpmstate dir=$TPMDIR \
+	--tpmstate $STORE_PARAM \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
 	--log file=$LOGFILE,level=20 \
