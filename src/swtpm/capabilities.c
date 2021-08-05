@@ -127,7 +127,8 @@ int capabilities_print_json(bool cusetpm)
     const char *with_tpm1 = "";
     const char *with_tpm2 = "";
     char *keysizecaps = NULL;
-    const char *nvram_backend_dir = "\"nvram-backend-dir\"";
+    const char *nvram_backend_dir = "\"nvram-backend-dir\", ";
+    const char *nvram_backend_file = "\"nvram-backend-file\"";
 
     ret = get_rsa_keysize_caps(&keysizecaps);
     if (ret < 0)
@@ -142,7 +143,7 @@ int capabilities_print_json(bool cusetpm)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"version\": \"" VERSION "\" "
          "}",
@@ -154,6 +155,7 @@ int capabilities_print_json(bool cusetpm)
          true         ? "\"cmdarg-key-fd\", "          : "",
          true         ? "\"cmdarg-pwd-fd\", "          : "",
          nvram_backend_dir,
+         nvram_backend_file,
          keysizecaps  ? keysizecaps                    : ""
     );
 
