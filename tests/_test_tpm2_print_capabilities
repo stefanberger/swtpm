@@ -26,7 +26,7 @@ if [ "${SWTPM_IFACE}" != "cuse" ]; then
 fi
 
 # The rsa key size reporting is variable, so use a regex
-exp='\{ "type": "swtpm", "features": \[( "tpm-1.2",)? "tpm-2.0", '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd", "nvram-backend-dir"(, "rsa-keysize-1024")?(, "rsa-keysize-2048")?(, "rsa-keysize-3072")? \], "version": "[^"]*" \}'
+exp='\{ "type": "swtpm", "features": \[( "tpm-1.2",)? "tpm-2.0", '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd", "nvram-backend-dir", "nvram-backend-file"(, "rsa-keysize-1024")?(, "rsa-keysize-2048")?(, "rsa-keysize-3072")? \], "version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-capabilities:"
 	echo "Actual   : ${msg}"

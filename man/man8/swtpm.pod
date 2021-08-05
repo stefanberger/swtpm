@@ -305,6 +305,7 @@ may contain the following:
         "cmdarg-key-fd",
         "cmdarg-pwd-fd",
         "nvram-backend-dir",
+        "nvram-backend-file",
         "tpm-send-command-header",
         "flags-opt-startup",
         "rsa-keysize-1024",
