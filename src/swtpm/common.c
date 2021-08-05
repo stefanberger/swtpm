@@ -723,7 +723,8 @@ handle_tpmstate_options(char *options)
             ret = -1;
             goto error;
         }
-        if (strncmp(tpmbackend_uri, "dir://", 6) == 0 &&
+        if ((strncmp(tpmbackend_uri, "dir://", 6) == 0 ||
+            strncmp(tpmbackend_uri, "file://", 7)) &&
             tpmstate_set_mode(mode) < 0) {
             ret = -1;
             goto error;

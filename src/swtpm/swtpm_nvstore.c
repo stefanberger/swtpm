@@ -180,6 +180,8 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
     backend_uri = tpmstate_get_backend_uri();
     if (strncmp(backend_uri, "dir://", 6) == 0) {
         g_nvram_backend_ops = &nvram_dir_ops;
+    } else if (strncmp(backend_uri, "file://", 7) == 0) {
+        g_nvram_backend_ops = &nvram_linear_ops;
     } else {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_Init: Unsupported backend.\n");

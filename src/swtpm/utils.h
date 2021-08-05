@@ -48,6 +48,17 @@
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
+#define ROUND_TO_NEXT_POWER_OF_2_32(a) \
+    do { \
+      a--; \
+      a |= a >> 1; \
+      a |= a >> 2; \
+      a |= a >> 4; \
+      a |= a >> 8; \
+      a |= a >> 16; \
+      a++; \
+    } while(0);
+
 typedef void (*sighandler_t)(int);
 
 int install_sighandlers(int pipefd[2], sighandler_t handler);
