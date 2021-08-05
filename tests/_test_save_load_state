@@ -17,6 +17,12 @@ MY_SAVESTATE_STATE_FILE=$TPM_PATH/my.savestate
 SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
 SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+LINEAR_STATE_FILE=$TPM_PATH/linear-state
+BACKEND_PARAM=""
+
+if [ ${SWTPM_TEST_LINEAR_FILE:-0} -ne 0 ]; then
+	BACKEND_PARAM="--tpmstate backend-uri=file://$LINEAR_STATE_FILE"
+fi
 
 logfile=$(mktemp)
 
@@ -38,6 +44,7 @@ source ${TESTDIR}/common
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
 
 run_swtpm ${SWTPM_INTERFACE} \
+	${BACKEND_PARAM} \
 	--log file=$logfile
 
 display_processes_by_name "$SWTPM"
@@ -274,7 +281,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if [ ! -r $VOLATILE_STATE_FILE ]; then
+if [ ${SWTPM_TEST_LINEAR_FILE:-0} -eq 0 ] && [ ! -r $VOLATILE_STATE_FILE ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
 	echo "TPM Logfile:"
 	cat $logfile
@@ -326,11 +333,20 @@ if wait_process_gone ${SWTPM_PID} 4; then
 	exit 1
 fi
 
-if [ ! -e $STATE_FILE ]; then
-	echo "Error: TPM state file $STATE_FILE does not exist."
-	echo "TPM Logfile:"
-	cat $logfile
-	exit 1
+if [ ${SWTPM_TEST_LINEAR_FILE:-0} -ne 0 ]; then
+	if [ ! -e $LINEAR_STATE_FILE ]; then
+		echo "Error: TPM state file $LINEAR_STATE_FILE does not exist."
+		echo "TPM Logfile:"
+		cat $logfile
+		exit 1
+	fi
+else
+	if [ ! -e $STATE_FILE ]; then
+		echo "Error: TPM state file $STATE_FILE does not exist."
+		echo "TPM Logfile:"
+		cat $logfile
+		exit 1
+	fi
 fi
 
 echo "OK"

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+STATEDIR=$(mktemp -d)
+STATEIMG=$STATEDIR/tpm2.img
+STATEFILE=""
+
+trap "cleanup" SIGTERM EXIT
+function cleanup()
+{
+	rm -rf $STATEDIR
+	if [ -n "$STATEFILE" ]; then
+		losetup -d $STATEFILE
+	fi
+}
+
+# allocate 4 MiB file
+fallocate -x -l $((4 * 1024 * 1024)) "$STATEIMG"
+# and loop mount it
+STATEFILE=$(losetup --show -f $STATEIMG)
+
+export SWTPM_TEST_LINEAR_FILE=1
+export TPM_COMMAND_PORT=65462
+export STATEFILE
+
+# don't exec so cleanup will remove the loop device
+$(dirname $0)/test_tpm2_save_load_state_2

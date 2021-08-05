@@ -39,4 +39,15 @@ bash _test_save_load_state
 ret=$?
 [ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
 
+echo "=== Testing with linear file backend ==="
+
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65418
+export SWTPM_CTRL_PORT=65419
+export SWTPM_TEST_LINEAR_FILE=1
+bash _test_save_load_state
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
+
 exit 0
