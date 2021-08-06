@@ -68,7 +68,7 @@ static int get_rsa_keysize_caps(char **keysizecaps)
     int n;
 
     if (!info_data)
-        goto oom;
+        goto cleanup;
 
     start = strstr(info_data, needle);
     if (start) {

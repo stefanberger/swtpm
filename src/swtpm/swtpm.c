@@ -404,19 +404,20 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * choose the TPM version early so that getting/setting
-     * buffer size works.
-     */
+    if (printcapabilities) {
+        /*
+         * Choose the TPM version so that getting/setting buffer size works.
+         * Ignore failure, for backward compatibility when TPM 1.2 is disabled.
+         */
+        TPMLIB_ChooseTPMVersion(mlp.tpmversion);
+        ret = capabilities_print_json(false);
+        exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
+    }
+
     if (TPMLIB_ChooseTPMVersion(mlp.tpmversion) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,
                   "Error: Could not choose TPM version.\n");
         exit(EXIT_FAILURE);
-    }
-
-    if (printcapabilities) {
-        ret = capabilities_print_json(false);
-        exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
     }
 
     if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
