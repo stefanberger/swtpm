@@ -43,6 +43,7 @@
 #include <string.h>
 
 #include <libtpms/tpm_library.h>
+#include <libtpms/tpm_error.h>
 
 #include "capabilities.h"
 #include "logging.h"
@@ -122,19 +123,28 @@ int capabilities_print_json(bool cusetpm)
 #else
     const char *cmdarg_seccomp = "";
 #endif
+    const char *with_tpm1 = "";
+    const char *with_tpm2 = "";
     char *keysizecaps = NULL;
 
     ret = get_rsa_keysize_caps(&keysizecaps);
     if (ret < 0)
         goto cleanup;
 
+    if (TPMLIB_ChooseTPMVersion(TPMLIB_TPM_VERSION_1_2) == TPM_SUCCESS)
+        with_tpm1 = "\"tpm-1.2\", ";
+    if (TPMLIB_ChooseTPMVersion(TPMLIB_TPM_VERSION_2) == TPM_SUCCESS)
+        with_tpm2 = "\"tpm-2.0\", ";
+
     n =  asprintf(&string,
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s"
           " ] "
          "}",
+         with_tpm1,
+         with_tpm2,
          !cusetpm     ? "\"tpm-send-command-header\", ": "",
          !cusetpm     ? "\"flags-opt-startup\", "      : "",
          cmdarg_seccomp,
