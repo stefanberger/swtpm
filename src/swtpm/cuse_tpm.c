@@ -1581,19 +1581,20 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
-    /*
-     * choose the TPM version early so that getting/setting
-     * buffer size works.
-     */
+    if (printcapabilities) {
+        /*
+         * Choose the TPM version so that getting/setting buffer size works.
+         * Ignore failure, for backward compatibility when TPM 1.2 is disabled.
+         */
+        TPMLIB_ChooseTPMVersion(tpmversion);
+        ret = capabilities_print_json(true) ? EXIT_FAILURE : EXIT_SUCCESS;
+        goto exit;
+    }
+
     if (TPMLIB_ChooseTPMVersion(tpmversion) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,
                   "Error: Could not choose TPM version.\n");
         ret = EXIT_FAILURE;
-        goto exit;
-    }
-
-    if (printcapabilities) {
-        ret = capabilities_print_json(true) ? EXIT_FAILURE : EXIT_SUCCESS;
         goto exit;
     }
 
