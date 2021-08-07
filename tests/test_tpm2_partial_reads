@@ -36,6 +36,7 @@ trap "cleanup" EXIT
 
 [ "${SWTPM_INTERFACE}" == "cuse" ] && source test_cuse
 source common
+skip_test_no_tpm20 "${SWTPM_EXE}"
 
 run_swtpm ${SWTPM_INTERFACE} --tpm2
 
