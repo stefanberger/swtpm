@@ -46,6 +46,8 @@ HKEYPUB=${TESTDIR}/data/tpm2state3/hkey.pub
 
 source ${TESTDIR}/test_common
 source ${TESTDIR}/common
+skip_test_no_tpm20 "${SWTPM_EXE}"
+
 
 trap "cleanup" SIGTERM EXIT
 

@@ -28,6 +28,8 @@ function cleanup() {
 trap "cleanup" EXIT
 
 source ${TESTDIR}/common
+skip_test_no_tpm20 "${SWTPM_EXE}"
+
 WORKDIR=$(mktemp -d)
 
 REGLOG=${WORKDIR}/reglog

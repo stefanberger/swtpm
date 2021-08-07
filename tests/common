@@ -843,3 +843,15 @@ function skip_test_no_tpm12()
 		exit 77
 	fi
 }
+
+# Check whether swtpm can use a TPM 2.0
+function skip_test_no_tpm20()
+{
+	local swtpm_exe="$1"
+
+	local res=$(${swtpm_exe} socket --print-capabilities | grep '"tpm-2.0"')
+	if [ -z "${res}" ]; then
+		echo "${swtpm_exe} does not provide a TPM 2.0"
+		exit 77
+	fi
+}
