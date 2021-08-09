@@ -831,3 +831,15 @@ function validate_pidfile()
 		exit 1
 	fi
 }
+
+# Check whether swtpm can use a TPM 1.2
+function skip_test_no_tpm12()
+{
+	local swtpm_exe="$1"
+
+	local res=$(${swtpm_exe} socket --print-capabilities | grep '"tpm-1.2"')
+	if [ -z "${res}" ]; then
+		echo "${swtpm_exe} does not provide a TPM 1.2"
+		exit 77
+	fi
+}

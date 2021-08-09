@@ -34,6 +34,8 @@ function cleanup()
 trap "cleanup" EXIT
 
 source ${TESTDIR}/common
+skip_test_no_tpm12 "${SWTPM_EXE}"
+
 source ${TESTDIR}/load_vtpm_proxy
 
 rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null

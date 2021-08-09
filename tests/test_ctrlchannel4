@@ -24,6 +24,7 @@ function cleanup()
 
 SWTPM_INTERFACE=socket+unix
 source ${TESTDIR}/common
+skip_test_no_tpm12 "${SWTPM_EXE}"
 
 # Test 1: test the control channel on the chardev tpm
 

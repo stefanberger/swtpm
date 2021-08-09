@@ -63,6 +63,7 @@ FILESIZES=(
 )
 
 source ${TESTDIR}/common
+skip_test_no_tpm12 "${SWTPM_EXE}"
 
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}

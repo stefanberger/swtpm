@@ -75,6 +75,7 @@ function cleanup()
 
 trap "cleanup" SIGTERM EXIT
 source ${TESTDIR}/common
+skip_test_no_tpm12 "${SWTPM_EXE}"
 
 PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
 
