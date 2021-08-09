@@ -985,8 +985,9 @@ static void capabilities_print_json()
             "\"features\": [ "
              "\"cmdarg-signkey-pwd\""
              ", \"cmdarg-parentkey-pwd\""
-              " ] "
-             "}\n");
+            " ], "
+            "\"version\": \"" VERSION "\" "
+            "}\n");
 }
 
 int

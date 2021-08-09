@@ -978,7 +978,9 @@ static int print_capabilities(char **swtpm_prg_l)
     printf("{ \"type\": \"swtpm_setup\", "
            "\"features\": [ \"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
            ", \"cmdarg-write-ek-cert-files\""
-           "%s ] }\n", param);
+           "%s ], "
+           "\"version\": \"" VERSION "\" "
+           "}\n", param);
 
     g_strfreev(keysize_strs);
 

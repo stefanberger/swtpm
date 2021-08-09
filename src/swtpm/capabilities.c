@@ -141,7 +141,8 @@ int capabilities_print_json(bool cusetpm)
          "\"type\": \"swtpm\", "
          "\"features\": [ "
              "%s%s%s%s%s%s%s%s"
-          " ] "
+          " ], "
+         "\"version\": \"" VERSION "\" "
          "}",
          with_tpm1,
          with_tpm2,

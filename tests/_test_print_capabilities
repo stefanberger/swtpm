@@ -25,7 +25,7 @@ if [ "${SWTPM_IFACE}" != "cuse" ]; then
 	noncuse='"tpm-send-command-header", "flags-opt-startup", '
 fi
 
-exp='\{ "type": "swtpm", "features": \[ "tpm-1.2",( "tpm-2.0",)? '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd" \] \}'
+exp='\{ "type": "swtpm", "features": \[ "tpm-1.2",( "tpm-2.0",)? '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd" \], "version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-capabilities:"
 	echo "Actual   : ${msg}"
@@ -43,7 +43,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # The are some variable parameters at the end, use regex
-exp='\{ "type": "swtpm_setup", "features": \[ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd", "tpm12-not-need-root", "cmdarg-write-ek-cert-files"(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")? \] \}'
+exp='\{ "type": "swtpm_setup", "features": \[ "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd", "tpm12-not-need-root", "cmdarg-write-ek-cert-files"(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")? \], "version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_SETUP} to --print-capabilities:"
 	echo "Actual   : ${msg}"
@@ -62,8 +62,8 @@ if [ -x "$(type -P $(echo "${SWTPM_CERT}" | cut -d" " -f1) )" ]; then
 		exit 1
 	fi
 
-	exp='{ "type": "swtpm_cert", "features": [ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd" ] }'
-	if [ "${msg}" != "${exp}" ]; then
+	exp='\{ "type": "swtpm_cert", "features": \[ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd" \], "version": "[^"]*" \}'
+	if ! [[ "${msg}" =~ ${exp} ]]; then
 		echo "Unexpected response from ${SWTPM_CERT} to --print-capabilities:"
 		echo "Actual   : ${msg}"
 		echo "Expected : ${exp}"
