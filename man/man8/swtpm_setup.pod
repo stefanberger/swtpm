@@ -197,7 +197,9 @@ The output may contain the following:
         "cmdarg-write-ek-cert-files",
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
-        "tpm12-not-need-root"
+        "tpm12-not-need-root",
+        "tpm-1.2",
+        "tpm-2.0"
       ],
       "version": "0.7.0"
     }
@@ -230,6 +232,14 @@ tpm2-rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 This option implies that any user can setup a TPM 1.2. Previously only root
 or the 'tss' user, depending on configuration and availability of this account,
 could do that.
+
+=item B<tpm-1.2> (since 0.7)
+
+TPM 1.2 setup is supported (libtpms is compiled with TPM 1.2 support).
+
+==item B<tpm-2.0> (since 0.7)
+
+TPM 2 setup is supported (libtpms is compiled with TPM 2 support).
 
 =back
 

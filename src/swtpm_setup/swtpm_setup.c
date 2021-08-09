@@ -879,6 +879,30 @@ static void usage(const char *prgname, const char *default_config_file)
         );
 }
 
+static int get_supported_tpm_versions(gchar **swtpm_prg_l, gboolean *swtpm_has_tpm12,
+                                      gboolean *swtpm_has_tpm2)
+{
+    gboolean success;
+    g_autofree gchar *standard_output = NULL;
+    int exit_status = 0;
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar **argv = NULL;
+    gchar *my_argv[] = { "--print-capabilities", NULL };
+
+    argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
+    success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+                           &standard_output, NULL, &exit_status, &error);
+    if (!success) {
+        logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
+        return 1;
+    }
+
+    *swtpm_has_tpm12 = g_strstr_len(standard_output, -1, "\"tpm-1.2\"") != NULL;
+    *swtpm_has_tpm2 = g_strstr_len(standard_output, -1, "\"tpm-2.0\"") != NULL;
+
+    return 0;
+}
+
 /* Get the support RSA key sizes.
  *  This function returns an array of ints like the following
  *  - [ 1024, 2048, 3072 ]
@@ -957,7 +981,8 @@ static int get_rsa_keysize_caps(unsigned long flags, gchar **swtpm_prg_l,
 }
 
 /* Print teh JSON object of swtpm_setup's capabilities */
-static int print_capabilities(char **swtpm_prg_l)
+static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
+                              gboolean swtpm_has_tpm2)
 {
     g_autofree gchar *param = g_strdup("");
     gchar **keysize_strs = NULL;
@@ -976,11 +1001,14 @@ static int print_capabilities(char **swtpm_prg_l)
     }
 
     printf("{ \"type\": \"swtpm_setup\", "
-           "\"features\": [ \"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
+           "\"features\": [ %s%s\"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
            ", \"cmdarg-write-ek-cert-files\""
            "%s ], "
            "\"version\": \"" VERSION "\" "
-           "}\n", param);
+           "}\n",
+           swtpm_has_tpm12 ? "\"tpm-1.2\", " : "",
+           swtpm_has_tpm2  ? "\"tpm-2.0\", " : "",
+           param);
 
     g_strfreev(keysize_strs);
 
@@ -1151,6 +1179,7 @@ int main(int argc, char *argv[])
     char *endptr;
     char path[PATH_MAX];
     char *p;
+    gboolean swtpm_has_tpm12, swtpm_has_tpm2;
     g_autofree gchar *lockfile = NULL;
     int fds_to_pass[1] = { -1 };
     unsigned n_fds_to_pass = 0;
@@ -1333,9 +1362,22 @@ int main(int argc, char *argv[])
     }
     g_free(tmp);
 
+
+    ret = get_supported_tpm_versions(swtpm_prg_l, &swtpm_has_tpm12, &swtpm_has_tpm2);
+    if (ret != 0)
+        goto error;
+
     if (printcapabilities) {
-        ret = print_capabilities(swtpm_prg_l);
+        ret = print_capabilities(swtpm_prg_l, swtpm_has_tpm12, swtpm_has_tpm2);
         goto out;
+    }
+
+    if ((flags & SETUP_TPM2_F) != 0 && !swtpm_has_tpm2) {
+        logerr(gl_LOGFILE, "swtpm at %s does not support TPM 2\n", swtpm_prg_l[0]);
+        goto error;
+    } else if ((flags & SETUP_TPM2_F) == 0 && !swtpm_has_tpm12){
+        logerr(gl_LOGFILE, "swtpm at %s does not support TPM 1.2\n", swtpm_prg_l[0]);
+        goto error;
     }
 
     if (runas) {
