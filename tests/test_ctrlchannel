@@ -28,6 +28,7 @@ SWTPM_INTERFACE=socket+unix
 SWTPM_SERVER_PORT=65430
 SWTPM_SERVER_NAME=localhost
 source ${TESTDIR}/common
+skip_test_no_tpm12 "${SWTPM_EXE}"
 
 # Test 1: test the control channel on the socket tpm
 

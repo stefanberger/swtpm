@@ -13,6 +13,7 @@ TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 
 # need SWTPM to be set
 source ${TESTDIR}/common
+skip_test_no_tpm12 "${SWTPM_EXE}"
 
 TPMDIR=`mktemp -d`
 PID_FILE=$TPMDIR/${SWTPM}.pid

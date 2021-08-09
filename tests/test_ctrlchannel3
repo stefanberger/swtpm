@@ -23,6 +23,7 @@ function cleanup()
 }
 
 source ${TESTDIR}/common
+skip_test_no_tpm12 "${SWTPM_EXE}"
 
 if ! [[ "$(uname -s)" =~ Linux ]]; then
 	echo "Need Linux to run UnixIO test for CMD_SET_DATAFD."
