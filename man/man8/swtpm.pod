@@ -290,6 +290,8 @@ may contain the following:
     {
       "type": "swtpm",
       "features": [
+        "tpm-1.2",
+        "tpm-2.0",
         "cmdarg-seccomp",
         "cmdarg-key-fd",
         "cmdarg-pwd-fd",
@@ -298,12 +300,29 @@ may contain the following:
         "rsa-keysize-1024",
         "rsa-keysize-2048",
         "rsa-keysize-3072"
-      ]
+      ],
+      "version": "0.7.0"
     }
+
+The version field is available since 0.7.
 
 The meaning of the feature verbs is as follows:
 
 =over 4
+
+=item B<tpm-1.2>
+
+TPM 1.2 emulation is supported (libtpms is compiled with 1.2 support).
+
+Since 0.7
+
+==item B<tpm-2.0>
+
+TPM 2 emulation is supported (libtpms is compiled with 2.0 support).
+
+(the I<--tpm2> option is supported)
+
+Since 0.7
 
 =item B<cmdarg-seccomp>
 

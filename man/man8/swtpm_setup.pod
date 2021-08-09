@@ -198,8 +198,11 @@ The output may contain the following:
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
         "tpm12-not-need-root"
-      ]
+      ],
+      "version": "0.7.0"
     }
+
+The version field is available since 0.7.
 
 The meaning of the feature verbs is as follows:
 

@@ -157,8 +157,11 @@ The output may contain the following:
       "features": [
         "cmdarg-signkey-pwd",
         "cmdarg-parentkey-pwd"
-      ]
+      ],
+      "version": "0.7.0"
     }
+
+The version field is available since 0.7.
 
 The maining of the feature verbs is as follows:
 
