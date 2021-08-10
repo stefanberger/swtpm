@@ -72,7 +72,7 @@ if [ -x "$(type -P $(echo "${SWTPM_CERT}" | cut -d" " -f1) )" ]; then
 
 	echo "Test 3: OK"
 else
-	echo "Test 2: SKIP -- ${SWTPM_CERT} not found or not an executable"
+	echo "Test 3: SKIP -- ${SWTPM_CERT} not found or not an executable"
 fi
 
 exit 0
