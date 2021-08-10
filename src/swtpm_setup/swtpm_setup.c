@@ -1328,7 +1328,7 @@ int main(int argc, char *argv[])
     swtpm_prg_l = split_cmdline(swtpm_prg);
     tmp = g_find_program_in_path(swtpm_prg_l[0]);
     if (!tmp) {
-        logerr(gl_LOGFILE, "TPM at %s is not an executable.\n", swtpm_prg);
+        logerr(gl_LOGFILE, "swtpm at %s is not an executable.\n", swtpm_prg_l[0]);
         goto error;
     }
     g_free(tmp);
