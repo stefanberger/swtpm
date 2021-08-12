@@ -442,9 +442,9 @@ static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_fi
 static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                      const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
                      const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
-                     unsigned int rsa_keysize, const gchar *user_certsdir)
+                     unsigned int rsa_keysize, const gchar *certsdir,
+                     const gchar *user_certsdir)
 {
-    g_autofree gchar *certsdir = g_strdup(tpm2_state_path);
     struct swtpm2 *swtpm2;
     struct swtpm *swtpm;
     int ret;
@@ -622,9 +622,9 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
 static int init_tpm(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                     const gchar *tpm_state_path, const gchar *ownerpass, const gchar *srkpass,
                     const gchar *vmid, const gchar *swtpm_keyopt,
-                    int *fds_to_pass, size_t n_fds_to_pass, const gchar *user_certsdir)
+                    int *fds_to_pass, size_t n_fds_to_pass, const gchar *certsdir,
+                    const gchar *user_certsdir)
 {
-    g_autofree gchar *certsdir = g_strdup(tpm_state_path);
     struct swtpm12 *swtpm12;
     struct swtpm *swtpm;
     g_autofree gchar *pubek = NULL;
@@ -1168,6 +1168,7 @@ int main(int argc, char *argv[])
     unsigned int rsa_keysize;
     g_autofree gchar *swtpm_keyopt = NULL;
     g_autofree gchar *runas = NULL;
+    g_autofree gchar *certsdir = NULL;
     g_autofree gchar *user_certsdir = NULL;
     gchar *tmp;
     gchar **swtpm_prg_l = NULL;
@@ -1187,6 +1188,7 @@ int main(int argc, char *argv[])
     time_t now;
     struct tm *tm;
     int ret = 1;
+    g_autoptr(GError) error = NULL;
 
     if (init(&config_file) < 0)
         goto error;
@@ -1561,12 +1563,22 @@ int main(int argc, char *argv[])
           curr_grp ? curr_grp->gr_name : "<unknown>",
           tmpbuffer);
 
+    if (flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F)) {
+        certsdir = g_dir_make_tmp("swtpm_setup.certs.XXXXXX", &error);
+        if (certsdir == NULL) {
+            logerr(gl_LOGFILE, "Could not create temporary directory for certs: %s\n",
+                   error->message);
+            goto error;
+        }
+    }
+
     if ((flags & SETUP_TPM2_F) == 0) {
         ret = init_tpm(flags, swtpm_prg_l, config_file, tpm_state_path, ownerpass, srkpass, vmid,
-                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, user_certsdir);
+                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, certsdir, user_certsdir);
     } else {
         ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
-                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize, user_certsdir);
+                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize, certsdir,
+                       user_certsdir);
     }
 
     if (ret == 0) {
@@ -1587,6 +1599,10 @@ int main(int argc, char *argv[])
 
 out:
 error:
+    if (certsdir && g_rmdir(certsdir) != 0)
+        logerr(gl_LOGFILE, "Could not remove temporary directory for certs: %s\n",
+               strerror(errno));
+
     g_strfreev(swtpm_prg_l);
     g_free(gl_LOGFILE);
 
