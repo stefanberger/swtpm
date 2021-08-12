@@ -468,17 +468,25 @@ handle_key_options(char *options)
     unsigned char key[256/8];
     size_t maxkeylen = sizeof(key);
     size_t keylen;
+    int ret = 0;
 
     if (!options)
         return 0;
 
-    if (parse_key_options(options, key, maxkeylen, &keylen, &encmode) < 0)
-        return -1;
+    if (parse_key_options(options, key, maxkeylen, &keylen, &encmode) < 0) {
+        ret = -1;
+        goto error;
+    }
 
-    if (SWTPM_NVRAM_Set_FileKey(key, keylen, encmode) != TPM_SUCCESS)
-        return -1;
+    if (SWTPM_NVRAM_Set_FileKey(key, keylen, encmode) != TPM_SUCCESS) {
+        ret = -1;
+        goto error;
+    }
 
-    return 0;
+error:
+    /* Wipe to ensure we don't leave a key on the stack */
+    memset(key, 0, maxkeylen);
+    return ret;
 }
 
 /*
@@ -496,17 +504,25 @@ handle_migration_key_options(char *options)
     unsigned char key[256/8];
     size_t maxkeylen = sizeof(key);
     size_t keylen;
+    int ret = 0;
 
     if (!options)
         return 0;
 
-    if (parse_key_options(options, key, maxkeylen, &keylen, &encmode) < 0)
-        return -1;
+    if (parse_key_options(options, key, maxkeylen, &keylen, &encmode) < 0) {
+        ret = -1;
+        goto error;
+    }
 
-    if (SWTPM_NVRAM_Set_MigrationKey(key, keylen, encmode) != TPM_SUCCESS)
-        return -1;
+    if (SWTPM_NVRAM_Set_MigrationKey(key, keylen, encmode) != TPM_SUCCESS) {
+        ret = -1;
+        goto error;
+    }
 
-    return 0;
+error:
+    /* Wipe to ensure we don't leave a key on the stack */
+    memset(key, 0, maxkeylen);
+    return ret;
 }
 
 /*
