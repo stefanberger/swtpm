@@ -218,6 +218,7 @@ static void swtpm_cleanup(struct ctrlchannel *cc)
     ctrlchannel_free(cc);
     log_global_free();
     tpmstate_global_free();
+    SWTPM_NVRAM_Shutdown();
 }
 
 #ifdef WITH_VTPM_PROXY

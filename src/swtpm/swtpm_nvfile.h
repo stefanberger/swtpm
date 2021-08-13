@@ -55,6 +55,8 @@
 
 TPM_RESULT SWTPM_NVRAM_Init(void);
 
+void SWTPM_NVRAM_Shutdown(void);
+
 void SWTPM_NVRAM_Set_TPMVersion(TPMLIB_TPMVersion version);
 
 /*
