@@ -47,6 +47,8 @@
 
 TPM_RESULT SWTPM_NVRAM_Init(void);
 
+void SWTPM_NVRAM_Shutdown(void);
+
 /*
   Basic abstraction for read and write
 */

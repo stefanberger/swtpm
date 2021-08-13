@@ -1383,6 +1383,7 @@ static void ptm_cleanup(void)
     pidfile_remove();
     log_global_free();
     tpmstate_global_free();
+    SWTPM_NVRAM_Shutdown();
 }
 
 static const struct cuse_lowlevel_ops clops = {
