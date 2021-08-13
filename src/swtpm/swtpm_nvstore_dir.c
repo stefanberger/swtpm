@@ -145,8 +145,9 @@ SWTPM_NVRAM_Validate_Dir(const char *tpm_state_path)
             rc = TPM_FAIL;
         }
     }
-    if (rc == 0)
+    if (rc == 0) {
         TPM_DEBUG("SWTPM_NVRAM_Validate_Dir: Rooted state path %s\n", tpm_state_path);
+    }
 
     return rc;
 }
