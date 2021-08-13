@@ -148,7 +148,6 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(sched_setparam),
         SCMP_SYS(sched_setscheduler),
         SCMP_SYS(sched_setaffinity),
-        SCMP_SYS(sched_setattr),
         SCMP_SYS(vhangup),
         SCMP_SYS(sethostname),
         SCMP_SYS(setdomainname),
@@ -253,6 +252,8 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
 #ifdef __NR_clone3
         SCMP_SYS(clone3),
 #endif
+        /* misc */
+        SCMP_SYS(sched_setattr), /* caller: g_thread_pool_new() glib v2.68 */
     };
     scmp_filter_ctx ctx;
     int ret;
