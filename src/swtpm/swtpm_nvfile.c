@@ -279,6 +279,12 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
     return rc;
 }
 
+void SWTPM_NVRAM_Shutdown(void)
+{
+    memset(&filekey, 0, sizeof(filekey));
+    memset(&migrationkey, 0, sizeof(migrationkey));
+}
+
 /* Load 'data' of 'length' from the 'name'.
 
    'data' must be freed after use.
