@@ -197,6 +197,7 @@ static void swtpm_cleanup(struct ctrlchannel *cc, struct server *server)
     server_free(server);
     log_global_free();
     tpmstate_global_free();
+    SWTPM_NVRAM_Shutdown();
 }
 
 int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
