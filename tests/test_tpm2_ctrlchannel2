@@ -18,6 +18,7 @@ VOLATILESTATE=$TPMDIR/volatile
 
 source ${TESTDIR}/common
 source ${TESTDIR}/test_common
+skip_test_no_chardev "${SWTPM_EXE}"
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
 trap "cleanup" SIGTERM EXIT
