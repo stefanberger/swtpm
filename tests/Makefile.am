@@ -15,17 +15,12 @@ TESTS = \
 	test_vtpm_proxy \
 	test_tpm2_vtpm_proxy
 
-if WITH_CHARDEV
-TESTS += \
-	test_ctrlchannel2 \
-	test_ctrlchannel4 \
-	test_tpm2_ctrlchannel2
-endif
-
 TESTS += \
 	test_commandline \
 	test_ctrlchannel \
+	test_ctrlchannel2 \
 	test_ctrlchannel3 \
+	test_ctrlchannel4 \
 	test_encrypted_state \
 	test_getcap \
 	test_hashing \
@@ -47,6 +42,7 @@ TESTS += \
 	test_print_capabilities
 
 TESTS += \
+	test_tpm2_ctrlchannel2 \
 	test_tpm2_derived_keys \
 	test_tpm2_encrypted_state \
 	test_tpm2_init \
