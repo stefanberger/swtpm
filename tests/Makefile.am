@@ -39,7 +39,8 @@ TESTS += \
 	test_tpm12 \
 	test_wrongorder \
 	\
-	test_print_capabilities
+	test_print_capabilities \
+	test_swtpm_setup_overwrite
 
 TESTS += \
 	test_tpm2_ctrlchannel2 \
@@ -68,7 +69,8 @@ TESTS += \
 	\
 	test_tpm2_swtpm_bios \
 	\
-	test_tpm2_ibmtss2
+	test_tpm2_ibmtss2 \
+	test_tpm2_swtpm_setup_overwrite
 
 if WITH_GNUTLS
 TESTS += \

@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
+
+source ${TESTDIR}/common
+skip_test_no_tpm20 "${SWTPM_EXE}"
+STATEBASENAME="tpm2-00.permall"
+
+SWTPM_SETUP_CONF=$SRCDIR/samples/swtpm_setup.conf
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf ${workdir}
+}
+
+# Test 1: --not-overwrite with dummy state file
+
+workdir=$(mktemp -d)
+statefile="${workdir}/${STATEBASENAME}"
+dummydata="DUMMY"
+echo $dummydata > ${statefile}
+
+$SWTPM_SETUP \
+	--tpm2 \
+	--not-overwrite \
+	--tpm-state ${workdir} \
+	--config ${SWTPM_SETUP_CONF} \
+	--logfile ${workdir}/logfile \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
+
+if [ $? -ne 0 ]; then
+	echo "Test 1 failed: Error: Could not run $SWTPM_SETUP."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
+	exit 1
+fi
+
+if [ -z "$(grep ${dummydata} ${statefile})" ]; then
+	echo "Test 1 failed: Error: The state file was unexpectedly overwritten."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
+	exit 1
+fi
+
+echo "Test 1 passed"
+cleanup
+
+# Test 2: --overwrite with dummy state file
+
+workdir=$(mktemp -d)
+statefile="${workdir}/${STATEBASENAME}"
+dummydata="DUMMY"
+echo $dummydata > ${statefile}
+
+$SWTPM_SETUP \
+	--tpm2 \
+	--overwrite \
+	--tpm-state ${workdir} \
+	--config ${SWTPM_SETUP_CONF} \
+	--logfile ${workdir}/logfile \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
+
+if [ $? -ne 0 ]; then
+	echo "Test 2 failed: Error: Could not run $SWTPM_SETUP."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
+	exit 1
+fi
+
+if [ -n "$(grep ${dummydata} ${statefile})" ]; then
+	echo "Test 2 failed: Error: The state file was not overwritten."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
+	exit 1
+fi
+
+echo "Test 2 passed"
+cleanup
+
+# Test 3: neither "--overwrite" nor "--not-overwrite" with dummy state file
+
+workdir=$(mktemp -d)
+statefile="${workdir}/${STATEBASENAME}"
+dummydata="DUMMY"
+echo $dummydata > ${statefile}
+
+$SWTPM_SETUP \
+	--tpm2 \
+	--tpm-state ${workdir} \
+	--config ${SWTPM_SETUP_CONF} \
+	--logfile ${workdir}/logfile \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
+
+if [ $? -ne 1 ]; then
+	echo "Test 3 failed: Error: $SWTPM_SETUP did not exit with exit code 1."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
+	exit 1
+fi
+
+if [ -z "$(grep ${dummydata} ${statefile})" ]; then
+	echo "Test 3 failed: Error: The state file was unexpectedly overwritten."
+	echo "Setup Logfile:"
+	cat ${workdir}/logfile
+	exit 1
+fi
+
+echo "Test 3 passed"
+cleanup
+
+exit 0
