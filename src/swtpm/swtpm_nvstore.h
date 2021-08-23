@@ -87,6 +87,12 @@ TPM_RESULT SWTPM_NVRAM_SetStateBlob(unsigned char *data,
                                     uint32_t tpm_number,
                                     uint32_t blobtype);
 
+TPM_RESULT SWTPM_NVRAM_GetFilenameForName(char *filename,
+                                          size_t bufsize,
+                                          uint32_t tpm_number,
+                                          const char *name,
+                                          TPM_BOOL is_tempfile);
+
 size_t SWTPM_NVRAM_FileKey_Size(void);
 static inline TPM_BOOL SWTPM_NVRAM_Has_FileKey(void)
 {

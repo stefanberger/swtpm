@@ -65,54 +65,6 @@ struct nvram_backend_ops nvram_dir_ops = {
     .delete  = SWTPM_NVRAM_DeleteName_Dir,
 };
 
-/* SWTPM_NVRAM_GetFilenameForName() constructs a rooted file name from the name.
-
-   The filename is of the form:
-
-   tpm_state_path/tpm_number.name
-
-   A temporary filename used to write to may be created. It should be rename()'d to
-   the non-temporary filename.
-*/
-
-static TPM_RESULT
-SWTPM_NVRAM_GetFilenameForName(char *filename,      /* output: rooted filename */
-                               size_t bufsize,
-                               uint32_t tpm_number,
-                               const char *name,    /* input: abstract name */
-                               bool is_tempfile,    /* input: is temporary file? */
-                               const char *tpm_state_path)
-{
-    TPM_RESULT res = TPM_SUCCESS;
-    int n;
-    const char *suffix = "";
-
-    TPM_DEBUG(" SWTPM_NVRAM_GetFilenameForName: For name %s\n", name);
-
-    switch (tpmstate_get_version()) {
-    case TPMLIB_TPM_VERSION_1_2:
-        break;
-    case TPMLIB_TPM_VERSION_2:
-        suffix = "2";
-        break;
-    }
-
-    if (is_tempfile) {
-        n = snprintf(filename, bufsize, "%s/TMP%s-%02lx.%s",
-                     tpm_state_path, suffix, (unsigned long)tpm_number, name);
-    } else {
-        n = snprintf(filename, bufsize, "%s/tpm%s-%02lx.%s",
-                     tpm_state_path, suffix, (unsigned long)tpm_number, name);
-    }
-    if ((size_t)n > bufsize) {
-        res = TPM_FAIL;
-    }
-
-    TPM_DEBUG("  SWTPM_NVRAM_GetFilenameForName: File name %s\n", filename);
-
-    return res;
-}
-
 static const char *
 SWTPM_NVRAM_Uri_to_Dir(const char *uri)
 {
@@ -193,6 +145,30 @@ exit:
     return rc;
 }
 
+static TPM_RESULT
+SWTPM_NVRAM_GetFilepathForName(char *filepath,       /* output: rooted file path */
+                               size_t bufsize,
+                               uint32_t tpm_number,
+                               const char *name,     /* input: abstract name */
+                               TPM_BOOL is_tempfile, /* input: is temporary file? */
+                               const char *tpm_state_path)
+{
+    TPM_RESULT rc = 0;
+    int n;
+    char filename[FILENAME_MAX];
+
+    if (rc == 0)
+        rc = SWTPM_NVRAM_GetFilenameForName(filename, sizeof(filename),
+                                            tpm_number, name, is_tempfile);
+    if (rc == 0) {
+        n = snprintf(filepath, bufsize, "%s/%s", tpm_state_path, filename);
+        if ((size_t) n > bufsize)
+            rc = TPM_FAIL;
+    }
+
+    return rc;
+}
+
 TPM_RESULT
 SWTPM_NVRAM_Prepare_Dir(const char *uri)
 {
@@ -219,33 +195,33 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
     int           irc;
     size_t        src;
     int           fd = -1;
-    char          filename[FILENAME_MAX]; /* rooted file name from name */
+    char          filepath[FILENAME_MAX]; /* rooted file path from name */
     struct stat   statbuf;
     const char    *tpm_state_path = NULL;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
-    /* open the file */
     if (rc == 0) {
-        /* map name to the rooted filename */
-        rc = SWTPM_NVRAM_GetFilenameForName(filename, sizeof(filename),
+        /* map name to the rooted file path */
+        rc = SWTPM_NVRAM_GetFilepathForName(filepath, sizeof(filepath),
                                             tpm_number, name, false,
                                             tpm_state_path);
     }
 
+    /* open the file */
     if (rc == 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_LoadData: Opening file %s\n", filename);
-        fd = open(filename, O_RDONLY);                          /* closed @1 */
+        TPM_DEBUG("  SWTPM_NVRAM_LoadData: Opening file %s\n", filepath);
+        fd = open(filepath, O_RDONLY);                          /* closed @1 */
         if (fd < 0) {     /* if failure, determine cause */
             if (errno == ENOENT) {
                 TPM_DEBUG("SWTPM_NVRAM_LoadData: No such file %s\n",
-                         filename);
+                         filepath);
                 rc = TPM_RETRY;         /* first time start up */
             }
             else {
                 logprintf(STDERR_FILENO,
                           "SWTPM_NVRAM_LoadData: Error (fatal) opening "
-                          "%s for read, %s\n", filename, strerror(errno));
+                          "%s for read, %s\n", filepath, strerror(errno));
                 rc = TPM_FAIL;
             }
         }
@@ -255,7 +231,7 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
         if (fchmod(fd, tpmstate_get_mode()) < 0) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_LoadData: Could not fchmod %s : %s\n",
-                      filename, strerror(errno));
+                      filepath, strerror(errno));
             rc = TPM_FAIL;
         }
     }
@@ -266,7 +242,7 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
         if (irc == -1L) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_LoadData: Error (fatal) fstat'ing %s, %s\n",
-                      filename, strerror(errno));
+                      filepath, strerror(errno));
             rc = TPM_FAIL;
         }
     }
@@ -296,16 +272,16 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
     }
     /* close the file */
     if (fd >= 0) {
-        TPM_DEBUG(" SWTPM_NVRAM_LoadData: Closing file %s\n", filename);
+        TPM_DEBUG(" SWTPM_NVRAM_LoadData: Closing file %s\n", filepath);
         irc = close(fd);               /* @1 */
         if (irc != 0) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_LoadData: Error (fatal) closing file %s\n",
-                      filename);
+                      filepath);
             rc = TPM_FAIL;
         }
         else {
-            TPM_DEBUG(" SWTPM_NVRAM_LoadData: Closed file %s\n", filename);
+            TPM_DEBUG(" SWTPM_NVRAM_LoadData: Closed file %s\n", filepath);
         }
     }
 
@@ -324,22 +300,22 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     int           dir_fd = -1;
     uint32_t      lrc;
     int           irc;
-    char          tmpfile[FILENAME_MAX];  /* rooted temporary file */
-    char          filename[FILENAME_MAX]; /* rooted file name from name */
+    char          tmpfile[FILENAME_MAX];  /* rooted temporary file path */
+    char          filepath[FILENAME_MAX]; /* rooted file path from name */
     const char    *tpm_state_path = NULL;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
     if (rc == 0) {
-        /* map name to the rooted filename */
-        rc = SWTPM_NVRAM_GetFilenameForName(filename, sizeof(filename),
+        /* map name to the rooted file path */
+        rc = SWTPM_NVRAM_GetFilepathForName(filepath, sizeof(filepath),
                                             tpm_number, name, false,
                                             tpm_state_path);
     }
 
     if (rc == 0) {
-        /* map name to the rooted temporary file */
-        rc = SWTPM_NVRAM_GetFilenameForName(tmpfile, sizeof(tmpfile),
+        /* map name to the rooted temporary file path */
+        rc = SWTPM_NVRAM_GetFilepathForName(tmpfile, sizeof(tmpfile),
                                             tpm_number, name, true,
                                             tpm_state_path);
     }
@@ -395,14 +371,14 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     }
 
     if (rc == 0 && fd >= 0) {
-        irc = rename(tmpfile, filename);
+        irc = rename(tmpfile, filepath);
         if (irc != 0) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_StoreData: Error (fatal) renaming file: %s\n",
                       strerror(errno));
             rc = TPM_FAIL;
         } else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Renamed file to %s\n", filename);
+            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Renamed file to %s\n", filepath);
         }
     }
 
@@ -460,18 +436,18 @@ TPM_RESULT SWTPM_NVRAM_DeleteName_Dir(uint32_t tpm_number,
 {
     TPM_RESULT  rc = 0;
     int         irc;
-    char        filename[FILENAME_MAX]; /* rooted file name from name */
+    char        filepath[FILENAME_MAX]; /* rooted file path from name */
     const char  *tpm_state_path = NULL;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
     TPM_DEBUG(" SWTPM_NVRAM_DeleteName: Name %s\n", name);
-    /* map name to the rooted filename */
-    rc = SWTPM_NVRAM_GetFilenameForName(filename, sizeof(filename),
+    /* map name to the rooted file path */
+    rc = SWTPM_NVRAM_GetFilepathForName(filepath, sizeof(filepath),
                                         tpm_number, name, false,
                                         tpm_state_path);
     if (rc == 0) {
-        irc = remove(filename);
+        irc = remove(filepath);
         if ((irc != 0) &&               /* if the remove failed */
             (mustExist ||               /* if any error is a failure, or */
              (errno != ENOENT))) {      /* if error other than no such file */
