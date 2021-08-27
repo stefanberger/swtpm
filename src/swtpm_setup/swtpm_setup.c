@@ -693,22 +693,47 @@ error:
  * This function returns 2 if the state exists but flag is set to not to overwrite it,
  * 0 in case we can overwrite it, 1 if the state exists.
  */
-static int check_state_overwrite(unsigned int flags, const char *tpm_state_path)
+static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
+                                 const char *tpm_state_path)
 {
     const char *statefile;
-    char path[PATH_MAX];
-    const char *p = NULL;
+    gboolean success;
+    g_autofree gchar *standard_output = NULL;
+    int exit_status = 0;
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar **argv = NULL;
+    g_autofree gchar *dirop = g_strdup_printf("dir=%s", tpm_state_path);
+    g_autofree gchar **my_argv = NULL;
 
-    if (flags & SETUP_TPM2_F)
+    my_argv = concat_arrays((gchar*[]) {
+                                "--print-states",
+                                "--tpmstate",
+                                dirop,
+                                NULL
+                            }, NULL, FALSE);
+
+    if (flags & SETUP_TPM2_F) {
         statefile = "tpm2-00.permall";
-    else
+        my_argv = concat_arrays(my_argv, (gchar*[]) { "--tpm2", NULL }, TRUE);
+    } else
         statefile = "tpm-00.permall";
 
-    p = pathjoin(path, sizeof(path), tpm_state_path, statefile, NULL);
-    if (!p)
+    argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
+    success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+                           &standard_output, NULL, &exit_status, &error);
+    if (!success) {
+        logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
         return 1;
+    }
 
-    if (access(p, R_OK|W_OK) == 0) {
+    if (exit_status != 0) {
+        logerr(gl_LOGFILE, "%s exit with status %d: %s\n",
+               swtpm_prg_l[0], exit_status, standard_output);
+        return 1;
+    }
+
+    if (g_strstr_len(standard_output, -1, statefile) != NULL) {
+        /* State file exists */
         if (flags & SETUP_STATE_NOT_OVERWRITE_F) {
             logit(gl_LOGFILE, "Not overwriting existing state file.\n");
             return 2;
@@ -1447,7 +1472,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    ret = check_state_overwrite(flags, tpm_state_path);
+    ret = check_state_overwrite(swtpm_prg_l, flags, tpm_state_path);
     if (ret == 1) {
         goto error;
     } else if (ret == 2) {
