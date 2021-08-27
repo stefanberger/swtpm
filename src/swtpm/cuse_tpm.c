@@ -241,6 +241,7 @@ static const char *usage =
 "                       blacklisted syscall is executed; default is kill\n"
 #endif
 "--print-capabilites : print capabilities and terminate\n"
+"--print-states      : print existing TPM states and terminate\n"
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
 
@@ -1453,6 +1454,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 #endif
         {"print-capabilities"
                          ,       no_argument, 0, 'a'},
+        {"print-states"  ,       no_argument, 0, 'e'},
         {NULL            , 0                , 0, 0  },
     };
     struct cuse_info cinfo;
@@ -1468,6 +1470,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     char path[PATH_MAX];
     int ret = 0;
     bool printcapabilities = false;
+    bool printstates = false;
     bool need_init_cmd = true;
     TPM_RESULT res;
 
@@ -1566,6 +1569,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case 'a':
             printcapabilities = true;
             break;
+        case 'e':
+            printstates = true;
+            break;
         case 'v': /* version */
             fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
                     "Copyright (c) 2014-2015 IBM Corp.\n",
@@ -1601,6 +1607,22 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     }
 
     tpmstate_set_version(tpmversion);
+
+    if (printstates) {
+        if (handle_tpmstate_options(param.tpmstatedata) < 0) {
+            ret = EXIT_FAILURE;
+            goto exit;
+        }
+        if (param.tpmstatedata == NULL) {
+            logprintf(STDERR_FILENO,
+                      "Error: --tpmstate option is required for --print-states\n");
+            ret = EXIT_FAILURE;
+            goto exit;
+        }
+        ret = SWTPM_NVRAM_Print_Json();
+        ret = ret ? EXIT_FAILURE : EXIT_SUCCESS;
+        goto exit;
+    }
 
     if (!cinfo.dev_info_argv) {
         logprintf(STDERR_FILENO, "Error: device name missing\n");

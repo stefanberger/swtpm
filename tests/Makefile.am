@@ -40,6 +40,7 @@ TESTS += \
 	test_wrongorder \
 	\
 	test_print_capabilities \
+	test_print_states \
 	test_swtpm_setup_overwrite
 
 TESTS += \
@@ -55,6 +56,7 @@ TESTS += \
 	test_tpm2_migration_key \
 	test_tpm2_partial_reads \
 	test_tpm2_print_capabilities \
+	test_tpm2_print_states \
 	test_tpm2_resume_volatile \
 	test_tpm2_savestate \
 	test_tpm2_save_load_encrypted_state \
@@ -165,6 +167,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_migration_key \
 	_test_migration_key_2 \
 	_test_print_capabilities \
+	_test_print_states \
 	_test_resume_volatile \
 	_test_save_load_encrypted_state \
 	_test_save_load_state \
@@ -181,6 +184,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm2_locality \
 	_test_tpm2_migration_key \
 	_test_tpm2_print_capabilities \
+	_test_tpm2_print_states \
 	_test_tpm2_probe \
 	_test_tpm2_resume_volatile \
 	_test_tpm2_savestate \

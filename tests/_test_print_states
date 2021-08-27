@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+PATH=$ROOT/src/swtpm:$PATH
+
+[ "${SWTPM_IFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
+source ${TESTDIR}/common
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf ${workdir}
+}
+
+# Test 1: No states
+
+workdir=$(mktemp -d)
+msg="$(${SWTPM_EXE} ${SWTPM_IFACE} --print-states --tpmstate dir=${workdir} 2>&1)"
+
+if [ $? -ne 0 ]; then
+	echo "Error: Could not pass --print-states"
+	echo "${msg}"
+	exit 1
+fi
+
+exp='\{ "type": "swtpm", "states": \[\] \}'
+if ! [[ ${msg} =~ ${exp} ]]; then
+	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-states:"
+	echo "Actual   : ${msg}"
+	echo "Expected : ${exp}"
+	echo "Test 1: Failed"
+	exit 1
+fi
+
+echo "Test 1: OK"
+cleanup
+
+# Test 2: Existing state
+
+workdir=$(mktemp -d)
+statefile="${workdir}/tpm-00.permall"
+dummydata="DUMMY"
+echo $dummydata > ${statefile}
+
+msg="$(${SWTPM_EXE} ${SWTPM_IFACE} --print-states --tpmstate dir=${workdir} 2>&1)"
+
+if [ $? -ne 0 ]; then
+	echo "Error: Could not pass --print-states"
+	echo "${msg}"
+	exit 1
+fi
+
+exp='\{ "type": "swtpm", "states": \[ \{ "name": "tpm-00.permall" \} \] \}'
+if ! [[ ${msg} =~ ${exp} ]]; then
+	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-states:"
+	echo "Actual   : ${msg}"
+	echo "Expected : ${exp}"
+	exit 1
+fi
+
+echo "Test 2: OK"
+cleanup
+
+exit 0

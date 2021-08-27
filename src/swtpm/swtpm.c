@@ -185,6 +185,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
 #endif
     "--print-capabilites\n"
     "                 : print capabilities and terminate\n"
+    "--print-states\n"
+    "                 : print existing TPM states and terminate\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -235,6 +237,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 #endif
     unsigned int seccomp_action;
     bool printcapabilities = false;
+    bool printstates = false;
     static struct option longopts[] = {
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
@@ -257,6 +260,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 #endif
         {"print-capabilities"
                      ,       no_argument, 0, 'a'},
+        {"print-states",     no_argument, 0, 'e'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -378,6 +382,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             printcapabilities = true;
             break;
 
+        case 'e':
+            printstates = true;
+            break;
+
         case 'r':
             runas = optarg;
             break;
@@ -433,6 +441,21 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     }
 
     tpmstate_set_version(mlp.tpmversion);
+
+    if (printstates) {
+        if (handle_tpmstate_options(tpmstatedata) < 0)
+            goto exit_failure;
+        if (tpmstatedata == NULL) {
+            logprintf(STDERR_FILENO,
+                      "Error: --tpmstate option is required for --print-states\n");
+            goto exit_failure;
+        }
+        ret = SWTPM_NVRAM_Print_Json();
+        if (ret == 0)
+            goto exit_success;
+        else
+            goto exit_failure;
+    }
 
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
@@ -530,4 +553,9 @@ exit_failure:
     swtpm_cleanup(mlp.cc, server);
 
     exit(EXIT_FAILURE);
+
+exit_success:
+    swtpm_cleanup(mlp.cc, server);
+
+    exit(EXIT_SUCCESS);
 }
