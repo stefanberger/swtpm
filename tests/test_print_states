@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+source ${TESTDIR}/common
+skip_test_no_tpm12 "${SWTPM_EXE}"
+
+cd "$(dirname "$0")"
+
+export SWTPM_IFACE=cuse
+bash _test_print_states
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_IFACE=socket
+bash _test_print_states
+ret=$?
+[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+
+exit 0

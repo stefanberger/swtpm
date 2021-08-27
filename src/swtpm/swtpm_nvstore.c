@@ -1258,3 +1258,51 @@ cleanup:
 
     return res;
 }
+
+/* Example JSON output:
+ *  { "type": "swtpm", "states":
+ *    [ { "name": "tpm2-00.permall" } ]
+ *  }
+ */
+int SWTPM_NVRAM_Print_Json(void)
+{
+    TPM_RESULT rc = 0;
+    int ret = 0, n;
+    unsigned char *nvdata = NULL;
+    uint32_t nvlen;
+    uint32_t tpm_number = 0;
+    char filename[FILENAME_MAX];
+    char *state_str = NULL;
+
+    if (rc == 0)
+        rc = SWTPM_NVRAM_GetFilenameForName(filename, sizeof(filename),
+                                            tpm_number, TPM_PERMANENT_ALL_NAME,
+                                            false);
+    if (rc == 0)
+        rc = SWTPM_NVRAM_Init();
+
+    if (rc == 0) {
+        rc = SWTPM_NVRAM_LoadData(&nvdata, &nvlen, tpm_number, TPM_PERMANENT_ALL_NAME);
+        if (rc == TPM_SUCCESS) {
+            n = asprintf(&state_str, " { \"name\": \"%s\" } ", filename);
+            if (n < 0) {
+                logprintf(STDERR_FILENO, "Out of memory\n");
+                state_str = NULL;
+                ret = -1;
+                goto cleanup;
+            }
+        } else if (rc != TPM_RETRY) {
+            /* Error other than ENOENT */
+            ret = -1;
+            goto cleanup;
+        }
+    }
+
+    printf("{ \"type\": \"swtpm\", \"states\": [%s] }", state_str ? state_str : "");
+
+cleanup:
+    free(state_str);
+    free(nvdata);
+
+    return ret;
+}
