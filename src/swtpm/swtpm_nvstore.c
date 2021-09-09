@@ -1264,7 +1264,7 @@ cleanup:
  *    [ { "name": "tpm2-00.permall" } ]
  *  }
  */
-int SWTPM_NVRAM_Print_Json(void)
+int SWTPM_NVRAM_PrintJson(void)
 {
     TPM_RESULT rc = 0;
     int ret = 0, n;

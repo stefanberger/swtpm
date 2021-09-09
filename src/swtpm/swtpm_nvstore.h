@@ -122,6 +122,6 @@ struct nvram_backend_ops {
                          TPM_BOOL mustExist,
                          const char *uri);
 };
-int SWTPM_NVRAM_Print_Json(void);
+int SWTPM_NVRAM_PrintJson(void);
 
 #endif /* _SWTPM_NVSTORE_H */
