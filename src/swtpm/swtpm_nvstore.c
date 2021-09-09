@@ -1296,9 +1296,10 @@ int SWTPM_NVRAM_PrintJson(void)
             ret = -1;
             goto cleanup;
         }
-    }
 
-    printf("{ \"type\": \"swtpm\", \"states\": [%s] }", state_str ? state_str : "");
+        printf("{ \"type\": \"swtpm\", \"states\": [%s] }", state_str ? state_str : "");
+    } else
+        ret = -1;
 
 cleanup:
     free(state_str);
