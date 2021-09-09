@@ -493,7 +493,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                       "Error: --tpmstate option is required for --print-states\n");
             exit(EXIT_FAILURE);
         }
-        ret = SWTPM_NVRAM_Print_Json();
+        ret = SWTPM_NVRAM_PrintJson();
         if (ret)
             goto exit_failure;
         else

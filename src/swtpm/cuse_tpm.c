@@ -1619,7 +1619,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
             ret = EXIT_FAILURE;
             goto exit;
         }
-        ret = SWTPM_NVRAM_Print_Json();
+        ret = SWTPM_NVRAM_PrintJson();
         ret = ret ? EXIT_FAILURE : EXIT_SUCCESS;
         goto exit;
     }
