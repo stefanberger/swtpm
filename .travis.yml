@@ -17,8 +17,6 @@ addons:
         - sed
         - bash
         - dh-exec
-        - python3-pip
-        - python3-twisted
         - libfuse-dev
         - libglib2.0-dev
         - libjson-glib-dev
@@ -48,7 +46,6 @@ before_install:
       sudo apt-get -y install trousers
     fi
 script:
-  - sudo pip3 install --upgrade pip==20.3.3
   - if [ ! -d libtpms ]; then git clone https://github.com/stefanberger/libtpms; fi
   - cd libtpms
   - if [ -n "${LIBTPMS_GIT_CHECKOUT}" ]; then

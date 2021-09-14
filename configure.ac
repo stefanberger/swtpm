@@ -371,18 +371,6 @@ if test "x$CP" = "x"; then
 	AC_MSG_ERROR([cp is required])
 fi
 
-AM_PATH_PYTHON([3.3])
-
-AC_PATH_PROG([PIP3], pip3)
-if test "x$PIP3" = "x"; then
-	AC_PATH_PROG([PIP3], pip)
-	if test "x$PIP3" = "x"; then
-		AC_MSG_WARN([pip3 is required to uninstall the built package])
-	else
-		AC_MSG_WARN([Using pip as pip3 tool])
-	fi
-fi
-
 AC_ARG_ENABLE([hardening],
   AS_HELP_STRING([--disable-hardening], [Disable hardening flags]))
 
