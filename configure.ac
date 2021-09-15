@@ -466,6 +466,7 @@ AC_SUBST([TSS_GROUP])
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
+CFLAGS="$CFLAGS -Wno-deprecated-declarations"
 CFLAGS="$CFLAGS $GNUTLS_CFLAGS $COVERAGE_CFLAGS"
 
 LDFLAGS="$LDFLAGS $COVERAGE_LDFLAGS"
