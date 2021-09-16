@@ -121,6 +121,8 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
+timenow=$(date +%s)
+timeout=$((timenow + 6))
 # Send TPM2_NV_Write with wrong password
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_BAD})
@@ -132,7 +134,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 timenow=$(date +%s)
-timeout=$((timenow + 6))
+timerecovery=$((timenow + 6))
 
 # TPM2_NV_Write with good password must now fail until $timeout
 while :; do
@@ -153,7 +155,11 @@ while :; do
 	sleep 1
 done
 
-sleep 1
+while :; do
+	sleep 1
+	timenow=$(date +%s)
+	[ $timenow -gt $timerecovery ] && break
+done
 timenow_after=$(date +%s)
 echo "Time is now ${timenow_after} -- trying with good password should work now."
 # Now writing with the good password must work again
@@ -172,7 +178,9 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-# Againg cause lockout: Send TPM2_NV_Write with wrong password
+timenow=$(date +%s)
+timeout=$((timenow + 6))
+# Again cause lockout: Send TPM2_NV_Write with wrong password
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_BAD})
 exp=' 80 01 00 00 00 0a 00 00 09 8e'
@@ -183,7 +191,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 timenow=$(date +%s)
-timeout=$((timenow + 6))
+timerecovery=$((timenow + 6))
 
 # Save the state and restore it and then try to poll again
 run_swtpm_ioctl ${SWTPM_INTERFACE} --save permanent $MY_PERMANENT_STATE_FILE
@@ -296,7 +304,11 @@ while :; do
 	sleep 1
 done
 
-sleep 1
+while :; do
+	sleep 1
+	timenow=$(date +%s)
+	[ $timenow -gt $timerecovery ] && break
+done
 timenow_after=$(date +%s)
 echo "Time is now $timenow_after -- trying with good password should work now."
 # Now writing with the good password must work again
