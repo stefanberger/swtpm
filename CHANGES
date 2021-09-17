@@ -1,5 +1,19 @@
 CHANGES - changes for swtpm
 
+version 0.6.1:
+  - swtpm:
+    - Clear keys from stack and heap
+  - swtpm-localca:
+    - Add missing else branch for pkcs11 and PIN
+  - swtpm_setup:
+    - Initialize Gerror and free it
+    - Replace '\\s' in regex with [[:space:]] to fix cygwin
+  - tests:
+    - Kill tpm2-abrmd with SIGKILL rather SIGTERM
+  - build-sys:
+    - Add -Wno-deprecated-declarations to default CFLAGS (OSSL 3)
+    - Enable configuring with CFLAGS and passing additional CFLAGS on build
+
 version 0.6.0:
   - swtpm:
     - Fix --print-capabilities for 'swtpm chardev'
