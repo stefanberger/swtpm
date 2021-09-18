@@ -790,8 +790,7 @@ int ctrlchannel_process_fd(int fd,
             goto err_bad_input;
         }
 
-        mlp->flags |= MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION |
-                       MAIN_LOOP_FLAG_END_ON_HUP;
+        mlp->flags |= MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION;
         mlp->fd = *data_fd;
 
         *res_p = htobe32(TPM_SUCCESS);
