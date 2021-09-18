@@ -68,7 +68,8 @@ libswtpm_libtpms_la_CFLAGS = \
 	$(CFLAGS) \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
-	$(LIBSECCOMP_CFLAGS)
+	$(LIBSECCOMP_CFLAGS) \
+	$(LIBCRYPTO_EXTRA_CFLAGS)
 
 libswtpm_libtpms_la_LDFLAGS = \
 	$(MY_LDFLAGS) \
