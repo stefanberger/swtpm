@@ -156,6 +156,8 @@ openssl)
 	AC_MSG_RESULT([Building with openssl crypto library])
 	LIBCRYPTO_LIBS=$(pkg-config --libs libcrypto)
 	AC_SUBST([LIBCRYPTO_LIBS])
+	LIBCRYPTO_EXTRA_CFLAGS="-DOPENSSL_SUPPRESS_DEPRECATED"
+	AC_SUBST([LIBCRYPTO_EXTRA_CFLAGS])
 	;;
 esac
 
@@ -466,7 +468,6 @@ AC_SUBST([TSS_GROUP])
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
-CFLAGS="$CFLAGS -Wno-deprecated-declarations"
 CFLAGS="$CFLAGS $GNUTLS_CFLAGS $COVERAGE_CFLAGS"
 
 LDFLAGS="$LDFLAGS $COVERAGE_LDFLAGS"
