@@ -63,7 +63,8 @@ libswtpm_libtpms_la_CFLAGS = \
 	-I$(top_srcdir)/include/swtpm \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
-	$(LIBSECCOMP_CFLAGS)
+	$(LIBSECCOMP_CFLAGS) \
+	$(LIBCRYPTO_EXTRA_CFLAGS)
 
 libswtpm_libtpms_la_LDFLAGS = \
 	$(HARDENING_LDFLAGS)
