@@ -68,6 +68,7 @@ libswtpm_libtpms_la_CFLAGS = \
 	-I$(top_srcdir)/include/swtpm \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
+	-Wno-deprecated-declarations \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(LIBSECCOMP_CFLAGS)

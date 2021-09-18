@@ -44,6 +44,7 @@ swtpm_setup_CFLAGS = \
 	-I$(top_srcdir)/src/utils \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
+	-Wno-deprecated-declarations \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(JSON_GLIB_CFLAGS)
