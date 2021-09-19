@@ -11,7 +11,7 @@ version 0.6.1:
   - tests:
     - Kill tpm2-abrmd with SIGKILL rather SIGTERM
   - build-sys:
-    - Add -Wno-deprecated-declarations to default CFLAGS (OSSL 3)
+    - Use -DOPENSSL_SUPPRESS_DEPRECATED to suppress deprecation warnings (OSSL 3)
     - Enable configuring with CFLAGS and passing additional CFLAGS on build
 
 version 0.6.0:
