@@ -8,9 +8,6 @@ import time
 import struct
 
 from array import array
-if sys.version_info[0] < 3:
-    import twisted.python.sendmsg as sendmsg
-
 
 def toString(arr):
     return ' '.join('{:02x}'.format(x) for x in arr)
