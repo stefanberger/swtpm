@@ -18,7 +18,6 @@ addons:
         - bash
         - dh-exec
         - python3-pip
-        - python3-twisted
         - libfuse-dev
         - libglib2.0-dev
         - libjson-glib-dev
