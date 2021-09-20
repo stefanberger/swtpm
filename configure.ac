@@ -156,8 +156,6 @@ openssl)
 	AC_MSG_RESULT([Building with openssl crypto library])
 	LIBCRYPTO_LIBS=$(pkg-config --libs libcrypto)
 	AC_SUBST([LIBCRYPTO_LIBS])
-	LIBCRYPTO_EXTRA_CFLAGS="-DOPENSSL_SUPPRESS_DEPRECATED"
-	AC_SUBST([LIBCRYPTO_EXTRA_CFLAGS])
 	;;
 esac
 
