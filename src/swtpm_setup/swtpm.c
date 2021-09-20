@@ -26,6 +26,12 @@
 #include <openssl/hmac.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+# include <openssl/core_names.h>
+# include <openssl/param_build.h>
+#else
+# include <openssl/rsa.h>
+#endif
 
 #include "swtpm.h"
 #include "swtpm_utils.h"
@@ -1545,7 +1551,9 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
     EVP_PKEY_CTX *ctx = NULL;
     BIGNUM *exp = BN_new();
     BIGNUM *mod = NULL;
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
     RSA *rsakey = RSA_new();
+#endif
     int ret = 1;
     const EVP_MD *sha1 = EVP_sha1();
     g_autofree unsigned char *enc_owner_auth = g_malloc(pubek_len);
@@ -1580,21 +1588,53 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
         goto error_free_bn;
     }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    ctx = EVP_PKEY_CTX_new_from_name(NULL, "rsa", NULL);
+    if (ctx != NULL) {
+        OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+        OSSL_PARAM *params;
+
+        if (bld == NULL ||
+            OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, exp) != 1 ||
+            OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, mod) != 1 ||
+            (params = OSSL_PARAM_BLD_to_param(bld)) == NULL) {
+            OSSL_PARAM_BLD_free(bld);
+            goto error_free_bn;
+        }
+        OSSL_PARAM_BLD_free(bld);
+
+        if (EVP_PKEY_fromdata_init(ctx) != 1 ||
+            EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_PUBLIC_KEY, params) != 1) {
+            logerr(self->logfile, "Could not set pkey parameters!\n");
+            OSSL_PARAM_free(params);
+            goto error_free_bn;
+        }
+        OSSL_PARAM_free(params);
+
+        EVP_PKEY_CTX_free(ctx);
+    } else {
+        logerr(self->logfile, "Could not create key creation context!\n");
+        goto error_free_bn;
+    }
+    ctx = EVP_PKEY_CTX_new_from_pkey(NULL, pkey, NULL);
+    if (ctx == NULL)
+        goto error_free_bn;
+#else
     pkey = EVP_PKEY_new();
     if (pkey == NULL) {
         logerr(self->logfile, "Could not allocate pkey!\n");
         goto error_free_bn;
     }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000
+# if OPENSSL_VERSION_NUMBER < 0x10100000
     rsakey->n = mod;
     rsakey->e = exp;
-#else
+# else
     if (RSA_set0_key(rsakey, mod, exp, NULL) != 1) {
         logerr(self->logfile, "Could not create public RSA key!\n");
         goto error_free_bn;
     }
-#endif
+# endif
     if (EVP_PKEY_assign_RSA(pkey, rsakey) != 1) {
         logerr(self->logfile, "Could not create public RSA key!\n");
         goto error_free_pkey_and_rsa;
@@ -1603,6 +1643,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
     ctx = EVP_PKEY_CTX_new(pkey, NULL);
     if (ctx == NULL)
         goto error_free_pkey;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
     if (EVP_PKEY_encrypt_init(ctx) < 1 ||
         EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) < 1 ||
@@ -1712,15 +1753,23 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
 error:
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    BN_free(exp);
+    BN_free(mod);
+#endif
     return ret;
 
 error_free_bn:
     BN_free(exp);
     BN_free(mod);
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 error_free_pkey_and_rsa:
     RSA_free(rsakey);
 error_free_pkey:
+#else
+    EVP_PKEY_CTX_free(ctx);
+#endif
     EVP_PKEY_free(pkey);
 
     return 1;
