@@ -1581,6 +1581,10 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
     }
 
     pkey = EVP_PKEY_new();
+    if (pkey == NULL) {
+        logerr(self->logfile, "Could not allocate pkey!\n");
+        goto error_free_bn;
+    }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000
     rsakey->n = mod;
@@ -1591,8 +1595,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
         goto error_free_bn;
     }
 #endif
-    if (pkey == NULL ||
-        EVP_PKEY_assign_RSA(pkey, rsakey) != 1) {
+    if (EVP_PKEY_assign_RSA(pkey, rsakey) != 1) {
         logerr(self->logfile, "Could not create public RSA key!\n");
         goto error_free_pkey_and_rsa;
     }
