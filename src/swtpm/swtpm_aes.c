@@ -43,7 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/aes.h>
+#include <openssl/evp.h>
 
 #include <libtpms/tpm_types.h>
 #include <libtpms/tpm_error.h>
@@ -53,6 +53,20 @@
 #include "logging.h"
 
 #define printf(X ...)
+
+typedef const EVP_CIPHER *(*evpfunc)(void);
+
+static evpfunc SWTPM_Get_AES_EVPFn(unsigned int bits)
+{
+    switch (bits) {
+    case 128:
+        return EVP_aes_128_cbc;
+    case 256:
+        return EVP_aes_256_cbc;
+    default:
+        return NULL;
+    }
+}
 
 /* SWTPM_SymmetricKeyData_Encrypt() is AES non-portable code to encrypt 'decrypt_data' to
    'encrypt_data'
@@ -77,8 +91,9 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
     unsigned char       ivec[SWTPM_AES256_BLOCK_SIZE];       /* initial chaining vector */
     TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_data =
 	(TPM_SYMMETRIC_KEY_DATA *)tpm_symmetric_key_token;
-    AES_KEY key;
     size_t userKeyLength = tpm_symmetric_key_token->userKeyLength;
+    EVP_CIPHER_CTX *ctx = NULL;
+    evpfunc evpfn;
 
     printf(" SWTPM_SymmetricKeyData_Encrypt: Length %u\n", decrypt_length);
     decrypt_data_pad = NULL;    /* freed @1 */
@@ -124,31 +139,44 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
     }
 
     if (rc == 0) {
-        memset(&key, 0, sizeof(key)); /* coverity */
-        if (AES_set_encrypt_key(tpm_symmetric_key_data->userKey,
-                                userKeyLength * 8,
-                                &key) < 0) {
+        evpfn = SWTPM_Get_AES_EVPFn(userKeyLength * 8);
+        ctx = EVP_CIPHER_CTX_new();
+        if (!evpfn || !ctx ||
+            EVP_EncryptInit_ex(ctx, evpfn(), NULL,
+                               tpm_symmetric_key_data->userKey, ivec) != 1 ||
+            EVP_CIPHER_CTX_set_padding(ctx, 0) != 1) {
+            logprintf(STDERR_FILENO,
+                      "Could not setup context for encryption.\n");
             rc = TPM_FAIL;
         }
     }
 
     /* pad the decrypted clear text data */
     if (rc == 0) {
+        int outlen1 = 0;
+        int outlen2 = 0;
+
         /* unpadded original data */
         memcpy(decrypt_data_pad, decrypt_data, decrypt_length);
         /* last gets pad = pad length */
         memset(decrypt_data_pad + decrypt_length, pad_length, pad_length);
         /* encrypt the padded input to the output */
         //TPM_PrintFour("  SWTPM_SymmetricKeyData_Encrypt: Input", decrypt_data_pad);
-        AES_cbc_encrypt(decrypt_data_pad,
-                        *encrypt_data,
-                        *encrypt_length,
-                        &key,
-                        ivec,
-                        AES_ENCRYPT);
+        if (EVP_EncryptUpdate(ctx,
+                              *encrypt_data, &outlen1,
+                              decrypt_data_pad, *encrypt_length) != 1 ||
+            EVP_EncryptFinal_ex(ctx, *encrypt_data + outlen1, &outlen2) != 1 ||
+            (uint32_t)(outlen1 + outlen2) != *encrypt_length) {
+            logprintf(STDERR_FILENO,
+                      "Could not encrypt %u bytes. outlen1=%d, outlen2=%d.\n",
+                      *encrypt_length, outlen1, outlen2);
+            rc = TPM_FAIL;
+        }
         //TPM_PrintFour("  SWTPM_SymmetricKeyData_Encrypt: Output", *encrypt_data);
     }
     free(decrypt_data_pad);     /* @1 */
+    EVP_CIPHER_CTX_free(ctx);
+
     return rc;
 }
 
@@ -176,8 +204,9 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
     unsigned char       ivec[SWTPM_AES256_BLOCK_SIZE];       /* initial chaining vector */
     TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_data =
 	(TPM_SYMMETRIC_KEY_DATA *)tpm_symmetric_key_token;
-    AES_KEY             key;
     size_t userKeyLength = tpm_symmetric_key_token->userKeyLength;
+    EVP_CIPHER_CTX *ctx = NULL;
+    evpfunc evpfn;
 
     printf(" SWTPM_SymmetricKeyData_Decrypt: Length %u\n", encrypt_length);
     /* sanity check encrypted length */
@@ -212,24 +241,35 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
     }
 
     if (rc == 0) {
-        memset(&key, 0, sizeof(key)); /* coverity */
-        if (AES_set_decrypt_key(tpm_symmetric_key_data->userKey,
-                                userKeyLength * 8,
-                                &key) < 0) {
+        evpfn = SWTPM_Get_AES_EVPFn(userKeyLength * 8);
+        ctx = EVP_CIPHER_CTX_new();
+        if (!evpfn || !ctx ||
+            EVP_DecryptInit_ex(ctx, evpfn(), NULL,
+                               tpm_symmetric_key_data->userKey, ivec) != 1 ||
+            EVP_CIPHER_CTX_set_padding(ctx, 0) != 1) {
+            logprintf(STDERR_FILENO,
+                      "Could not setup context for decryption.\n");
             rc = TPM_FAIL;
         }
     }
 
     /* decrypt the input to the padded output */
     if (rc == 0) {
+        int outlen1 = 0;
+        int outlen2 = 0;
+
         /* decrypt the padded input to the output */
         //TPM_PrintFour("  SWTPM_SymmetricKeyData_Decrypt: Input", encrypt_data);
-        AES_cbc_encrypt(encrypt_data,
-                        *decrypt_data,
-                        encrypt_length,
-                        &key,
-                        ivec,
-                        AES_DECRYPT);
+        if (EVP_DecryptUpdate(ctx,
+                              *decrypt_data, &outlen1,
+                              encrypt_data, encrypt_length) != 1 ||
+            EVP_DecryptFinal_ex(ctx, *decrypt_data + outlen1, &outlen2) != 1 ||
+            (uint32_t)(outlen1 + outlen2) != encrypt_length) {
+            logprintf(STDERR_FILENO,
+                      "Could not decrypt %u bytes. outlen1=%d, outlen2=%d.\n",
+                      encrypt_length, outlen1, outlen2);
+            rc = TPM_FAIL;
+        }
         //TPM_PrintFour("  SWTPM_SymmetricKeyData_Decrypt: Output", *decrypt_data);
     }
     /* get the pad length */
@@ -258,5 +298,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
             }
         }
     }
+    EVP_CIPHER_CTX_free(ctx);
+
     return rc;
 }
