@@ -71,7 +71,7 @@ selinux-uninstall:
 	cp $^ ./ 2>/dev/null || true
 	make -f /usr/share/selinux/devel/Makefile $@
 	$(RM) -r ./tmp/
-	if test $(shell pwd) != $(abspath $(top_srcdir)/src/selinux); then \
+	if test $(abspath $(shell pwd)) != $(abspath $(top_srcdir)/src/selinux); then \
 		$(RM) *.te *.fc *.if; \
 	fi
 
