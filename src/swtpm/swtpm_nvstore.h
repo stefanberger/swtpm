@@ -121,6 +121,7 @@ struct nvram_backend_ops {
                          const char *name,
                          TPM_BOOL mustExist,
                          const char *uri);
+    void (*cleanup)(void);
 };
 int SWTPM_NVRAM_PrintJson(void);
 
