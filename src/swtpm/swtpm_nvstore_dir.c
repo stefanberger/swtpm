@@ -58,11 +58,14 @@
 #include "tpmstate.h"
 #include "utils.h"
 
+static int lock_fd = -1;
+
 struct nvram_backend_ops nvram_dir_ops = {
     .prepare = SWTPM_NVRAM_Prepare_Dir,
     .load    = SWTPM_NVRAM_LoadData_Dir,
     .store   = SWTPM_NVRAM_StoreData_Dir,
     .delete  = SWTPM_NVRAM_DeleteName_Dir,
+    .cleanup = SWTPM_NVRAM_Cleanup_Dir,
 };
 
 static const char *
@@ -104,11 +107,19 @@ SWTPM_NVRAM_Validate_Dir(const char *tpm_state_path)
     return rc;
 }
 
+static void
+SWTPM_NVRAM_Unlock_Dir(void)
+{
+    if (lock_fd >= 0) {
+        close(lock_fd);
+        lock_fd = -1;
+    }
+}
+
 static TPM_RESULT
 SWTPM_NVRAM_Lock_Dir(const char *tpm_state_path)
 {
     TPM_RESULT rc = 0;
-    int fd;
     char *lockfile = NULL;
     struct flock flock = {
         .l_type = F_WRLCK,
@@ -123,8 +134,8 @@ SWTPM_NVRAM_Lock_Dir(const char *tpm_state_path)
         return TPM_FAIL;
     }
 
-    fd = open(lockfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, 0660);
-    if (fd < 0) {
+    lock_fd = open(lockfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, 0660);
+    if (lock_fd < 0) {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_Lock_Dir: Could not open lockfile: %s\n",
                   strerror(errno));
@@ -132,12 +143,12 @@ SWTPM_NVRAM_Lock_Dir(const char *tpm_state_path)
         goto exit;
     }
 
-    if (fcntl(fd, F_SETLK, &flock) < 0) {
+    if (fcntl(lock_fd, F_SETLK, &flock) < 0) {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_Lock_Dir: Could not lock access to lockfile: %s\n",
                   strerror(errno));
         rc = TPM_FAIL;
-        close(fd);
+        SWTPM_NVRAM_Unlock_Dir();
     }
 exit:
     free(lockfile);
@@ -182,6 +193,12 @@ SWTPM_NVRAM_Prepare_Dir(const char *uri)
         rc = SWTPM_NVRAM_Lock_Dir(tpm_state_path);
 
     return rc;
+}
+
+void
+SWTPM_NVRAM_Cleanup_Dir(void)
+{
+    SWTPM_NVRAM_Unlock_Dir();
 }
 
 TPM_RESULT

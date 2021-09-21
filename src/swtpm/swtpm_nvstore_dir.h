@@ -73,6 +73,9 @@ SWTPM_NVRAM_DeleteName_Dir(uint32_t tpm_number,
                            TPM_BOOL mustExist,
                            const char *uri);
 
+void
+SWTPM_NVRAM_Cleanup_Dir(void);
+
 extern struct nvram_backend_ops nvram_dir_ops;
 
 #endif /* _SWTPM_NVSTORE_DIR_H */
