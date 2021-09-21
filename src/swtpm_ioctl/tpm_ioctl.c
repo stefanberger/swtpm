@@ -420,8 +420,6 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
         } else {
             offset += devtoh32(is_chardev, pgs.u.resp.length);
         }
-        if (!is_chardev)
-            break;
     }
 
     close(file_fd);
