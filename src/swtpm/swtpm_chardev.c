@@ -457,6 +457,15 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         exit(EXIT_FAILURE);
     }
 
+    /* change process ownership before accessing files */
+    if (runas) {
+        if (change_process_owner(runas) < 0)
+            exit(EXIT_FAILURE);
+    }
+
+    if (handle_log_options(logdata) < 0)
+        exit(EXIT_FAILURE);
+
     if (handle_locality_options(localitydata, &mlp.locality_flags) < 0)
         exit(EXIT_FAILURE);
 
@@ -515,14 +524,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         goto exit_failure;
     }
 
-    /* change process ownership before accessing files */
-    if (runas) {
-        if (change_process_owner(runas) < 0)
-            goto exit_failure;
-    }
-
-    if (handle_log_options(logdata) < 0 ||
-        handle_key_options(keydata) < 0 ||
+    if (handle_key_options(keydata) < 0 ||
         handle_migration_key_options(migkeydata) < 0 ||
         handle_pid_options(piddata) < 0 ||
         handle_tpmstate_options(tpmstatedata) < 0 ||

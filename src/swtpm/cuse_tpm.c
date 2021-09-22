@@ -1589,6 +1589,27 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
+    if (setuid(0)) {
+        logprintf(STDERR_FILENO, "Error: Unable to setuid root. uid = %d, "
+                  "euid = %d, gid = %d\n", getuid(), geteuid(), getgid());
+        ret = -4;
+        goto exit;
+    }
+
+    if (param.runas) {
+        if (!(passwd = getpwnam(param.runas))) {
+            logprintf(STDERR_FILENO, "User '%s' does not exist\n",
+                      param.runas);
+            ret = -5;
+            goto exit;
+        }
+    }
+
+    if (handle_log_options(param.logging) < 0) {
+        ret = EXIT_FAILURE;
+        goto exit;
+    }
+
     if (printcapabilities) {
         /*
          * Choose the TPM version so that getting/setting buffer size works.
@@ -1630,8 +1651,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
-    if (handle_log_options(param.logging) < 0 ||
-        handle_key_options(param.keydata) < 0 ||
+    if (handle_key_options(param.keydata) < 0 ||
         handle_migration_key_options(param.migkeydata) < 0 ||
         handle_pid_options(param.piddata) < 0 ||
         handle_tpmstate_options(param.tpmstatedata) < 0 ||
@@ -1641,22 +1661,6 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
                              &param.startupType) < 0) {
         ret = -3;
         goto exit;
-    }
-
-    if (setuid(0)) {
-        logprintf(STDERR_FILENO, "Error: Unable to setuid root. uid = %d, "
-                  "euid = %d, gid = %d\n", getuid(), geteuid(), getgid());
-        ret = -4;
-        goto exit;
-    }
-
-    if (param.runas) {
-        if (!(passwd = getpwnam(param.runas))) {
-            logprintf(STDERR_FILENO, "User '%s' does not exist\n",
-                      param.runas);
-            ret = -5;
-            goto exit;
-        }
     }
 
     uri = tpmstate_get_backend_uri();
