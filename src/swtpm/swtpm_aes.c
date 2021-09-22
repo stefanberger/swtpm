@@ -52,8 +52,6 @@
 #include "swtpm_aes.h"
 #include "logging.h"
 
-#define printf(X ...)
-
 typedef const EVP_CIPHER *(*evpfunc)(void);
 
 static evpfunc SWTPM_Get_AES_EVPFn(unsigned int bits)
@@ -95,14 +93,14 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
     EVP_CIPHER_CTX *ctx = NULL;
     evpfunc evpfn;
 
-    printf(" SWTPM_SymmetricKeyData_Encrypt: Length %u\n", decrypt_length);
     decrypt_data_pad = NULL;    /* freed @1 */
 
     if (rc == 0) {
         if (u_ivec != NULL && u_ivec_length != userKeyLength) {
-            printf("SWTPM_SymmetricKeyData_Encrypt: IV is %u bytes, "
-                   "but expected %u bytes\n", u_ivec_length,
-                   tpm_symmetric_key_token->userKeyLength);
+            logprintf(STDERR_FILENO,
+                      "SWTPM_SymmetricKeyData_Encrypt: IV is %u bytes, "
+                      "but expected %u bytes\n", u_ivec_length,
+                      tpm_symmetric_key_token->userKeyLength);
             rc = TPM_ENCRYPT_ERROR;
         } else {
             if (u_ivec) {
@@ -118,8 +116,6 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
         /* calculate the pad length and padded data length */
         pad_length = userKeyLength - (decrypt_length % userKeyLength);
         *encrypt_length = decrypt_length + pad_length;
-        printf("  SWTPM_SymmetricKeyData_Encrypt: Padded length %u pad length %u\n",
-               *encrypt_length, pad_length);
         /* allocate memory for the encrypted response */
         *encrypt_data = malloc(*encrypt_length);
         if (!*encrypt_data) {
@@ -208,18 +204,19 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
     EVP_CIPHER_CTX *ctx = NULL;
     evpfunc evpfn;
 
-    printf(" SWTPM_SymmetricKeyData_Decrypt: Length %u\n", encrypt_length);
     /* sanity check encrypted length */
     if (rc == 0) {
         if (encrypt_length < userKeyLength) {
-            printf("SWTPM_SymmetricKeyData_Decrypt: Error, bad length\n");
+            logprintf(STDERR_FILENO,
+                      "SWTPM_SymmetricKeyData_Decrypt: Error, bad length\n");
             rc = TPM_DECRYPT_ERROR;
         }
     }
     if (rc == 0) {
         if (u_ivec != NULL && u_ivec_length != userKeyLength) {
-            printf("SWTPM_SymmetricKeyData_Decrypt: IV is %u bytes, "
-                   "but expected %u bytes\n", u_ivec_length, userKeyLength);
+            logprintf(STDERR_FILENO,
+                      "SWTPM_SymmetricKeyData_Decrypt: IV is %u bytes, "
+                      "but expected %u bytes\n", u_ivec_length, userKeyLength);
             rc = TPM_DECRYPT_ERROR;
         } else {
             if (u_ivec) {
@@ -277,10 +274,10 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
         /* get the pad length from the last byte */
         pad_length = (uint32_t)*(*decrypt_data + encrypt_length - 1);
         /* sanity check the pad length */
-        printf(" SWTPM_SymmetricKeyData_Decrypt: Pad length %u\n", pad_length);
         if ((pad_length == 0) ||
             (pad_length > userKeyLength)) {
-            printf("SWTPM_SymmetricKeyData_Decrypt: Error, illegal pad length\n");
+            logprintf(STDERR_FILENO,
+                      "SWTPM_SymmetricKeyData_Decrypt: Error, illegal pad length\n");
             rc = TPM_DECRYPT_ERROR;
         }
     }
@@ -292,8 +289,9 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
         /* sanity check the pad */
         for (i = 0 ; i < pad_length ; i++, pad_data++) {
             if (*pad_data != pad_length) {
-                printf("SWTPM_SymmetricKeyData_Decrypt: Error, bad pad %02x at index %u\n",
-                       *pad_data, i);
+                logprintf(STDERR_FILENO,
+                          "SWTPM_SymmetricKeyData_Decrypt: Error, bad pad %02x at index %u\n",
+                          *pad_data, i);
                 rc = TPM_DECRYPT_ERROR;
             }
         }
