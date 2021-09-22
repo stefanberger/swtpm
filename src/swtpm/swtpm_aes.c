@@ -52,7 +52,9 @@
 #include "swtpm_aes.h"
 #include "logging.h"
 
+#ifndef printf
 #define printf(X ...)
+#endif
 
 typedef const EVP_CIPHER *(*evpfunc)(void);
 
