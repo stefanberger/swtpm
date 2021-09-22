@@ -704,6 +704,7 @@ static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
     g_autoptr(GError) error = NULL;
     g_autofree gchar **argv = NULL;
     g_autofree gchar *dirop = g_strdup_printf("dir=%s", tpm_state_path);
+    g_autofree gchar *logop = NULL;
     g_autofree gchar **my_argv = NULL;
 
     my_argv = concat_arrays((gchar*[]) {
@@ -716,7 +717,13 @@ static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
     if (flags & SETUP_TPM2_F)
         my_argv = concat_arrays(my_argv, (gchar*[]) { "--tpm2", NULL }, TRUE);
 
+    if (gl_LOGFILE != NULL) {
+        logop = g_strdup_printf("file=%s", gl_LOGFILE);
+        my_argv = concat_arrays(my_argv, (gchar*[]){"--log", logop, NULL}, TRUE);
+    }
+
     argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
+
     success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
                            &standard_output, NULL, &exit_status, &error);
     if (!success) {
@@ -911,8 +918,15 @@ static int get_supported_tpm_versions(gchar **swtpm_prg_l, gboolean *swtpm_has_t
     g_autoptr(GError) error = NULL;
     g_autofree gchar **argv = NULL;
     gchar *my_argv[] = { "--print-capabilities", NULL };
+    g_autofree gchar *logop = NULL;
 
     argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
+
+    if (gl_LOGFILE != NULL) {
+        logop = g_strdup_printf("file=%s", gl_LOGFILE);
+        argv = concat_arrays(argv, (gchar*[]){"--log", logop, NULL}, TRUE);
+    }
+
     success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
                            &standard_output, NULL, &exit_status, &error);
     if (!success) {
@@ -944,6 +958,7 @@ static int get_rsa_keysizes(unsigned long flags, gchar **swtpm_prg_l,
     gchar **argv = NULL;
     char *p;
     int n;
+    g_autofree gchar *logop = NULL;
 
     *n_keysizes = 0;
 
@@ -951,6 +966,11 @@ static int get_rsa_keysizes(unsigned long flags, gchar **swtpm_prg_l,
         gchar *my_argv[] = { "--tpm2", "--print-capabilities", NULL };
 
         argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
+
+        if (gl_LOGFILE != NULL) {
+            logop = g_strdup_printf("file=%s", gl_LOGFILE);
+            argv = concat_arrays(argv, (gchar*[]){"--log", logop, NULL}, TRUE);
+        }
 
         success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
                                &standard_output, NULL, &exit_status, &error);

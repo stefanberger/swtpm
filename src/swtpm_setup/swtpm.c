@@ -61,6 +61,7 @@ static int swtpm_start(struct swtpm *self)
     g_autofree gchar *server_fd = NULL;
     g_autofree gchar *ctrl_fd = NULL;
     g_autofree gchar *keyopts = NULL;
+    g_autofree gchar *logop = NULL;
     g_autofree gchar **argv = NULL;
     struct stat statbuf;
     gboolean success;
@@ -88,6 +89,11 @@ static int swtpm_start(struct swtpm *self)
     if (self->keyopts != NULL) {
         keyopts = g_strdup(self->keyopts);
         argv = concat_arrays(argv, (gchar*[]){"--key", keyopts, NULL}, TRUE);
+    }
+
+    if (gl_LOGFILE != NULL) {
+        logop = g_strdup_printf("file=%s", gl_LOGFILE);
+        argv = concat_arrays(argv, (gchar*[]){"--log", logop, NULL}, TRUE);
     }
 
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, self->ctrl_fds) != 0) {
