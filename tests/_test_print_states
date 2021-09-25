@@ -56,7 +56,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-exp='\{ "type": "swtpm", "states": \[ \{ "name": "tpm-00.permall" \} \] \}'
+exp='\{ "type": "swtpm", "states": \[ "permall" \] \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-states:"
 	echo "Actual   : ${msg}"

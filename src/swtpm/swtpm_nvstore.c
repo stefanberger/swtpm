@@ -1314,49 +1314,48 @@ cleanup:
 }
 
 /* Example JSON output:
- *  { "type": "swtpm", "states":
- *    [ { "name": "tpm2-00.permall" } ]
+ *  { "type": "swtpm",
+ *    "states": [ "permall", "volatilestate", "savestate" ]
  *  }
  */
 int SWTPM_NVRAM_PrintJson(void)
 {
     TPM_RESULT rc = 0;
-    int ret = 0, n;
-    uint32_t tpm_number = 0;
-    char filename[FILENAME_MAX];
-    char *state_str = NULL;
-    const char *backend_uri = NULL;
+    const char *backend_uri;
+    const char *states[] = {
+        TPM_PERMANENT_ALL_NAME,
+        TPM_VOLATILESTATE_NAME,
+        TPM_SAVESTATE_NAME,
+    };
+    char state_str[64] = "";
+    size_t i, n, o;
+    int ret = -1;
 
-    if (rc == 0)
-        rc = SWTPM_NVRAM_GetFilenameForName(filename, sizeof(filename),
-                                            tpm_number, TPM_PERMANENT_ALL_NAME,
-                                            false);
-    if (rc == 0)
-        rc = SWTPM_NVRAM_Init();
-
+    rc = SWTPM_NVRAM_Init();
     if (rc == 0) {
+        o = 0;
         backend_uri = tpmstate_get_backend_uri();
-        rc = g_nvram_backend_ops->check_state(backend_uri, TPM_PERMANENT_ALL_NAME);
-        if (rc == TPM_SUCCESS) {
-            n = asprintf(&state_str, " { \"name\": \"%s\" } ", filename);
-            if (n < 0) {
-                logprintf(STDERR_FILENO, "Out of memory\n");
-                state_str = NULL;
-                ret = -1;
-                goto cleanup;
+
+        for (i = 0; i < ARRAY_LEN(states); i++) {
+            rc = g_nvram_backend_ops->check_state(backend_uri, states[i]);
+            if (rc == TPM_SUCCESS) {
+                n = snprintf(&state_str[o], sizeof(state_str) - o,
+                             "%s \"%s\"",
+                             (o > 0) ? "," : "",
+                             states[i]);
+                if (n >= sizeof(state_str) - o)
+                    goto exit;
+                o += n;
+            } else if (rc != TPM_RETRY) {
+                /* Error other than ENOENT */
+                goto exit;
             }
-        } else if (rc != TPM_RETRY) {
-            /* Error other than ENOENT */
-            ret = -1;
-            goto cleanup;
         }
+        printf("{ \"type\": \"swtpm\", \"states\": [%s%s] }",
+               state_str,  (o > 0) ? " ": "");
+        ret = 0;
+    }
 
-        printf("{ \"type\": \"swtpm\", \"states\": [%s] }", state_str ? state_str : "");
-    } else
-        ret = -1;
-
-cleanup:
-    free(state_str);
-
+exit:
     return ret;
 }

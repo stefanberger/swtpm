@@ -29,6 +29,8 @@
 #include <glib-object.h>
 #include <json-glib/json-glib.h>
 
+#include <libtpms/tpm_nvfilename.h>
+
 #include "swtpm.h"
 #include "swtpm_setup_conf.h"
 #include "swtpm_setup_utils.h"
@@ -696,7 +698,6 @@ error:
 static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
                                  const char *tpm_state_path)
 {
-    const char *statefile;
     gboolean success;
     g_autofree gchar *standard_output = NULL;
     int exit_status = 0;
@@ -712,11 +713,8 @@ static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
                                 NULL
                             }, NULL, FALSE);
 
-    if (flags & SETUP_TPM2_F) {
-        statefile = "tpm2-00.permall";
+    if (flags & SETUP_TPM2_F)
         my_argv = concat_arrays(my_argv, (gchar*[]) { "--tpm2", NULL }, TRUE);
-    } else
-        statefile = "tpm-00.permall";
 
     argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
     success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
@@ -732,7 +730,7 @@ static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
         return 1;
     }
 
-    if (g_strstr_len(standard_output, -1, statefile) != NULL) {
+    if (g_strstr_len(standard_output, -1, TPM_PERMANENT_ALL_NAME) != NULL) {
         /* State file exists */
         if (flags & SETUP_STATE_NOT_OVERWRITE_F) {
             logit(gl_LOGFILE, "Not overwriting existing state file.\n");
@@ -740,7 +738,7 @@ static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
         }
         if (flags & SETUP_STATE_OVERWRITE_F)
             return 0;
-        logerr(gl_LOGFILE, "Found existing TPM state file %s.\n", statefile);
+        logerr(gl_LOGFILE, "Found existing TPM state '%s'.\n", TPM_PERMANENT_ALL_NAME);
         return 1;
     }
 
