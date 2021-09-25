@@ -25,7 +25,6 @@ noinst_HEADERS = \
 	swtpm_debug.h \
 	swtpm_io.h \
 	swtpm_nvstore.h \
-	swtpm_nvstore_dir.h \
 	threadpool.h \
 	tlv.h \
 	tpmlib.h \

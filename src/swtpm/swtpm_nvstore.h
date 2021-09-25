@@ -123,6 +123,11 @@ struct nvram_backend_ops {
                          const char *uri);
     void (*cleanup)(void);
 };
+
+/* backend interfaces */
+extern struct nvram_backend_ops nvram_dir_ops;
+
+
 int SWTPM_NVRAM_PrintJson(void);
 
 #endif /* _SWTPM_NVSTORE_H */

@@ -87,7 +87,6 @@
 #include "swtpm_aes.h"
 #include "swtpm_debug.h"
 #include "swtpm_nvstore.h"
-#include "swtpm_nvstore_dir.h"
 #include "key.h"
 #include "logging.h"
 #include "tpmstate.h"

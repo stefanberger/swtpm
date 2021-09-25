@@ -52,21 +52,14 @@
 #include "swtpm.h"
 #include "swtpm_debug.h"
 #include "swtpm_nvstore.h"
-#include "swtpm_nvstore_dir.h"
 #include "key.h"
 #include "logging.h"
 #include "tpmstate.h"
 #include "utils.h"
 
-static int lock_fd = -1;
+#define TPM_FILENAME_MAX 20
 
-struct nvram_backend_ops nvram_dir_ops = {
-    .prepare = SWTPM_NVRAM_Prepare_Dir,
-    .load    = SWTPM_NVRAM_LoadData_Dir,
-    .store   = SWTPM_NVRAM_StoreData_Dir,
-    .delete  = SWTPM_NVRAM_DeleteName_Dir,
-    .cleanup = SWTPM_NVRAM_Cleanup_Dir,
-};
+static int lock_fd = -1;
 
 static const char *
 SWTPM_NVRAM_Uri_to_Dir(const char *uri)
@@ -180,7 +173,7 @@ SWTPM_NVRAM_GetFilepathForName(char *filepath,       /* output: rooted file path
     return rc;
 }
 
-TPM_RESULT
+static TPM_RESULT
 SWTPM_NVRAM_Prepare_Dir(const char *uri)
 {
     TPM_RESULT    rc = 0;
@@ -195,13 +188,13 @@ SWTPM_NVRAM_Prepare_Dir(const char *uri)
     return rc;
 }
 
-void
+static void
 SWTPM_NVRAM_Cleanup_Dir(void)
 {
     SWTPM_NVRAM_Unlock_Dir();
 }
 
-TPM_RESULT
+static TPM_RESULT
 SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
                          uint32_t *length,
                          uint32_t tpm_number,
@@ -305,7 +298,7 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
     return rc;
 }
 
-TPM_RESULT
+static TPM_RESULT
 SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
                           uint32_t filedata_length,
                           uint32_t tpm_number,
@@ -446,10 +439,11 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     return rc;
 }
 
-TPM_RESULT SWTPM_NVRAM_DeleteName_Dir(uint32_t tpm_number,
-                                      const char *name,
-                                      TPM_BOOL mustExist,
-                                      const char *uri)
+static TPM_RESULT
+SWTPM_NVRAM_DeleteName_Dir(uint32_t tpm_number,
+                           const char *name,
+                           TPM_BOOL mustExist,
+                           const char *uri)
 {
     TPM_RESULT  rc = 0;
     int         irc;
@@ -476,3 +470,11 @@ TPM_RESULT SWTPM_NVRAM_DeleteName_Dir(uint32_t tpm_number,
     }
     return rc;
 }
+
+struct nvram_backend_ops nvram_dir_ops = {
+    .prepare = SWTPM_NVRAM_Prepare_Dir,
+    .load    = SWTPM_NVRAM_LoadData_Dir,
+    .store   = SWTPM_NVRAM_StoreData_Dir,
+    .delete  = SWTPM_NVRAM_DeleteName_Dir,
+    .cleanup = SWTPM_NVRAM_Cleanup_Dir,
+};
