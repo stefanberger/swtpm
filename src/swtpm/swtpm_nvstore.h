@@ -121,6 +121,8 @@ struct nvram_backend_ops {
                          const char *name,
                          TPM_BOOL mustExist,
                          const char *uri);
+    TPM_RESULT (*check_state)(const char *uri,
+                              const char *name);
     void (*cleanup)(void);
 };
 

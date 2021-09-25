@@ -174,6 +174,38 @@ SWTPM_NVRAM_GetFilepathForName(char *filepath,       /* output: rooted file path
 }
 
 static TPM_RESULT
+SWTPM_NVRAM_CheckState_Dir(const char *uri,
+                           const char *name)
+{
+    TPM_RESULT    rc = 0;
+    char          filepath[FILENAME_MAX]; /* rooted file path from name */
+    struct stat   statbuf;
+    const char   *tpm_state_path = NULL;
+    uint32_t      tpm_number = 0;
+    int           rc2;
+
+    tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
+    if (rc == 0) {
+        /* map name to the rooted file path */
+        rc = SWTPM_NVRAM_GetFilepathForName(filepath, sizeof(filepath),
+                                            tpm_number, name, false,
+                                            tpm_state_path);
+    }
+
+    if (rc == 0) {
+        rc2 = stat(filepath, &statbuf);
+        if (rc2 != 0 && errno == ENOENT)
+            rc = TPM_RETRY;
+        else if (rc2 != 0)
+            rc = TPM_FAIL;
+        else if (!S_ISREG(statbuf.st_mode))
+            rc = TPM_FAIL;
+    }
+
+    return rc;
+}
+
+static TPM_RESULT
 SWTPM_NVRAM_Prepare_Dir(const char *uri)
 {
     TPM_RESULT    rc = 0;
@@ -477,4 +509,5 @@ struct nvram_backend_ops nvram_dir_ops = {
     .store   = SWTPM_NVRAM_StoreData_Dir,
     .delete  = SWTPM_NVRAM_DeleteName_Dir,
     .cleanup = SWTPM_NVRAM_Cleanup_Dir,
+    .check_state = SWTPM_NVRAM_CheckState_Dir,
 };

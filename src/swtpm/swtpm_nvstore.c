@@ -1322,11 +1322,10 @@ int SWTPM_NVRAM_PrintJson(void)
 {
     TPM_RESULT rc = 0;
     int ret = 0, n;
-    unsigned char *nvdata = NULL;
-    uint32_t nvlen;
     uint32_t tpm_number = 0;
     char filename[FILENAME_MAX];
     char *state_str = NULL;
+    const char *backend_uri = NULL;
 
     if (rc == 0)
         rc = SWTPM_NVRAM_GetFilenameForName(filename, sizeof(filename),
@@ -1336,7 +1335,8 @@ int SWTPM_NVRAM_PrintJson(void)
         rc = SWTPM_NVRAM_Init();
 
     if (rc == 0) {
-        rc = SWTPM_NVRAM_LoadData(&nvdata, &nvlen, tpm_number, TPM_PERMANENT_ALL_NAME);
+        backend_uri = tpmstate_get_backend_uri();
+        rc = g_nvram_backend_ops->check_state(backend_uri, TPM_PERMANENT_ALL_NAME);
         if (rc == TPM_SUCCESS) {
             n = asprintf(&state_str, " { \"name\": \"%s\" } ", filename);
             if (n < 0) {
@@ -1357,7 +1357,6 @@ int SWTPM_NVRAM_PrintJson(void)
 
 cleanup:
     free(state_str);
-    free(nvdata);
 
     return ret;
 }
