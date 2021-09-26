@@ -719,6 +719,19 @@ function get_fileowner()
 	fi
 }
 
+# Get the file owner user name and group name
+#
+# @1: filename
+function get_fileowner_names()
+{
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+		stat -c"%U %G" $1
+	else
+		# BSDs
+		stat -f"%Su %Sg" $1
+	fi
+}
+
 # Get the SHA1 of a file
 #
 # @1: filename
@@ -866,5 +879,25 @@ function skip_test_no_chardev()
 	if [ -n "${res}" ]; then
 		echo "${swtpm_exe} does not support chardev interface"
 		exit 77
+	fi
+}
+
+# Check whether swtpm links with ASAN
+function skip_test_linked_with_asan()
+{
+	local swtpm_exe="$1"
+
+	local act_exe
+
+	if [[ "$(uname -s)" =~ Linux ]]; then
+		if [ -z "$(file "${swtpm_exe}" | grep ELF)" ]; then
+			act_exe="$(dirname "${swtpm_exe}")"/.libs/"$(basename "${swtpm_exe}")"
+		else
+			act_exe="${swtpm_exe}"
+		fi
+		if [ -n "$(ldd "${act_exe}" | grep libasan)" ]; then
+			echo "${act_exe} is linked with ASAN"
+			exit 77
+		fi
 	fi
 }

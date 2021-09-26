@@ -48,6 +48,7 @@ TESTS += \
 	test_tpm2_derived_keys \
 	test_tpm2_encrypted_state \
 	test_tpm2_init \
+	test_tpm2_file_permissions \
 	test_tpm2_getcap \
 	test_tpm2_locality \
 	test_tpm2_hashing \
