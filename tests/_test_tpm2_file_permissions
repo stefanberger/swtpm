@@ -1,0 +1,255 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+VTPM_NAME="vtpm-test-file-permissions"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH=$(mktemp -d)
+STATE_FILE=${TPM_PATH}/tpm2-00.permall
+VOLATILE_STATE_FILE=${TPM_PATH}/tpm2-00.volatilestate
+PIDFILE=${TPM_PATH}/swtpm.pid
+LOGFILE=${TPM_PATH}/swtpm.log
+PWDFILE=${TPM_PATH}/pwdfile.txt
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+SWTPM_SETUP_CONF=${TPM_PATH}/swtpm_setup.conf
+
+function cleanup()
+{
+	if [ -n "${SWTPM_PID}" ]; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+	rm -rf "${TPM_PATH}"
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == cuse ] && source ${TESTDIR}/test_cuse
+source ${TESTDIR}/common
+
+cat <<_EOF_ > "${SWTPM_SETUP_CONF}"
+create_certs_tool=unused
+create_certs_tool_config=/dev/null
+create_certs_tool_options=/dev/null
+_EOF_
+
+# We need to copy swtpm and libswtpm_libtpms.so to the workdir
+# so that swtpm_setup can access it as TESTUSER
+if [ -z "$(file "${SWTPM_EXE}" | grep ELF)" ]; then
+	directory="$(dirname "${SWTPM_EXE}")/.libs"
+	if [ -d "${directory}" ]; then
+		cp "${directory}/swtpm" "${TPM_PATH}"
+		cp -d "${directory}"/libswtpm_libtpms.so* "${TPM_PATH}"
+	else
+		echo "Could not find .libs directory to copy swtpm from."
+		exit 77
+	fi
+	MY_SWTPM_EXE="${TPM_PATH}/swtpm"
+	SWTPM_LD_LIBRARY_PATH="${TPM_PATH}"
+else
+	MY_SWTPM_EXE="${SWTPM_EXE}"
+	SWTPM_LD_LIBRARY_PATH=""
+fi
+
+# Mininum permissions on directory
+chmod 0700 "${TPM_PATH}"
+chown "${TESTUSER}:${TESTGROUP}" "${TPM_PATH}"
+# empty pid file that swtpm must be able to overwrite
+touch "${PIDFILE}"
+# A logfile that swtpm must be able to write to
+echo "TestTest" > "${LOGFILE}"
+# minimum permission on state files, pidfile, password file, and logfile
+cp "${TESTDIR}"/data/tpm2state2/* "${TPM_PATH}"
+chmod 0600 "${TPM_PATH}"/tpm2-00* "${PIDFILE}" "${PWDFILE}" "${LOGFILE}" "${SWTPM_SETUP_CONF}"
+chown "${TESTUSER}:${TESTGROUP}" "${TPM_PATH}"/*
+
+# Test-execute the swtpm program as $TESTUSER
+tmp=$(sudo -u "${TESTUSER}" bash -c "LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" "${MY_SWTPM_EXE}" --help 2>&1")
+if [ $? -ne 0 ]; then
+	echo "Could not run '${MY_SWTPM_EXE}' as ${TESTUSER}. Skipping swtpm_setup tests."
+	echo "Error: ${tmp}"
+	exit 77
+fi
+
+
+logsize=$(get_filesize "${LOGFILE}")
+
+run_swtpm ${SWTPM_INTERFACE} \
+	--pid "file=${PIDFILE}" \
+	--log "file=${LOGFILE},level=20" \
+	--runas "${TESTUSER}" \
+	--tpm2 \
+	--key "pwdfile=${PWDFILE},kdf=sha512"
+
+kill -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Init the TPM
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+# Volatile state file must be gone now
+if [ -f "${VOLATILE_STATE_FILE}" ]; then
+	echo "Error: Volatile state file has not been removed."
+	exit 1
+fi
+
+# There should be a log file now owned by the ${TESTUSER}
+# Since the CUSE TPM must be started as root root ownership is allowed for log and pid file
+if [ "${SWTPM_INTERFACE}" != "cuse" ]; then
+	fileowner="$(get_fileowner_names ${LOGFILE})"
+	if [ "${fileowner}" != "${TESTUSER} ${TESTGROUP}" ]; then
+		echo "File ownership for logfile is wrong."
+		echo "Expected: ${TESTUSER} ${TESTGROUP}"
+		echo "Actual  : ${fileowner}"
+	fi
+
+	fileowner="$(get_fileowner_names ${PIDFILE})"
+	if [ "${fileowner}" != "${TESTUSER} ${TESTGROUP}" ]; then
+		echo "File ownership for pidfile is wrong."
+		echo "Expected: ${TESTUSER} ${TESTGROUP}"
+		echo "Actual  : ${fileowner}"
+	fi
+fi
+
+# The log file must have grown
+if [ -z "$(grep "TestTest" ${LOGFILE})" ]; then
+	echo "Error: First line 'TestTest' missing in logfile."
+	exit 1
+fi
+if [ $(get_filesize ${LOGFILE}) -le ${logsize} ]; then
+	echo "Error: Log file did not grow!"
+	exit 1
+fi
+
+# The PID file must contain the PID
+if [ "$(cat "${PIDFILE}")" != "${SWTPM_PID}" ]; then
+	echo "Error: PID file does not have the PID!"
+	echo "Expected: ${SWTPM_PID}"
+	echo "Actual  : $(cat "${PIDFILE}")"
+	exit 1
+fi
+
+swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+
+# Read PCR 10 (from pcrextend -ha 10 -ic test)
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone ${SWTPM_PID} 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+if [ -f "${PIDFILE}" ]; then
+	echo "Error: PID file should have been removed."
+	ls -l ${TPM_PATH}
+	exit 1
+fi
+
+echo "Test 1: OK"
+
+logsize=$(get_filesize "${LOGFILE}")
+statefilehash=$(get_sha1_file "${STATE_FILE}")
+
+LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
+	--tpm2 \
+	--tpmstate "${TPM_PATH}" \
+	--logfile "${LOGFILE}" \
+	--runas "${TESTUSER}" \
+	--config "${SWTPM_SETUP_CONF}" \
+	--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
+
+if [ $? -eq 0 ]; then
+	echo "Error: ${SWTPM_SETUP} should have refused to overwrite existing state."
+	exit 1
+fi
+
+LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
+	--tpm2 \
+	--tpmstate "${TPM_PATH}" \
+	--overwrite \
+	--logfile "${LOGFILE}" \
+	--runas "${TESTUSER}" \
+	--config "${SWTPM_SETUP_CONF}" \
+	--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
+
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_SETUP} could not overwrite existing state. (1)"
+	cat "${LOGFILE}"
+	exit 1
+fi
+if [ ! -f "${STATE_FILE}" ]; then
+	echo "Error: TPM 2 state file doesn't exist."
+	exit 1
+fi
+if [ "$(get_sha1_file "${STATE_FILE}")" = "${statefilehash}" ]; then
+	echo "Error: State file was not changed."
+	exit 1
+fi
+if [ -z "$(grep "TestTest" ${LOGFILE})" ]; then
+	echo "Error: First line 'TestTest' missing in logfile."
+	exit 1
+fi
+if [ $(get_filesize "${LOGFILE}") -le ${logsize} ]; then
+	echo "Error: ${SWTPM_SETUP} did not append to existing log."
+	exit 1
+fi
+
+echo "Test 2: OK"
+
+# Make sure it can access the pwdfile also
+statefilehash=$(get_sha1_file "${STATE_FILE}")
+logsize=$(get_filesize "${LOGFILE}")
+
+LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
+	--tpmstate "${TPM_PATH}" \
+	--overwrite \
+	--tpm2 \
+	--logfile "${LOGFILE}" \
+	--runas "${TESTUSER}" \
+	--config "${SWTPM_SETUP_CONF}" \
+	--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--pwdfile "${PWDFILE}"
+
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_SETUP} could not overwrite existing state."
+	exit 1
+fi
+if [ ! -f "${STATE_FILE}" ]; then
+	echo "Error: TPM 2 state file '${STATE_FILE}' doesn't exist."
+	exit 1
+fi
+if [ "$(get_sha1_file "${STATE_FILE}")" = "${statefilehash}" ]; then
+	echo "Error: State file was not changed."
+	exit 1
+fi
+if [ $(get_filesize "${LOGFILE}") -le ${logsize} ]; then
+	echo "Error: ${SWTPM_SETUP} did not append to existing log."
+	exit 1
+fi
+
+echo "Test 3: OK"
+
+exit 0

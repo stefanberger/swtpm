@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Need to be root to run this test."
+	exit 77
+fi
+
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+source ${TESTDIR}/common
+skip_test_linked_with_asan "${SWTPM_EXE}"
+
+# Determine a test user and group
+id -u nobody &>/dev/null && export TESTUSER=nobody
+export TESTGROUP="$(getent group $(id -g "${TESTUSER}") | cut -d':' -f1)"
+
+if [ -z "${TESTUSER}" ] || [ -z "${TESTGROUP}" ]; then
+	echo "Could not find suitable user/group for testing with."
+	exit 77
+fi
+
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+source ${TESTDIR}/common
+
+cd "$(dirname "$0")"
+
+export SWTPM_INTERFACE=cuse
+bash _test_tpm2_file_permissions
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65458
+export SWTPM_CTRL_PORT=65459
+bash _test_tpm2_file_permissions
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
+
+exit 0
