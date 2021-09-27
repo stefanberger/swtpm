@@ -1468,9 +1468,12 @@ int main(int argc, char *argv[])
           tmpbuffer);
 
 out:
-error:
     g_strfreev(swtpm_prg_l);
     g_free(gl_LOGFILE);
 
     exit(ret);
+
+error:
+    ret = 1;
+    goto out;
 }
