@@ -1621,7 +1621,6 @@ int main(int argc, char *argv[])
           tmpbuffer);
 
 out:
-error:
     if (certsdir && g_rmdir(certsdir) != 0)
         logerr(gl_LOGFILE, "Could not remove temporary directory for certs: %s\n",
                strerror(errno));
@@ -1630,4 +1629,8 @@ error:
     g_free(gl_LOGFILE);
 
     exit(ret);
+
+error:
+    ret = 1;
+    goto out;
 }
