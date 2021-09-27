@@ -83,12 +83,17 @@ TESTS += \
 	test_tpm2_swtpm_cert \
 	test_tpm2_swtpm_cert_ecc \
 	test_tpm2_swtpm_localca \
-	test_tpm2_swtpm_localca_pkcs11 \
+	test_tpm2_swtpm_localca_pkcs11.test \
 	test_tpm2_swtpm_setup_create_cert
+
 if HAVE_TCSD
 TESTS += \
-	test_tpm2_samples_create_tpmca
+	test_tpm2_samples_create_tpmca.test
+
+# Prevent concurrency between these two
+test_tpm2_samples_create_tpmca.log: test_tpm2_swtpm_localca_pkcs11.log
 endif
+
 endif
 
 EXTRA_DIST=$(TESTS) \
