@@ -175,7 +175,8 @@ SWTPM_NVRAM_GetFilepathForName(char *filepath,       /* output: rooted file path
 
 static TPM_RESULT
 SWTPM_NVRAM_CheckState_Dir(const char *uri,
-                           const char *name)
+                           const char *name,
+                           size_t *blobsize)
 {
     TPM_RESULT    rc = 0;
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
@@ -200,6 +201,9 @@ SWTPM_NVRAM_CheckState_Dir(const char *uri,
             rc = TPM_FAIL;
         else if (!S_ISREG(statbuf.st_mode))
             rc = TPM_FAIL;
+
+        if (rc == 0)
+            *blobsize = statbuf.st_size;
     }
 
     return rc;
