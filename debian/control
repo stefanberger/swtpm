@@ -57,13 +57,12 @@ Architecture: any
 Description: Tools for the TPM emulator
  The swtpm-tools package contains the following types of tools:
   - swtpm_bios: Tool for initializing the TPM
-  - swtpm_ioctl: Tool for controlling the CUSE TPM
+  - swtpm_ioctl: Tool for controlling the CUSE/socket/chardev TPM
   - swtpm_setup: Tool for creating the initial state of the TPM; this
       tool basically simulates TPM manufacturing where certificates are
       written into the NVRAM of the TPM
   - swtpm_cert: Creation of certificates for the TPM (x509)
 Depends: gnutls-bin,
          swtpm (= ${binary:Version}),
-         trousers (>= 0.3.9),
          ${misc:Depends},
          ${shlibs:Depends}
