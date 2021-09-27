@@ -1327,8 +1327,8 @@ int SWTPM_NVRAM_PrintJson(void)
         TPM_VOLATILESTATE_NAME,
         TPM_SAVESTATE_NAME,
     };
-    char state_str[64] = "";
-    size_t i, n, o;
+    char state_str[200] = "";
+    size_t i, n, o, blobsize;
     int ret = -1;
 
     rc = SWTPM_NVRAM_Init();
@@ -1337,12 +1337,13 @@ int SWTPM_NVRAM_PrintJson(void)
         backend_uri = tpmstate_get_backend_uri();
 
         for (i = 0; i < ARRAY_LEN(states); i++) {
-            rc = g_nvram_backend_ops->check_state(backend_uri, states[i]);
+            rc = g_nvram_backend_ops->check_state(backend_uri, states[i],
+                                                  &blobsize);
             if (rc == TPM_SUCCESS) {
                 n = snprintf(&state_str[o], sizeof(state_str) - o,
-                             "%s \"%s\"",
+                             "%s {\"name\": \"%s\", \"size\": %zu}",
                              (o > 0) ? "," : "",
-                             states[i]);
+                             states[i], blobsize);
                 if (n >= sizeof(state_str) - o)
                     goto exit;
                 o += n;

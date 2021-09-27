@@ -122,7 +122,8 @@ struct nvram_backend_ops {
                          TPM_BOOL mustExist,
                          const char *uri);
     TPM_RESULT (*check_state)(const char *uri,
-                              const char *name);
+                              const char *name,
+                              size_t *blobsize);
     void (*cleanup)(void);
 };
 
