@@ -421,6 +421,23 @@ if test "x$enable_test_coverage" = "xyes"; then
 	COVERAGE_LDFLAGS="-fprofile-arcs"
 fi
 
+AC_ARG_ENABLE([sanitizers],
+  AS_HELP_STRING([--enable-sanitizers], [Enable address/undefined sanitizers]))
+
+if test "x$enable_sanitizers" = "xyes"; then
+	save_CFLAGS="$CFLAGS"
+	CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+	AC_MSG_CHECKING([whether linker supports sanitizer])
+	AC_LINK_IFELSE(
+		[AC_LANG_SOURCE([[int main() { return 0; }]])],
+		[SANITIZER_CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+		 SANITIZER_LDFLAGS="-fsanitize=address,undefined"
+		 AC_MSG_RESULT(yes)],
+		[AC_MSG_RESULT(no)]
+	)
+	CFLAGS="$save_CFLAGS"
+fi
+
 AC_ARG_WITH([tss-user],
             AS_HELP_STRING([--with-tss-user=TSS_USER],[The tss user to use]),
             [TSS_USER="$withval"],
@@ -456,9 +473,9 @@ AC_SUBST([TSS_GROUP])
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security"
-CFLAGS="$CFLAGS $GNUTLS_CFLAGS $COVERAGE_CFLAGS"
+CFLAGS="$CFLAGS $GNUTLS_CFLAGS $COVERAGE_CFLAGS $SANITIZER_CFLAGS"
 
-LDFLAGS="$LDFLAGS $COVERAGE_LDFLAGS"
+LDFLAGS="$LDFLAGS $COVERAGE_LDFLAGS $SANITIZER_LDFLAGS"
 
 dnl Simulate the following for systems with pkg-config < 0.28:
 dnl PKG_CHECK_VAR([libtpms_cryptolib], [libtpms], [cryptolib],
