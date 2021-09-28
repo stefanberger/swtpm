@@ -42,7 +42,7 @@ if [ -z "$(file "${SWTPM_EXE}" | grep ELF)" ]; then
 	directory="$(dirname "${SWTPM_EXE}")/.libs"
 	if [ -d "${directory}" ]; then
 		cp "${directory}/swtpm" "${TPM_PATH}"
-		cp -d "${directory}"/libswtpm_libtpms.so* "${TPM_PATH}"
+		cp "${directory}"/libswtpm_libtpms.so* "${TPM_PATH}"
 	else
 		echo "Could not find .libs directory to copy swtpm from."
 		exit 77
@@ -67,7 +67,7 @@ chmod 0600 "${TPM_PATH}"/tpm2-00* "${PIDFILE}" "${PWDFILE}" "${LOGFILE}" "${SWTP
 chown "${TESTUSER}:${TESTGROUP}" "${TPM_PATH}"/*
 
 # Test-execute the swtpm program as $TESTUSER
-tmp=$(sudo -u "${TESTUSER}" bash -c "LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" "${MY_SWTPM_EXE}" --help 2>&1")
+tmp=$(su -m "${TESTUSER}" -c "LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" "${MY_SWTPM_EXE}" --help 2>&1")
 if [ $? -ne 0 ]; then
 	echo "Could not run '${MY_SWTPM_EXE}' as ${TESTUSER}. Skipping swtpm_setup tests."
 	echo "Error: ${tmp}"
