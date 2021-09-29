@@ -240,7 +240,7 @@ AC_SUBST([GLIB_CFLAGS])
 
 GLIB_LIBS=$(pkg-config --libs glib-2.0)
 if test $? -ne 0; then
-   AC_MSG_ERROR("Is libglib-2.0-dev/glib2-devel installed? -- could not get cflags")
+   AC_MSG_ERROR("Is libglib-2.0-dev/glib2-devel installed? -- could not get libs")
 fi
 AC_SUBST([GLIB_LIBS])
 
