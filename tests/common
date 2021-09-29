@@ -895,8 +895,8 @@ function skip_test_linked_with_asan()
 		else
 			act_exe="${swtpm_exe}"
 		fi
-		if [ -n "$(ldd "${act_exe}" | grep libasan)" ]; then
-			echo "${act_exe} is linked with ASAN"
+		if [ -n "$(nm "${act_exe}" | grep __asan_)" ]; then
+			echo "${act_exe} is built with ASAN"
 			exit 77
 		fi
 	fi
