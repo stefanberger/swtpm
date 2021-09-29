@@ -64,7 +64,7 @@ if [ -x "$(type -P $(echo "${SWTPM_CERT}" | cut -d" " -f1) )" ]; then
 	fi
 
 	exp='\{ "type": "swtpm_cert", "features": \[ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd" \], "version": "[^"]*" \}'
-	if ~ [[ "${msg}" =~ ${exp} ]]; then
+	if ! [[ "${msg}" =~ ${exp} ]]; then
 		echo "Unexpected response from ${SWTPM_CERT} to --print-capabilities:"
 		echo "Actual   : ${msg}"
 		echo "Expected : ${exp}"
