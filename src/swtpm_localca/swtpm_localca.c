@@ -868,6 +868,8 @@ int main(int argc, char *argv[])
 
 out:
 error:
+    g_strfreev(config_file_lines);
+    g_strfreev(swtpm_cert_env);
     g_strfreev(tpm_attr_params);
     g_strfreev(tpm_spec_params);
 
