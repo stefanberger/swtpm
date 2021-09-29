@@ -1648,7 +1648,7 @@ out:
     g_strfreev(swtpm_prg_l);
     g_free(gl_LOGFILE);
 
-    exit(ret);
+    return ret;
 
 error:
     ret = 1;
