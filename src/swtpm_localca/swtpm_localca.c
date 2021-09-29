@@ -788,10 +788,13 @@ int main(int argc, char *argv[])
 
     // TPM keys are GNUTLS URIs...
     if (g_str_has_prefix(signkey, "tpmkey:file=") || g_str_has_prefix(signkey, "tpmkey:uuid=")) {
-        gchar *tss_tcsd_hostname = get_config_value(config_file_lines,
-                                                    "TSS_TCSD_HOSTNAME", "localhost");
-        gchar *tss_tcsd_port = get_config_value(config_file_lines,
-                                                "TSS_TCSD_PORT", "30003");
+        g_autofree gchar *tss_tcsd_hostname = NULL;
+        g_autofree gchar *tss_tcsd_port = NULL;
+
+        tss_tcsd_hostname = get_config_value(config_file_lines,
+                                             "TSS_TCSD_HOSTNAME", "localhost");
+        tss_tcsd_port = get_config_value(config_file_lines,
+                                         "TSS_TCSD_PORT", "30003");
         swtpm_cert_env = g_environ_setenv(swtpm_cert_env,
                                           "TSS_TCSD_HOSTNAME", tss_tcsd_hostname, TRUE);
         swtpm_cert_env = g_environ_setenv(swtpm_cert_env,
