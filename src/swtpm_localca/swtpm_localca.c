@@ -871,5 +871,5 @@ error:
     g_strfreev(tpm_attr_params);
     g_strfreev(tpm_spec_params);
 
-    exit(ret);
+    return ret;
 }
