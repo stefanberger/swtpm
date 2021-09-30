@@ -1123,7 +1123,11 @@ static int delete_swtpm_statefiles(const gchar *tpm_state_path)
         const gchar *fn = g_dir_read_name(dir);
 
         if (fn == NULL) {
-            if (errno != 0 && errno != ENOENT) {
+            if (errno != 0 && errno != ENOENT
+#ifdef __FreeBSD__
+                && errno != EINVAL
+#endif
+                ) {
                 logerr(gl_LOGFILE, "Error getting next filename: %s\n", strerror(errno));
                 break;
             } else {
