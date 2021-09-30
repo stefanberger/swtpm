@@ -703,14 +703,14 @@ static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
     int exit_status = 0;
     g_autoptr(GError) error = NULL;
     g_autofree gchar **argv = NULL;
-    g_autofree gchar *dirop = g_strdup_printf("dir=%s", tpm_state_path);
+    g_autofree gchar *statearg = g_strdup_printf("backend-uri=%s", tpm_state_path);
     g_autofree gchar *logop = NULL;
     g_autofree gchar **my_argv = NULL;
 
     my_argv = concat_arrays((gchar*[]) {
                                 "--print-states",
                                 "--tpmstate",
-                                dirop,
+                                statearg,
                                 NULL
                             }, NULL, FALSE);
 
@@ -1081,53 +1081,6 @@ error:
     return ret;
 }
 
-/* Delete swtpm's state file. Those are the files with suffixes
- * 'permall', 'volatilestate', and 'savestate'.
- */
-static int delete_swtpm_statefiles(const gchar *tpm_state_path)
-{
-    GError *error = NULL;
-    GDir *dir = g_dir_open(tpm_state_path, 0, &error);
-    int ret = 1;
-
-    if (dir == NULL) {
-        logerr(gl_LOGFILE, "%s\n", error->message);
-        g_error_free(error);
-        return 1;
-    }
-    while (1) {
-        const gchar *fn = g_dir_read_name(dir);
-
-        if (fn == NULL) {
-            if (errno != 0 && errno != ENOENT
-#ifdef __FreeBSD__
-                && errno != EINVAL
-#endif
-                ) {
-                logerr(gl_LOGFILE, "Error getting next filename: %s\n", strerror(errno));
-                break;
-            } else {
-                ret = 0;
-                break;
-            }
-        }
-        if (g_str_has_suffix(fn, "permall") ||
-            g_str_has_suffix(fn, "volatilestate") ||
-            g_str_has_suffix(fn, "savestate")) {
-            g_autofree gchar *fullname = g_strjoin(G_DIR_SEPARATOR_S,
-                                                   tpm_state_path, fn, NULL);
-            if (unlink(fullname) != 0) {
-                logerr(gl_LOGFILE, "Coud not remove %s: %s\n", fn, strerror(errno));
-                break;
-            }
-        }
-    }
-
-    g_dir_close(dir);
-
-    return ret;
-}
-
 int main(int argc, char *argv[])
 {
     int opt, option_index = 0;
@@ -1174,6 +1127,8 @@ int main(int argc, char *argv[])
     unsigned long flags = 0;
     g_autofree gchar *swtpm_prg = NULL;
     g_autofree gchar *tpm_state_path = NULL;
+    struct swtpm_backend_ops *backend_ops = &swtpm_backend_dir;
+    void *backend_state = NULL;
     g_autofree gchar *config_file = NULL;
     g_autofree gchar *ownerpass = NULL;
     gboolean got_ownerpass = FALSE;
@@ -1201,10 +1156,7 @@ int main(int argc, char *argv[])
     const struct passwd *curr_user;
     struct group *curr_grp;
     char *endptr;
-    char path[PATH_MAX];
-    char *p;
     gboolean swtpm_has_tpm12, swtpm_has_tpm2;
-    g_autofree gchar *lockfile = NULL;
     int fds_to_pass[1] = { -1 };
     unsigned n_fds_to_pass = 0;
     char tmpbuffer[200];
@@ -1228,7 +1180,12 @@ int main(int argc, char *argv[])
         switch (opt) {
         case 't': /* --tpmstate, --tpm-state */
             g_free(tpm_state_path);
-            tpm_state_path = g_strdup(optarg);
+            if (strncmp(optarg, "dir://", 6) == 0) {
+                tpm_state_path = g_strdup(optarg);
+            } else {
+                /* always prefix with dir:// so we can pass verbatim to swtpm */
+                tpm_state_path = g_strconcat("dir://", optarg, NULL);
+            }
             break;
         case 'T': /* --tpm */
             g_free(swtpm_prg);
@@ -1446,7 +1403,12 @@ int main(int argc, char *argv[])
         logerr(gl_LOGFILE, "--tpm-state must be provided\n");
         goto error;
     }
-    if (check_directory_access(tpm_state_path, R_OK|W_OK, curr_user) != 0)
+
+    backend_state = backend_ops->parse_backend(tpm_state_path);
+    if (!backend_state)
+        goto error;
+
+    if (backend_ops->check_access(backend_state, R_OK|W_OK, curr_user) != 0)
         goto error;
 
     if ((flags & SETUP_WRITE_EK_CERT_FILES_F)) {
@@ -1478,19 +1440,9 @@ int main(int argc, char *argv[])
         goto out;
     }
 
-    ret = delete_swtpm_statefiles(tpm_state_path);
+    ret = backend_ops->delete_state(backend_state);
     if (ret != 0)
         goto error;
-
-    p = pathjoin(path, sizeof(path), tpm_state_path, ".lock", NULL);
-    if (!p)
-        goto error;
-    lockfile = g_strdup(p);
-    if (stat(lockfile, &statbuf) == 0 && access(lockfile, R_OK|W_OK) != 0) {
-        logerr(gl_LOGFILE, "User %s cannot read/write lockfile %s.\n",
-               curr_user ? curr_user->pw_name : "<unknown>", lockfile);
-        goto error;
-    }
 
     if (access(config_file, R_OK) != 0) {
         logerr(gl_LOGFILE, "User %s cannot read config file %s.\n",
@@ -1608,7 +1560,7 @@ int main(int argc, char *argv[])
         logit(gl_LOGFILE, "Successfully authored TPM state.\n");
     } else {
         logerr(gl_LOGFILE, "An error occurred. Authoring the TPM state failed.\n");
-        delete_swtpm_statefiles(tpm_state_path);
+        backend_ops->delete_state(backend_state);
     }
 
     now = time(NULL);
@@ -1625,6 +1577,8 @@ out:
         logerr(gl_LOGFILE, "Could not remove temporary directory for certs: %s\n",
                strerror(errno));
 
+    if (backend_ops && backend_state)
+        backend_ops->free_backend(backend_state);
     g_strfreev(swtpm_prg_l);
     g_free(gl_LOGFILE);
 

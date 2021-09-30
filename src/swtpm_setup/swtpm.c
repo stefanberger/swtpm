@@ -56,7 +56,7 @@ struct tpm_resp_header {
 
 static int swtpm_start(struct swtpm *self)
 {
-    g_autofree gchar *tpmstate_dir = g_strdup_printf("dir=%s", self->state_path);
+    g_autofree gchar *tpmstate = g_strdup_printf("backend-uri=%s", self->state_path);
     g_autofree gchar *pidfile_arg = NULL;
     g_autofree gchar *server_fd = NULL;
     g_autofree gchar *ctrl_fd = NULL;
@@ -81,7 +81,7 @@ static int swtpm_start(struct swtpm *self)
     argv = concat_arrays(self->swtpm_exec_l,
                          (gchar*[]){
                               "--flags", "not-need-init,startup-clear",
-                              "--tpmstate", tpmstate_dir,
+                              "--tpmstate", tpmstate,
                               "--pid", pidfile_arg,
 #if 0
                               "--log", "file=/tmp/log,level=20",
