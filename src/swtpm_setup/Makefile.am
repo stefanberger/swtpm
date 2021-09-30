@@ -19,7 +19,8 @@ swtpm_setup_SOURCES = \
 	swtpm.c \
 	swtpm_setup.c \
 	swtpm_setup_utils.c \
-	swtpm_backend_dir.c
+	swtpm_backend_dir.c \
+	swtpm_backend_file.c
 
 $(top_builddir)/src/utils/libswtpm_utils.la:
 	$(MAKE) -C$(dir $@)

@@ -103,5 +103,6 @@ struct swtpm_backend_ops {
 };
 
 extern struct swtpm_backend_ops swtpm_backend_dir;
+extern struct swtpm_backend_ops swtpm_backend_file;
 
 #endif /* SWTPM_SETUP_SWTPM_H */
