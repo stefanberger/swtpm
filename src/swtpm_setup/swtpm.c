@@ -57,7 +57,7 @@ struct tpm_resp_header {
 static int swtpm_start(struct swtpm *self)
 {
     g_autofree gchar *tpmstate_dir = g_strdup_printf("dir=%s", self->state_path);
-    g_autofree gchar *pidfile_file = NULL;
+    g_autofree gchar *pidfile_arg = NULL;
     g_autofree gchar *server_fd = NULL;
     g_autofree gchar *ctrl_fd = NULL;
     g_autofree gchar *keyopts = NULL;
@@ -67,16 +67,22 @@ static int swtpm_start(struct swtpm *self)
     gboolean success;
     GError *error = NULL;
     unsigned ctr;
+    int pidfile_fd;
+    int ret = 1;
+    char pidfile[] = "/tmp/.swtpm_setup.pidfile.XXXXXX";
 
-    self->pidfile = g_strjoin(G_DIR_SEPARATOR_S,
-                              self->state_path, ".swtpm_setup.pidfile", NULL);
-    pidfile_file = g_strdup_printf("file=%s", self->pidfile);
+    pidfile_fd = mkstemp(pidfile);
+    if (pidfile_fd < 0) {
+        logerr(self->logfile, "Could not create pidfile: %s\n", strerror(errno));
+        goto error;
+    }
+    pidfile_arg = g_strdup_printf("fd=%d", pidfile_fd);
 
     argv = concat_arrays(self->swtpm_exec_l,
                          (gchar*[]){
                               "--flags", "not-need-init,startup-clear",
                               "--tpmstate", tpmstate_dir,
-                              "--pid", pidfile_file,
+                              "--pid", pidfile_arg,
 #if 0
                               "--log", "file=/tmp/log,level=20",
 #endif
@@ -98,13 +104,13 @@ static int swtpm_start(struct swtpm *self)
 
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, self->ctrl_fds) != 0) {
         logerr(self->logfile, "Could not create socketpair: %s\n", strerror(errno));
-        return 1;
+        goto error;
     }
     ctrl_fd = g_strdup_printf("type=unixio,clientfd=%d", self->ctrl_fds[1]);
 
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, self->data_fds) != 0) {
         logerr(self->logfile, "Could not create socketpair: %s\n", strerror(errno));
-        return 1;
+        goto error;
     }
     server_fd = g_strdup_printf("type=tcp,fd=%d", self->data_fds[1]);
 
@@ -113,11 +119,6 @@ static int swtpm_start(struct swtpm *self)
                              "--ctrl", ctrl_fd,
                              NULL
                          }, TRUE);
-
-    if (self->cops->remove_pidfile(self) != 0) {
-        logerr(self->logfile, "Could not remove PID file\n");
-        return 1;
-    }
 
 #if 0
     {
@@ -132,34 +133,30 @@ static int swtpm_start(struct swtpm *self)
     if (!success) {
         logerr(self->logfile, "Could not start swtpm: %s\n", error->message);
         g_error_free(error);
-        return 1;
+        goto error;
     }
 
-    /* wait until the pidfile appears or swtpm terminates */
+    /* wait until the pidfile is written to or swtpm terminates */
     for (ctr = 0; ctr < 1000; ctr++) {
         if (kill(self->pid, 0) < 0) {
             /* swtpm terminated */
             self->pid = 0;
             logerr(self->logfile, "swtpm process terminated unexpectedly.\n");
             self->cops->stop(self);
-            return 1;
+            goto error;
         }
-        if (stat(self->pidfile, &statbuf) == 0) {
+        if (fstat(pidfile_fd, &statbuf) == 0 && statbuf.st_size > 0) {
             printf("TPM is listening on Unix socket.\n");
-            return 0;
+            ret = 0;
+            break;
         }
         usleep(5000);
     }
 
-    return 1;
-}
-
-/* Remove the PID file; return an error if file could not be removed */
-static int swtpm_remove_pidfile(struct swtpm *self)
-{
-    if (self->pidfile && unlink(self->pidfile) < 0 && errno != ENOENT)
-        return 1;
-    return 0;
+error:
+    close(pidfile_fd);
+    unlink(pidfile);
+    return ret;
 }
 
 /* Stop a running swtpm instance and close all the file descriptors connecting to it */
@@ -183,7 +180,6 @@ static void swtpm_stop(struct swtpm *self)
 
         self->pid = 0;
     }
-    self->cops->remove_pidfile(self);
 
     if (self->ctrl_fds[0] >= 0) {
         close(self->ctrl_fds[0]);
@@ -315,7 +311,6 @@ static const struct swtpm_cops swtpm_cops = {
     .start = swtpm_start,
     .stop = swtpm_stop,
     .destroy = swtpm_destroy,
-    .remove_pidfile = swtpm_remove_pidfile,
     .ctrl_shutdown = swtpm_ctrl_shutdown,
     .ctrl_get_tpm_specs_and_attrs = swtpm_ctrl_get_tpm_specs_and_attrs,
 };
@@ -1952,7 +1947,6 @@ struct swtpm2 *swtpm2_new(gchar **swtpm_exec_l, const gchar *state_path,
 void swtpm_free(struct swtpm *swtpm) {
     if (!swtpm)
         return;
-    g_free(swtpm->pidfile);
     g_free(swtpm);
 }
 

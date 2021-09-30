@@ -21,7 +21,6 @@ struct swtpm_cops {
     int (*start)(struct swtpm *);
     void (*stop)(struct swtpm *);
     void (*destroy)(struct swtpm *);
-    int (*remove_pidfile)(struct swtpm *);
 
     int (*ctrl_shutdown)(struct swtpm *);
     int (*ctrl_get_tpm_specs_and_attrs)(struct swtpm *, gchar **);
@@ -70,7 +69,6 @@ struct swtpm {
     gboolean is_tpm2;
 
     GPid pid;
-    gchar *pidfile;
     int ctrl_fds[2];
     int data_fds[2];
 };
