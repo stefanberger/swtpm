@@ -34,8 +34,8 @@ will be used.
 
 =item B<--tpm-state <dir>> or B<--tpmstate <dir>>
 
-Path to a directory where the TPM's state will be written into;
-this is a mandatory argument
+Path where the TPM's state will be written to; this is a mandatory argument.
+Prefix with dir:// to use directory backend, or file:// to use linear file.
 
 =item B<--tpm <path to executable>>
 
