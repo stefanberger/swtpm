@@ -1182,6 +1182,9 @@ int main(int argc, char *argv[])
             g_free(tpm_state_path);
             if (strncmp(optarg, "dir://", 6) == 0) {
                 tpm_state_path = g_strdup(optarg);
+            } else if (strncmp(optarg, "file://", 7) == 0) {
+                tpm_state_path = g_strdup(optarg);
+                backend_ops = &swtpm_backend_file;
             } else {
                 /* always prefix with dir:// so we can pass verbatim to swtpm */
                 tpm_state_path = g_strconcat("dir://", optarg, NULL);
