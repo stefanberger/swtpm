@@ -11,6 +11,7 @@
 #define SWTPM_SETUP_SWTPM_H
 
 #include <glib.h>
+#include <pwd.h>
 
 #include <openssl/sha.h>
 
@@ -92,5 +93,15 @@ struct swtpm2 *swtpm2_new(gchar **swtpm_prg_l, const gchar *tpm_state_path,
                          int *fds_to_pass, size_t n_fds_to_pass);
 
 void swtpm_free(struct swtpm *);
+
+/* backend-specific implementations */
+struct swtpm_backend_ops {
+    void* (*parse_backend)(const gchar* uri);
+    int (*check_access)(void *backend, int mode, const struct passwd *curr_user);
+    int (*delete_state)(void *backend);
+    void (*free_backend)(void *backend);
+};
+
+extern struct swtpm_backend_ops swtpm_backend_dir;
 
 #endif /* SWTPM_SETUP_SWTPM_H */
