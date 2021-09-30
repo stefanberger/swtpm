@@ -752,30 +752,6 @@ static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
     return 0;
 }
 
-/* Delete a TPM 1.2 or TPM 2 statefile tpm-00.permall or tpm2-00.permall.
- * Return 1 in case the file could not be removed, 0 otherwise.
- */
-static int delete_state(unsigned int flags, const char *tpm_state_path)
-{
-    const char *statefile;
-    char path[PATH_MAX];
-    const char *p = NULL;
-
-    if (flags & SETUP_TPM2_F)
-        statefile = "tpm2-00.permall";
-    else
-        statefile = "tpm-00.permall";
-
-    p = pathjoin(path, sizeof(path), tpm_state_path, statefile, NULL);
-    if (!p)
-        return 1;
-
-    if (unlink(p) != 0)
-        return 1;
-
-    return 0;
-}
-
 static void versioninfo(void)
 {
     printf("TPM emulator setup tool version %d.%d.%d\n",
@@ -1632,7 +1608,7 @@ int main(int argc, char *argv[])
         logit(gl_LOGFILE, "Successfully authored TPM state.\n");
     } else {
         logerr(gl_LOGFILE, "An error occurred. Authoring the TPM state failed.\n");
-        delete_state(flags, tpm_state_path);
+        delete_swtpm_statefiles(tpm_state_path);
     }
 
     now = time(NULL);
