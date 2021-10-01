@@ -350,6 +350,9 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
     const char    *tpm_state_path = NULL;
 
+    static bool   do_fsync = true; /* turn off fsync if it fails, most
+                                      likely due to AppArmor */
+
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
     if (rc == 0) {
@@ -391,14 +394,14 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             rc = TPM_FAIL;
         }
     }
-    if (rc == 0 && fd >= 0) {
+    if (rc == 0 && fd >= 0 && do_fsync) {
         TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing file %s\n", tmpfile);
         irc = fsync(fd);
         if (irc != 0) {
+            do_fsync = false;
             logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) syncing file, %s\n",
+                      "SWTPM_NVRAM_StoreData: Error syncing file, %s. Check AppArmor profile.\n",
                       strerror(errno));
-            rc = TPM_FAIL;
         } else {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced file %s\n", tmpfile);
         }
@@ -434,7 +437,7 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
      *  directory containing the file has also reached disk. For that an
      *  explicit fsync() on a file descriptor for the directory is also needed.
      */
-    if (rc == 0 && fd >= 0) {
+    if (rc == 0 && fd >= 0 && do_fsync) {
         TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening dir %s\n", tpm_state_path);
         dir_fd = open(tpm_state_path, O_RDONLY);
         if (dir_fd < 0) {
@@ -448,10 +451,10 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
         TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing dir %s\n", tpm_state_path);
         irc = fsync(dir_fd);
         if (irc != 0) {
+            do_fsync = false;
             logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) syncing dir, %s\n",
+                      "SWTPM_NVRAM_StoreData: Error syncing dir, %s. Check AppArmor profile.\n",
                       strerror(errno));
-            rc = TPM_FAIL;
         } else {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced dir %s\n", tpm_state_path);
         }
