@@ -350,6 +350,9 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
     const char    *tpm_state_path = NULL;
 
+    static bool   do_dir_fsync = true; /* turn off fsync on dir if it fails,
+                                          most likely due to AppArmor */
+
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
     if (rc == 0) {
@@ -434,14 +437,15 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
      *  directory containing the file has also reached disk. For that an
      *  explicit fsync() on a file descriptor for the directory is also needed.
      */
-    if (rc == 0 && fd >= 0) {
+    if (rc == 0 && fd >= 0 && do_dir_fsync) {
         TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening dir %s\n", tpm_state_path);
         dir_fd = open(tpm_state_path, O_RDONLY);
         if (dir_fd < 0) {
+            do_dir_fsync = false;
             logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) opening %s for "
-                      "fsync failed, %s\n", tpm_state_path, strerror(errno));
-            rc = TPM_FAIL;
+                      "SWTPM_NVRAM_StoreData: Error opening %s for "
+                      "fsync failed, %s. Continuing but check AppArmor profile.\n",
+                      tpm_state_path, strerror(errno));
         }
     }
     if (rc == 0 && dir_fd >= 0) {
