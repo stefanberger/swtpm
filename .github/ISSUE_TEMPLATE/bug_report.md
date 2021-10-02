@@ -31,5 +31,8 @@ A clear and concise description of what you expected to happen.
 - gnutls:
 - ...:
 
+**Log files**
+Please attach any log files. If using a VM and it was started with libvirt, attach the logfile  found in `/var/log/swtpm/libvirt/qemu/VM-NAME-swtpm.log`.
+
 **Additional context**
 Add any other context about the problem here.
