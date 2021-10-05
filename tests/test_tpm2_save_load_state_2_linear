@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 export SWTPM_TEST_LINEAR_FILE=1
 export TPM_COMMAND_PORT=65461
