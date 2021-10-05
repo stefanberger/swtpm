@@ -32,9 +32,6 @@ static void *parse_file_state(const gchar* uri) {
         uri += 7;
     }
 
-    ret = g_malloc(sizeof(struct file_state));
-    ret->path = g_strdup(uri);
-
     stat_ret = stat(uri, &statbuf);
     if (stat_ret != 0) {
         noent = errno == ENOENT;
@@ -43,6 +40,9 @@ static void *parse_file_state(const gchar* uri) {
             return NULL;
         }
     }
+
+    ret = g_malloc(sizeof(struct file_state));
+    ret->path = g_strdup(uri);
     ret->is_blockdev = noent ? false : S_ISBLK(statbuf.st_mode);
 
     return (void*)ret;
