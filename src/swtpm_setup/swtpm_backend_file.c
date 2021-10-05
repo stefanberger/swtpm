@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "compiler_dependencies.h"
 #include "swtpm.h"
 #include "swtpm_utils.h"
 
@@ -48,7 +49,9 @@ static void *parse_file_state(const gchar* uri) {
 }
 
 /* Check user access in 'mode' to file/blockdev specified in backend state. */
-static int check_access(void *state, int mode, const struct passwd *curr_user) {
+static int check_access(void *state,
+                        int mode SWTPM_ATTR_UNUSED,
+                        const struct passwd *curr_user SWTPM_ATTR_UNUSED) {
     const gchar *path = ((struct file_state*)state)->path;
     int ret = access(path, R_OK|W_OK);
     return ret == 0 || errno == ENOENT ? 0 : 1;
