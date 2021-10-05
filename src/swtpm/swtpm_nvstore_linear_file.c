@@ -200,7 +200,12 @@ SWTPM_NVRAM_LinearFile_Flush(const char* uri SWTPM_ATTR_UNUSED,
     /* msync parameters must be page-aligned */
     uint32_t pagesize = sysconf(_SC_PAGESIZE);
     msync_offset = mmap_state.ptr + (offset & ~(pagesize - 1));
+#if defined(__CYGWIN__)
+    /* Cygwin uses Win API FlushViewOfFile, which we call with len = 0 */
+    msync_count = 0;
+#else
     msync_count = (count + (pagesize - 1)) & ~(pagesize - 1);
+#endif
 
     TPM_DEBUG("SWTPM_NVRAM_LinearFile_Flush: msync %d@0x%x\n",
               msync_count, msync_offset);
