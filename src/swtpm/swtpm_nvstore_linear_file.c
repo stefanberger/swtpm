@@ -14,6 +14,7 @@
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
 
+#include "compiler_dependencies.h"
 #include "swtpm.h"
 #include "swtpm_debug.h"
 #include "swtpm_nvstore_linear.h"
@@ -182,7 +183,7 @@ SWTPM_NVRAM_LinearFile_Open(const char* uri,
 }
 
 static TPM_RESULT
-SWTPM_NVRAM_LinearFile_Flush(const char* uri,
+SWTPM_NVRAM_LinearFile_Flush(const char* uri SWTPM_ATTR_UNUSED,
                              uint32_t offset,
                              uint32_t count)
 {
@@ -227,7 +228,7 @@ static void SWTPM_NVRAM_LinearFile_Cleanup(void)
 }
 
 static TPM_RESULT
-SWTPM_NVRAM_LinearFile_Resize(const char* uri,
+SWTPM_NVRAM_LinearFile_Resize(const char* uri SWTPM_ATTR_UNUSED,
                               unsigned char **data,
                               uint32_t *new_length,
                               uint32_t requested_length)

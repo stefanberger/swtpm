@@ -3,11 +3,12 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <string.h>
-#include <endian.h>
 
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_nvfilename.h>
 
+#include "compiler_dependencies.h"
+#include "sys_dependencies.h"
 #include "swtpm.h"
 #include "swtpm_debug.h"
 #include "swtpm_nvstore.h"
@@ -281,9 +282,9 @@ SWTPM_NVRAM_Prepare_Linear(const char *uri)
 static TPM_RESULT
 SWTPM_NVRAM_LoadData_Linear(unsigned char **data,
                             uint32_t *length,
-                            uint32_t tpm_number,
+                            uint32_t tpm_number SWTPM_ATTR_UNUSED,
                             const char *name,
-                            const char *uri)
+                            const char *uri SWTPM_ATTR_UNUSED)
 {
     uint32_t file_nr;
     uint32_t file_offset;
@@ -335,7 +336,7 @@ SWTPM_NVRAM_LoadData_Linear(unsigned char **data,
 static TPM_RESULT
 SWTPM_NVRAM_StoreData_Linear(unsigned char *filedata,
                              uint32_t filedata_length,
-                             uint32_t tpm_number,
+                             uint32_t tpm_number SWTPM_ATTR_UNUSED,
                              const char *name,
                              const char *uri)
 {
@@ -409,9 +410,9 @@ SWTPM_NVRAM_StoreData_Linear(unsigned char *filedata,
 }
 
 static TPM_RESULT
-SWTPM_NVRAM_DeleteName_Linear(uint32_t tpm_number,
+SWTPM_NVRAM_DeleteName_Linear(uint32_t tpm_number SWTPM_ATTR_UNUSED,
                               const char *name,
-                              TPM_BOOL mustExist,
+                              TPM_BOOL mustExist SWTPM_ATTR_UNUSED,
                               const char *uri)
 {
     TPM_RESULT rc = 0;
@@ -444,7 +445,7 @@ static void SWTPM_NVRAM_Cleanup_Linear(void) {
 }
 
 static TPM_RESULT
-SWTPM_NVRAM_CheckState_Linear(const char *uri,
+SWTPM_NVRAM_CheckState_Linear(const char *uri SWTPM_ATTR_UNUSED,
                               const char *name,
                               size_t *blobsize)
 {
