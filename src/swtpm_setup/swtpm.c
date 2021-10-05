@@ -74,7 +74,7 @@ static int swtpm_start(struct swtpm *self)
     pidfile_fd = mkstemp(pidfile);
     if (pidfile_fd < 0) {
         logerr(self->logfile, "Could not create pidfile: %s\n", strerror(errno));
-        goto error;
+        goto error_no_pidfile;
     }
     // pass filename rather than fd (Cygwin)
     pidfile_arg = g_strdup_printf("file=%s", pidfile);
@@ -157,6 +157,8 @@ static int swtpm_start(struct swtpm *self)
 error:
     close(pidfile_fd);
     unlink(pidfile);
+
+error_no_pidfile:
     return ret;
 }
 
