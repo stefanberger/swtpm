@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if ! [[ "$(uname -s)" =~ Linux ]]; then
+	echo "This test currently only runs on Linux."
+	exit 77
+fi
+
 if [ "$(id -u)" -ne 0 ]; then
 	echo "Need to be root to run this test."
 	exit 77

@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-#include <linux/fs.h>
+#include <sys/mount.h>
 #include <fcntl.h>
 
 #include <libtpms/tpm_types.h>
@@ -43,7 +43,6 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
 {
     TPM_RESULT rc = 0;
     struct stat st;
-    uint64_t bd_size;
 
     TPM_DEBUG("SWTPM_NVRAM_LinearFile_Mmap: renewing mmap\n");
 
@@ -82,6 +81,9 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
         mmap_state.size = st.st_size;
         mmap_state.can_truncate = true;
     } else if (S_ISBLK(st.st_mode)) {
+#if defined(BLKGETSIZE64)
+        uint64_t bd_size;
+
         /* valid block device, can't resize, but can use as is */
         if (ioctl(mmap_state.fd, BLKGETSIZE64, &bd_size)) {
             logprintf(STDERR_FILENO,
@@ -101,6 +103,12 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
             rc = TPM_FAIL;
             goto fail;
         }
+#else
+        logprintf(STDERR_FILENO, "SWTPM_NVRAM_LinearFile_Mmap: block devices are"
+                                 " not supported\n");
+        rc = TPM_FAIL;
+        goto fail;
+#endif
     } else {
         logprintf(STDERR_FILENO, "SWTPM_NVRAM_LinearFile_Mmap: invalid stat\n");
         rc = TPM_FAIL;
