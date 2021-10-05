@@ -76,7 +76,8 @@ static int swtpm_start(struct swtpm *self)
         logerr(self->logfile, "Could not create pidfile: %s\n", strerror(errno));
         goto error;
     }
-    pidfile_arg = g_strdup_printf("fd=%d", pidfile_fd);
+    // pass filename rather than fd (Cygwin)
+    pidfile_arg = g_strdup_printf("file=%s", pidfile);
 
     argv = concat_arrays(self->swtpm_exec_l,
                          (gchar*[]){
