@@ -68,6 +68,7 @@ libswtpm_libtpms_la_CFLAGS = \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
+	-I$(top_srcdir)/src/utils \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
 	$(HARDENING_CFLAGS) \
@@ -105,6 +106,7 @@ swtpm_CFLAGS = \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
+	-I$(top_srcdir)/src/utils \
 	$(MY_CFLAGS) \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
@@ -131,6 +133,7 @@ swtpm_cuse_CFLAGS = \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
+	-I$(top_srcdir)/src/utils \
 	$(MY_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(LIBFUSE_CFLAGS) \

@@ -78,6 +78,7 @@
 #include "seccomp_profile.h"
 #include "options.h"
 #include "capabilities.h"
+#include "swtpm_utils.h"
 
 /* maximum size of request buffer */
 #define TPM_REQ_MAX 4096

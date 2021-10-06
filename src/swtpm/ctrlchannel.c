@@ -61,6 +61,7 @@
 #include "mainloop.h"
 #include "utils.h"
 #include "swtpm_debug.h"
+#include "swtpm_utils.h"
 
 /* local variables */
 

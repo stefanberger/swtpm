@@ -14,7 +14,8 @@
 
 #include <glib.h>
 
-#define min(X,Y) (X) < (Y) ? (X) : (Y)
+#define min(X,Y) ((X) < (Y) ? (X) : (Y))
+#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 extern gchar *gl_LOGFILE;
 

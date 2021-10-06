@@ -58,6 +58,7 @@
 #endif
 #include "utils.h"
 #include "compiler_dependencies.h"
+#include "swtpm_utils.h"
 
 /*
  * convert the blobtype integer into a string that libtpms
