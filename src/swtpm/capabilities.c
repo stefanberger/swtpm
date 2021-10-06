@@ -143,7 +143,7 @@ int capabilities_print_json(bool cusetpm)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"version\": \"" VERSION "\" "
          "}",
@@ -154,6 +154,7 @@ int capabilities_print_json(bool cusetpm)
          cmdarg_seccomp,
          true         ? "\"cmdarg-key-fd\", "          : "",
          true         ? "\"cmdarg-pwd-fd\", "          : "",
+         true         ? "\"cmdarg-print-states\", "    : "",
          nvram_backend_dir,
          nvram_backend_file,
          keysizecaps  ? keysizecaps                    : ""
