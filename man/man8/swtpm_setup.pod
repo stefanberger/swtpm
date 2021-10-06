@@ -195,6 +195,7 @@ The output may contain the following:
         "cmdarg-keyfile-fd",
         "cmdarg-pwdfile-fd",
         "cmdarg-write-ek-cert-files",
+        "cmdarg-create-config-files",
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
         "tpm12-not-need-root",
@@ -220,7 +221,11 @@ The I<--pwdfile-fd> option is supported.
 
 =item B<cmdarg-write-ek-cert-files>
 
-The I<--write-ek-cert-files> option is supported
+The I<--write-ek-cert-files> option is supported.
+
+=item B<cmdarg-create-config-files>
+
+The I<--create-config-files> option is supported.
 
 =item B<tpm2-rsa-keysize-2048, ...>
 
@@ -254,6 +259,27 @@ and ek-secp384r1.crt.
 The keys that are written for a TPM 2 may change over time as the default
 strength of the EK keys changes. This means that one should look for all
 files with the above filename pattern when looking for the EKs.
+
+=item B<--create-config-files [[overwrite][,root]]>
+
+This option allows a user to create config files for swtpm_setup and
+swtpm-localca under the $XDG_CONFIG_HOME or $HOME/.config directories.
+
+The meaning of the options is as follows:
+
+=over 4
+
+==item B<overwrite>
+
+Overwrite any existing config files.
+
+==item B<root>
+
+Create the config files even under the root account. These config files
+may then shadow any other existing config files, such as
+/etc/swtpm-localca.conf for example.
+
+=back
 
 =item B<--help, -h>
 
