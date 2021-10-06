@@ -874,6 +874,12 @@ static void usage(const char *prgname, const char *default_config_file)
         "--print-capabilities\n"
         "                 : Print JSON formatted capabilites added after v0.1 and exit.\n"
         "\n"
+        "--create-config-files [[overwrite][,root]]\n"
+        "                 : Create swtpm_setup and swtpm-localca config files for a\n"
+        "                   user account.\n"
+        "                   overwrite: overwrite any existing files\n"
+        "                   root: allow to create files under root's home directory\n"
+        "\n"
         "--version        : Display version and exit\n"
         "\n"
         "--help,-h,-?     : Display this help screen\n\n",
@@ -1022,7 +1028,7 @@ static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
 
     printf("{ \"type\": \"swtpm_setup\", "
            "\"features\": [ %s%s\"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
-           ", \"cmdarg-write-ek-cert-files\""
+           ", \"cmdarg-write-ek-cert-files\", \"cmdarg-create-config-files\""
            "%s ], "
            "\"version\": \"" VERSION "\" "
            "}\n",
@@ -1082,6 +1088,21 @@ error:
     return ret;
 }
 
+static int handle_create_config_files(const char *optarg)
+{
+    g_auto(GStrv) tokens = NULL;
+    gboolean overwrite = FALSE;
+    gboolean root_flag = FALSE;
+
+    if (optarg) {
+        tokens = g_strsplit_set(optarg, ", ", -1);
+        overwrite = g_strv_contains((const gchar **)tokens, "overwrite");
+        root_flag = g_strv_contains((const gchar **)tokens, "root");
+    }
+
+    return create_config_files(overwrite, root_flag);
+}
+
 int main(int argc, char *argv[])
 {
     int opt, option_index = 0;
@@ -1119,6 +1140,7 @@ int main(int argc, char *argv[])
         {"pcr-banks", required_argument, NULL, 'b'},
         {"rsa-keysize", required_argument, NULL, 'A'},
         {"write-ek-cert-files", required_argument, NULL, '3'},
+        {"create-config-files", optional_argument, NULL, 'u'},
         {"tcsd-system-ps-file", required_argument, NULL, 'F'},
         {"version", no_argument, NULL, '1'},
         {"print-capabilities", no_argument, NULL, 'y'},
@@ -1312,6 +1334,11 @@ int main(int argc, char *argv[])
             user_certsdir = g_strdup(optarg);
             flags |= SETUP_WRITE_EK_CERT_FILES_F;
             break;
+        case 'u':
+            if (optarg == NULL && optind < argc && argv[optind][0] != '0')
+                optarg = argv[optind++];
+            ret = handle_create_config_files(optarg);
+            goto out;
         case 'F': /* --tcsd-system-ps-file */
             printf("Warning: --tcsd-system-ps-file is deprecated and has no effect.");
             break;

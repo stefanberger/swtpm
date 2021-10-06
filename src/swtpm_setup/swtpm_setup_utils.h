@@ -13,5 +13,6 @@
 #include <glib.h>
 
 gchar *get_config_value(gchar **config_file_lines, const gchar *configname);
+int create_config_files(gboolean overwrite, gboolean root_flag);
 
 #endif /* SWPTM_SETUP_UTILS_H */
