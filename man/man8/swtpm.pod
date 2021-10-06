@@ -304,6 +304,7 @@ may contain the following:
         "cmdarg-seccomp",
         "cmdarg-key-fd",
         "cmdarg-pwd-fd",
+        "cmdarg-print-states",
         "nvram-backend-dir",
         "nvram-backend-file",
         "tpm-send-command-header",
@@ -347,6 +348,10 @@ The I<--key> option supports the I<fd=> parameter.
 
 The I<--key> option supports the I<pwdfd=> parameter.
 
+=item B<cmdarg-print-states>
+
+The I<--print-states> option is supported.
+
 =item B<nvram-backend-dir>
 
 The I<--tpmstate> option supports the I<backend-uri=dir://...> and
@@ -369,6 +374,30 @@ The TPM 2 supports the shown RSA key sizes. If none of the
 rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 
 =back
+
+=item B<--print-states>
+
+This option allows to print out the TPM 1.2 or TPM 2 state blobs
+that are currently stored in a storage backend. This option requires
+that the storage backend be specified using the I<--tpmstate> option
+and if TPM 2 state blobs are supposed to be shown, the I<--tpm2>
+option must be passed.
+
+The following shows the JSON output of this option. It indicates that
+the 'permall' and 'volatile' states are available.
+
+    {
+      "type": "swtpm",
+      "states": [
+        {
+          "name": "permall",
+          "size": 6013
+        }, {
+          "name": "volatile",
+          "size": 1087
+        }
+      ]
+    }
 
 =item B<-h|--help>
 
