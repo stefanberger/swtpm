@@ -65,6 +65,7 @@
 #include "utils.h"
 #include "sys_dependencies.h"
 #include "compiler_dependencies.h"
+#include "swtpm_utils.h"
 
 /* local variables */
 static TPM_MODIFIER_INDICATOR locality;

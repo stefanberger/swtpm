@@ -47,6 +47,7 @@
 #include "logging.h"
 #include "utils.h"
 #include "seccomp_profile.h"
+#include "swtpm_utils.h"
 
 #ifdef WITH_SECCOMP
 static int create_seccomp_profile_add_rules(scmp_filter_ctx ctx,
