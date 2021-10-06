@@ -354,8 +354,13 @@ The I<--print-states> option is supported.
 
 =item B<nvram-backend-dir>
 
-The I<--tpmstate> option supports the I<backend-uri=dir://...> and
-I<backend-uri=file://...> parameters.
+The I<--tpmstate> option supports the I<backend-uri=dir://...>
+parameter.
+
+=item B<nvram-backend-file>
+
+The I<--tpmstate> option supports the I<backend-uri=file://...>
+parameter.
 
 =item B<tpm-send-command-header>
 
