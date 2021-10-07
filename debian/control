@@ -64,6 +64,6 @@ Description: Tools for the TPM emulator
   - swtpm_cert: Creation of certificates for the TPM (x509)
 Depends: gnutls-bin,
          swtpm (= ${binary:Version}),
-         trousers (>= 0.3.9),
          ${misc:Depends},
          ${shlibs:Depends}
+Suggests: trousers (>= 0.3.9)
