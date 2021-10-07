@@ -42,7 +42,8 @@ TESTS += \
 	test_print_capabilities \
 	test_print_states \
 	test_swtpm_setup_overwrite \
-	test_swtpm_setup_file_backend
+	test_swtpm_setup_file_backend \
+	test_swtpm_setup_misc
 
 TESTS += \
 	test_tpm2_ctrlchannel2 \

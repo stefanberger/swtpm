@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+if [ "$(id -u)" -eq 0 ]; then
+	echo "Not running this test as root."
+	exit 77
+fi
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
+
+source ${TESTDIR}/common
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf ${workdir}
+}
+
+workdir=$(mktemp -d)
+
+FILES="swtpm-localca.conf swtpm-localca.options swtpm_setup.conf"
+
+XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files 1>/dev/null
+
+if [ $? -ne 0 ]; then
+	echo "Error: Could not created config files (without parameters)"
+	exit 1
+fi
+for f in ${FILES}; do
+	if ! [ -f "${workdir}/${f}" ]; then
+		echo "Error: File ${workedir}/${f} was not created"
+		exit 1
+	fi
+done
+if ! [ -d "${workdir}/var/lib/swtpm-localca" ]; then
+	echo "Error: Directory var/lib/swtpm-localca was not created"
+	exit 1
+fi
+
+XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files skip-if-exist 1>/dev/null
+
+if [ $? -ne 0 ]; then
+	echo "Error: skip-if-exists should have exit'ed with 0."
+	exit 1
+fi
+
+echo "Test 1: Ok"
+cleanup
+
+workdir=$(mktemp -d)
+
+XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files skip-if-exist 1>/dev/null
+
+if [ $? -ne 0 ]; then
+	echo "Error: skip-if-exists should have exit'ed with 0."
+	exit 1
+fi
+for f in ${FILES}; do
+	if ! [ -f "${workdir}/${f}" ]; then
+		echo "Error: File ${workedir}/${f} was not created"
+		exit 1
+	fi
+done
+if ! [ -d "${workdir}/var/lib/swtpm-localca" ]; then
+	echo "Error: Directory var/lib/swtpm-localca was not created"
+	exit 1
+fi
+
+echo "Test 2: Ok"
+cleanup
+
+exit 0
