@@ -83,26 +83,15 @@ static const struct flag_to_certfile {
 /* initialize the path of the config_file */
 static int init(gchar **config_file)
 {
-    const char *xch = getenv("XDG_CONFIG_HOME");
-    const char *home = getenv("HOME");
-    char path[PATH_MAX];
-    const char *p = NULL;
-    int ret = 0;
+    const gchar *configdir = g_get_user_config_dir();
 
-    if (xch != NULL &&
-        (p = pathjoin(path, sizeof(path), xch, SWTPM_SETUP_CONF, NULL)) != NULL &&
-        access(p, R_OK) == 0) {
-        /* p is good */
-    } else if (home != NULL &&
-        (p = pathjoin(path, sizeof(path), home, ".config", SWTPM_SETUP_CONF)) != NULL &&
-        access(p, R_OK) == 0) {
-        /* p is good */
-    } else {
-        p = pathjoin(path, sizeof(path), G_DIR_SEPARATOR_S, SYSCONFDIR, SWTPM_SETUP_CONF);
+    *config_file = g_build_filename(configdir, SWTPM_SETUP_CONF, NULL);
+    if (access(*config_file, R_OK) != 0) {
+        g_free(*config_file);
+        *config_file = g_build_filename(SYSCONFDIR, SWTPM_SETUP_CONF, NULL);
     }
-    *config_file = g_strdup(p);
 
-    return ret;
+    return 0;
 }
 
 /* Get the spec and attributes parameters from swtpm */
