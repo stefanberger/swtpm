@@ -4,8 +4,20 @@ set -e
 
 SWTPM_LOCALCA_DIR=@LOCALSTATEDIR@/lib/swtpm-localca
 
-if ! [ -d $SWTPM_LOCALCA_DIR ]; then
-	mkdir -p $SWTPM_LOCALCA_DIR
-	chown @TSS_USER@:root $SWTPM_LOCALCA_DIR
-	chmod 0750 $SWTPM_LOCALCA_DIR
-fi
+case "$1" in
+	configure)
+		if ! [ -d $SWTPM_LOCALCA_DIR ]; then
+			mkdir -p $SWTPM_LOCALCA_DIR
+			chown @TSS_USER@:root $SWTPM_LOCALCA_DIR
+			chmod 0750 $SWTPM_LOCALCA_DIR
+		fi
+
+	;;
+	abort-upgrade|abort-remove|abort-deconfigure)
+	;;
+
+	*)
+		echo "postinst called with unknown argument \`$1'" >&2
+		exit 1
+	;;
+esac
