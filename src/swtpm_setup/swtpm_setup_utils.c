@@ -81,10 +81,8 @@ int create_config_files(gboolean overwrite, gboolean root_flag,
         "swtpm-localca.conf",
         "swtpm-localca.options"
     };
-    const char *xch = getenv("XDG_CONFIG_HOME");
-    const char *home = getenv("HOME");
+    const gchar *configdir = g_get_user_config_dir();
     g_autofree gchar *create_certs_tool = NULL;
-    g_autofree gchar *directory = NULL;
     g_autofree gchar *swtpm_localca_dir = NULL;
     g_autofree gchar *signkey = NULL;
     g_autofree gchar *issuercert = NULL;
@@ -106,16 +104,9 @@ int create_config_files(gboolean overwrite, gboolean root_flag,
         goto error;
     }
 
-    if (xch == NULL) {
-        fprintf(stdout, "Environment variable XDG_CONFIG_HOME is not set. Using ${HOME}/.config.\n");
-        directory = g_build_filename(home, ".config", NULL);
-    } else {
-        directory = g_strdup(xch);
-    }
-
     configfiles = g_new0(gchar *, NUM_FILES + 1);
     for (i = 0; i < NUM_FILES; i++) {
-        configfiles[i] = g_build_filename(directory, filenames[i], NULL);
+        configfiles[i] = g_build_filename(configdir, filenames[i], NULL);
         if (!overwrite && g_file_test(configfiles[i], G_FILE_TEST_EXISTS)) {
             if (skip_if_exist) {
                 ret = 0;
@@ -127,7 +118,7 @@ int create_config_files(gboolean overwrite, gboolean root_flag,
         }
     }
 
-    swtpm_localca_dir = g_build_filename(directory,
+    swtpm_localca_dir = g_build_filename(configdir,
                                          "var", "lib", "swtpm-localca", NULL);
     if (g_mkdir_with_parents(swtpm_localca_dir, 0775) < 0) {
         fprintf(stderr, "Could not create %s: %s\n",
