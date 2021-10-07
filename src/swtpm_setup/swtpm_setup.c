@@ -879,6 +879,7 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   user account.\n"
         "                   overwrite: overwrite any existing files\n"
         "                   root: allow to create files under root's home directory\n"
+        "                   skip-if-exist: if any file exists exit without error\n"
         "\n"
         "--version        : Display version and exit\n"
         "\n"
@@ -1093,14 +1094,20 @@ static int handle_create_config_files(const char *optarg)
     g_auto(GStrv) tokens = NULL;
     gboolean overwrite = FALSE;
     gboolean root_flag = FALSE;
+    gboolean skip_if_exist = FALSE;
 
     if (optarg) {
         tokens = g_strsplit_set(optarg, ", ", -1);
         overwrite = g_strv_contains((const gchar **)tokens, "overwrite");
         root_flag = g_strv_contains((const gchar **)tokens, "root");
+        skip_if_exist = g_strv_contains((const gchar **)tokens, "skip-if-exist");
+        if (overwrite && skip_if_exist) {
+            fprintf(stderr, "Error: overwrite and skip-if-exist cannot both be used\n");
+            return 1;
+        }
     }
 
-    return create_config_files(overwrite, root_flag);
+    return create_config_files(overwrite, root_flag, skip_if_exist);
 }
 
 int main(int argc, char *argv[])

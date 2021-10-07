@@ -279,6 +279,11 @@ Create the config files even under the root account. These config files
 may then shadow any other existing config files, such as
 /etc/swtpm-localca.conf for example.
 
+==item B<skip-if-exist>
+
+Do nothing if any one of the config files that would be created already
+exists.
+
 =back
 
 =item B<--help, -h>
