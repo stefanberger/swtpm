@@ -1,19 +1,5 @@
 #!/usr/bin/env bash
 
-if [ -z "${XDG_CONFIG_HOME}" ]; then
-	echo "Environment variable XDG_CONFIG_HOME is not set. Using \${HOME}/.config."
-	XDG_CONFIG_HOME="${HOME}/.config"
-fi
-
-SWTPM_LOCALCA_DIR="${XDG_CONFIG_HOME}/var/lib/swtpm-localca"
-
-SWTPM_SETUP_CONF="${XDG_CONFIG_HOME}/swtpm_setup.conf"
-SWTPM_LOCALCA_CONF="${XDG_CONFIG_HOME}/swtpm-localca.conf"
-SWTPM_LOCALCA_OPTIONS="${XDG_CONFIG_HOME}/swtpm-localca.options"
-
-FLAG_OVERWRITE=1
-FLAG_ROOT=2
-
 function help() {
 	cat <<_EOF_
 Usage: $1 [options]
@@ -30,62 +16,23 @@ _EOF_
 }
 
 function main() {
-	local flags=0
+	local flags=""
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
-		--overwrite) flags=$((flags | FLAG_OVERWRITE));;
-		--root) flags=$((flags | FLAG_ROOT));;
+		--overwrite) flags="${flags},overwrite";;
+		--root) flags="${flags},root";;
+		--skip-if-exist) flags="${flags},skip-if-exist";;
 		--help|-h|-?) help $0; exit 0;;
 		*) echo -e "Unknown option $1\n" >&2; help $0; exit 1;;
 		esac
 		shift
 	done
 
-	if [ "$(id -u)" = "0" ]; then
-		if [[ $((flags & FLAG_ROOT)) -eq 0 ]]; then
-			echo "Requiring the --root flag since the configuration files will shadow"
-			echo "those in @SYSCONFDIR@."
-			exit 1
-		fi
-	fi
+	[ "${flags:0:1}" = "," ] && flags=${flags:1}
 
-	if [[ $((flags & FLAG_OVERWRITE)) -eq 0 ]]; then
-		for f in "${SWTPM_SETUP_CONF}" \
-			"${SWTPM_LOCALCA_CONF}" \
-			"${SWTPM_LOCALCA_OPTIONS}"; do
-			if [ -f "${f}" ]; then
-				echo "File ${f} already exists. Refusing to overwrite." >&2
-				exit 1
-			fi
-		done
-	fi
-
-	mkdir -p "${SWTPM_LOCALCA_DIR}"
-
-	echo "Writing ${SWTPM_SETUP_CONF}."
-	cat <<_EOF_ > "${SWTPM_SETUP_CONF}"
-create_certs_tool = @DATAROOTDIR@/swtpm/swtpm-localca
-create_certs_tool_config = ${SWTPM_LOCALCA_CONF}
-create_certs_tool_options = ${SWTPM_LOCALCA_OPTIONS}
-_EOF_
-
-	echo "Writing ${SWTPM_LOCALCA_CONF}."
-	cat <<_EOF_ > "${SWTPM_LOCALCA_CONF}"
-statedir = ${SWTPM_LOCALCA_DIR}
-signingkey = ${SWTPM_LOCALCA_DIR}/signkey.pem
-issuercert = ${SWTPM_LOCALCA_DIR}/issuercert.pem
-certserial = ${SWTPM_LOCALCA_DIR}/certserial
-_EOF_
-
-	echo "Writing ${SWTPM_LOCALCA_OPTIONS}."
-	cat <<_EOF_ > "${SWTPM_LOCALCA_OPTIONS}"
---platform-manufacturer $(uname -s | tr " " "_")
---platform-version $(uname -r | tr " " "_")
---platform-model $(uname -s | tr " " "_")
-_EOF_
-
-	exit 0
+	@BINDIR@/swtpm_setup --create-config-files ${flags}
+	exit $?
 }
 
 main "$@"
