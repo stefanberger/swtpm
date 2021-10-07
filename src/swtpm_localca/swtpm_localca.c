@@ -48,39 +48,21 @@ gchar *gl_LOGFILE = NULL;
 /* initialize the path of the options and config files */
 static int init(gchar **options_file, gchar **config_file)
 {
-    const char *xch = getenv("XDG_CONFIG_HOME");
-    const char *home = getenv("HOME");
-    char path[PATH_MAX];
-    const char *p = NULL;
-    int ret = 0;
+    const gchar *configdir = g_get_user_config_dir();
 
-    if (xch != NULL &&
-        (p = pathjoin(path, sizeof(path), xch, LOCALCA_OPTIONS, NULL)) != NULL &&
-        access(p, R_OK) == 0) {
-        /* p is good */
-    } else if (home != NULL &&
-        (p = pathjoin(path, sizeof(path), home, ".config", LOCALCA_OPTIONS)) != NULL &&
-        access(p, R_OK) == 0) {
-        /* p is good */
-    } else {
-        p = pathjoin(path, sizeof(path), G_DIR_SEPARATOR_S, SYSCONFDIR, LOCALCA_OPTIONS);
+    *options_file = g_build_filename(configdir, LOCALCA_OPTIONS, NULL);
+    if (access(*options_file, R_OK) != 0) {
+        g_free(*options_file);
+        *options_file = g_build_filename(SYSCONFDIR, LOCALCA_OPTIONS, NULL);
     }
-    *options_file = g_strdup(p);
 
-    if (xch != NULL &&
-        (p = pathjoin(path, sizeof(path), xch, LOCALCA_CONFIG, NULL)) != NULL &&
-        access(p, R_OK) == 0) {
-        /* p is good */
-    } else if (home != NULL &&
-        (p = pathjoin(path, sizeof(path), home, ".config", LOCALCA_CONFIG)) != NULL &&
-        access(p, R_OK) == 0) {
-        /* p is good */
-    } else {
-        p = pathjoin(path, sizeof(path), G_DIR_SEPARATOR_S, SYSCONFDIR, LOCALCA_CONFIG);
+    *config_file = g_build_filename(configdir, LOCALCA_CONFIG, NULL);
+    if (access(*config_file, R_OK) != 0) {
+        g_free(*config_file);
+        *config_file = g_build_filename(SYSCONFDIR, LOCALCA_CONFIG, NULL);
     }
-    *config_file = g_strdup(p);
 
-    return ret;
+    return 0;
 }
 
 /* Run the certtool command line prepared in cmd. Display error message
