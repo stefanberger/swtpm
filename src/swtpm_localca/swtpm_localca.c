@@ -555,7 +555,7 @@ static void usage(const char *prgname)
         "--tpm2                Generate a certificate for a TPM 2\n"
         "--allow-signing       The TPM 2's EK can be used for signing\n"
         "--decryption          The TPM 2's EK can be used for decryption\n"
-        "--help, -h, -?        Display this help screen and exit\n"
+        "--help, -h            Display this help screen and exit\n"
         "\n"
         "\n"
         "The following environment variables are supported:\n"
@@ -674,7 +674,8 @@ int main(int argc, char *argv[])
         case '?':
         case 'h': /* --help */
             usage(argv[0]);
-            ret = 0;
+            if (opt == 'h')
+                ret = 0;
             goto out;
         default:
             fprintf(stderr, "Unknown option code %d\n", opt);
