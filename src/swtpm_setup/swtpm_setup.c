@@ -872,7 +872,7 @@ static void usage(const char *prgname, const char *default_config_file)
         "\n"
         "--version        : Display version and exit\n"
         "\n"
-        "--help,-h,-?     : Display this help screen\n\n",
+        "--help,-h        : Display this help screen\n\n",
             prgname,
             DEFAULT_OWNER_PASSWORD,
             DEFAULT_SRK_PASSWORD,
@@ -1348,7 +1348,8 @@ int main(int argc, char *argv[])
         case '?':
         case 'h': /* --help */
             usage(argv[0], config_file);
-            ret = 0;
+            if (opt == 'h')
+                ret = 0;
             goto out;
         default:
             fprintf(stderr, "Unknown option code %d\n", opt);
