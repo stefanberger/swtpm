@@ -114,6 +114,15 @@ if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "2048 bits")" ]; t
 	exit 1
 fi
 
+expiration="$($CERTTOOL --inder --infile "${certfile}" -i | grep "Not After:")"
+expected="Not After: Fri Dec 31 23:59:59 UTC 9999"
+if [ -z "$(echo "${expiration}" | grep "${expected}")" ]; then
+	echo "Error: EK file '${certfile}' does not expire in 9999"
+	echo "actual:   ${expiration}"
+	echo "expected: ${expected}"
+	exit 1
+fi
+
 echo "OK"
 
 exit 0

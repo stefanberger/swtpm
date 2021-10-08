@@ -154,7 +154,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         filecontent = "cn=swtpm-localca-rootca\n"
                       "ca\n"
                       "cert_signing_key\n"
-                      "expiration_days = 3600\n";
+                      "expiration_days = -1\n";
         template1_file_fd = write_to_tempfile(&template1_file,
                                               (const unsigned char *)filecontent, strlen(filecontent));
         if (template1_file_fd < 0)
@@ -198,7 +198,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         filecontent = "cn=swtpm-localca\n"
                       "ca\n"
                       "cert_signing_key\n"
-                      "expiration_days = 3600\n";
+                      "expiration_days = -1\n";
         if (swtpm_rootca_password != NULL && signkey_password != NULL)
             fc = g_strdup_printf("%spassword = %s\n", filecontent, swtpm_rootca_password);
         else
@@ -483,7 +483,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     cmd = concat_arrays(cmd, (gchar *[]){
                             "--signkey", (gchar *)signkey,
                             "--issuercert", (gchar *)issuercert,
-                            "--days", "3600",
+                            "--days", "-1",
                             "--serial", (gchar *)serial_str,
                             NULL
                         }, TRUE);
