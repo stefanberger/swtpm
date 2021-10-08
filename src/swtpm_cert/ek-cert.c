@@ -126,7 +126,8 @@ usage(const char *prg)
         "--ecc-curveid <id>        : ECC curve id; secp256r1, secp384r1, secp521r1\n"
         "                            default: secp256r1\n"
         "--serial <serial number>  : The certificate serial number\n"
-        "--days <number>           : Number of days the cert is valid\n"
+        "--days <number>           : Number of days the cert is valid;\n"
+        "                            -1 for no expiration\n"
         "--pem                     : Write certificate in PEM format; default is DER\n"
         "--type <platform|ek>      : The type of certificate to create; default is ek\n"
         "--tpm-manufacturer <name> : The name of the TPM manufacturer\n"
@@ -1019,6 +1020,7 @@ main(int argc, char *argv[])
     const char *subject = NULL;
     const char *error = NULL;
     int days = 365;
+    time_t exp_time;
     char *sigkeypass = NULL;
     char *parentkeypass = NULL;
     uint64_t ser_number;
@@ -1164,10 +1166,6 @@ main(int argc, char *argv[])
             break;
         case 'd': /* --days */
             days = atoi(optarg);
-            if (days < 0) {
-                fprintf(stderr, "Days must be a positive number.\n");
-                goto cleanup;
-            }
             break;
         case 'r': /* --serial */
             errno = 0;
@@ -1453,8 +1451,8 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     CHECK_GNUTLS_ERROR(err, "Could not set activation time on CRT: %s\n",
                        gnutls_strerror(err))
 
-    err = gnutls_x509_crt_set_expiration_time(crt,
-             now + (time_t)days * 24 * 60 * 60);
+    exp_time = (days < 0) ? -1 : now + (time_t)days * 24 * 60 * 60;
+    err = gnutls_x509_crt_set_expiration_time(crt, exp_time);
     CHECK_GNUTLS_ERROR(err, "Could not set expiration time on CRT: %s\n",
                        gnutls_strerror(err))
 
