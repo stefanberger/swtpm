@@ -364,7 +364,7 @@ SWTPM_NVRAM_StoreData_Linear(unsigned char *filedata,
             return rc;
         }
         needs_hdr_flush = TRUE;
-    } else if (filedata_length > file->section_length) {
+    } else if (filedata_length > le32toh(file->section_length)) {
         /* realloc, resize will be done by AllocFile */
         rc = SWTPM_NVRAM_Linear_RemoveFile(uri, file_nr, FALSE);
         if (rc) {
