@@ -17,7 +17,7 @@ noinst_HEADERS = \
 	main.h \
 	mainloop.h \
 	options.h \
-	osx.h \
+	daemonize.h \
 	pidfile.h \
 	seccomp_profile.h \
 	server.h \
@@ -95,7 +95,7 @@ swtpm_DEPENDENCIES = $(privlib_LTLIBRARIES)
 
 swtpm_SOURCES = \
 		main.c \
-		osx.c \
+		daemonize.c \
 		swtpm.c \
 		swtpm_chardev.c
 if WITH_CUSE

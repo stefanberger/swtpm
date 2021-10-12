@@ -1,9 +1,9 @@
 /*
- * osx.h -- OS X specifics
+ * daemonize.h -- Race-free daemoninization utilities
  *
- * (c) Copyright IBM Corporation 2018.
+ * (c) Copyright IBM Corporation 2021.
  *
- * Author: Stefan Berger <stefanb@us.ibm.com>
+ * Author: Nicolas Williams <nico@twosigma.com>
  *
  * All rights reserved.
  *
@@ -38,6 +38,7 @@
 #ifndef SWTPM_OSX
 #define SWTPM_OSX
 
-int osx_daemon(int nochdir, int noclose);
+int daemonize_prep(void);
+void daemonize_finish(void);
 
 #endif /* SWTPM_OSX */

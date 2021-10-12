@@ -68,7 +68,7 @@
 #include "ctrlchannel.h"
 #include "tpmstate.h"
 #include "sys_dependencies.h"
-#include "osx.h"
+#include "daemonize.h"
 #include "seccomp_profile.h"
 #include "options.h"
 #include "capabilities.h"
@@ -275,6 +275,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         switch (opt) {
         case 'd':
             daemonize = TRUE;
+            if (daemonize_prep() == -1) {
+                logprintf(STDERR_FILENO,
+                          "Could not prepare to daemonize: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
             break;
 
         case 'p':
@@ -485,17 +490,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD;
     }
 
-    if (daemonize) {
-#ifdef __APPLE__
-        if (0 != osx_daemon(0, 0)) {
-#else
-        if (0 != daemon(0, 0)) {
-#endif
-            logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
-            goto exit_failure;
-        }
-    }
-
     if (pidfile_write(getpid()) < 0) {
         goto exit_failure;
     }
@@ -525,6 +519,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
     if (create_seccomp_profile(false, seccomp_action) < 0)
         goto error_seccomp_profile;
+
+    if (daemonize) {
+        daemonize_finish();
+    }
 
     rc = mainLoop(&mlp, notify_fd[0]);
 
