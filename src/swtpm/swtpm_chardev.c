@@ -70,7 +70,7 @@
 #include "vtpm_proxy.h"
 #endif
 #include "tpmstate.h"
-#include "osx.h"
+#include "daemonize.h"
 #include "seccomp_profile.h"
 #include "options.h"
 #include "capabilities.h"
@@ -335,6 +335,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         switch (opt) {
         case 'd':
             daemonize = TRUE;
+            if (daemonize_prep() == -1) {
+                logprintf(STDERR_FILENO,
+                          "Could not prepare to daemonize: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
             break;
 
         case 'c':
@@ -534,17 +539,6 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         goto exit_failure;
     }
 
-    if (daemonize) {
-#if defined __APPLE__
-       if (0 != osx_daemon(0, 0)) {
-#else
-       if (0 != daemon(0, 0)) {
-#endif
-           logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
-           goto exit_failure;
-       }
-    }
-
     if (pidfile_write(getpid()) < 0) {
         goto exit_failure;
     }
@@ -577,6 +571,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
 
     mlp.flags |= MAIN_LOOP_FLAG_USE_FD | MAIN_LOOP_FLAG_KEEP_CONNECTION | \
       MAIN_LOOP_FLAG_END_ON_HUP;
+
+    if (daemonize) {
+        daemonize_finish();
+    }
 
     rc = mainLoop(&mlp, notify_fd[0]);
 
