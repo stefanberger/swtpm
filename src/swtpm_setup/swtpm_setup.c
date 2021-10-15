@@ -1175,7 +1175,8 @@ int main(int argc, char *argv[])
     const struct passwd *curr_user;
     struct group *curr_grp;
     char *endptr;
-    gboolean swtpm_has_tpm12, swtpm_has_tpm2;
+    gboolean swtpm_has_tpm12 = FALSE;
+    gboolean swtpm_has_tpm2 = FALSE;
     int fds_to_pass[1] = { -1 };
     unsigned n_fds_to_pass = 0;
     char tmpbuffer[200];
