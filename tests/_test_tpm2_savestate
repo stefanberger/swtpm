@@ -122,6 +122,10 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
+# Wait 5 seconds to check whether the permanent state changes due to the PCR_Read
+sha1_permanent="$(get_sha1_file "${STATE_FILE}")"
+sleep 5
+
 swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 # Read PCR 10
 #                                                   length         CC            count       hashalg         sz
@@ -131,6 +135,13 @@ if [ "$RES" != "$exp" ]; then
 	echo "Error: (2) Did not get expected result from TPM2_PCR_Read(10)"
 	echo "expected: $exp"
 	echo "received: $RES"
+	exit 1
+fi
+
+if [ "${sha1_permanent}" != "$(get_sha1_file "${STATE_FILE}")" ]; then
+	echo "Error: To avoid command timeouts, the permanent state ${STATE_FILE} must "
+	echo "       not change due short-running commands like TPM2_PCR_Read()."
+	echo "       You need a more recent version of libtpms."
 	exit 1
 fi
 
