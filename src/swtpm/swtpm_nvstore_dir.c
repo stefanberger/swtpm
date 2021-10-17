@@ -350,12 +350,8 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
     const char    *tpm_state_path = NULL;
 
-#if 0
     static bool   do_dir_fsync = true; /* turn off fsync on dir if it fails,
                                           most likely due to AppArmor */
-#endif
-    /* don't do fsync on dir since this may cause TPM command timeouts */
-    static bool   do_dir_fsync = false;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
@@ -398,7 +394,6 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             rc = TPM_FAIL;
         }
     }
-#if 0 // disabled due to triggering TPM timeouts
     if (rc == 0 && fd >= 0) {
         TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing file %s\n", tmpfile);
         irc = fsync(fd);
@@ -411,7 +406,6 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced file %s\n", tmpfile);
         }
     }
-#endif
     if (fd >= 0) {
         TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing file %s\n", tmpfile);
         irc = close(fd);             /* @1 */
