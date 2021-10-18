@@ -1,3 +1,4 @@
+# spec file for RHEL/CentOS and Fedora
 %bcond_without gnutls
 
 # Macros needed by SELinux
@@ -24,7 +25,9 @@ BuildRequires:  net-tools
 BuildRequires:  openssl-devel
 BuildRequires:  socat
 BuildRequires:  softhsm
+%if (0%{?fedora}) || (0%{?rhel} && 0%{?rhel} < 9)
 BuildRequires:  trousers >= 0.3.9
+%endif
 %if %{with gnutls}
 BuildRequires:  gnutls >= 3.1.0
 BuildRequires:  gnutls-devel
