@@ -186,6 +186,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm_probe \
 	_test_tpm2_derived_keys \
 	_test_tpm2_encrypted_state \
+	_test_tpm2_file_permissions \
 	_test_tpm2_getcap \
 	_test_tpm2_hashing \
 	_test_tpm2_hashing2 \
