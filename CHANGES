@@ -1,5 +1,38 @@
 CHANGES - changes for swtpm
 
+version 0.7.0:
+  - swtpm:
+    - Support for linear file storage backend (file://)
+    - Report 'tpm-1.2' & 'tpm-2.0' in --print-capabilities depending what
+      libtpms supports
+    - Add implementation of SWTPM_HMAC using OpenSSL 3.0 APIs
+    - Wipe keys from stack and heap
+    - Many other small changes
+    - Make --daemon not racy
+  - swtpm_setup:
+    - Only activate SHA256 PCR bank, not SHA1 bank anymore by default
+    - Support for linear file storage backend (file://)
+    - Implement option --create-config-files to create config files
+    - Use non-deprecated APIs to contruct RSA key (OSSL 3)
+    - Report stderr as returned by external tool (swtpm-localcal)
+    - Replace '+' and ',' characters in VMId's to make work with
+      common name in X509 subject
+    - Add support for --reconfigure flag to change active PCR banks
+  - swtpm_localca:
+    - Created certificates for CAs and TPM that do not expire
+  - swtpm_cert:
+    - Allow passing -1 for days to get a non-expiring certificate
+  - test:
+    - ASAN-related test changes and skipping of tests if ASAN is used
+    - Fix tests using tpm2-abrmd by preventing concurrency
+    - Skip chardev related tests after checking for chardev support
+    - exit with error code if mktemp fails
+    - OSSL 3: Make TPM 1.2 test compile; skip IBM TSS 2 test
+  - build-sys:
+    - Introduce --enable-sanitizers to configure
+    - Remove check for pip3 that was used by python swtpm_setup
+    - Allow passing of aditional CFLAGS during build
+
 version 0.6.0:
   - swtpm:
     - Fix --print-capabilities for 'swtpm chardev'
