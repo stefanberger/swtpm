@@ -254,6 +254,7 @@ static int call_create_certs(unsigned long flags, const gchar *configfile, const
         for (idx = 0; flags_to_certfiles[idx].filename != NULL; idx++) {
             if (flags & flags_to_certfiles[idx].flag) {
                 g_autofree gchar *standard_output = NULL;
+                g_autofree gchar *standard_error = NULL;
                 GError *error = NULL;
                 gchar **lines;
 
@@ -263,8 +264,8 @@ static int call_create_certs(unsigned long flags, const gchar *configfile, const
                 logit(gl_LOGFILE, "  Invoking %s\n", s);
                 g_free(s);
 
-                success = g_spawn_sync(NULL, cmd, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-                                       &standard_output, NULL, &exit_status, &error);
+                success = g_spawn_sync(NULL, cmd, NULL, 0, NULL, NULL,
+                                       &standard_output, &standard_error, &exit_status, &error);
                 if (!success) {
                     logerr(gl_LOGFILE, "An error occurred running %s: %s\n",
                            create_certs_tool, error->message);
@@ -273,7 +274,7 @@ static int call_create_certs(unsigned long flags, const gchar *configfile, const
                     break;
                 } else if (exit_status != 0) {
                     logerr(gl_LOGFILE, "%s exit with status %d: %s\n",
-                           prgname, exit_status, standard_output);
+                           prgname, WEXITSTATUS(exit_status), standard_error);
                     ret = 1;
                     break;
                 }
@@ -287,6 +288,8 @@ static int call_create_certs(unsigned long flags, const gchar *configfile, const
 
                 g_free(standard_output);
                 standard_output = NULL;
+                g_free(standard_error);
+                standard_error = NULL;
             }
         }
     }
