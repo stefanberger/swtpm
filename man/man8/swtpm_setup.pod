@@ -260,31 +260,41 @@ The keys that are written for a TPM 2 may change over time as the default
 strength of the EK keys changes. This means that one should look for all
 files with the above filename pattern when looking for the EKs.
 
-=item B<--create-config-files [[overwrite][,root]]>
+=item B<--create-config-files [[overwrite][,root][,skip-if-exist]]>
 
-This option allows a user to create config files for swtpm_setup and
+This option allows a user to create configuration files for swtpm_setup and
 swtpm-localca under the $XDG_CONFIG_HOME or $HOME/.config directories.
+
+The configuration files will not be created if any one of them already
+exists and in this case the program will report the first file it finds
+and exit with an error code.
 
 The meaning of the options is as follows:
 
 =over 4
 
-==item B<overwrite>
+=item B<overwrite>
 
-Overwrite any existing config files.
+Overwrite any existing configuration files.
 
-==item B<root>
+=item B<root>
 
-Create the config files even under the root account. These config files
-may then shadow any other existing config files, such as
-/etc/swtpm-localca.conf for example.
+Create the configuration files even under the root account. These
+configuration files may then shadow any other existing configuration files,
+such as /etc/swtpm-localca.conf for example.
 
-==item B<skip-if-exist>
+=item B<skip-if-exist>
 
-Do nothing if any one of the config files that would be created already
-exists.
+Do nothing if any one of the configuration files that would be created already
+exists. The program will exit without error code.
 
 =back
+
+Note: The case when a user is part of the group that is allowed to access
+the default configuration files' paths is currently not handled. On many
+systems this may be the case when a user is part of the 'tss' group. In
+this case it is recommended that the user replace the swtpm-localca.conf
+created with this command with a symbolic link to /etc/swtpm-localca.conf.
 
 =item B<--help, -h>
 
