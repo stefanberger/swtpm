@@ -8,7 +8,9 @@ override_dh_auto_configure:
 	dh_auto_configure -- --with-openssl --with-gnutls --without-cuse
 
 override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	SWTPM_TEST_SECCOMP_OPT="--seccomp action=none" make -j4 check VERBOSE=1
+endif
 
 override_dh_clean:
 	dh_clean --exclude=man/man8/swtpm-localca.8
