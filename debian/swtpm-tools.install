@@ -1,9 +1,8 @@
-#!/bin/sh
-cat <<_EOF_
 /etc/swtpm-localca.conf
 /etc/swtpm-localca.options
 /etc/swtpm_setup.conf
 /usr/bin/swtpm_bios
+/usr/bin/swtpm_cert
 /usr/bin/swtpm_ioctl
 /usr/bin/swtpm_localca
 /usr/bin/swtpm_setup
@@ -19,8 +18,3 @@ cat <<_EOF_
 /usr/share/man/man8/swtpm_setup.conf.8*
 /usr/share/swtpm/swtpm-create-tpmca
 /usr/share/swtpm/swtpm-create-user-config-files
-/usr/share/swtpm/swtpm-localca
-_EOF_
-if test -n "$(find $(dirname "$0")/tmp -name swtpm_cert)"; then
-echo "/usr/bin/swtpm_cert"
-fi
