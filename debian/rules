@@ -4,7 +4,6 @@
 	dh $@
 
 override_dh_auto_configure:
-	NOCONFIGURE=1 ./autogen.sh
 	dh_auto_configure -- --with-openssl --with-gnutls --without-cuse
 
 override_dh_auto_test:
