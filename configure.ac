@@ -550,7 +550,6 @@ AC_SUBST([MY_CFLAGS])
 AC_SUBST([MY_LDFLAGS])
 
 AC_CONFIG_FILES([Makefile                   \
-		debian/swtpm-tools.postinst \
 		swtpm.spec                  \
 		samples/Makefile            \
 		samples/swtpm-localca.conf  \

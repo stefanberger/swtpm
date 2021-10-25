@@ -1,0 +1,36 @@
+#!/bin/sh
+
+set -e
+
+SWTPM_LOCALCA_DIR=/var/lib/swtpm-localca
+
+case "$1" in
+	configure)
+		# creating tss group if he isn't already there
+		if ! getent group tss >/dev/null; then
+			addgroup --system tss
+		fi
+
+		# creating tss user if he isn't already there
+		if ! getent passwd tss >/dev/null; then
+			adduser --system --ingroup tss --shell /bin/false \
+			    --home /var/lib/tpm --no-create-home \
+			    --gecos "TPM software stack" \
+			    tss
+		fi
+
+		if ! [ -d $SWTPM_LOCALCA_DIR ]; then
+			mkdir -p $SWTPM_LOCALCA_DIR
+			chown tss:root $SWTPM_LOCALCA_DIR
+			chmod 0750 $SWTPM_LOCALCA_DIR
+		fi
+
+	;;
+	abort-upgrade|abort-remove|abort-deconfigure)
+	;;
+
+	*)
+		echo "postinst called with unknown argument \`$1'" >&2
+		exit 1
+	;;
+esac
