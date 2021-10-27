@@ -869,14 +869,25 @@ function skip_test_no_tpm20()
 	fi
 }
 
-# Check whether swtpm supports chardev interface
-function skip_test_no_chardev()
+# Test whether swtpm has a chardev interface; Returns 0 if true, 1 otherwise
+function test_swtpm_has_chardev()
 {
 	local swtpm_exe="$1"
 
 	local res=$(${swtpm_exe} chardev --help 2>&1 |
 		    grep "Unsupported TPM interface")
-	if [ -n "${res}" ]; then
+	if [ -z "${res}" ]; then
+		return 0
+	fi
+	return 1
+}
+
+# Skip test if swtpm does not support chardev interface
+function skip_test_no_chardev()
+{
+	local swtpm_exe="$1"
+
+	if ! test_swtpm_has_chardev "${swtpm_exe}"; then
 		echo "${swtpm_exe} does not support chardev interface"
 		exit 77
 	fi
