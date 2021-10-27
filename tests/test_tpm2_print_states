@@ -17,4 +17,13 @@ bash _test_tpm2_print_states
 ret=$?
 [ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
 
+if test_swtpm_has_chardev "${SWTPM_EXE}"; then
+	export SWTPM_IFACE=chardev
+	bash _test_tpm2_print_states
+	ret=$?
+	[ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
+else
+	echo "Skip: No chardev available"
+fi
+
 exit 0
