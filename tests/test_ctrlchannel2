@@ -38,15 +38,15 @@ $SWTPM_EXE chardev \
 	--tpmstate dir=$TPMDIR \
 	--pid file=$PID_FILE \
 	--ctrl type=unixio,path=$SOCK_PATH \
-	${SWTPM_TEST_SECCOMP_OPT} &
-PID=$!
+	--daemon \
+	${SWTPM_TEST_SECCOMP_OPT}
 
-if wait_for_file $PID_FILE 3; then
+if  [ ! -f $PID_FILE ]; then
 	echo "Error: Chardev TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+PID=$(cat "$PID_FILE")
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)

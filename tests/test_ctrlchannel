@@ -83,17 +83,18 @@ $SWTPM_EXE socket \
 	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH,mode=${FILEMODE}${FOWNER} \
 	--log file=$LOG_FILE,level=20 \
 	$RUNAS \
-	${SWTPM_TEST_SECCOMP_OPT} &
-PID=$!
+	--daemon \
+	${SWTPM_TEST_SECCOMP_OPT}
 exec 100>&-
 exec 101>&-
 
-if wait_for_file $PID_FILE 3; then
+
+if [ ! -f $PID_FILE ]; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+PID=$(cat "$PID_FILE")
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
