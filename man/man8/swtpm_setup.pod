@@ -164,8 +164,12 @@ used for creating the certificates and may be required by that tool.
 =item B<--pcr-banks <PCR banks>>
 
 Optional comma-separated list of PCR banks to activate. Providing '-'
-allows a user to skip the selection and activates all PCR banks. By default
-the sha1 and sha256 banks are activated.
+allows a user to skip the selection and activates all PCR banks.
+If this option is not provided, the I<swtpm_setup.conf> configuration
+file will be consulted for the active_pcr_banks entry. If no such
+entry is found then the default set of PCR banks will be activated.
+The default set of PCR banks can be determined using the I<--help>
+option.
 
 =item B<--swtpm_ioctl <executable>>
 
