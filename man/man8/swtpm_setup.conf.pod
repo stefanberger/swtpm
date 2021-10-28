@@ -89,6 +89,12 @@ that will be passed to the invoked program using the --optsfile
 option described above. If omitted, the invoked program will use
 the default options file.
 
+=item B<active_pcr_banks> (since v0.7)
+
+This keyword is to be followed by a comma-separated list
+of names of PCR banks. The list must not contain any spaces.
+Valid PCR bank names are sha1, sha256, sha384, and sha512.
+
 =back
 
 =head1 SEE ALSO

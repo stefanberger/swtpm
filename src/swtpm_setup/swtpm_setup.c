@@ -431,6 +431,29 @@ static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_fi
                                     user_certsdir);
 }
 
+/* Get the default PCR banks from the config file and if nothing can
+   be found there use the DEFAULT_PCR_BANKS #define.
+ */
+static gchar *get_default_pcr_banks(const gchar *config_file)
+{
+    g_auto(GStrv) config_file_lines = NULL;
+    gchar *pcr_banks;
+    int ret;
+
+    ret = read_file_lines(config_file, &config_file_lines);
+    if (ret != 0)
+        return NULL;
+
+    pcr_banks = get_config_value(config_file_lines, "active_pcr_banks");
+    if (pcr_banks)
+        g_strstrip(pcr_banks);
+    if (pcr_banks == NULL || strlen(pcr_banks) == 0) {
+        g_free(pcr_banks);
+        pcr_banks = g_strdup(DEFAULT_PCR_BANKS);
+    }
+    return pcr_banks;
+}
+
 /* Activate the given list of PCR banks. If pcr_banks is '-' then leave
  * the configuration as-is.
  */
@@ -1419,14 +1442,6 @@ int main(int argc, char *argv[])
     if (!got_srkpass)
         srkpass = g_strdup(DEFAULT_SRK_PASSWORD);
 
-    /* check pcr_banks */
-    tmp_l = g_strsplit(pcr_banks ? pcr_banks : "", ",", -1);
-    for (i = 0, n = 0; tmp_l[i]; i++)
-        n += strlen(tmp_l[i]);
-    g_strfreev(tmp_l);
-    if (n == 0)
-        pcr_banks = g_strdup(DEFAULT_PCR_BANKS);
-
     if (gl_LOGFILE != NULL) {
         FILE *tmpfile;
         if (stat(gl_LOGFILE, &statbuf) == 0 &&
@@ -1494,6 +1509,18 @@ int main(int argc, char *argv[])
         logerr(gl_LOGFILE, "User %s cannot read config file %s.\n",
                curr_user ? curr_user->pw_name : "<unknown>", config_file);
         goto error;
+    }
+
+    /* check pcr_banks; read from config file if not given */
+    tmp_l = g_strsplit(pcr_banks ? pcr_banks : "", ",", -1);
+    for (i = 0, n = 0; tmp_l[i]; i++) {
+        g_strstrip(tmp_l[i]);
+        n += strlen(tmp_l[i]);
+    }
+    g_strfreev(tmp_l);
+    if (n == 0) {
+        g_free(pcr_banks);
+        pcr_banks = get_default_pcr_banks(config_file);
     }
 
     if (cipher != NULL) {
