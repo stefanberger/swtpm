@@ -63,8 +63,6 @@
 /* default configuration file */
 #define SWTPM_SETUP_CONF "swtpm_setup.conf"
 
-#define DEFAULT_PCR_BANKS "sha256"
-
 /* Default logging goes to stderr */
 gchar *gl_LOGFILE = NULL;
 

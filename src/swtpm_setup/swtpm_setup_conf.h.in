@@ -17,4 +17,6 @@
 #define SYSCONFDIR "@SYSCONFDIR@"
 #define BINDIR "@BINDIR@"
 
+#define DEFAULT_PCR_BANKS "@DEFAULT_PCR_BANKS@"
+
 #endif /* SWTPM_SETUP_CONF_H */

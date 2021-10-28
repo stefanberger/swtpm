@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+[[ $1 =~ ^(sha1|sha256|sha384|sha512)(,(sha1|sha256|sha384|sha512)){0,3}$ ]] \
+ && exit 0
+exit 1
