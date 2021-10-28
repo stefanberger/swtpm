@@ -346,6 +346,28 @@ fi
 AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" = "xyes"])
 AC_SUBST([GNUTLS_LIBS])
 
+DEFAULT_PCR_BANKS="sha256"
+AC_ARG_ENABLE([default-pcr-banks],
+              AS_HELP_STRING(
+                  [--enable-default-pcr-banks=list of PCR banks],
+                  [Have swtpm_setup activate the given PCR banks by default;
+                  default is sha256]
+              ),
+              [],
+              []
+)
+
+if test "x$enable_default_pcr_banks" != "x"; then
+    DEFAULT_PCR_BANKS="$enable_default_pcr_banks"
+fi
+AC_MSG_CHECKING([which PCR banks to activate by default])
+if $srcdir/scripts/test_pcr_bank_list $DEFAULT_PCR_BANKS; then
+	AC_MSG_RESULT([$DEFAULT_PCR_BANKS])
+else
+	AC_MSG_ERROR([$DEFAULT_PCR_BANKS is an invalid list of PCR banks])
+fi
+AC_SUBST([DEFAULT_PCR_BANKS])
+
 AC_PATH_PROG([EXPECT], expect)
 if test "x$EXPECT" = "x"; then
 	AC_MSG_ERROR([expect is required: expect package])
@@ -556,6 +578,7 @@ AC_CONFIG_FILES([Makefile                   \
 		samples/swtpm-localca.conf  \
 		samples/swtpm-create-user-config-files \
 		samples/swtpm_setup.conf    \
+		scripts/Makefile            \
 		include/Makefile            \
 		include/swtpm/Makefile      \
 		include/swtpm.h             \
@@ -587,6 +610,8 @@ printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
 printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
 printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
 printf "with_seccomp    : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
+printf "\n"
+printf "active PCR banks  : %s\n" $DEFAULT_PCR_BANKS
 echo
 echo "Version to build  : $PACKAGE_VERSION"
 echo "Crypto library    : $cryptolib"
