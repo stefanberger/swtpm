@@ -129,8 +129,8 @@ int create_config_files(gboolean overwrite, gboolean root_flag,
     filedata = g_new0(gchar *, NUM_FILES + 1);
 
     /* setpm_setup.conf */
-    create_certs_tool = g_build_filename(DATAROOTDIR,
-                                         "swtpm", "swtpm-localca", NULL);
+    create_certs_tool = g_build_filename(BINDIR,
+                                         "swtpm_localca", NULL);
     filedata[SWTPM_SETUP_CONF] = g_strdup_printf(
         "create_certs_tool = %s\n"
         "create_certs_tool_config = %s\n"
