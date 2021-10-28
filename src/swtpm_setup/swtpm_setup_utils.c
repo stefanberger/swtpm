@@ -134,10 +134,13 @@ int create_config_files(gboolean overwrite, gboolean root_flag,
     filedata[SWTPM_SETUP_CONF] = g_strdup_printf(
         "create_certs_tool = %s\n"
         "create_certs_tool_config = %s\n"
-        "create_certs_tool_options = %s\n",
+        "create_certs_tool_options = %s\n"
+        "# Comma-separated list (no spaces) of PCR banks to activate by default\n"
+        "active_pcr_banks = %s\n",
         create_certs_tool,
         configfiles[SWTPM_LOCALCA_CONF],
-        configfiles[SWTPM_LOCALCA_OPTIONS]
+        configfiles[SWTPM_LOCALCA_OPTIONS],
+        DEFAULT_PCR_BANKS
     );
 
     /* swtpm-localca.conf */

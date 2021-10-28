@@ -2,3 +2,5 @@
 create_certs_tool= @BINDIR@/swtpm_localca
 create_certs_tool_config = @SYSCONFDIR@/swtpm-localca.conf
 create_certs_tool_options = @SYSCONFDIR@/swtpm-localca.options
+# Comma-separated list (no spaces) of PCR banks to activate by default
+active_pcr_banks = @DEFAULT_PCR_BANKS@
