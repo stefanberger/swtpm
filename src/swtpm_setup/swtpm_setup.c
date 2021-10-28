@@ -431,6 +431,41 @@ static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_fi
                                     user_certsdir);
 }
 
+/* Activate the given list of PCR banks. If pcr_banks is '-' then leave
+ * the configuration as-is.
+ */
+static int tpm2_activate_pcr_banks(struct swtpm2 *swtpm2,
+                                   const gchar *pcr_banks)
+{
+    g_autofree gchar *active_pcr_banks_join = NULL;
+    g_autofree gchar *all_pcr_banks_join = NULL;
+    g_auto(GStrv) active_pcr_banks = NULL;
+    g_auto(GStrv) all_pcr_banks = NULL;
+    g_auto(GStrv) pcr_banks_l = NULL;
+    struct swtpm *swtpm = &swtpm2->swtpm;
+    int ret = 0;
+
+    if (g_str_equal(pcr_banks, "-"))
+        return 0;
+
+    ret = swtpm2->ops->get_all_pcr_banks(swtpm, &all_pcr_banks);
+    if (ret != 0)
+        return ret;
+
+    pcr_banks_l = g_strsplit(pcr_banks, ",", -1);
+    ret = swtpm2->ops->set_active_pcr_banks(swtpm, pcr_banks_l, all_pcr_banks,
+                                            &active_pcr_banks);
+    if (ret != 0)
+        return ret;
+
+    active_pcr_banks_join = g_strjoinv(",", active_pcr_banks);
+    all_pcr_banks_join = g_strjoinv(",", all_pcr_banks);
+    logit(gl_LOGFILE, "Successfully activated PCR banks %s among %s.\n",
+          active_pcr_banks_join, all_pcr_banks_join);
+
+    return 0;
+}
+
 /* Simulate manufacturing a TPM 2: create keys and certificates */
 static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                      const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
@@ -465,29 +500,9 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
     if (ret != 0)
         goto destroy;
 
-    if (strcmp(pcr_banks, "-") != 0) {
-        gchar **all_pcr_banks = NULL;
-
-        ret = swtpm2->ops->get_all_pcr_banks(swtpm, &all_pcr_banks);
-        if (ret == 0) {
-            gchar **active_pcr_banks = NULL;
-            gchar **pcr_banks_l = g_strsplit(pcr_banks, ",", -1);
-            ret = swtpm2->ops->set_active_pcr_banks(swtpm, pcr_banks_l, all_pcr_banks,
-                                                    &active_pcr_banks);
-            g_strfreev(pcr_banks_l);
-            if (ret == 0) {
-                g_autofree gchar *active_pcr_banks_join = g_strjoinv(",", active_pcr_banks);
-                g_autofree gchar *all_pcr_banks_join = g_strjoinv(",", all_pcr_banks);
-                logit(gl_LOGFILE, "Successfully activated PCR banks %s among %s.\n",
-                      active_pcr_banks_join, all_pcr_banks_join);
-            }
-            g_strfreev(active_pcr_banks);
-        }
-        g_strfreev(all_pcr_banks);
-
-        if (ret != 0)
-            goto destroy;
-    }
+    ret = tpm2_activate_pcr_banks(swtpm2, pcr_banks);
+    if (ret != 0)
+        goto destroy;
 
     ret = swtpm2->ops->shutdown(swtpm);
 
