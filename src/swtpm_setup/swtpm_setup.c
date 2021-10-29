@@ -43,22 +43,22 @@
 #define DEFAULT_OWNER_PASSWORD "ooo"
 #define DEFAULT_SRK_PASSWORD   "sss"
 
-#define SETUP_CREATE_EK_F           1
-#define SETUP_TAKEOWN_F             2
-#define SETUP_EK_CERT_F             4
-#define SETUP_PLATFORM_CERT_F       8
-#define SETUP_LOCK_NVRAM_F          16
-#define SETUP_SRKPASS_ZEROS_F       32
-#define SETUP_OWNERPASS_ZEROS_F     64
-#define SETUP_STATE_OVERWRITE_F     128
-#define SETUP_STATE_NOT_OVERWRITE_F 256
-#define SETUP_TPM2_F                512
-#define SETUP_ALLOW_SIGNING_F       1024
-#define SETUP_TPM2_ECC_F            2048
-#define SETUP_CREATE_SPK_F          4096
-#define SETUP_DISPLAY_RESULTS_F     8192
-#define SETUP_DECRYPTION_F          16384
-#define SETUP_WRITE_EK_CERT_FILES_F 32768
+#define SETUP_CREATE_EK_F           (1 << 0)
+#define SETUP_TAKEOWN_F             (1 << 1)
+#define SETUP_EK_CERT_F             (1 << 2)
+#define SETUP_PLATFORM_CERT_F       (1 << 3)
+#define SETUP_LOCK_NVRAM_F          (1 << 4)
+#define SETUP_SRKPASS_ZEROS_F       (1 << 5)
+#define SETUP_OWNERPASS_ZEROS_F     (1 << 6)
+#define SETUP_STATE_OVERWRITE_F     (1 << 7)
+#define SETUP_STATE_NOT_OVERWRITE_F (1 << 8)
+#define SETUP_TPM2_F                (1 << 9)
+#define SETUP_ALLOW_SIGNING_F       (1 << 10)
+#define SETUP_TPM2_ECC_F            (1 << 11)
+#define SETUP_CREATE_SPK_F          (1 << 12)
+#define SETUP_DISPLAY_RESULTS_F     (1 << 13)
+#define SETUP_DECRYPTION_F          (1 << 14)
+#define SETUP_WRITE_EK_CERT_FILES_F (1 << 15)
 
 /* default configuration file */
 #define SWTPM_SETUP_CONF "swtpm_setup.conf"
