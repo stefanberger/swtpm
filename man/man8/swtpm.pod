@@ -165,7 +165,7 @@ files are stored. If I<path_to_dir> starts with a '/' then the path is interpret
 as an absolute path, otherwise it is a path relative to the current directory.
 For 'file://', the URI should specify a single file or block device where TPM state
 will be stored. A blockdevice must exist already and be big enough to store all
-state.
+state. (since v0.7)
 
 =item B<--tpm2>
 
@@ -316,71 +316,67 @@ may contain the following:
       "version": "0.7.0"
     }
 
-The version field is available since 0.7.
+The version field is available since v0.7.
 
 The meaning of the feature verbs is as follows:
 
 =over 4
 
-=item B<tpm-1.2>
+=item B<tpm-1.2> (since v0.7)
 
 TPM 1.2 emulation is supported (libtpms is compiled with 1.2 support).
 
-Since 0.7
-
-==item B<tpm-2.0>
+=item B<tpm-2.0> (since v0.7)
 
 TPM 2 emulation is supported (libtpms is compiled with 2.0 support).
 
 (the I<--tpm2> option is supported)
 
-Since 0.7
-
-=item B<cmdarg-seccomp>
+=item B<cmdarg-seccomp> (since v0.2)
 
 The I<--seccomp> option is supported.
 
-=item B<cmdarg-key-fd>
+=item B<cmdarg-key-fd> (since v0.2)
 
 The I<--key> option supports the I<fd=> parameter.
 
-=item B<cmdarg-pwd-fd>
+=item B<cmdarg-pwd-fd> (since v0.2)
 
 The I<--key> option supports the I<pwdfd=> parameter.
 
-=item B<cmdarg-print-states>
+=item B<cmdarg-print-states> (since v0.7)
 
 The I<--print-states> option is supported.
 
-=item B<nvram-backend-dir>
+=item B<nvram-backend-dir> (since v0.7)
 
 The I<--tpmstate> option supports the I<backend-uri=dir://...>
 parameter.
 
-=item B<nvram-backend-file>
+=item B<nvram-backend-file> (since v0.7)
 
 The I<--tpmstate> option supports the I<backend-uri=file://...>
 parameter.
 
-=item B<tpm-send-command-header>
+=item B<tpm-send-command-header> (since v0.2)
 
 The TPM 2 commands may be prefixed by a header that carries a 4-byte
 command, 1 byte for locality, and 4-byte TPM 2 command length indicator.
 The TPM 2 will respond by preprending a 4-byte response indicator and a
 4-byte trailer. All data is sent in big endian format.
 
-=item B<flags-opt-startup>
+=item B<flags-opt-startup> (since v0.3)
 
 The I<--flags> option supports the I<startup-...> options.
 
-=item B<rsa-keysize-2048>
+=item B<rsa-keysize-2048> (since v0.4)
 
 The TPM 2 supports the shown RSA key sizes. If none of the
 rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 
 =back
 
-=item B<--print-states>
+=item B<--print-states> (since v0.7)
 
 This option allows to print out the TPM 1.2 or TPM 2 state blobs
 that are currently stored in a storage backend. This option requires

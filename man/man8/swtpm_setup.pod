@@ -205,50 +205,50 @@ The output may contain the following:
       "version": "0.7.0"
     }
 
-The version field is available since 0.7.
+The version field is available since v0.7.
 
 The meaning of the feature verbs is as follows:
 
 =over 4
 
-=item B<cmdarg-key-fd>
+=item B<cmdarg-key-fd> (since v0.2)
 
 The I<--keyfile-fd> option is supported.
 
-=item B<cmdarg-pwd-fd>
+=item B<cmdarg-pwd-fd> (since v0.2)
 
 The I<--pwdfile-fd> option is supported.
 
-=item B<cmdarg-write-ek-cert-files>
+=item B<cmdarg-write-ek-cert-files> (since v0.7)
 
 The I<--write-ek-cert-files> option is supported.
 
-=item B<cmdarg-create-config-files>
+=item B<cmdarg-create-config-files> (since v0.7)
 
 The I<--create-config-files> option is supported.
 
-=item B<tpm2-rsa-keysize-2048, ...>
+=item B<tpm2-rsa-keysize-2048, ...> (since v0.4)
 
 The shown RSA key sizes are supported for a TPM 2's EK key. If none of the
 tpm2-rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 
-=item B<tpm12-not-need-root> (since 0.4.0)
+=item B<tpm12-not-need-root> (since v0.4)
 
 This option implies that any user can setup a TPM 1.2. Previously only root
 or the 'tss' user, depending on configuration and availability of this account,
 could do that.
 
-=item B<tpm-1.2> (since 0.7)
+=item B<tpm-1.2> (since v0.7)
 
 TPM 1.2 setup is supported (libtpms is compiled with TPM 1.2 support).
 
-==item B<tpm-2.0> (since 0.7)
+=item B<tpm-2.0> (since v0.7)
 
 TPM 2 setup is supported (libtpms is compiled with TPM 2 support).
 
 =back
 
-=item B<--write-ek-cert-files <directory>>
+=item B<--write-ek-cert-files <directory>> (since v0.7)
 
 This option causes endorsement key (EK) files to be written into the provided
 directory. The files contain the DER-formatted EKs that were written into the
@@ -260,7 +260,7 @@ The keys that are written for a TPM 2 may change over time as the default
 strength of the EK keys changes. This means that one should look for all
 files with the above filename pattern when looking for the EKs.
 
-=item B<--create-config-files [[overwrite][,root][,skip-if-exist]]>
+=item B<--create-config-files [[overwrite][,root][,skip-if-exist]]> (since v0.7)
 
 This option allows a user to create configuration files for swtpm_setup and
 swtpm-localca under the $XDG_CONFIG_HOME or $HOME/.config directories.
