@@ -92,7 +92,7 @@ do
        echo "Error: Root CA's private key is password protected but should not be."
        exit 1
      fi
-     export SWTPM_ROOTCA_PASSWORD=xyz
+     export SWTPM_ROOTCA_PASSWORD=wxyz
   fi
 
   if [ ! -r "${workdir}/ek.cert" ]; then
