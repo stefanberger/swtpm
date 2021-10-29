@@ -686,10 +686,10 @@ function run_swtpm_bios()
 function get_filesize()
 {
 	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
-		stat -c%s $1
+		stat -c%s "$1"
 	else
 		# OpenBSD
-		stat -f%z $1
+		stat -f%z "$1"
 	fi
 }
 
@@ -699,10 +699,10 @@ function get_filesize()
 function get_filemode()
 {
 	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
-		stat -c%a $1
+		stat -c%a "$1"
 	else
 		# BSDs
-		stat -f%Lp $1
+		stat -f%Lp "$1"
 	fi
 }
 
@@ -712,10 +712,10 @@ function get_filemode()
 function get_fileowner()
 {
 	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
-		stat -c"%u %g" $1
+		stat -c"%u %g" "$1"
 	else
 		# BSDs
-		stat -f"%u %g" $1
+		stat -f"%u %g" "$1"
 	fi
 }
 
@@ -725,10 +725,10 @@ function get_fileowner()
 function get_fileowner_names()
 {
 	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
-		stat -c"%U %G" $1
+		stat -c"%U %G" "$1"
 	else
 		# BSDs
-		stat -f"%Su %Sg" $1
+		stat -f"%Su %Sg" "$1"
 	fi
 }
 
@@ -737,20 +737,20 @@ function get_fileowner_names()
 # @1: filename
 function get_sha1_file()
 {
-	if ! [ -r $1 ]; then
+	if ! [ -r "$1" ]; then
 		echo "[file $1 does not exist]"
 		return
 	fi
 	case "$(uname -s)" in
 	Linux|CYGWIN*)
-		sha1sum $1 | cut -f1 -d" "
+		sha1sum "$1" | cut -f1 -d" "
 		;;
 	Darwin)
-		shasum $1 | cut -f1 -d" "
+		shasum "$1" | cut -f1 -d" "
 		;;
 	*)
 		# OpenBSD
-		sha1 $1 | cut -d "=" -f2 | tr -d " "
+		sha1 "$1" | cut -d "=" -f2 | tr -d " "
 	esac
 }
 
