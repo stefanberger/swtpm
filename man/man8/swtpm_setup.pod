@@ -188,6 +188,11 @@ the I<--print-capabilities> option. The default size is 2048 bits for
 both TPM 1.2 and TPM 2. If 'max' is passed, the largest possible key
 size is used.
 
+=item B<--reconfigure> (since v0.7)
+
+This option allows the reconfiguration of the active PCR banks of a
+TPM 2 using the I<--pcr-banks> option.
+
 =item B<--print-capabilities> (since v0.2)
 
 Print capabilities that were added to swtpm_setup after version 0.1.
@@ -200,6 +205,7 @@ The output may contain the following:
         "cmdarg-pwdfile-fd",
         "cmdarg-write-ek-cert-files",
         "cmdarg-create-config-files",
+	"cmdarg-reconfigure-pcr-banks",
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
         "tpm12-not-need-root",
@@ -230,6 +236,11 @@ The I<--write-ek-cert-files> option is supported.
 =item B<cmdarg-create-config-files> (since v0.7)
 
 The I<--create-config-files> option is supported.
+
+=item B<cmdarg-reconfigure-pcr-banks> (since v0.7)
+
+The I<--reconfigure> option is supported and allows the reconfiguration of
+the active PCR banks.
 
 =item B<tpm2-rsa-keysize-2048, ...> (since v0.4)
 
