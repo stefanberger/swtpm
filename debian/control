@@ -60,7 +60,7 @@ Description: Tools for the TPM emulator
       tool basically simulates TPM manufacturing where certificates are
       written into the NVRAM of the TPM
   - swtpm_cert: Creation of certificates for the TPM (x509)
-Depends: gnutls-bin,
+Depends: openssl,
          swtpm (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}

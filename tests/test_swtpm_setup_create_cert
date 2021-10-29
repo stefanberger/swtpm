@@ -95,7 +95,7 @@ if [ ! -r "${CERTSERIAL}" ]; then
 	exit 1
 fi
 
-if [ -z "$(grep "ENCRYPTED PRIVATE KEY" ${workdir}/swtpm-localca-rootca-privkey.pem)" ]; then
+if [ -z "$(grep "Proc-Type: 4,ENCRYPTED" ${workdir}/swtpm-localca-rootca-privkey.pem)" ]; then
 	echo "Error: Root CA's private key should be encrypted"
 	cat ${workdir}/swtpm-localca-rootca-privkey.pem
 	exit 1

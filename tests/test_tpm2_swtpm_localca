@@ -75,20 +75,20 @@ do
   fi
 
   # Signing key should always be password protected
-  if [ -z "$(grep "ENCRYPTED PRIVATE KEY" "${SIGNINGKEY}")" ]; then
+  if [ -z "$(grep "Proc-Type: 4,ENCRYPTED" "${SIGNINGKEY}")" ]; then
     echo "Error: Signing key is not password protected."
     exit 1
   fi
 
   # For the root CA's key we flip the password protection
   if [ -n "${SWTPM_ROOTCA_PASSWORD}" ] ;then
-     if [ -z "$(grep "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
+     if [ -z "$(grep "Proc-Type: 4,ENCRYPTED" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
        echo "Error: Root CA's private key is not password protected."
        exit 1
      fi
      unset SWTPM_ROOTCA_PASSWORD
   else
-     if [ -n "$(grep "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
+     if [ -n "$(grep "Proc-Type: 4,ENCRYPTED" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
        echo "Error: Root CA's private key is password protected but should not be."
        exit 1
      fi
@@ -133,7 +133,7 @@ do
   fi
 
   # Delete all keys to have CA re-created
-  rm -rf "${workdir}"/*.pem
+  rm -rf "${workdir}"/*.pem "$workdir"/index.txt "$workdir"/serial
 done
 
 echo "Test 1: OK"

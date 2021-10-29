@@ -118,6 +118,7 @@ for keysize in $(echo $keysizes); do
 	fi
 
 	rm -rf "${SIGNINGKEY}" "${ISSUERCERT}" "${CERTSERIAL}" ${USER_CERTSDIR}/ek-*.crt
+	rm -rf "$workdir/serial" "$workdir/index.txt"
 done
 
 echo "Test 1: OK"

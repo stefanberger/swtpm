@@ -28,12 +28,6 @@ swtpm-localca-rootca-cert.pem respectively. The environment variable
 SWTPM_ROOTCA_PASSWORD can be set for the password of the root CA's
 private key.
 
-Note: Due to limitations of 'certtool', the possible passwords used for
-securing the root CA's private key and the intermedia CA's private
-key have to be passed over the command line and therefore will be visible
-to others on the system. If you are concerned about this, you should create
-the CAs elsewhere and copy them onto the target system.
-
 The following options are supported:
 
 =over 4
