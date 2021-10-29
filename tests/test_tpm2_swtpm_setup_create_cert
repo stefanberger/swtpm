@@ -122,53 +122,110 @@ done
 
 echo "Test 1: OK"
 
+function swtpm_setup_reconfigure() {
+	local workdir="$1"
+	local pwdfile="$2"
 
-# we need to create at least one cert: --create-ek-cert
-$SWTPM_SETUP \
-	--tpm2 \
-	--ecc \
-	--tpm-state "${workdir}" \
-	--create-ek-cert \
-	--config "${workdir}/swtpm_setup.conf" \
-	--logfile "${workdir}/logfile" \
-	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--overwrite \
-	--write-ek-cert-files "${workdir}"
+	# Reconfigure the active PCR banks a few times; the size of the state
+	# file must not change but its content (hash) must change every time
+	# since activating the PCR banks changes a few bits in the permanent
+	# state, also when the state is not encrypted.
+	local PERMALL_FILE="${workdir}/tpm2-00.permall"
+	local permall_size=$(get_filesize "${PERMALL_FILE}")
 
-if [ $? -ne 0 ]; then
-	echo "Error: Could not run $SWTPM_SETUP."
-	echo "Logfile output:"
-	cat "${workdir}/logfile"
-	exit 1
-fi
+	for pcrbanks in "sha1" "sha1,sha256" "sha1,sha256,sha384,sha512"; do
+		# hash must change between before and after
+		permall_hash=$(get_sha1_file "${PERMALL_FILE}")
 
-if [ ! -r "${SIGNINGKEY}" ]; then
-	echo "Error: Signingkey file ${SIGNINGKEY} was not created."
-	exit 1
-fi
+		$SWTPM_SETUP \
+			--tpm2 \
+			--tpm-state "${workdir}" \
+			--config "${workdir}/swtpm_setup.conf" \
+			--logfile "${workdir}/logfile" \
+			--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+			--pcr-banks "${pcrbanks}" \
+			--reconfigure \
+			${pwdfile:+--pwdfile "${pwdfile}"}
+		if [ $? -ne 0 ]; then
+			echo "Error: Could not run $SWTPM_SETUP --reconfigure."
+			echo "Logfile output:"
+			cat "${workdir}/logfile"
+			exit 1
+		fi
 
-if [ ! -r "${ISSUERCERT}" ]; then
-	echo "Error: Issuer cert file ${ISSUERCERT} was not created."
-	exit 1
-fi
+		local newhash=$(get_sha1_file "${PERMALL_FILE}")
+		if [ "${newhash}" = "${permall_hash}" ]; then
+			echo "Error: The hash of the permanent state did not change."
+			exit 1
+		fi
 
-if [ ! -r "${CERTSERIAL}" ]; then
-	echo "Error: Cert serial number file ${CERTSERIAL} was not created."
-	exit 1
-fi
+		local newsize=$(get_filesize "${PERMALL_FILE}")
+		if [ "${newsize}" != "${permall_size}" ]; then
+			echo "Error: The size of the permanent state file changed."
+			echo "Actual  : ${tmp}"
+			echo "Expected: ${permall_size}"
+		fi
+		echo "Filesize: ${newsize}; hash: ${newhash}; pwdfile: ${pwdfile}"
+	done
+}
 
-certfile="${workdir}/ek-secp384r1.crt"
-if [ ! -f "${certfile}" ]; then
-	echo "Error: EK file '${certfile}' was not written."
-	ls -l "${workdir}"
-	exit 1
-fi
+# Create with certificates with and without encryption enabled and reconfigure
+# the PCR banks
+PWDFILE="${workdir}/pwd"
+echo -n "password" > "${PWDFILE}"
+rm -f "${workdir}/logfile"
 
-if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "384 bits")" ]; then
-	echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
-	$CERTTOOL --inder --infile "${certfile}" -i
-	exit 1
-fi
+for pwdfile in "" "${PWDFILE}"; do
+	$SWTPM_SETUP \
+		--tpm2 \
+		--ecc \
+		--tpm-state "${workdir}" \
+		--create-ek-cert \
+		--create-platform-cert \
+		--config "${workdir}/swtpm_setup.conf" \
+		--logfile "${workdir}/logfile" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--overwrite \
+		--write-ek-cert-files "${workdir}" \
+		${pwdfile:+--pwdfile "${pwdfile}"}
+
+	if [ $? -ne 0 ]; then
+		echo "Error: Could not run $SWTPM_SETUP."
+		echo "Logfile output:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
+
+	if [ ! -r "${SIGNINGKEY}" ]; then
+		echo "Error: Signingkey file ${SIGNINGKEY} was not created."
+		exit 1
+	fi
+
+	if [ ! -r "${ISSUERCERT}" ]; then
+		echo "Error: Issuer cert file ${ISSUERCERT} was not created."
+		exit 1
+	fi
+
+	if [ ! -r "${CERTSERIAL}" ]; then
+		echo "Error: Cert serial number file ${CERTSERIAL} was not created."
+		exit 1
+	fi
+
+	certfile="${workdir}/ek-secp384r1.crt"
+	if [ ! -f "${certfile}" ]; then
+		echo "Error: EK file '${certfile}' was not written."
+		ls -l "${workdir}"
+		exit 1
+	fi
+
+	if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "384 bits")" ]; then
+		echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
+		$CERTTOOL --inder --infile "${certfile}" -i
+		exit 1
+	fi
+
+	swtpm_setup_reconfigure "${workdir}" "${pwdfile}"
+done
 
 echo "Test 2: OK"
 

@@ -59,6 +59,7 @@
 #define SETUP_DISPLAY_RESULTS_F     (1 << 13)
 #define SETUP_DECRYPTION_F          (1 << 14)
 #define SETUP_WRITE_EK_CERT_FILES_F (1 << 15)
+#define SETUP_RECONFIGURE_F         (1 << 16)
 
 /* default configuration file */
 #define SWTPM_SETUP_CONF "swtpm_setup.conf"
@@ -512,16 +513,18 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
         goto error;
     }
 
-    if ((flags & SETUP_CREATE_SPK_F)) {
-        ret = swtpm2->ops->create_spk(swtpm, !!(flags & SETUP_TPM2_ECC_F), rsa_keysize);
+    if (!(flags & SETUP_RECONFIGURE_F)) {
+        if ((flags & SETUP_CREATE_SPK_F)) {
+            ret = swtpm2->ops->create_spk(swtpm, !!(flags & SETUP_TPM2_ECC_F), rsa_keysize);
+            if (ret != 0)
+                goto destroy;
+        }
+
+        ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
+                                        user_certsdir);
         if (ret != 0)
             goto destroy;
     }
-
-    ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
-                                    user_certsdir);
-    if (ret != 0)
-        goto destroy;
 
     ret = tpm2_activate_pcr_banks(swtpm2, pcr_banks);
     if (ret != 0)
@@ -910,6 +913,10 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   root: allow to create files under root's home directory\n"
         "                   skip-if-exist: if any file exists exit without error\n"
         "\n"
+        "--reconfigure    : Reconfigure an existing swtpm by reusing existing state.\n"
+        "                   The active PCR banks can be changed but no new keys will\n"
+        "                   be created.\n"
+        "\n"
         "--version        : Display version and exit\n"
         "\n"
         "--help,-h        : Display this help screen\n\n",
@@ -1059,6 +1066,7 @@ static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
     printf("{ \"type\": \"swtpm_setup\", "
            "\"features\": [ %s%s\"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
            ", \"cmdarg-write-ek-cert-files\", \"cmdarg-create-config-files\""
+           ", \"cmdarg-reconfigure-pcr-banks\""
            "%s ], "
            "\"version\": \"" VERSION "\" "
            "}\n",
@@ -1180,6 +1188,7 @@ int main(int argc, char *argv[])
         {"tcsd-system-ps-file", required_argument, NULL, 'F'},
         {"version", no_argument, NULL, '1'},
         {"print-capabilities", no_argument, NULL, 'y'},
+        {"reconfigure", no_argument, NULL, 'R'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -1386,6 +1395,9 @@ int main(int argc, char *argv[])
         case 'y': /* --print-capabilities */
             printcapabilities = TRUE;
             break;
+        case 'R': /* --reconfigure */
+            flags |= SETUP_RECONFIGURE_F;
+            break;
         case '?':
         case 'h': /* --help */
             usage(argv[0], config_file);
@@ -1491,19 +1503,25 @@ int main(int argc, char *argv[])
             logerr(gl_LOGFILE, "--create-spk requires --tpm2.\n");
             goto error;
         }
+        if (flags & SETUP_RECONFIGURE_F) {
+            logerr(gl_LOGFILE, "--reconfigure requires --tpm2.\n");
+            goto error;
+        }
     }
 
-    ret = check_state_overwrite(swtpm_prg_l, flags, tpm_state_path);
-    if (ret == 1) {
-        goto error;
-    } else if (ret == 2) {
-        ret = 0;
-        goto out;
-    }
+    if (!(flags & SETUP_RECONFIGURE_F)) {
+        ret = check_state_overwrite(swtpm_prg_l, flags, tpm_state_path);
+        if (ret == 1) {
+            goto error;
+        } else if (ret == 2) {
+            ret = 0;
+            goto out;
+        }
 
-    ret = backend_ops->delete_state(backend_state);
-    if (ret != 0)
-        goto error;
+        ret = backend_ops->delete_state(backend_state);
+        if (ret != 0)
+            goto error;
+    }
 
     if (access(config_file, R_OK) != 0) {
         logerr(gl_LOGFILE, "User %s cannot read config file %s.\n",
@@ -1599,6 +1617,13 @@ int main(int argc, char *argv[])
         goto error;
     }
 
+    if (flags & SETUP_RECONFIGURE_F) {
+        if (flags & (SETUP_CREATE_EK_F | SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F)) {
+            logerr(gl_LOGFILE, "Reconfiguration is not supported with creation of EK or certificates\n");
+            goto error;
+        }
+    }
+
     now = time(NULL);
     tm = localtime(&now);
     if (strftime(tmpbuffer, sizeof(tmpbuffer), "%a %d %h %Y %I:%M:%S %p %Z", tm) == 0) {
@@ -1606,7 +1631,8 @@ int main(int argc, char *argv[])
         goto error;
     }
     curr_grp = getgrgid(getgid());
-    logit(gl_LOGFILE, "Starting vTPM manufacturing as %s:%s @ %s\n",
+    logit(gl_LOGFILE, "Starting vTPM %s as %s:%s @ %s\n",
+          flags & SETUP_RECONFIGURE_F ? "reconfiguration" : "manufacturing",
           curr_user ? curr_user->pw_name : "<unknown>",
           curr_grp ? curr_grp->gr_name : "<unknown>",
           tmpbuffer);
