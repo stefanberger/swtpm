@@ -633,6 +633,7 @@ int main(int argc, char *argv[])
         case 'v': /* --vmid */
             g_free(vmid);
             vmid = g_strdup(optarg);
+            vmid_replacechars(vmid);
             break;
         case 'o': /* --optsfile */
             g_free(optsfile);
