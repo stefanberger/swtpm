@@ -137,3 +137,24 @@ void unlock_file(int lockfd) {
         close(lockfd);
     }
 }
+
+/* Replace a few characters in vmid so it can be used by CommonName in cert */
+void vmid_replacechars(char *vmid) {
+    size_t i = 0;
+    char c;
+
+    while ((c = vmid[i])) {
+        switch (c) {
+        case '+':
+            // https://github.com/gnutls/gnutls/blob/gnutls_3_6_x/lib/x509/x509_dn.c#L167
+            if (i == 0 || vmid[i - 1] != '\\')
+                vmid[i] = '_';
+            break;
+        case ',':
+            // no commas allowed
+            vmid[i] = '_';
+            break;
+        }
+        i++;
+    }
+}

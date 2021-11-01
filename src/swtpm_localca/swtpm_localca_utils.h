@@ -20,4 +20,6 @@ int makedir(const char *dirname, const char *purpose);
 int lock_file(const gchar *lockfile);
 void unlock_file(int lockfd);
 
+void vmid_replacechars(char *vmid);
+
 #endif /* SWTPM_LOCALCA_UTILS_H */
