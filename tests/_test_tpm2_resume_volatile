@@ -10,7 +10,7 @@ VTPM_NAME=${vtpm-test-tpm2-resume-volatile:-VTPM_NAME}
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
 
-tpmstatedir="$(mktemp -d)"
+tpmstatedir="$(mktemp -d)" || exit 1
 if [ -z "$tpmstatedir" ]; then
 	echo "Could not create temporary directory"
 	exit 1

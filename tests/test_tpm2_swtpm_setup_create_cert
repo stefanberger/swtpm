@@ -12,7 +12,7 @@ skip_test_no_tpm20 "${SWTPM_EXE}"
 
 SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm_localca
 
-workdir=$(mktemp -d "/tmp/path with spaces.XXXXXX")
+workdir="$(mktemp -d "/tmp/path with spaces.XXXXXX")" || exit 1
 
 SIGNINGKEY=${workdir}/signingkey.pem
 ISSUERCERT=${workdir}/issuercert.pem

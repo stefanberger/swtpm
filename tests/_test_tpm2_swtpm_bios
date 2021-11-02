@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-tpm2-swtpm-bios"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-TPM_PATH=$(mktemp -d)
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm2-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 PID_FILE=$TPM_PATH/SWTPM.pid

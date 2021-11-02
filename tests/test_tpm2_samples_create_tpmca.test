@@ -52,7 +52,7 @@ SWTPM_SERVER_PORT=65455
 SWTPM_CTRL_PORT=65454
 SWTPM_FAKE_CTRL_PORT=65456
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 
 SWTPM_LOCALCA_DIR="${workdir}/my localca"
 SWTPM_LOCALCA_CONF="${workdir}/my localca/swtpm-localca.conf"

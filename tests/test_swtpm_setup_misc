@@ -20,7 +20,7 @@ function cleanup()
 	rm -rf ${workdir}
 }
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 
 FILES="swtpm-localca.conf swtpm-localca.options swtpm_setup.conf"
 
@@ -53,7 +53,7 @@ fi
 echo "Test 1: Ok"
 cleanup
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 
 XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
 	--create-config-files skip-if-exist 1>/dev/null

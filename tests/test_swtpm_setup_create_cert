@@ -11,7 +11,7 @@ skip_test_no_tpm12 "${SWTPM_EXE}"
 
 SWTPM_LOCALCA=${ROOT}/src/swtpm_localca/swtpm_localca
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 
 SIGNINGKEY=${workdir}/signingkey.pem
 ISSUERCERT=${workdir}/issuercert.pem

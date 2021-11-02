@@ -21,7 +21,7 @@ function cleanup()
 
 # Test 1: --not-overwrite with dummy state file
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY"
 echo $dummydata > ${statefile}
@@ -53,7 +53,7 @@ cleanup
 
 # Test 2: --overwrite with dummy state file
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY"
 echo $dummydata > ${statefile}
@@ -85,7 +85,7 @@ cleanup
 
 # Test 3: neither "--overwrite" nor "--not-overwrite" with dummy state file
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY"
 echo $dummydata > ${statefile}

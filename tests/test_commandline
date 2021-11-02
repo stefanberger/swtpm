@@ -15,7 +15,7 @@ TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 source ${TESTDIR}/common
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
-TPMDIR=`mktemp -d`
+TPMDIR="$(mktemp -d)" || exit 1
 PID_FILE=$TPMDIR/${SWTPM}.pid
 LOG_FILE=$TPMDIR/${SWTPM}.log
 
@@ -105,7 +105,7 @@ cleanup
 
 # Test 2: test port, directory and terminate command line parameters (-t)
 #         that causes the swtpm process to exit upon connection close
-TPMDIR=`mktemp -d`
+TPMDIR="$(mktemp -d)" || exit 1
 
 $SWTPM_EXE socket \
 	--flags not-need-init \
@@ -177,7 +177,7 @@ echo "Test 3 passed"
 cleanup
 
 # Test 4: --tpmstate backend-uri=dir:// parameter test
-TPMDIR=`mktemp -d`
+TPMDIR="$(mktemp -d)" || exit 1
 PID_FILE=$TPMDIR/${SWTPM}.pid
 FILEMODE=641
 

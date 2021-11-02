@@ -23,25 +23,25 @@ function cleanup()
 
 trap "cleanup" EXIT
 
-tpmstatedir=$(mktemp -d)
+tpmstatedir="$(mktemp -d)"
 if [ -z "$tpmstatedir" ]; then
 	echo "Could not create temporary directory."
 	exit 1
 fi
 
-migpwdfile=$(mktemp)
+migpwdfile="$(mktemp)"
 if [ -z "$migpwdfile" ]; then
 	echo "Could not create temporary file."
 	exit 1
 fi
 echo -n "$MIGRATION_PASSWORD" > $migpwdfile
 
-volatilestatefile=$(mktemp)
+volatilestatefile="$(mktemp)"
 if [ -z "$volatilestatefile" ]; then
 	echo "Could not create temporary file."
 	exit 1
 fi
-logfile=$(mktemp)
+logfile="$(mktemp)" || exit 1
 
 SWTPM_CMD_UNIX_PATH=${tpmstatedir}/unix-cmd.sock
 SWTPM_CTRL_UNIX_PATH=${tpmstatedir}/unix-ctrl.sock

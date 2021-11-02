@@ -26,7 +26,7 @@ trap "cleanup" EXIT
 source ${TESTDIR}/common
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
-WORKDIR=$(mktemp -d)
+WORKDIR="$(mktemp -d)" || exit 1
 TESTLOG=${WORKDIR}/test.log
 
 # variables used by the TPM 1.2 test suite
