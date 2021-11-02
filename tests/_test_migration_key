@@ -11,20 +11,20 @@ SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
 MIGRATION_PASSWORD="migration"
 VOLATILESTATE=${TESTDIR}/data/migkey1/volatilestate.bin
 
-tpmstatedir=$(mktemp -d)
+tpmstatedir="$(mktemp -d)"
 if [ -z "$tpmstatedir" ]; then
 	echo "Could not create temporary directory."
 	exit 1
 fi
 
-migpwdfile=$(mktemp)
+migpwdfile="$(mktemp)"
 if [ -z "$migpwdfile" ]; then
 	echo "Could not create temporary file."
 	exit 1
 fi
 echo -n "$MIGRATION_PASSWORD" > $migpwdfile
 
-volatilestatefile=$(mktemp)
+volatilestatefile="$(mktemp)"
 if [ -z "$volatilestatefile" ]; then
 	echo "Could not create temporary file."
 	exit 1

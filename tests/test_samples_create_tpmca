@@ -38,7 +38,7 @@ TCSD_LISTEN_PORT=65436
 SRK_PASSWORD=srk
 OWNER_PASSWORD=owner
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 
 TCSD_CONF=${workdir}/tcsd.conf
 TCSD_SYSTEM_PS_FILE=${workdir}/system_ps_file

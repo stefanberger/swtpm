@@ -15,12 +15,12 @@ trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf ${workdir}
+	rm -rf "${workdir}"
 }
 
 # Test 1: No states
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 msg="$(${SWTPM_EXE} ${SWTPM_IFACE} --print-states --tpm2 --tpmstate dir=${workdir} 2>&1)"
 
 if [ $? -ne 0 ]; then
@@ -43,7 +43,7 @@ cleanup
 
 # Test 2: Existing state
 
-workdir=$(mktemp -d)
+workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/tpm2-00.permall"
 dummydata="DUMMY"
 echo $dummydata > ${statefile}

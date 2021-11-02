@@ -30,7 +30,7 @@ trap "cleanup" EXIT
 source ${TESTDIR}/common
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
-WORKDIR=$(mktemp -d)
+WORKDIR="$(mktemp -d)" || exit 1
 
 REGLOG=${WORKDIR}/reglog
 

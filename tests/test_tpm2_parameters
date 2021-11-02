@@ -64,7 +64,7 @@ exec 101<${TESTDIR}/data/pwdfile.txt
 
 SWTPM=swtpm
 SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
-TPMDIR=$(mktemp -d)
+TPMDIR="$(mktemp -d)" || exit 1
 SWTPM_SETUP_CONF=$SRCDIR/samples/swtpm_setup.conf
 TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --tpm2 --config ${SWTPM_SETUP_CONF}"
 PATH=${ROOT}/src/swtpm_bios:$PATH

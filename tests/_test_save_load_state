@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="${VTPM_NAME:-vtpm-test-save-load-state}"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH=$(mktemp -d)
+export TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 MY_VOLATILE_STATE_FILE=$TPM_PATH/my.volatilestate
@@ -24,7 +24,7 @@ if [ ${SWTPM_TEST_LINEAR_FILE:-0} -ne 0 ]; then
 	BACKEND_PARAM="--tpmstate backend-uri=file://$LINEAR_STATE_FILE"
 fi
 
-logfile=$(mktemp)
+logfile="$(mktemp)" || exit 1
 
 function cleanup()
 {

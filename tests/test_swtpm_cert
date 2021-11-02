@@ -7,16 +7,15 @@ TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 
 SWTPM_CERT=${SWTPM_CERT:-${ROOT}/src/swtpm_cert/swtpm_cert}
 
-cert=$(mktemp)
-pwdfile=$(mktemp)
-
 trap "cleanup" SIGTERM EXIT
-
 
 function cleanup()
 {
 	rm -f "${cert}" "${pwdfile}"
 }
+
+cert="$(mktemp)" || exit 1
+pwdfile="$(mktemp)" || exit 1
 
 function check_cert_size()
 {

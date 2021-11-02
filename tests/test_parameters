@@ -67,7 +67,7 @@ skip_test_no_tpm12 "${SWTPM_EXE}"
 
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
-TPMDIR=$(mktemp -d)
+TPMDIR="$(mktemp -d)" || exit 1
 SWTPM_SETUP_CONF=$SRCDIR/samples/swtpm_setup.conf
 # filesystem privileges require to run swtpm_setup as root during test
 TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --config ${SWTPM_SETUP_CONF}"

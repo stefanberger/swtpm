@@ -5,7 +5,7 @@
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-TPMDIR=`mktemp -d`
+TPMDIR="$(mktemp -d)" || exit 1
 SWTPM_CTRL_UNIX_PATH=$TPMDIR/sock
 PID_FILE=$TPMDIR/swtpm.pid
 LOG_FILE=$TPMDIR/swtpm.log

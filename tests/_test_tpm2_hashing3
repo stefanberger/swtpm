@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-tpm2-hashing3"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH=$(mktemp -d)
+export TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm2-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}

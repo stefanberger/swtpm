@@ -11,7 +11,7 @@ export SWTPM_INTERFACE=cuse
 
 VTPM_NAME="vtpm-test-tpm2-partial-reads"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH=$(mktemp -d)
+export TPM_PATH="$(mktemp -d)" || exit 1
 CMD_PATH="${TPM_PATH}/cmd"
 
 function cleanup()

@@ -9,7 +9,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm_localca
 
-workdir=$(mktemp -d "/tmp/path with spaces.XXXXXX")
+workdir="$(mktemp -d "/tmp/path with spaces.XXXXXX")" || exit 1
 
 ek="80" # 2048 bit key must have highest bit set
 for ((i = 1; i < 256; i++)); do
