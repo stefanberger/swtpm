@@ -96,7 +96,7 @@ fi
 
 autoreconf --force --install
 unset CFLAGS LDFLAGS LIBS
-./configure --disable-tpm-1.2
+CFLAGS="-DOPENSSL_SUPPRESS_DEPRECATED" ./configure --disable-tpm-1.2
 make -j4
 
 pushd utils
