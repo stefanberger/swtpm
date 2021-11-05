@@ -60,8 +60,7 @@ gchar *get_config_value(gchar **config_file_lines, const gchar *configname, cons
         if (regexec(&preg, line, 2, pmatch, 0) == 0) {
             result = g_strndup(&line[pmatch[1].rm_so],
                                pmatch[1].rm_eo - pmatch[1].rm_so);
-            /* coverity: g_strchmop modifies in-place */
-            result = g_strchomp(result);
+            g_strchomp(result);
             break;
         }
     }
