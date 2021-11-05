@@ -115,11 +115,15 @@ if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "2048 bits")" ]; t
 fi
 
 expiration="$($CERTTOOL --inder --infile "${certfile}" -i | grep "Not After:")"
-expected="Not After: Fri Dec 31 23:59:59 UTC 9999"
-if [ -z "$(echo "${expiration}" | grep "${expected}")" ]; then
-	echo "Error: EK file '${certfile}' does not expire in 9999"
-	echo "actual:   ${expiration}"
-	echo "expected: ${expected}"
+expected1="Not After: Fri Dec 31 23:59:59 UTC 9999"
+# 32bit machines
+expected2="Not After: Thu Dec 31 23:23:23 UTC 2037"
+if [ -z "$(echo "${expiration}" | grep "${expected1}")" ] && \
+   [ -z "$(echo "${expiration}" | grep "${expected2}")" ]; then
+	echo "Error: EK file '${certfile}' does not expire in 9999 or 2037"
+	echo "actual   : ${expiration}"
+	echo "expected1: ${expected1}"
+	echo "expected2: ${expected2} (32 bit machines)"
 	exit 1
 fi
 
