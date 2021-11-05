@@ -45,8 +45,7 @@ gchar *get_config_value(gchar **config_file_lines, const gchar *configname)
 
             tmp = g_strndup(&line[pmatch[1].rm_so],
                             pmatch[1].rm_eo - pmatch[1].rm_so);
-            /* coverity: g_strchmop modifies in-place */
-            tmp = g_strchomp(tmp);
+            g_strchomp(tmp);
             result = resolve_string(tmp);
             break;
         }
