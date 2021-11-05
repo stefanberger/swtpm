@@ -4,6 +4,16 @@ if [ ${SWTPM_TEST_EXPENSIVE:-0} -eq 0 ]; then
 	exit 77
 fi
 
+if [ -z "$(type openssl)" ]; then
+	echo "Openssl command line tool is required."
+	exit 1
+fi
+
+if [ -n "$(openssl version | grep -E "^OpenSSL 3")" ]; then
+	echo "IBMTSS2 v1.6 test suite does not work with OpenSSL 3.0"
+	exit 77
+fi
+
 ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 ABSTESTDIR=$(cd ${TESTDIR} &>/dev/null;echo ${PWD})
