@@ -85,7 +85,7 @@ if [ $? -ne 0 ]; then
 fi
 
 ./autogen
-LIBS="" CFLAGS="-g -O2" ./configure
+LIBS="" CFLAGS="-g -O2 -DOPENSSL_SUPPRESS_DEPRECATED=1" ./configure
 make -j$(nproc)
 
 pushd utils &>/dev/null
