@@ -55,7 +55,7 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
         goto fail;
     }
 
-    if (st.st_size >= (uint32_t)sizeof(struct nvram_linear_hdr)) {
+    if (st.st_size >= (off_t)sizeof(struct nvram_linear_hdr)) {
         /* valid regular file-ish */
         mmap_state.size = st.st_size;
         mmap_state.can_truncate = true;
