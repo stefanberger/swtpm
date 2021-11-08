@@ -361,7 +361,8 @@ if test "x$enable_default_pcr_banks" != "x"; then
     DEFAULT_PCR_BANKS="$enable_default_pcr_banks"
 fi
 AC_MSG_CHECKING([which PCR banks to activate by default])
-if $srcdir/scripts/test_pcr_bank_list $DEFAULT_PCR_BANKS; then
+REGEX="^(sha1|sha256|sha384|sha512)(,(sha1|sha256|sha384|sha512)){0,3}\$"
+if bash -c "[[[ $DEFAULT_PCR_BANKS =~ $REGEX ]]] && exit 0 || exit 1"; then
 	AC_MSG_RESULT([$DEFAULT_PCR_BANKS])
 else
 	AC_MSG_ERROR([$DEFAULT_PCR_BANKS is an invalid list of PCR banks])
@@ -578,7 +579,6 @@ AC_CONFIG_FILES([Makefile                   \
 		samples/swtpm-localca.conf  \
 		samples/swtpm-create-user-config-files \
 		samples/swtpm_setup.conf    \
-		scripts/Makefile            \
 		include/Makefile            \
 		include/swtpm/Makefile      \
 		include/swtpm.h             \

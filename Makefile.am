@@ -9,7 +9,6 @@ SUBDIRS   = \
 	man \
 	samples \
 	src \
-	scripts \
 	tests
 
 ACLOCAL_AMFLAGS = -I m4
