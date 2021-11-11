@@ -155,12 +155,12 @@ fi
 %{_mandir}/man8/swtpm_bios.8*
 %{_mandir}/man8/swtpm_cert.8*
 %{_mandir}/man8/swtpm_ioctl.8*
-%{_mandir}/man8/swtpm-localca.conf.8*
-%{_mandir}/man8/swtpm-localca.options.8*
+%{_mandir}/man5/swtpm-localca.conf.5*
+%{_mandir}/man5/swtpm-localca.options.5*
 %{_mandir}/man8/swtpm-localca.8*
 %{_mandir}/man8/swtpm_localca.8*
 %{_mandir}/man8/swtpm_setup.8*
-%{_mandir}/man8/swtpm_setup.conf.8*
+%{_mandir}/man5/swtpm_setup.conf.5*
 %config(noreplace) %{_sysconfdir}/swtpm_setup.conf
 %config(noreplace) %{_sysconfdir}/swtpm-localca.options
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf

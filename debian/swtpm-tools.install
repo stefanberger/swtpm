@@ -9,14 +9,14 @@ cat <<_EOF_
 /usr/bin/swtpm_setup
 /usr/share/man/man8/swtpm-create-tpmca.8*
 /usr/share/man/man8/swtpm-localca.8*
-/usr/share/man/man8/swtpm-localca.conf.8*
-/usr/share/man/man8/swtpm-localca.options.8*
+/usr/share/man/man5/swtpm-localca.conf.5*
+/usr/share/man/man5/swtpm-localca.options.5*
 /usr/share/man/man8/swtpm_bios.8*
 /usr/share/man/man8/swtpm_cert.8*
 /usr/share/man/man8/swtpm_ioctl.8*
 /usr/share/man/man8/swtpm_localca.8*
 /usr/share/man/man8/swtpm_setup.8*
-/usr/share/man/man8/swtpm_setup.conf.8*
+/usr/share/man/man5/swtpm_setup.conf.5*
 /usr/share/swtpm/swtpm-create-tpmca
 /usr/share/swtpm/swtpm-create-user-config-files
 /usr/share/swtpm/swtpm-localca
