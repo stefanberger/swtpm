@@ -595,6 +595,7 @@ AC_CONFIG_FILES([Makefile                   \
 		src/utils/Makefile          \
 		man/Makefile                \
 		man/man3/Makefile           \
+		man/man5/Makefile           \
 		man/man8/Makefile           \
 		tests/Makefile              \
 		tests/test_config           \

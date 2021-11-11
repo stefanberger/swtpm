@@ -13,10 +13,7 @@ man8_PODS = \
 	swtpm_ioctl.pod \
 	swtpm_localca.pod \
 	swtpm_setup.pod \
-	swtpm_setup.conf.pod \
-	swtpm-create-tpmca.pod \
-	swtpm-localca.options.pod \
-	swtpm-localca.conf.pod
+	swtpm-create-tpmca.pod
 
 man8_generated_MANS = \
 	swtpm.8 \
@@ -25,10 +22,7 @@ man8_generated_MANS = \
 	swtpm_ioctl.8 \
 	swtpm_localca.8 \
 	swtpm_setup.8 \
-	swtpm_setup.conf.8 \
-	swtpm-create-tpmca.8 \
-	swtpm-localca.options.8 \
-	swtpm-localca.conf.8
+	swtpm-create-tpmca.8
 
 if WITH_CUSE
 man8_generated_MANS += \
