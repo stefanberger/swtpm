@@ -491,11 +491,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
     }
 
-    if (TPMLIB_ChooseTPMVersion(mlp.tpmversion) != TPM_SUCCESS) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not choose TPM version.\n");
+    if (tpmlib_choose_tpm_version(mlp.tpmversion) != TPM_SUCCESS)
         exit(EXIT_FAILURE);
-    }
 
     tpmstate_set_version(mlp.tpmversion);
 

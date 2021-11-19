@@ -89,15 +89,27 @@ TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs)
     return res;
 }
 
-TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion)
+TPM_RESULT tpmlib_choose_tpm_version(TPMLIB_TPMVersion tpmversion)
 {
     TPM_RESULT res;
 
     if ((res = TPMLIB_ChooseTPMVersion(tpmversion)) != TPM_SUCCESS) {
+        const char *version = "TPM 1.2";
+
+        if (tpmversion == TPMLIB_TPM_VERSION_2)
+            version = "TPM 2";
         logprintf(STDERR_FILENO,
-                  "Error: Could not choose TPM 2 implementation.\n");
-        return res;
+                  "Error: %s is not supported by libtpms.\n", version);
     }
+    return res;
+}
+
+TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion)
+{
+    TPM_RESULT res;
+
+    if ((res = tpmlib_choose_tpm_version(tpmversion)) != TPM_SUCCESS)
+        return res;
 
     if ((res = TPMLIB_MainInit()) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,

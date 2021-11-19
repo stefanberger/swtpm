@@ -437,11 +437,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
     }
 
-    if (TPMLIB_ChooseTPMVersion(mlp.tpmversion) != TPM_SUCCESS) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not choose TPM version.\n");
+    if (tpmlib_choose_tpm_version(mlp.tpmversion) != TPM_SUCCESS)
         exit(EXIT_FAILURE);
-    }
 
     if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0 ||
         handle_server_options(serverdata, &server) < 0) {
