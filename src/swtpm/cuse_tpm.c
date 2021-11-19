@@ -1621,9 +1621,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
-    if (TPMLIB_ChooseTPMVersion(tpmversion) != TPM_SUCCESS) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not choose TPM version.\n");
+    if (tpmlib_choose_tpm_version(tpmversion) != TPM_SUCCESS) {
         ret = EXIT_FAILURE;
         goto exit;
     }
