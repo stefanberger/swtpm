@@ -1413,7 +1413,7 @@ int main(int argc, char *argv[])
 
     if (swtpm_prg == NULL) {
         logerr(gl_LOGFILE,
-               "Default TPM 'swtpm' could not be found and was not provided using --tpm\n.");
+               "Default TPM 'swtpm' could not be found and was not provided using --tpm.\n");
         goto error;
     }
 
