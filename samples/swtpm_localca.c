@@ -135,7 +135,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
             goto error;
     }
 
-    if (access(signkey, R_OK) != 0) {
+    if (access(signkey, R_OK) != 0 || access(issuercert, R_OK) != 0) {
         g_autofree gchar *directory = g_path_get_dirname(signkey);
         g_autofree gchar *cakey = g_strjoin(G_DIR_SEPARATOR_S, directory, "swtpm-localca-rootca-privkey.pem", NULL);
         g_autofree gchar *cacert = g_strjoin(G_DIR_SEPARATOR_S, directory, "swtpm-localca-rootca-cert.pem", NULL);
@@ -821,13 +821,28 @@ int main(int argc, char *argv[])
         if (ret != 0)
             goto error;
     } else {
+        int create_certs = 0;
+
+        /* create certificate if either the signing key or issuer cert are missing */
         if (access(signkey, R_OK) != 0) {
             if (stat(signkey, &statbuf) == 0) {
                 logerr(gl_LOGFILE, "Need read rights on signing key %s for user %s.\n",
                        signkey, curr_user ? curr_user->pw_name : "<unknown>");
                 goto error;
             }
+            create_certs = 1;
+        }
 
+        if (access(issuercert, R_OK) != 0) {
+            if (stat(issuercert, &statbuf) == 0) {
+                logerr(gl_LOGFILE, "Need read rights on issuer certificate %s for user %s.\n",
+                       issuercert, curr_user ? curr_user->pw_name : "<unknown>");
+                goto error;
+            }
+            create_certs = 1;
+        }
+
+        if (create_certs) {
             logit(gl_LOGFILE, "Creating root CA and a local CA's signing key and issuer cert.\n");
             if (create_localca_cert(lockfile, statedir, signkey, signkey_password,
                                     issuercert) != 0) {
