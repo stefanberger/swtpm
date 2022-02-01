@@ -206,7 +206,7 @@ def create_localca_cert(lockfile, statedir, signkey, signkey_password, issuercer
         if not os.path.exists(statedir):
             if makedir(statedir, "statedir") != 0:
                 return 1
-        if not os.access(signkey, os.R_OK):
+        if not os.access(signkey, os.R_OK) or not os.access(issuercert, os.R_OK):
             directory = os.path.dirname(signkey)
             cakey = os.path.join(directory, "swtpm-localca-rootca-privkey.pem")
             cacert = os.path.join(directory, "swtpm-localca-rootca-cert.pem")
@@ -663,13 +663,23 @@ def main():
             sys.exit(1)
         swtpm_cert_env.update(envvars)
     else:
-        # if signkey does not exists it will be created...
+        create_certs = False
+        # create certificate if either the signing key or issuer cert are missing
         if not os.access(signkey, os.R_OK):
             if os.path.exists(signkey):
                 logerr(LOGFILE, "Need read rights on signing key %s for user %s.\n" %
                        (signkey, getpass.getuser()))
                 sys.exit(1)
+            create_certs = True
 
+        if not os.access(issuercert, os.R_OK):
+            if os.path.exists(issuercert):
+                logerr(LOGFILE, "Need read rights on issuer certficate %s for user %s.\n" %
+                       (issuercert, getpass.getuser()))
+                sys.exit(1)
+            create_certs = True
+
+        if create_certs:
             logit(LOGFILE, "Creating root CA and a local CA's signing key and issuer cert.\n")
             if create_localca_cert(lockfile, statedir, signkey, signkey_password,
                                    issuercert) != 0:
