@@ -513,6 +513,10 @@ static int swtpm_tpm2_get_all_pcr_banks(struct swtpm *self, gchar ***all_pcr_ban
     memcpy(&count, &tpmresp[17], sizeof(count));
     count = be16toh(count);
 
+    /* unreasonable number of PCR banks ? */
+    if (count > 20)
+        goto err_num_pcrbanks;
+
     *all_pcr_banks = g_malloc0(sizeof(char *) * (count + 1));
 
     offset = 19;
@@ -541,9 +545,14 @@ static int swtpm_tpm2_get_all_pcr_banks(struct swtpm *self, gchar ***all_pcr_ban
     }
     return 0;
 
+err_num_pcrbanks:
+    logerr(self->logfile, "Unreasonable number of PCR banks (%u) returned.\n", count);
+    goto err_exit;
+
 err_too_short:
     logerr(self->logfile, "Response from TPM2_GetCapability is too short!\n");
 
+err_exit:
     g_strfreev(*all_pcr_banks);
     *all_pcr_banks = NULL;
 
