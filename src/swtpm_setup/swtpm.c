@@ -506,6 +506,8 @@ static int swtpm_tpm2_get_all_pcr_banks(struct swtpm *self, gchar ***all_pcr_ban
     if (ret != 0)
         return 1;
 
+    *all_pcr_banks = NULL;
+
     if (tpmresp_len < 17 + sizeof(count))
         goto err_too_short;
     memcpy(&count, &tpmresp[17], sizeof(count));
@@ -541,6 +543,10 @@ static int swtpm_tpm2_get_all_pcr_banks(struct swtpm *self, gchar ***all_pcr_ban
 
 err_too_short:
     logerr(self->logfile, "Response from TPM2_GetCapability is too short!\n");
+
+    g_strfreev(*all_pcr_banks);
+    *all_pcr_banks = NULL;
+
     return 1;
 }
 
