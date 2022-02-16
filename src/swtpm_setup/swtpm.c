@@ -584,7 +584,7 @@ static int swtpm_tpm2_set_active_pcr_banks(struct swtpm *self, gchar **pcr_banks
             }
             pcrselects_len += len;
             count++;
-            activated_mask |= (1 << j);
+            activated_mask |= ((uint64_t)1 << j);
         }
     }
 
