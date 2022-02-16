@@ -1266,6 +1266,7 @@ SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
                         uint8_t *hdrversion, bool quiet)
 {
     blobheader *bh = (blobheader *)data;
+    uint16_t hdrsize;
 
     if (length < sizeof(bh)) {
         if (!quiet)
@@ -1291,8 +1292,16 @@ SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
         return TPM_BAD_VERSION;
     }
 
+    hdrsize = ntohs(bh->hdrsize);
+    if (hdrsize != sizeof(blobheader)) {
+        logprintf(STDERR_FILENO,
+                  "bad header size: %u != %zu\n",
+                  hdrsize, sizeof(blobheader));
+        return TPM_BAD_DATASIZE;
+    }
+
     *hdrversion = bh->version;
-    *dataoffset = ntohs(bh->hdrsize);
+    *dataoffset = hdrsize;
     *hdrflags = ntohs(bh->flags);
 
     return TPM_SUCCESS;
