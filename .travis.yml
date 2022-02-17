@@ -101,7 +101,7 @@ matrix:
         - uidgid="$(id -nu):$(id -ng)" &&
           sudo chown -R ${uidgid} ./ &&
           cpp-coveralls --gcov-options '\-lp' -e libtpms
-    - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
+    - env: _CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBS="-lasan"
            ASAN_OPTIONS="halt_on_error=1"
@@ -109,7 +109,7 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
            CHECK="check"
-    - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
+    - env: _CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CONFIG="--disable-use-openssl-functions"
            LIBS="-lasan"
