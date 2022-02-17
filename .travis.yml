@@ -3,7 +3,7 @@ env:
   - secure: mcAXlw5k/1yOP2RMKWEtvU2SnsuHo5Idoi5zZ+hLj2CzdvT77Wh8HWQ7NRsiamL+3dMPxzzy60IYNZQ8F29y3rvN7gASVsYn31G5UkmfvpPLiucuPADM1rNm8FYNlia0GFW4keP+LwMrBo6KDK9k0T8w4lquXBwMmNzhvCYVwkBIM5YwhXW5nk1dOJtf6zAb6gDH/VNEYTXXRKjA5Jvln7+EVHY61pEx6rJGa2GU0A49ms5UMJVzv85FraiHwlCPnNhQWGJ6sStqxsd5i6VBTCrkwMqnnA+ZBosqIJkBXp4OkudfPWE9vsn7TtuYdbheOkUIv6GRPFJNG3Vm3Wh/IwvSOILS5xAmsB3MxyK3BlILOYcsywiSzV5J4+s5Vnih4FaRQ3xx46Fq2ldatuk7npIxfdd3Co5V1KZh1pq3ckAdKlY2PEsQc0Kh72Lxf2N0XVw4s0H7gzrFk4/ghIvoCmAWBRSrN+R7wleEcmxDRgUZHP6Qc2ZNP+kljhBLqzinW2jyxPAqQS17g5Tb01+WfqkG/T5jboyIIe/OEQ5XbQp3/d8rUA8STpJxD25lwKKqlIqU3ZFWYfRT+pA0x83AdiTm53CJSQqFyCLtZCqK0XSZbLfmFzjZJ7I8FQxZoF2o03DDkL1Xs0z0sj87i3UnsYzxGdSrcU2JDK7qRIn39sM=
 sudo: required
 language: c
-dist: xenial
+dist: bionic
 addons:
   apt:
       packages:
@@ -74,7 +74,8 @@ after_failure:
   - for f in tests/*.log; do echo ">>>>>>> $f <<<<<<<"; cat $f; done
 matrix:
   include:
-    - env: PREFIX="/usr"
+    - dist: xenial
+      env: PREFIX="/usr"
            CONFIG="--with-openssl --prefix=${PREFIX}"
            CHECK="distcheck"
            RUN_TEST="1"
@@ -95,7 +96,8 @@ matrix:
         - uidgid="$(id -nu):$(id -ng)" &&
           sudo chown -R ${uidgid} ./ &&
           cpp-coveralls --gcov-options '\-lp' -e libtpms
-    - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
+    - dist: bionic
+      env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBS="-lasan"
            ASAN_OPTIONS="halt_on_error=1"
@@ -103,7 +105,8 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
            CHECK="check"
-    - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
+    - dist: bionic
+      env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CONFIG="--disable-use-openssl-functions"
            LIBS="-lasan"
@@ -112,7 +115,8 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
            CHECK="check"
-    - env: CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
+    - dist: bionic
+      env: CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBS="-lubsan"
            UBSAN_OPTIONS="halt_on_error=1"
