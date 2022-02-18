@@ -1,5 +1,14 @@
 CHANGES - changes for swtpm
 
+version 0.6.2:
+  - swtpm:
+    - Check header size indicator against expected size (CVE-2022-23645)
+  - swtpm-localca:
+    - Test for available issuercert before creating CA
+  - swtpm_setup:
+    - Report stderr as returned by external tool (swtpm-localcal)
+    - Fix exit code on error to be '1'.
+
 version 0.6.1:
   - swtpm:
     - Clear keys from stack and heap
