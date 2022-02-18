@@ -172,6 +172,9 @@ fi
 %{_datadir}/swtpm/swtpm-create-tpmca
 
 %changelog
+* Fri Feb 18 2022 Stefan Berger <stefanb@linux.ibm.com> - 0.6.2-1.20220218git-------
+- v0.6.2 release
+
 * Mon Sep 20 2021 Stefan Berger <stefanb@linux.ibm.com> - 0.6.1-0.20210917git-------
 - v0.6.1 release
 

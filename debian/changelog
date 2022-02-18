@@ -1,6 +1,12 @@
+swtpm (0.6.2) RELEASED; urgency=medium
+
+  * Stable release
+
+ -- Stefan Berger <stefanb@linux.ibm.com>  Fri, 18 Feb 2022 09:00:00 -0500
+
 swtpm (0.6.1) RELEASED; urgency=low
 
-  * Stable relase
+  * Stable release
 
  -- Stefan Berger <stefanb@linux.ibm.com>  Mon, 20 Sep 2021 09:00:00 -0500
 
