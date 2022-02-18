@@ -1,5 +1,11 @@
 CHANGES - changes for swtpm
 
+version 0.7.1:
+  - swtpm:
+    - Check header size indicator against expected size (CVE-2022-23645)
+  - swtpm_localca:
+    - Test for available issuercert before creating CA
+
 version 0.7.0:
   - swtpm:
     - Support for linear file storage backend (file://)
