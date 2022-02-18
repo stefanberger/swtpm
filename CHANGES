@@ -1,5 +1,24 @@
 CHANGES - changes for swtpm
 
+version 0.5.3:
+  - swtpm:
+    - Check header size indicator against expected size (CVE-2022-23645)
+    - Fix --print-capabilities for 'swtpm chardev'
+  - swtpm_localca:
+    - Test for available issuercert before creating CA
+  - swtpm_cert:
+    - Rename deprecated libtasn1 types
+  - man pages:
+    - Update the doc of the flag to connect to TPM via UnixIO socket
+  - build-sys:
+    - Use -DOPENSSL_SUPPRESS_DEPRECATED to suppress deprecated API warnings
+      (OSSL 3)
+    - Fix Makefile issue with multiple .PHONY
+  - tests:
+    - Allow volatile state file >= 9000 bytes in test_tpm2_migration_key
+  - Travis:
+    - Stop using ASAN for swtpm since one test case fails (with 0.5.x)
+
 version 0.5.2:
   - swtpm:
     - Fix potential buffer overflow related to largely unused data hashing
