@@ -58,9 +58,12 @@ gchar *get_config_value(gchar **config_file_lines, const gchar *configname, cons
     for (idx = 0; config_file_lines[idx] != NULL; idx++) {
         const gchar *line = config_file_lines[idx];
         if (regexec(&preg, line, 2, pmatch, 0) == 0) {
-            result = g_strndup(&line[pmatch[1].rm_so],
-                               pmatch[1].rm_eo - pmatch[1].rm_so);
-            g_strchomp(result);
+            g_autofree gchar *tmp = NULL;
+
+            tmp = g_strndup(&line[pmatch[1].rm_so],
+                            pmatch[1].rm_eo - pmatch[1].rm_so);
+            g_strchomp(tmp);
+            result = resolve_string(tmp);
             break;
         }
     }
