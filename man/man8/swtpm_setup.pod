@@ -28,7 +28,7 @@ If this parameter is not provided, the default configuration file
 will be used. The search order for the default configuration file is
 as follows. If the environment variable XDG_CONFIG_HOME is set,
 ${XDG_CONFIG_HOME}/swtpm_setup.conf will be used if available, otherwise if
-the environment variable HOME is set, ${HOME}/swtpm_setup.conf
+the environment variable HOME is set, ${HOME}/.config/swtpm_setup.conf
 will be used if available. If none of the previous ones are available, /etc/swtpm_setup.conf
 will be used.
 
