@@ -30,13 +30,14 @@ function cleanup()
 
 # We want swtpm_cert to use the local CA and see that the
 # local CA script automatically creates a signingkey and
-# self-signed certificate
+# self-signed certificate; use ${WORKDIR} in the config files
+# to test env variable resolution
 
 cat <<_EOF_ > ${workdir}/swtpm-localca.conf
-statedir=${workdir}
-signingkey = ${SIGNINGKEY}
-issuercert = ${ISSUERCERT}
-certserial = ${CERTSERIAL}
+statedir=\${WORKDIR}
+signingkey = \${WORKDIR}/signingkey.pem
+issuercert = \${WORKDIR}/issuercert.pem
+certserial = \${WORKDIR}/certserial
 _EOF_
 
 cat <<_EOF_ > ${workdir}/swtpm-localca.options
@@ -50,8 +51,8 @@ _EOF_
 
 cat <<_EOF_ > ${workdir}/swtpm_setup.conf
 create_certs_tool=${SWTPM_LOCALCA}
-create_certs_tool_config=${workdir}/swtpm-localca.conf
-create_certs_tool_options=${workdir}/swtpm-localca.options
+create_certs_tool_config=\${WORKDIR}/swtpm-localca.conf
+create_certs_tool_options=\${WORKDIR}/swtpm-localca.options
 _EOF_
 
 # We need to adapt the PATH so the correct swtpm_cert is picked
@@ -61,7 +62,8 @@ export PATH=${ROOT}/src/swtpm_cert:${PATH}
 export SWTPM_ROOTCA_PASSWORD=password
 
 # we need to create at least one cert: --create-ek-cert
-$SWTPM_SETUP \
+WORKDIR=${workdir} \
+  $SWTPM_SETUP \
 	--tpm-state ${workdir} \
 	--create-ek-cert \
 	--config ${workdir}/swtpm_setup.conf \
