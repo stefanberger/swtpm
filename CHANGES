@@ -1,5 +1,18 @@
 CHANGES - changes for swtpm
 
+version 0.6.3:
+  - swtpm:
+    - Do not chdir(/) when using --daemon
+  - swtpm-localca:
+    - Re-implement variable resolution for swtpm-localca.conf
+  - tests:
+    - Use ${WORKDIR} in config files to test env. var replacement
+  - man:
+    - Add missing .config directory to path description when using ${HOME}
+  - build-sys:
+    - Add probing for -fstack-protector
+    - configure: Fix typo TPM2 -> TMP2
+
 version 0.6.2:
   - swtpm:
     - Check header size indicator against expected size (CVE-2022-23645)
