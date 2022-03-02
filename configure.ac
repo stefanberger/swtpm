@@ -400,9 +400,12 @@ AC_ARG_ENABLE([hardening],
   AS_HELP_STRING([--disable-hardening], [Disable hardening flags]))
 
 if test "x$enable_hardening" != "xno"; then
-	TMP="$($CC -fstack-protector-strong $srcdir/include/swtpm/tpm_ioctl.h 2>&1)"
-	if echo $TMP | $GREP 'unrecognized command line option' >/dev/null; then
-		HARDENING_CFLAGS="-fstack-protector -Wstack-protector"
+	# Some versions of gcc fail with -Wstack-protector,
+	# some with -Wstack-protector-strong enabled
+	if ! $CC -fstack-protector-strong -Wstack-protector $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null; then
+		if $CC -fstack-protector -Wstack-protector $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null; then
+			HARDENING_CFLAGS="-fstack-protector -Wstack-protector"
+		fi
 	else
 		HARDENING_CFLAGS="-fstack-protector-strong -Wstack-protector"
 	fi
