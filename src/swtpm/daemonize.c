@@ -274,12 +274,6 @@ daemonize_finish(void)
         return;
     }
 
-    if (chdir("/") == -1) {
-        fprintf(stderr, "Failed to change directory to /: %s\n",
-                strerror(errno));
-        fflush(stderr);
-        exit(1);
-    }
     if (dup2(devnullfd, STDOUT_FILENO) == -1) {
         fprintf(stderr, "Failed to redirect output stream to /dev/null: %s\n",
                 strerror(errno));
