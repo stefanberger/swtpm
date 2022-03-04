@@ -23,7 +23,7 @@
 #       This file is derived from tpm-tool's configure.in.
 #
 
-AC_INIT([swtpm],[0.5.3])
+AC_INIT([swtpm],[0.5.4])
 AC_PREREQ([2.69])
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CONFIG_HEADERS([config.h])
