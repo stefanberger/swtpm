@@ -461,9 +461,9 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 
     if (daemonize) {
 #ifdef __APPLE__
-        if (0 != osx_daemon(0, 0)) {
+        if (0 != osx_daemon(1, 0)) {
 #else
-        if (0 != daemon(0, 0)) {
+        if (0 != daemon(1, 0)) {
 #endif
             logprintf(STDERR_FILENO, "Error: Could not daemonize.\n");
             goto exit_failure;
