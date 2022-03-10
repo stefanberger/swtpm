@@ -1,5 +1,9 @@
 CHANGES - changes for swtpm
 
+version 0.5.4:
+  - swtpm:
+    - Do not chdir(/) when using --daemon
+
 version 0.5.3:
   - swtpm:
     - Check header size indicator against expected size (CVE-2022-23645)
