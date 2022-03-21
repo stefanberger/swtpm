@@ -275,7 +275,7 @@ linux-*)
     with_chardev=no
 esac
 AM_CONDITIONAL([WITH_CHARDEV],[test "$with_chardev" = "yes"])
-AC_MSG_RESULT($with_cuse)
+AC_MSG_RESULT($with_chardev)
 
 AC_ARG_WITH([gnutls],
             AS_HELP_STRING([--with-gnutls],[build with gnutls library]),
