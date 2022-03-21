@@ -318,7 +318,7 @@ if test "x$with_gnutls" != "xno"; then
     GNUTLS_CFLAGS=$(pkg-config gnutls --cflags)
     CFLAGS="$CFLAGS $GNUTLS_CFLAGS $GNUTLS_LDFLAGS"
     AC_CHECK_LIB([gnutls], [gnutls_load_file], [
-                 GNUTLS_LIBS=-lgnutls
+                 GNUTLS_LIBS=$(pkg-config gnutls --libs)
              ],
              [if test "x$with_gnutls" = "xyes"; then
                  AC_MSG_ERROR([GNUTLS >= 3.1.0 library not found: libgnutls.so])
@@ -629,6 +629,7 @@ echo " JSON_GLIB_CFLAGS = $JSON_GLIB_CFLAGS"
 echo "   JSON_GLIB_LIBS = $JSON_GLIB_LIBS"
 echo "      GLIB_CFLAGS = $GLIB_CFLAGS"
 echo "        GLIB_LIBS = $GLIB_LIBS"
+echo "      GNUTLS_LIBS = $GNUTLS_LIBS"
 echo
 echo "TSS_USER=$TSS_USER"
 echo "TSS_GROUP=$TSS_GROUP"
