@@ -220,6 +220,26 @@ if test "$with_cuse" != "no"; then
     fi
 fi
 
+dnl with_cuse is now yes or no
+if test "$with_cuse" != "no"; then
+    LIBFUSE_LIBS=$(pkg-config fuse --libs)
+    if test $? -ne 0; then
+        AC_MSG_ERROR("Is fuse-devel installed? -- could not get libs for libfuse")
+    fi
+    AC_SUBST([LIBFUSE_CFLAGS])
+    AC_SUBST([LIBFUSE_LIBS])
+    AC_DEFINE_UNQUOTED([WITH_CUSE], 1,
+                       [whether to build with CUSE interface])
+
+    GTHREAD_LIBS=$(pkg-config --libs gthread-2.0)
+    if test $? -ne 0; then
+        AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs for gthread-2.0")
+    fi
+    AC_SUBST([GTHREAD_LIBS])
+fi
+AM_CONDITIONAL([WITH_CUSE],[test "$with_cuse" = "yes"])
+AC_MSG_RESULT($with_cuse)
+
 JSON_GLIB_CFLAGS=$(pkg-config --cflags json-glib-1.0)
 if test $? -ne 0; then
    AC_MSG_ERROR("Is libjson-glib-dev/json-glib-devel installed? -- could not get cflags")
@@ -243,26 +263,6 @@ if test $? -ne 0; then
    AC_MSG_ERROR("Is libglib-2.0-dev/glib2-devel installed? -- could not get libs")
 fi
 AC_SUBST([GLIB_LIBS])
-
-dnl with_cuse is now yes or no
-if test "$with_cuse" != "no"; then
-    LIBFUSE_LIBS=$(pkg-config fuse --libs)
-    if test $? -ne 0; then
-        AC_MSG_ERROR("Is fuse-devel installed? -- could not get libs for libfuse")
-    fi
-    AC_SUBST([LIBFUSE_CFLAGS])
-    AC_SUBST([LIBFUSE_LIBS])
-    AC_DEFINE_UNQUOTED([WITH_CUSE], 1,
-                       [whether to build with CUSE interface])
-
-    GTHREAD_LIBS=$(pkg-config --libs gthread-2.0)
-    if test $? -ne 0; then
-        AC_MSG_ERROR("Is glib-2.0 installed? -- could not get libs for gthread-2.0")
-    fi
-    AC_SUBST([GTHREAD_LIBS])
-fi
-AM_CONDITIONAL([WITH_CUSE],[test "$with_cuse" = "yes"])
-AC_MSG_RESULT($with_cuse)
 
 AC_MSG_CHECKING([for whether to build with chardev interface])
 case $host_os in
