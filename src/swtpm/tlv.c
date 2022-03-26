@@ -126,7 +126,7 @@ const unsigned char *
 tlv_data_find_tag(const unsigned char *buffer, uint32_t buffer_len,
                   uint16_t tag, tlv_data *td)
 {
-    uint32_t offset = 0;
+    uint64_t offset = 0; /* uint64_t to prevent integer overflow */
 
     while (offset < buffer_len) {
         if (offset + sizeof(td->tlv) > buffer_len)
