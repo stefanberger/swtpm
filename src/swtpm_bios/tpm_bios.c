@@ -69,11 +69,12 @@
 static char *tpm_device; /* e.g., /dev/tpm0 */
 
 static char *tcp_hostname;
-static int tcp_port = DEFAULT_TCP_PORT;
+static unsigned int tcp_port = DEFAULT_TCP_PORT;
 
 static char *unix_path;
 
-static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
+static int parse_tcp_optarg(char *optarg, char **tcp_hostname,
+                            unsigned int *tcp_port)
 {
 	char *pos = strrchr(optarg, ':');
 	int n;
@@ -131,7 +132,7 @@ static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
 }
 
 static int open_connection(char *devname, char *tcp_device_hostname,
-                           int tcp_device_port, const char *unix_path)
+                           unsigned int tcp_device_port, const char *unix_path)
 {
 	int fd = -1;
 	char *tcp_device_port_string = NULL;
@@ -477,7 +478,7 @@ static int tpm12_bios(int do_more, int contselftest, unsigned char startupparm,
 		      int unassert_pp, int ensure_activated)
 {
 	int ret = 0;
-	int tpm_errcode;
+	int tpm_errcode = 0;
 	int tpm_error = 0;
 	unsigned short physical_presence;
 	struct tpm_get_capability_permflags_res perm_flags;
@@ -595,7 +596,7 @@ static int tpm2_bios(int contselftest, unsigned char startupparm,
 		     int set_password)
 {
 	int ret = 0;
-	int tpm_errcode;
+	int tpm_errcode = 0;
 	int tpm_error = 0;
 
 	if (ret == 0) {
