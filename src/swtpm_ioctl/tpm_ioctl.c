@@ -799,7 +799,8 @@ static int open_connection(const char *devname, char *tcp_hostname,
     return fd;
 }
 
-static int parse_tcp_optarg(char *optarg, char **tcp_hostname, int *tcp_port)
+static int parse_tcp_optarg(char *optarg, char **tcp_hostname,
+                            unsigned int *tcp_port)
 {
     char *pos = strrchr(optarg, ':');
     int n;
@@ -949,7 +950,7 @@ int main(int argc, char *argv[])
     char *tcp_hostname = NULL;
     unsigned int locality = 0;
     unsigned int tpmbuffersize = 0;
-    int tcp_port = -1;
+    unsigned int tcp_port = 0;
     bool is_chardev;
     unsigned long int info_flags = 0;
     char *endptr = NULL;
