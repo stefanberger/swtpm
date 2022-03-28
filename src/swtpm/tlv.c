@@ -72,8 +72,8 @@ tlv_data_append(unsigned char **buffer, uint32_t *buffer_len,
 {
     size_t i;
     tlv_header tlv;
-    uint32_t totlen;
-    size_t addlen = 0;
+    uint64_t totlen;
+    uint64_t addlen = 0;
     unsigned char *ptr;
     unsigned char *tmp;
 
@@ -85,7 +85,13 @@ tlv_data_append(unsigned char **buffer, uint32_t *buffer_len,
     else
         totlen = addlen;
 
-    tmp = realloc(*buffer, totlen);
+    if (totlen > 0xffffffff) {
+        /* can only happen if tlv.length or *buffer_len were excessive */
+        logprintf(STDERR_FILENO, "%s: Excessive buffer size error.\n", __func__);
+        return TPM_FAIL;
+    }
+
+    tmp = realloc(*buffer, (size_t)totlen);
     if (!tmp) {
          logprintf(STDERR_FILENO, "Could not allocate %u bytes.\n", totlen);
          return TPM_FAIL;
