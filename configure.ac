@@ -410,10 +410,9 @@ if test "x$enable_hardening" != "xno"; then
 		HARDENING_CFLAGS="-fstack-protector-strong -Wstack-protector"
 	fi
 
-	dnl Must not have -O0 but must have a -O for -D_FORTIFY_SOURCE=2
-	TMP1="$(echo $CFLAGS | sed -n 's/.*\(-O0\).*/\1/p')"
-	TMP2="$(echo $CFLAGS | sed -n 's/.*\(-O\).*/\1/p')"
-	if test -z "$TMP1" && test -n "$TMP2"; then
+	dnl Only support -D_FORTIFY_SOURCE=2 and have higher levels passed in by user
+	dnl since they may create more overhead
+	if $CC $CFLAGS -Werror -D_FORTIFY_SOURCE=2 $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null; then
 		HARDENING_CFLAGS="$HARDENING_CFLAGS -D_FORTIFY_SOURCE=2"
 	fi
 	dnl Check linker for 'relro' and 'now'
