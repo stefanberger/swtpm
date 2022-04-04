@@ -58,7 +58,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
 #include <getopt.h>
 #include <sys/un.h>
 #include <sys/types.h>
