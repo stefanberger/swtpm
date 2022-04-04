@@ -533,11 +533,6 @@ linux-*)
                      [whether to build in vTPM proxy support (Linux only)])
 esac
 
-case $host_os in
-cygwin)
-  CFLAGS="$CFLAGS -D__USE_LINUX_IOCTL_DEFS"
-esac
-
 dnl Seccomp profile using -lseccomp (Linux only)
 case $host_os in
 linux-*)

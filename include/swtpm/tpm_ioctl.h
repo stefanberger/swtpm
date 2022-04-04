@@ -8,6 +8,10 @@
 #ifndef _TPM_IOCTL_H_
 #define _TPM_IOCTL_H_
 
+#if defined(__CYGWIN__)
+# define __USE_LINUX_IOCTL_DEFS
+#endif
+
 #include <stdint.h>
 #include <sys/uio.h>
 #include <sys/types.h>
