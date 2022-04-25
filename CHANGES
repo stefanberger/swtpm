@@ -1,5 +1,13 @@
 CHANGES - changes for swtpm
 
+version 0.7.3:
+  - swtpm:
+    - Use uint64_t in tlv_data_append() to avoid integer overflows
+    - Use uint64_t to avoid integer wrap-around when adding a uint32_t
+  - build-sys:
+    - Fix configure script to support _FORTIFY_SOURCE=3
+    - Define __USE_LINUX_IOCTL_DEFS in header file (Cygwin)
+
 version 0.7.2:
   - swtpm:
     - Do not chdir(/) when using --daemon
