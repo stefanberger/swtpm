@@ -1,19 +1,39 @@
-From 850ce946fc5ba79f03d46e8cb7695dcadb5f397d Mon Sep 17 00:00:00 2001
+From 498b847b8c0b70c7b92142305a9fddfec9d40ad5 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Fri, 26 Feb 2021 18:45:57 -0500
-Subject: [PATCH 1/9] Deactivate test cases accessing rootcerts.txt
+Subject: [PATCH 1/6] Deactivate test cases accessing rootcerts.txt
 
 rootcerts.txt contains files in a drive we don't have access to
 ---
- utils/regtests/testcredential.sh | 18 +++++++++---------
+ utils/regtests/testcredential.sh | 23 +++++++++++++----------
  utils/regtests/testunseal.sh     |  4 ++--
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ 2 files changed, 15 insertions(+), 12 deletions(-)
 
 diff --git a/utils/regtests/testcredential.sh b/utils/regtests/testcredential.sh
-index cb9fec0..16fd66a 100755
+index cb9fec0..772a8ac 100755
 --- a/utils/regtests/testcredential.sh
 +++ b/utils/regtests/testcredential.sh
-@@ -300,9 +300,9 @@ NVNAME=(
+@@ -300,12 +300,15 @@ NVNAME=(
+ 	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -noflush > run.out
+ 	checkSuccess $?
+ 
+-	echo "Validate the ${CALG[i]} EK certificate against the root"
+-	${PREFIX}createek -high ${CALG[i]} -root certificates/rootcerts.txt > run.out
+-	checkSuccess $?
++	#echo "Validate the ${CALG[i]} EK certificate against the root"
++	#${PREFIX}createek -high ${CALG[i]} -root certificates/rootcerts.txt > run.out
++	#checkSuccess $?
+ 
+ 	echo "Create a signing key under the ${CALG[i]} EK using the password"
+-	${PREFIX}create -hp 80000001 -si -pwdp kkk > run.out
++	# May need to repeat command due to this here:
++	# https://github.com/stefanberger/libtpms/blob/stable-0.9/src/tpm2/SessionProcess.c#L1204
++	${PREFIX}create -hp 80000001 -si -pwdp kkk > run.out || \
++		${PREFIX}create -hp 80000001 -si -pwdp kkk > run.out
+ 	checkSuccess $?
+ 
+ 	echo "Start a ${HALG[i]} policy session"
+@@ -402,9 +405,9 @@ NVNAME=(
  	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -noflush > run.out
  	checkSuccess $?
  
@@ -26,20 +46,7 @@ index cb9fec0..16fd66a 100755
  
  	echo "Create a signing key under the ${CALG[i]} EK using the password"
  	${PREFIX}create -hp 80000001 -si -pwdp kkk > run.out
-@@ -402,9 +402,9 @@ NVNAME=(
- 	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -noflush > run.out
- 	checkSuccess $?
- 
--	echo "Validate the ${CALG[i]} EK certificate against the root"
--	${PREFIX}createek -high ${CALG[i]} -root certificates/rootcerts.txt > run.out
--	checkSuccess $?
-+	#echo "Validate the ${CALG[i]} EK certificate against the root"
-+	#${PREFIX}createek -high ${CALG[i]} -root certificates/rootcerts.txt > run.out
-+	#checkSuccess $?
- 
- 	echo "Create a signing key under the ${CALG[i]} EK using the password"
- 	${PREFIX}create -hp 80000001 -si -pwdp kkk > run.out
-@@ -540,9 +540,9 @@ NVNAME=(
+@@ -540,9 +543,9 @@ NVNAME=(
  	${PREFIX}createek ${ALG} -pwde eee -cp -noflush > run.out
  	checkSuccess $?
  
@@ -68,5 +75,5 @@ index aae3d4e..1755740 100755
  fi
  checkSuccess $?
 -- 
-2.26.2
+2.36.0
 
