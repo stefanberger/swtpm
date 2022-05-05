@@ -1,0 +1,38 @@
+# vim:syntax=apparmor
+# AppArmor policy for swtpm
+
+#include <tunables/global>
+
+profile swtpm /usr/bin/swtpm {
+  #include <abstractions/base>
+  #include <abstractions/openssl>
+
+  # Site-specific additions and overrides. See local/README for details.
+  #include <local/usr.bin.swtpm>
+
+  capability chown,
+  capability dac_override,
+  capability dac_read_search,
+  capability fowner,
+  capability fsetid,
+  capability setgid,
+  capability setuid,
+
+  network inet stream,
+  network inet6 stream,
+  unix (send) type=dgram addr=none peer=(addr=none),
+  unix (send, receive) type=stream addr=none peer=(label=libvirt-*),
+
+  /usr/bin/swtpm rm,
+
+  /tmp/** rwk,
+  owner @{HOME}/** rwk,
+  owner /var/lib/libvirt/swtpm/** rwk,
+  /run/libvirt/qemu/swtpm/*.sock rwk,
+  owner /var/log/swtpm/libvirt/qemu/*.log rwk,
+  owner /run/libvirt/qemu/swtpm/*.pid rwk,
+  owner /dev/vtpmx rw,
+  owner /etc/nsswitch.conf r,
+  owner /var/lib/swtpm/** rwk,
+  owner /run/swtpm/sock rw,
+}

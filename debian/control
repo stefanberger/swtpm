@@ -5,6 +5,7 @@ Priority: optional
 Standards-Version: 4.5.1
 Rules-Requires-Root: no
 Build-Depends: debhelper (>= 10),
+               dh-apparmor,
                expect,
                gawk,
                gnutls-bin,
