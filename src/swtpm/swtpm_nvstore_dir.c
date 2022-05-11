@@ -121,6 +121,9 @@ SWTPM_NVRAM_Lock_Dir(const char *tpm_state_path)
         .l_len = 0,
     };
 
+    if (lock_fd >= 0)
+        return 0;
+
     if (asprintf(&lockfile, "%s/.lock", tpm_state_path) < 0) {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_Lock_Dir: Could not asprintf lock filename\n");
