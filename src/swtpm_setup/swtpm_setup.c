@@ -662,7 +662,7 @@ static int init_tpm(unsigned long flags, gchar **swtpm_prg_l, const gchar *confi
     struct swtpm12 *swtpm12;
     struct swtpm *swtpm;
     g_autofree gchar *pubek = NULL;
-    size_t pubek_len;
+    size_t pubek_len = 0;
     int ret = 1;
 
     swtpm12 = swtpm12_new(swtpm_prg_l, tpm_state_path, swtpm_keyopt, gl_LOGFILE,
