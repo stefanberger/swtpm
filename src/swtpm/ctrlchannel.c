@@ -230,7 +230,6 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
         if (remain) {
             n = read_eintr(fd, pss->u.req.data, sizeof(pss->u.req.data));
             if (n < 0) {
-                res = TPM_IOERROR;
                 close(fd);
                 fd = -1;
                 goto err_fd_broken;
