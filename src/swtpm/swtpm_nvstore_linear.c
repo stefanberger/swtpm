@@ -241,8 +241,12 @@ SWTPM_NVRAM_Prepare_Linear(const char *uri)
         return TPM_FAIL;
     }
 
-    state.loaded_uri = malloc(strlen(uri) + 1);
-    strcpy(state.loaded_uri, uri);
+    state.loaded_uri = strdup(uri);
+    if (!state.loaded_uri) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_PrepareLinear: Out of memory\n");
+        return TPM_FAIL;
+    }
 
     /* TODO: Parse URI prefixes ("iscsi://", "rbd://", etc...) */
     state.ops = &nvram_linear_file_ops;
