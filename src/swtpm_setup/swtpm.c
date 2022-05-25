@@ -1668,7 +1668,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
         EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) < 1 ||
         EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, sha1) < 1 ||
         EVP_PKEY_CTX_set_rsa_oaep_md(ctx, sha1) < 1 ||
-        EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, strdup("TCPA"), 4) < 1 ||
+        EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, g_strdup("TCPA"), 4) < 1 ||
         EVP_PKEY_encrypt(ctx, enc_owner_auth, &enc_owner_auth_len,
                          ownerpass_digest, SHA_DIGEST_LENGTH) < 1||
         EVP_PKEY_encrypt(ctx, enc_srk_auth, &enc_srk_auth_len,
