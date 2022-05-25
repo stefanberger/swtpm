@@ -298,7 +298,6 @@ static int talk(const void *cmd, size_t count, int *tpm_errcode,
 
 err_close_fd:
 	close(fd);
-	fd = -1;
 
 err_exit:
 	return rc;
