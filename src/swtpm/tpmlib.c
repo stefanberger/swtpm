@@ -140,7 +140,7 @@ error_terminate:
 
 int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop)
 {
-    int result;
+    int result = 0;
     TPM_RESULT res;
 
     res = TPMLIB_GetTPMProperty(prop, &result);
