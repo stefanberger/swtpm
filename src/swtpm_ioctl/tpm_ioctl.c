@@ -967,6 +967,7 @@ int main(int argc, char *argv[])
             tpm_device = optarg;
             break;
         case 'T':
+            free(tcp_hostname);
             if (parse_tcp_optarg(optarg, &tcp_hostname, &tcp_port) < 0)
                 return EXIT_FAILURE;
             break;
