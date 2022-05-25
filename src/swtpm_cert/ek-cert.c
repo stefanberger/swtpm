@@ -197,6 +197,10 @@ hex_str_to_bin(const char *hexstr, int *modulus_len)
     }
 
     result = malloc(len / 2);
+    if (result == NULL) {
+        fprintf(stderr, "Out of memory tring to allocated %d bytes.", len / 2);
+        return NULL;
+    }
     i = 0;
     j = 0;
 
