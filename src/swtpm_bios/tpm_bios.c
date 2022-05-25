@@ -712,6 +712,7 @@ int main(int argc, char *argv[])
 #endif
 		switch (opt) {
 		case 'D':
+			free(tpm_device);
 			tpm_device = strdup(optarg);
 			if (!tpm_device) {
 				fprintf(stderr, "Out of memory.");
@@ -719,11 +720,13 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'T':
+			free(tcp_hostname);
 			if (parse_tcp_optarg(optarg, &tcp_hostname, &tcp_port) < 0) {
 				return EXIT_FAILURE;
 			}
 			break;
 		case 'U':
+			free(unix_path);
 			unix_path = strdup(optarg);
 			if (!unix_path) {
 				fprintf(stderr, "Out of memory.\n");
