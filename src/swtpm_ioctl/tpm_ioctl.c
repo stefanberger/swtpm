@@ -907,7 +907,7 @@ static void usage(const char *prgname)
 
 int main(int argc, char *argv[])
 {
-    int fd, n;
+    int fd = -1, n;
     ptm_est est;
     ptm_reset_est reset_est;
     ptm_loc loc;
@@ -1315,5 +1315,7 @@ int main(int argc, char *argv[])
 
 exit:
     free(tcp_hostname);
+    close(fd);
+
     return ret;
 }
