@@ -370,7 +370,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     if (get_next_serial(certserial, lockfile, &serial_str) != 0)
         return 1;
 
-    /* try to read the optsfile */
+    /* try to read the optsfile - failure to read is fine */
     read_file_lines(optsfile, &optsfile_lines);
 
     /* split each line from the optsfile and add the stripped parameters to options */
