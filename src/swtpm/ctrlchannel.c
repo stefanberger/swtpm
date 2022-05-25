@@ -131,7 +131,7 @@ int ctrlchannel_set_client_fd(struct ctrlchannel *cc, int fd)
 static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
 {
     uint32_t blobtype = be32toh(pgs->u.req.type);
-    const char *blobname = tpmlib_get_blobname(blobtype);
+    const char *blobname;
     uint32_t tpm_number = 0;
     unsigned char *blob = NULL;
     uint32_t blob_length = 0, return_length;
@@ -145,7 +145,11 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
     struct iovec iov[2];
     int iovcnt, n;
 
-    if (blobtype == PTM_BLOB_TYPE_VOLATILE)
+    blobname = tpmlib_get_blobname(blobtype);
+    if (!blobname)
+        res = TPM_FAIL;
+
+    if (res == 0 && blobtype == PTM_BLOB_TYPE_VOLATILE)
         res = SWTPM_NVRAM_Store_Volatile();
 
     if (res == 0)
