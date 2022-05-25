@@ -588,7 +588,7 @@ static int swtpm_tpm2_set_active_pcr_banks(struct swtpm *self, gchar **pcr_banks
                 break;
             }
         }
-        if (hashAlg != 0 && (activated_mask & (1 << j)) == 0) {
+        if (hashAlg != 0 && (activated_mask & ((uint64_t)1 << j)) == 0) {
             (*active)[count] = g_strdup(pcr_banks[idx]);
             len = concat(&pcrselects[pcrselects_len], sizeof(pcrselects) - pcrselects_len,
                          (unsigned char[]){AS2BE(hashAlg), 3, 0xff, 0xff, 0xff} , (size_t)6,
