@@ -1096,16 +1096,19 @@ main(int argc, char *argv[])
             pubkey_filename = optarg;
             break;
         case 'm': /* --modulus */
+            free(modulus_bin);
             if (!(modulus_bin = hex_str_to_bin(optarg, &modulus_len))) {
                 goto cleanup;
             }
             break;
         case 'x': /* --ecc-x */
+            free(ecc_x_bin);
             if (!(ecc_x_bin = hex_str_to_bin(optarg, &ecc_x_len))) {
                 goto cleanup;
             }
             break;
         case 'y': /* --ecc-y */
+            free(ecc_y_bin);
             if (!(ecc_y_bin = hex_str_to_bin(optarg, &ecc_y_len))) {
                 goto cleanup;
             }
