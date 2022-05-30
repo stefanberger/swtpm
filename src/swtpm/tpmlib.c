@@ -169,14 +169,11 @@ uint32_t tpmlib_get_cmd_ordinal(const unsigned char *request, size_t req_len)
 bool tpmlib_is_request_cancelable(TPMLIB_TPMVersion tpmversion,
                                   const unsigned char *request, size_t req_len)
 {
-    struct tpm_req_header *hdr;
-    uint32_t ordinal;
 
-    if (req_len < sizeof(struct tpm_req_header))
+    uint32_t ordinal = tpmlib_get_cmd_ordinal(request, req_len);
+
+    if (ordinal == TPM_ORDINAL_NONE)
         return false;
-
-    hdr = (struct tpm_req_header *)request;
-    ordinal = be32toh(hdr->ordinal);
 
     if (tpmversion == TPMLIB_TPM_VERSION_2)
         return (ordinal == TPMLIB_TPM2_CC_CreatePrimary ||
