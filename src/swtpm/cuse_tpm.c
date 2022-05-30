@@ -110,6 +110,9 @@ static uint32_t locality_flags;
 /* the fuse_session that we will signal an exit to to exit the prg. */
 static struct fuse_session *ptm_fuse_session;
 
+/* last command sent to the TPM */
+static uint32_t g_lastCommand = TPM_ORDINAL_NONE;
+
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
@@ -518,6 +521,8 @@ static int ptm_send_startup(uint16_t startupType,
                                tpmversion,
                                command, max_command_length);
     if (command_length > 0) {
+        g_lastCommand = tpmlib_get_cmd_ordinal(command, command_length);
+
         rc = TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
                            (unsigned char *)command, command_length);
         ptm_read_offset = 0;
@@ -871,6 +876,8 @@ static void ptm_write_stateblob(fuse_req_t req, const char *buf, size_t size)
 static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
                           TPMLIB_TPMVersion l_tpmversion)
 {
+    uint32_t lastCommand;
+
     ptm_req_len = size;
     ptm_res_len = 0;
 
@@ -895,6 +902,10 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
             ptm_read_offset = 0;
             goto skip_process;
         }
+
+        lastCommand = tpmlib_get_cmd_ordinal((unsigned char *)buf, ptm_req_len);
+        if (lastCommand != TPM_ORDINAL_NONE)
+            g_lastCommand = lastCommand;
 
         if (tpmlib_is_request_cancelable(l_tpmversion,
                                          (const unsigned char*)buf,

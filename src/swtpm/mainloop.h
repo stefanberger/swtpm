@@ -60,6 +60,7 @@ struct mainLoopParams {
     uint32_t locality_flags;
     TPMLIB_TPMVersion tpmversion;
     uint16_t startupType; /* use TPM 1.2 types */
+    uint32_t lastCommand; /* last Command sent to TPM */
 };
 
 int mainLoop(struct mainLoopParams *mlp,

@@ -102,6 +102,7 @@ int mainLoop(struct mainLoopParams *mlp,
     struct iovec        iov[3];
     uint32_t            ack = htobe32(0);
     struct tpm2_resp_prefix respprefix;
+    uint32_t            lastCommand;
 
     /* poolfd[] indexes */
     enum {
@@ -141,9 +142,11 @@ int mainLoop(struct mainLoopParams *mlp,
                                   mlp->startupType,
                                   mlp->tpmversion,
                                   command, max_command_length);
-        if (command_length > 0)
+        if (command_length > 0) {
+            mlp->lastCommand = tpmlib_get_cmd_ordinal(command, command_length);
             rc = TPMLIB_Process(&rbuffer, &rlength, &rTotal,
                                 command, command_length);
+        }
 
         if (rc || command_length == 0) {
             mainloop_terminate = true;
@@ -271,6 +274,14 @@ int mainLoop(struct mainLoopParams *mlp,
                                                       mlp->tpmversion);
                     goto skip_process;
                 }
+            }
+
+            if (rc == 0) {
+                lastCommand =
+                    tpmlib_get_cmd_ordinal(&command[cmd_offset],
+                                           command_length - cmd_offset);
+                if (lastCommand != TPM_ORDINAL_NONE)
+                    mlp->lastCommand = lastCommand;
             }
 
             if (rc == 0) {
