@@ -49,6 +49,7 @@ TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs);
 TPM_RESULT tpmlib_choose_tpm_version(TPMLIB_TPMVersion tpmversion);
 TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion);
 int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
+uint32_t tpmlib_get_cmd_ordinal(const unsigned char *request, size_t req_len);
 bool tpmlib_is_request_cancelable(TPMLIB_TPMVersion tpmversion,
                                   const unsigned char *request, size_t req_len);
 void tpmlib_write_fatal_error_response(unsigned char **rbuffer,
@@ -141,5 +142,8 @@ struct tpm_startup {
 /* TPM 2 startup types */
 #define TPM2_SU_CLEAR                  0x0000
 #define TPM2_SU_STATE                  0x0001
+
+/* common */
+#define TPM_ORDINAL_NONE               0x00000000
 
 #endif /* _SWTPM_TPMLIB_H_ */

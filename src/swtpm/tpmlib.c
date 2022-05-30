@@ -155,6 +155,17 @@ int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop)
     return result;
 }
 
+uint32_t tpmlib_get_cmd_ordinal(const unsigned char *request, size_t req_len)
+{
+    struct tpm_req_header *hdr;
+
+    if (req_len < sizeof(struct tpm_req_header))
+        return TPM_ORDINAL_NONE;
+
+    hdr = (struct tpm_req_header *)request;
+    return be32toh(hdr->ordinal);
+}
+
 bool tpmlib_is_request_cancelable(TPMLIB_TPMVersion tpmversion,
                                   const unsigned char *request, size_t req_len)
 {

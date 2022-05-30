@@ -215,6 +215,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         .locality_flags = 0,
         .tpmversion = TPMLIB_TPM_VERSION_1_2,
         .startupType = _TPM_ST_NONE,
+        .lastCommand = TPM_ORDINAL_NONE,
     };
     struct server *server = NULL;
     unsigned long val;
