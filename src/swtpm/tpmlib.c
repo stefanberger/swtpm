@@ -434,7 +434,7 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
         default:
             tocopy = 0;
             logprintf(STDERR_FILENO,
-                      "%s: internal error; unupported startup type for TPM 2\n", __func__);
+                      "%s: internal error; unsupported startup type for TPM 2\n", __func__);
             break;
         }
         break;
