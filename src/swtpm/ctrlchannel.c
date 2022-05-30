@@ -473,7 +473,6 @@ static uint64_t get_ptm_caps_supported(TPMLIB_TPMVersion tpmversion)
  *               this function in case TPM is stopped or started
  * @mlp: mainloop parameters used; may be altered by this function incase of
  *       CMD_SET_DATAFD
- * @tpmversion: the emulated TPM's version
  *
  * This function returns the passed file descriptor or -1 in case the
  * file descriptor was closed.
