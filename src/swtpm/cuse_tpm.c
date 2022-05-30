@@ -1091,6 +1091,10 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
             worker_thread_end();
 
+            if (tpm_running)
+                tpmlib_maybe_send_tpm2_shutdown(tpmversion,
+                                                &g_lastCommand);
+
             TPMLIB_Terminate();
 
             tpm_running = false;
@@ -1108,6 +1112,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     case PTM_STOP:
         worker_thread_end();
 
+        if (tpm_running)
+            tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
+
         res = TPM_SUCCESS;
         TPMLIB_Terminate();
 
@@ -1122,6 +1129,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
     case PTM_SHUTDOWN:
         worker_thread_end();
+
+        if (tpm_running)
+            tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
 
         res = TPM_SUCCESS;
         TPMLIB_Terminate();

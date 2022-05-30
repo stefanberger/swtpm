@@ -80,6 +80,9 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
                                    unsigned char *buffer,
                                    uint32_t buffersize);
 
+void tpmlib_maybe_send_tpm2_shutdown(TPMLIB_TPMVersion tpmversion,
+                                     uint32_t *lastCommand);
+
 struct tpm_req_header {
     uint16_t tag;
     uint32_t size;
@@ -131,12 +134,14 @@ struct tpm_startup {
 
 /* TPM 2 error codes */
 #define TPM_RC_INSUFFICIENT 0x09a
+#define TPM_RC_INITIALIZE   0x100
 #define TPM_RC_FAILURE      0x101
 #define TPM_RC_LOCALITY     0x107
 
 /* TPM 2 commands */
 #define TPMLIB_TPM2_CC_CreatePrimary   0x00000131
 #define TPMLIB_TPM2_CC_Startup         0x00000144
+#define TPMLIB_TPM2_CC_Shutdown        0x00000145
 #define TPMLIB_TPM2_CC_Create          0x00000153
 
 /* TPM 2 startup types */

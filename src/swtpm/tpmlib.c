@@ -465,3 +465,76 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
         memcpy(buffer, &ts, tocopy);
     return tocopy;
 }
+
+/*
+ * tpmlib_maybe_send_tpm2_shutdown: Send a TPM2_Shutdown() if necesssary
+ *
+ * @tpmversion: version of TPM
+ * @lastCommand: last command that was sent to the TPM 2 before
+ *               this will be updated if TPM2_Shutdown was sent
+ *
+ * Send a TPM2_Shutdown(SU_STATE) to a TPM 2 if the last-processed command was
+ * not TPM2_Shutdown. If the command fails, send TPM2_Shutdown(SU_CLEAR).
+ */
+void tpmlib_maybe_send_tpm2_shutdown(TPMLIB_TPMVersion tpmversion,
+                                     uint32_t *lastCommand)
+{
+    TPM_RESULT res;
+    unsigned char *rbuffer = NULL;
+    uint32_t rlength = 0;
+    uint32_t rTotal = 0;
+    struct tpm2_shutdown {
+        struct tpm_req_header hdr;
+        uint16_t shutdownType;
+    } tpm2_shutdown = {
+        .hdr = {
+            .tag = htobe16(TPM2_ST_NO_SESSION),
+            .size = htobe32(sizeof(tpm2_shutdown)),
+            .ordinal = htobe32(TPMLIB_TPM2_CC_Shutdown),
+        },
+    };
+    uint16_t shutdownTypes[2] = {
+        TPM2_SU_STATE, TPM2_SU_CLEAR,
+    };
+    struct tpm_resp_header *rsp;
+    uint32_t errcode;
+    size_t i;
+
+    /* Only send TPM2_Shutdown for a TPM 2 and only if TPM2_Shutdown()
+     * was not already sent. Send a TPM2_Shutdown(SU_STATE) first since
+     * this is preserves additional state that will not matter if the
+     * VM starts with TPM2_Startup(SU_CLEAR). Only if this command fails
+     * send TPM2_Shutdown(SU_CLEAR).
+     */
+    if (tpmversion != TPMLIB_TPM_VERSION_2 ||
+        *lastCommand == TPMLIB_TPM2_CC_Shutdown)
+        return;
+
+    for (i = 0; i < ARRAY_LEN(shutdownTypes); i++) {
+#if 0
+        logprintf(STDERR_FILENO,
+                  "Need to send TPM2_Shutdown(%s); previous command: 0x08x\n",
+                  shutdownTypes[i] == TPM2_SU_STATE ? "SU_STATE" : "SU_CLEAR",
+                  *lastCommand);
+#endif
+        tpm2_shutdown.shutdownType = htobe16(shutdownTypes[i]);
+
+        res = TPMLIB_Process(&rbuffer, &rlength, &rTotal,
+                             (unsigned char *)&tpm2_shutdown,
+                             sizeof(tpm2_shutdown));
+
+        if (res || rlength < sizeof(struct tpm_resp_header))
+            continue;
+        rsp = (struct tpm_resp_header *)rbuffer;
+
+        errcode = be32toh(rsp->errcode);
+        if (errcode == TPM_SUCCESS) {
+            *lastCommand = TPMLIB_TPM2_CC_Shutdown;
+            break;
+        } else if (errcode == TPM_RC_INITIALIZE) {
+            /* TPM not initialized by TPM2_Startup - won't work */
+            break;
+        }
+    }
+    free(rbuffer);
+}

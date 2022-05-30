@@ -554,6 +554,10 @@ int ctrlchannel_process_fd(int fd,
         if (n != (ssize_t)sizeof(ptm_init)) /* r/w */
             goto err_bad_input;
 
+        if (*tpm_running)
+            tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
+                                            &mlp->lastCommand);
+
         init_p = (ptm_init *)input.body;
 
         TPMLIB_Terminate();
@@ -576,6 +580,10 @@ int ctrlchannel_process_fd(int fd,
         if (n != 0) /* wo */
             goto err_bad_input;
 
+        if (*tpm_running)
+            tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
+                                            &mlp->lastCommand);
+
         TPMLIB_Terminate();
 
         *tpm_running = false;
@@ -587,6 +595,10 @@ int ctrlchannel_process_fd(int fd,
     case CMD_SHUTDOWN:
         if (n != 0) /* wo */
             goto err_bad_input;
+
+        if (*tpm_running)
+            tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
+                                            &mlp->lastCommand);
 
         TPMLIB_Terminate();
 
