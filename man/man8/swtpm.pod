@@ -406,6 +406,19 @@ Display usage info.
 
 =back
 
+=head1 NOTES
+
+If a TPM 2 is used, the user is typically required to send a TPM2_Shutdown()
+command to a TPM 2 to avoid possibly increasing the TPM_PT_LOCKOUT_COUNTER
+that may lead to a dictionary attack (DA) lockout upon next startup
+(TPM2_Startup()) of the TPM 2. Whether the TPM_PT_LOCKOUT_COUNTER is
+increased depends on previous commands sent to the TPM 2 as well as
+internal state of the TPM 2. One example that will trigger the counter to
+increase is the omission of a password when trying to access a
+password-protected object or NVRAM location that has the DA attribute set,
+followed by termination of swtpm without sending TPM2_Shutdown(). To avoid
+a DA lockout swtpm will make a best-effort and send a TPM2_Shutdown(SU_STATE)
+or TPM2_Shutdown(SU_CLEAR) if found necessary.
 
 =head1 SEE ALSO
 
