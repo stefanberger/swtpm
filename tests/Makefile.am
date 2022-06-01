@@ -46,6 +46,7 @@ TESTS += \
 	test_swtpm_setup_misc
 
 TESTS += \
+	test_tpm2_avoid_da_lockout \
 	test_tpm2_ctrlchannel2 \
 	test_tpm2_derived_keys \
 	test_tpm2_encrypted_state \
@@ -184,6 +185,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_setbuffersize \
 	_test_swtpm_bios \
 	_test_tpm_probe \
+	_test_tpm2_avoid_da_lockout \
 	_test_tpm2_derived_keys \
 	_test_tpm2_encrypted_state \
 	_test_tpm2_file_permissions \

@@ -1,0 +1,164 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+VTPM_NAME="vtpm-test-tpm2-avoid-da-lockout"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH="$(mktemp -d)" || exit 1
+LOG_FILE=$TPM_PATH/tpm-00.log
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill_quiet -9 $pid
+	fi
+	rm -rf $TPM_PATH
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
+source ${TESTDIR}/common
+source ${TESTDIR}/test_common
+
+run_swtpm ${SWTPM_INTERFACE} \
+	--tpm2 \
+	--log file=$LOG_FILE,level=20 \
+	--flags not-need-init,startup-clear
+
+kill_quiet -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Define password-protected NV space with DA attribute set: tssnvdefinespace -ha 01000000 -hi o -pwdn test -sz 1 -at da
+cmd='\x80\x02\x00\x00\x00\x31\x00\x00\x01\x2a\x40\x00\x00\x01\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x04\x74\x65\x73\x74\x00\x0e\x01\x00\x00\x00\x00\x0b\x00\x04\x00\x04\x00\x00\x00\x01'
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_NV_DefineSpace"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Write to NV space without password: tssnvwrite -ha 01000000 -ic A
+cmd='\x80\x02\x00\x00\x00\x24\x00\x00\x01\x37\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x01\x41\x00\x00'
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+exp=' 80 01 00 00 00 0a 00 00 09 22'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_NV_Write"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# The TPM_PT_LOCKOUT_COUNTER must be 0 now: tssgetcapability -cap 6 -pr 0x20e -pc 1
+cmd='\x80\x01\x00\x00\x00\x16\x00\x00\x01\x7a\x00\x00\x00\x06\x00\x00\x02\x0e\x00\x00\x00\x01'
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+exp=' 80 01 00 00 00 1b 00 00 00 00 01 00 00 00 06 00 00 00 01 00 00 02 0e 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_GetCapability(TPM_PT_LOCKOUT_COUNTER)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Abruptly init the TPM: swtpm will internally send TPM2_Shutdown()
+run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+# send TPM2_Startup(SU_CLEAR)
+cmd='\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00'
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+exp=' 80 01 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_Startup(SU_CLEAR)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# The TPM_PT_LOCKOUT_COUNTER must still be '0' now: tssgetcapability -cap 6 -pr 0x20e -pc 1
+# Without swtpm sending TPM2_Shutdown, it would be '1' now
+cmd='\x80\x01\x00\x00\x00\x16\x00\x00\x01\x7a\x00\x00\x00\x06\x00\x00\x02\x0e\x00\x00\x00\x01'
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+exp=' 80 01 00 00 00 1b 00 00 00 00 01 00 00 00 06 00 00 00 01 00 00 02 0e 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_GetCapability(TPM_PT_LOCKOUT_COUNTER)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Again write to NV space without password: tssnvwrite -ha 01000000 -ic A
+cmd='\x80\x02\x00\x00\x00\x24\x00\x00\x01\x37\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x01\x41\x00\x00'
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+exp=' 80 01 00 00 00 0a 00 00 09 22'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_NV_Write"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# CMD_STOP: swtpm will internally send TPM2_Shutdown()
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone ${SWTPM_PID} 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+run_swtpm ${SWTPM_INTERFACE} \
+	--tpm2 \
+	--log file=$LOG_FILE,level=20 \
+	--flags not-need-init,startup-clear
+
+kill_quiet -0 ${SWTPM_PID}
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# The TPM_PT_LOCKOUT_COUNTER must still be '0' now: tssgetcapability -cap 6 -pr 0x20e -pc 1
+# Without swtpm sending TPM2_Shutdown, it would be '2' now
+cmd='\x80\x01\x00\x00\x00\x16\x00\x00\x01\x7a\x00\x00\x00\x06\x00\x00\x02\x0e\x00\x00\x00\x01'
+RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+exp=' 80 01 00 00 00 1b 00 00 00 00 01 00 00 00 06 00 00 00 01 00 00 02 0e 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_GetCapability(TPM_PT_LOCKOUT_COUNTER)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone ${SWTPM_PID} 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0
