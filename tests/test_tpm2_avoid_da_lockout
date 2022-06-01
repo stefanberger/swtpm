@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+source ${TESTDIR}/common
+skip_test_no_tpm20 "${SWTPM_EXE}"
+
+cd "$(dirname "$0")"
+
+export SWTPM_IOCTL_BUFFERSIZE=100
+export SWTPM_INTERFACE=cuse
+bash _test_tpm2_avoid_da_lockout
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65464
+export SWTPM_CTRL_PORT=65465
+bash _test_tpm2_avoid_da_lockout
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_INTERFACE=socket+unix
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65464
+bash _test_tpm2_avoid_da_lockout
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
+
+export SWTPM_INTERFACE=unix+unix
+bash _test_tpm2_avoid_da_lockout
+ret=$?
+[ $ret -ne 0  ] && [ $ret -ne 77 ] && exit $ret
+
+exit 0
