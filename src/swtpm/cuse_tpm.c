@@ -1697,6 +1697,11 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
+    if (disable_fips_mode() < 0) {
+        ret = -1;
+        goto exit;
+    }
+
     if (tpmlib_register_callbacks(&cbs) != TPM_SUCCESS) {
         ret = -1;
         goto exit;
