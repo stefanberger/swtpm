@@ -11,6 +11,7 @@ noinst_HEADERS = \
 	capabilities.h \
 	common.h \
 	ctrlchannel.h \
+	fips.h \
 	key.h \
 	locality.h \
 	logging.h \
@@ -40,6 +41,7 @@ libswtpm_libtpms_la_SOURCES = \
 	capabilities.c \
 	common.c \
 	ctrlchannel.c \
+	fips.c \
 	key.c \
 	logging.c \
 	mainloop.c \

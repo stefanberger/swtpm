@@ -1,5 +1,5 @@
 /*
- * utils.h -- utilities
+ * fips.h -- FIPS mode related functions
  *
  * (c) Copyright IBM Corporation 2015.
  *
@@ -37,39 +37,6 @@
 
 #ifndef _SWTPM_UTILS_H_
 #define _SWTPM_UTILS_H_
-
-#include "config.h"
-
-#include <signal.h>
-#include <sys/uio.h>
-
-#include <libtpms/tpm_library.h>
-
-#define ROUND_TO_NEXT_POWER_OF_2_32(a) \
-    do { \
-      a--; \
-      a |= a >> 1; \
-      a |= a >> 2; \
-      a |= a >> 4; \
-      a |= a >> 8; \
-      a |= a >> 16; \
-      a++; \
-    } while(0);
-
-typedef void (*sighandler_t)(int);
-
-int install_sighandlers(int pipefd[2], sighandler_t handler);
-void uninstall_sighandlers(void);
-int change_process_owner(const char *owner);
-
-void tpmlib_debug_libtpms_parameters(TPMLIB_TPMVersion);
-
-char *fd_to_filename(int fd);
-
-ssize_t write_full(int fd, const void *buffer, size_t buflen);
-ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt);
-
-ssize_t read_eintr(int fd, void *buffer, size_t buflen);
 
 int disable_fips_mode(void);
 
