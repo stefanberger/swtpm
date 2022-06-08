@@ -524,6 +524,9 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         daemonize_finish();
     }
 
+    if (disable_fips_mode() < 0)
+        goto error_seccomp_profile;
+
     rc = mainLoop(&mlp, notify_fd[0]);
 
 error_seccomp_profile:
