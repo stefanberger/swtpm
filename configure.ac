@@ -156,6 +156,15 @@ openssl)
 	AC_MSG_RESULT([Building with openssl crypto library])
 	LIBCRYPTO_LIBS=$(pkg-config --libs libcrypto)
 	AC_SUBST([LIBCRYPTO_LIBS])
+	AC_CHECK_HEADERS([openssl/fips.h],
+	                 [AC_DEFINE_UNQUOTED([HAVE_OPENSSL_FIPS_H], 1,
+	                                     [whether openssl/fips.h is available])]
+	                 )
+	AC_CHECK_LIB(crypto,
+		     [FIPS_mode_set],
+		     [AC_DEFINE_UNQUOTED([HAVE_OPENSSL_FIPS_MODE_SET_API], 1,
+		                         [whether FIPS_mode_set API is available])]
+		     )
 	;;
 esac
 
