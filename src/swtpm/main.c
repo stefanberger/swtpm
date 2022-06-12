@@ -84,7 +84,7 @@ int main(int argc, char **argv)
         usage(stdout, argv[0]);
     } else if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {
         fprintf(stdout, "TPM emulator version %d.%d.%d, "
-                "Copyright (c) 2014-2021 IBM Corp.\n",
+                "Copyright (c) 2014-2022 IBM Corp. and others\n",
                 SWTPM_VER_MAJOR,
                 SWTPM_VER_MINOR,
                 SWTPM_VER_MICRO);
