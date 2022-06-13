@@ -133,7 +133,7 @@ function swtpm_setup_reconfigure() {
 	local PERMALL_FILE="${workdir}/tpm2-00.permall"
 	local permall_size=$(get_filesize "${PERMALL_FILE}")
 
-	for pcrbanks in "sha1" "sha1,sha256" "sha1,sha256,sha384,sha512"; do
+	for pcrbanks in "sha256" "sha256,sha384" "sha256,sha384,sha512"; do
 		# hash must change between before and after
 		permall_hash=$(get_sha1_file "${PERMALL_FILE}")
 
