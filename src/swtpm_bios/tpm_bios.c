@@ -422,7 +422,7 @@ static int TPM2_IncrementalSelfTest(int *tpm_errcode)
 		.to_test = {
 			.num_entries = htobe32(1),
 			.algids = {
-				htobe16(TPM2_ALG_SHA1),
+				htobe16(TPM2_ALG_SHA256),
 			},
 		},
 	};
@@ -613,7 +613,7 @@ static int tpm2_bios(int contselftest, unsigned char startupparm,
 		ret = TPM2_IncrementalSelfTest(&tpm_errcode);
 		if (tpm_errcode != 0) {
 			tpm_error = 1;
-			printf("TPM2_ImcrementalSelfTest returned error "
+			printf("TPM2_IncrementalSelfTest returned error "
 			       "code 0x%08x\n", tpm_errcode);
 		}
 	}
