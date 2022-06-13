@@ -130,7 +130,7 @@ struct tpm_get_capability_permflags_res {
 #define TPM2_SU_CLEAR    0x0000
 #define TPM2_SU_STATE    0x0001
 
-#define TPM2_ALG_SHA1    0x0004
+#define TPM2_ALG_SHA256  0x000b
 
 #define TPM2_RS_PW       0x40000009
 #define TPM2_RH_PLATFORM 0x4000000c
