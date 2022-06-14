@@ -48,7 +48,7 @@ enum TPMLIB_StateType tpmlib_blobtype_to_statetype(uint32_t blobtype);
 TPM_RESULT tpmlib_register_callbacks(struct libtpms_callbacks *cbs);
 TPM_RESULT tpmlib_choose_tpm_version(TPMLIB_TPMVersion tpmversion);
 TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
-                        bool lock_nvram);
+                        bool lock_nvram, const char *profile);
 int tpmlib_get_tpm_property(enum TPMLIB_TPMProperty prop);
 uint32_t tpmlib_get_cmd_ordinal(const unsigned char *request, size_t req_len);
 bool tpmlib_is_request_cancelable(TPMLIB_TPMVersion tpmversion,
