@@ -176,12 +176,13 @@ AC_SUBST([LIBTASN1_LIBS])
 
 PKG_CHECK_MODULES(
 	[LIBTPMS],
-	[libtpms >= 0.6],
+	[libtpms >= 0.10],
 	,
-	AC_MSG_ERROR("libtpms >= 0.6 required or no libtpms.pc found; please set PKG_CONFIG_PATH to the directory where libtpms.pc is located")
+	AC_MSG_ERROR("libtpms >= 0.10 required or no libtpms.pc found; please set PKG_CONFIG_PATH to the directory where libtpms.pc is located")
 )
 LDFLAGS="$LDFLAGS $LIBTPMS_LIBS"
 CFLAGS="$CFLAGS $LIBTPMS_CFLAGS"
+
 AC_SUBST([LIBTPMS_LIBS])
 
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
@@ -652,7 +653,8 @@ printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with
 printf "with_seccomp    : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
 printf "enable_tests    : %5s  (no = no tests will run)\n" $enable_tests
 printf "\n"
-printf "active PCR banks  : %s\n" $DEFAULT_PCR_BANKS
+printf "active PCR banks      : %s\n" $DEFAULT_PCR_BANKS
+printf "TPM 2 profile support : yes\n"
 echo
 echo "Version to build  : $PACKAGE_VERSION"
 echo "Crypto library    : $cryptolib"
