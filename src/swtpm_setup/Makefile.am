@@ -8,6 +8,7 @@ MY_CFLAGS = @MY_CFLAGS@
 MY_LDFLAGS = @MY_LDFLAGS@
 
 noinst_HEADERS = \
+	profile.h \
 	swtpm.h \
 	swtpm_setup.h \
 	swtpm_setup_utils.h
@@ -16,6 +17,7 @@ bin_PROGRAMS = \
 	swtpm_setup
 
 swtpm_setup_SOURCES = \
+	profile.c \
 	swtpm.c \
 	swtpm_setup.c \
 	swtpm_setup_utils.c \

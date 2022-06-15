@@ -117,16 +117,54 @@ oom:
     goto cleanup;
 }
 
+static int get_profile_data(const char *info_data, JsonReader *jr,
+                            GString *gstr, const char *member,
+                            const char *prefix, const char *suffix)
+{
+    g_string_append_printf(gstr, "%s: { \"canbedisabled\": ", prefix);
+
+    if (!json_reader_read_member(jr, member)) {
+        logprintf(STDERR_FILENO,
+                  "Missing '%s' field: %s\n",
+                  member, info_data);
+        return -1;
+    }
+    if (!json_reader_read_member(jr, "CanBeDisabled")) {
+        logprintf(STDERR_FILENO,
+                  "Missing 'CanBeDisabled' field under '%s': %s\n",
+                  member, info_data);
+        return -1;
+    }
+    g_string_append_printf(gstr, "\"%s\", \"implemented\": ",
+                           json_reader_get_string_value(jr));
+    json_reader_end_member(jr);
+    if (!json_reader_read_member(jr, "Implemented")) {
+        logprintf(STDERR_FILENO,
+                  "Missing 'Implemented' field under '%s': %s\n",
+                  member, info_data);
+        return -1;
+    }
+    g_string_append_printf(gstr, "\"%s\" }%s",
+                           json_reader_get_string_value(jr),
+                           suffix);
+    json_reader_end_member(jr);
+    json_reader_end_member(jr);
+
+    return 0;
+}
+
 static int get_profiles(gchar **profiles)
 {
-    char *info_data = TPMLIB_GetInfo(TPMLIB_INFO_AVAILABLE_PROFILES);
+    char *info_data = TPMLIB_GetInfo(TPMLIB_INFO_AVAILABLE_PROFILES |
+                                     TPMLIB_INFO_RUNTIME_ALGORITHMS |
+                                     TPMLIB_INFO_RUNTIME_COMMANDS);
     JsonParser *jp = NULL;
     JsonReader *jr = NULL;
     g_autoptr(GError) error = NULL;
     JsonNode *root;
     gint i, num;
     int ret = 0;
-    GString *gstr = g_string_new(NULL);
+    GString *gstr = g_string_new("\"names\": [ ");
 
     jp = json_parser_new();
 
@@ -155,11 +193,18 @@ static int get_profiles(gchar **profiles)
             goto error_unref_jr;
         }
         g_string_append_printf(gstr, "%s\"%s\"",
-                               i > 0 ? ", " : " ",
+                               i > 0 ? ", " : "",
                                json_reader_get_string_value(jr));
         json_reader_end_element(jr);
         json_reader_end_element(jr);
     }
+    json_reader_end_member(jr);
+
+    if (get_profile_data(info_data, jr, gstr,
+                         "RuntimeAlgorithms", " ], \"algorithms\"", "") ||
+        get_profile_data(info_data, jr, gstr,
+                         "RuntimeCommands", ", \"commands\"", " "))
+        goto error_unref_jr;
 
 
 error_unref_jr:
@@ -218,7 +263,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          "\"features\": [ "
              "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
-         "\"profiles\": [%s ], "
+         "\"profiles\": { %s}, "
          "\"version\": \"" VERSION "\" "
          "}",
          with_tpm1,

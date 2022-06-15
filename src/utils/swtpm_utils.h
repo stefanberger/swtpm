@@ -55,4 +55,9 @@ gchar *str_replace(const char *in, const char *torep, const char *rep);
 
 int check_directory_access(const gchar *directory, int mode, const struct passwd *curr_user);
 
+int json_get_map_value(const char *json_input, const char *field_name,
+                       gchar **value);
+
+int strv_strcmp(gchar *const*str_array, const gchar *s);
+
 #endif /* SWTPM_UTILS_H */
