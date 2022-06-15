@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include <glib.h>
+#include <json-glib/json-glib.h>
 
 #include "swtpm_utils.h"
 
@@ -439,4 +440,52 @@ int check_directory_access(const gchar *directory, int mode, const struct passwd
         return 1;
     }
     return 0;
+}
+
+int json_get_map_value(const char *json_input, const char *field_name,
+                       gchar **value)
+{
+    g_autoptr(GError) error = NULL;
+    JsonParser *jp = NULL;
+    JsonReader *jr = NULL;
+    JsonNode *root;
+    int ret = -1;
+
+    jp = json_parser_new();
+    if (!json_parser_load_from_data(jp, json_input, -1, &error)) {
+        logerr(gl_LOGFILE,
+               "Could not parse JSON '%s': %s\n", json_input, error->message);
+        goto error_unref_jp;
+    }
+
+    root = json_parser_get_root(jp);
+    jr = json_reader_new(root);
+
+    if (!json_reader_read_member(jr, field_name)) {
+        logerr(gl_LOGFILE, "Missing '%s' field in '%s'\n",
+               field_name, json_input);
+        goto error_unref_jr;
+    }
+    *value = g_strdup(json_reader_get_string_value(jr));
+
+    ret = 0;
+
+error_unref_jr:
+    g_object_unref(jr);
+
+error_unref_jp:
+    g_object_unref(jp);
+
+    return ret;
+}
+
+int strv_strcmp(gchar *const*str_array, const gchar *s)
+{
+    size_t i;
+
+    for (i = 0; str_array[i]; i++) {
+        if (strcmp(str_array[i], s) == 0)
+            return (int)i;
+    }
+    return -1;
 }

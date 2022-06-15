@@ -17,11 +17,13 @@ libswtpm_utils_la_CFLAGS = \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
 	$(HARDENING_CFLAGS) \
-	$(GLIB_CFLAGS)
+	$(GLIB_CFLAGS) \
+	$(JSON_GLIB_CFLAGS)
 
 libswtpm_utils_la_LDFLAGS = \
 	$(MY_LDFLAGS) \
-	$(HARDENING_LDFLAGS)
+	$(HARDENING_LDFLAGS) \
+	$(JSON_GLIB_LIBS)
 
 libswtpm_utils_la_SOURCES = \
 	swtpm_utils.c

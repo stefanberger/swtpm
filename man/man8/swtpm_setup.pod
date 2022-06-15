@@ -193,6 +193,31 @@ size is used.
 This option allows the reconfiguration of the active PCR banks of a
 TPM 2 using the I<--pcr-banks> option.
 
+=item B<--profile <json-profile>>
+
+Configure a TPM 2 with the given profile. Example profiles look
+like this:
+
+    {"Name": "null"}
+
+    {"Name": "default-v1"}
+
+    {
+     "Name": "custom",
+     "Algorithms":"rsa,rsa-min-size=1024,tdes-min-size=128,hmac,aes,\
+                   aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,\
+                   sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,\
+                   sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,\
+                   ecc,ecc-min-size=192,ecc-nist,ecc-bn,symcipher,camellia,\
+                   camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb"
+    }
+
+
+The JSON profile must contain the 'name' field with a name of a profile
+supported by libtpms. The profile may contain an algorithms field with a
+list of algorithms to enable. Unknown fields in the JSON profile will be
+ignored.
+
 =item B<--print-capabilities> (since v0.2)
 
 Print capabilities that were added to swtpm_setup after version 0.1.
