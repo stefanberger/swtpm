@@ -45,9 +45,11 @@ Makefile
 /samples/swtpm_setup.conf
 /src/selinux/*.pp.bz2
 /src/selinux/swtpm.pp
+/src/selinux/swtpm.fc
 /src/selinux/swtpm_svirt.fc
 /src/selinux/swtpm_svirt.if
 /src/selinux/swtpm_svirt.pp
+/src/selinux/swtpmcuse.fc
 /src/selinux/swtpmcuse.pp
 /src/selinux/tmp
 /src/swtpm/swtpm

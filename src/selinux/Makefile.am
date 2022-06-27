@@ -23,16 +23,19 @@ policiesconf_DATA = \
 
 swtpm.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
-	  swtpm.fc swtpm.if swtpm.te)
+	  swtpm.if swtpm.te) \
+	$(top_builddir)/src/selinux/swtpm.fc
 
 swtpm_svirt.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
-	  swtpm_svirt.te swtpm.fc swtpm.if swtpm.te)
+	  swtpm_svirt.te swtpm.if swtpm.te) \
+	$(top_builddir)/src/selinux/swtpm.fc
 
 if WITH_CUSE
 swtpmcuse.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
-	  swtpmcuse.te swtpmcuse.fc swtpmcuse.if)
+	  swtpmcuse.te swtpmcuse.if) \
+	$(top_builddir)/src/selinux/swtpmcuse.fc
 endif
 
 all: $(POLICIES_BZ2)
@@ -71,17 +74,14 @@ selinux-uninstall:
 	cp $^ ./ 2>/dev/null || true
 	make -f /usr/share/selinux/devel/Makefile $@
 	$(RM) -r ./tmp/
-	if test $(abspath $(shell pwd)) != $(abspath $(top_srcdir)/src/selinux); then \
-		$(RM) *.te *.fc *.if; \
-	fi
 
 EXTRA_DIST = \
-	swtpm.fc \
+	swtpm.fc.in \
 	swtpm.if \
 	swtpm.te \
 	swtpm_svirt.te \
-	swtpmcuse.fc \
+	swtpmcuse.fc.in \
 	swtpmcuse.if \
 	swtpmcuse.te
 
-CLEANFILES = *.pp *.pp.bz2
+CLEANFILES = *.pp *.pp.bz2 *.if *.te *.fc
