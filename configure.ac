@@ -590,6 +590,8 @@ AC_CONFIG_FILES([Makefile                   \
 		include/swtpm.h             \
 		src/Makefile                \
 		src/selinux/Makefile        \
+		src/selinux/swtpm.fc        \
+		src/selinux/swtpmcuse.fc    \
 		src/swtpm/Makefile          \
 		src/swtpm_bios/Makefile     \
 		src/swtpm_cert/Makefile     \
