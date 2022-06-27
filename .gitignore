@@ -37,6 +37,7 @@ Makefile
 /patches/*
 /include/swtpm.h
 /man/man3/*.3
+/man/man5/*.5
 /man/man8/*.8
 !/man/man8/swtpm-localca.8
 /samples/swtpm-create-user-config-files
