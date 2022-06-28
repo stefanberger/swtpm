@@ -194,6 +194,97 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
 }
 
 /*
+ * option_parse_token:
+ * Parse an option that may have one of the following formats
+ * 1) name[,n2=v2[,...]]
+ * 2) name=value[,n2=v2[,...]]
+ * 3) name={...}[,n2=v2[,...]]
+ * Case 3 allows to parse values containing a JSON map.
+ *
+ * @str: On first call this must be the string to break into tokens;
+ *       on subsequent calls this should be NULL
+ * @saveptr: A pointer to a pointer where this function stores the address
+ *           to continue parsing next time
+ * @tok: The function returns the pointer to the beginning of the token here;
+ *       The token lies withing the given @str and @str may be modified for
+ *       NUL-terminating the token
+ * @char: A pointer where to store a string pointer in case of error
+ *
+ * In case of success this function returns 0, -1 otherwise.
+ */
+static int
+option_parse_token(char *str, char **saveptr, char **tok, char **error)
+{
+    char *comma, *equals;
+
+    if (!str)
+        str = *saveptr;
+
+    *tok = str;
+    if (!str)
+        return 0;
+
+    equals = strchr(str, '=');
+    comma = strchr(str, ',');
+    /* don't care about '=' after a ',' */
+    if (equals > comma)
+        equals = NULL;
+
+    if (equals != NULL && equals[1] == '{') {
+        unsigned long c = 1;
+        char *eom = NULL;
+        size_t i = 2;
+
+        /* find terminating "}" considering nested maps */
+        eom = NULL;
+        while (equals[i] && !eom) {
+            switch (equals[i]) {
+            case '{':
+                c++;
+                break;
+            case '}':
+                c--;
+                if (c == 0)
+                    eom = &equals[i];
+                break;
+            }
+            i++;
+        }
+
+        if (!eom) {
+            option_error_set(error, "Unterminated JSON map.");
+            return -1;
+        }
+
+        /* what follows the "}" ? */
+        switch (eom[1]) {
+        case ',':
+            eom[1] = 0;
+            *saveptr = &eom[2];
+            break;
+        case '\0':
+            /* this was the last item */
+            *saveptr = NULL;
+            break;
+        default:
+            option_error_set(error, "Unexpected character following JSON map.");
+            return -1;
+        }
+    } else {
+        if (!comma) {
+            /* this is the last item */
+            *saveptr = NULL;
+        } else {
+            comma[0] = '\0';
+            *saveptr = &comma[1];
+        }
+    }
+    *tok = str;
+
+    return 0;
+}
+
+/*
  * options_parse:
  * Parse the string of options following the template; return the
  * parsed Options or an error string.
@@ -226,7 +317,10 @@ options_parse(char *opts, const OptionDesc optdesc[], char **error)
 
     saveptr = opts_bak; /* make coverity happy */
 
-    tok = strtok_r(opts_bak, ",", &saveptr);
+    if (option_parse_token(opts_bak, &saveptr, &tok, error) < 0) {
+        goto error;
+    }
+
     while (tok) {
         size_t toklen = strlen(tok);
 
@@ -256,7 +350,9 @@ options_parse(char *opts, const OptionDesc optdesc[], char **error)
             goto error;
         }
 
-        tok = strtok_r(NULL, ",", &saveptr);
+        if (option_parse_token(NULL, &saveptr, &tok, error) < 0) {
+            goto error;
+        }
     }
 
     free(opts_bak);
