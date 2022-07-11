@@ -129,6 +129,8 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
     char *keysizecaps = NULL;
     const char *nvram_backend_dir = "\"nvram-backend-dir\", ";
     const char *nvram_backend_file = "\"nvram-backend-file\"";
+    const char *cmdarg_profile = "\"cmdarg-profile\"";
+    bool comma1;
 
     /* ignore errors */
     TPMLIB_ChooseTPMVersion(tpmversion);
@@ -142,11 +144,13 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
     if (TPMLIB_ChooseTPMVersion(TPMLIB_TPM_VERSION_2) == TPM_SUCCESS)
         with_tpm2 = "\"tpm-2.0\", ";
 
+    comma1 = cmdarg_profile;
+
     n =  asprintf(&string,
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"version\": \"" VERSION "\" "
          "}",
@@ -164,7 +168,9 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          true         ? "\"cmdarg-migration\", "       : "",
          nvram_backend_dir,
          nvram_backend_file,
-         keysizecaps  ? keysizecaps                    : ""
+         keysizecaps  ? keysizecaps                    : "",
+         comma1       ? ", "                           : "",
+         cmdarg_profile ? cmdarg_profile               : ""
     );
 
     if (n < 0) {

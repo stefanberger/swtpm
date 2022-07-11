@@ -333,7 +333,8 @@ may contain the following:
         "flags-opt-disable-auto-shutdown",
         "rsa-keysize-1024",
         "rsa-keysize-2048",
-        "rsa-keysize-3072"
+        "rsa-keysize-3072",
+        "cmdarg-profile"
       ],
       "version": "0.7.0"
     }
@@ -407,6 +408,12 @@ The I<--flags> option supports the I<disable-auto-shutdown> flag.
 
 The TPM 2 supports the shown RSA key sizes. If none of the
 rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
+
+=item B<cmarg-profile> (since v0.10)
+
+The option <--profile> is supported to set a profile for a TPM 2 using either
+the option parameter I<name=> to select a profile by its name or I<profile=>
+to provide a JSON-formatted profile.
 
 =back
 
