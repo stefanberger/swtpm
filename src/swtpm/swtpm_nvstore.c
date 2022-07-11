@@ -75,7 +75,7 @@
 # include <openssl/hmac.h>
 #endif
 
-#if defined(__OpenBSD__)
+#if defined(__OpenBSD__) || defined(LIBRESSL_VERSION_NUMBER)
  # define OPENSSL_OLD_API
 #elif OPENSSL_VERSION_NUMBER < 0x10100000
  #define OPENSSL_OLD_API
