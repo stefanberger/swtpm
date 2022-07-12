@@ -85,7 +85,8 @@ TESTS += \
 	test_tpm2_swtpm_bios \
 	\
 	test_tpm2_ibmtss2 \
-	test_tpm2_swtpm_setup_overwrite
+	test_tpm2_swtpm_setup_overwrite \
+	test_tpm2_swtpm_setup_profile
 
 if WITH_GNUTLS
 TESTS += \
@@ -166,6 +167,7 @@ EXTRA_DIST = \
 	data/tpm2state4/tpm2-00.permall \
 	data/tpm2state5/signature.bin \
 	data/tpm2state5/tpm2-00.permall \
+	data/tpm2state6/tpm2-00.permall \
 	patches/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch \
 	patches/0002-Implement-powerup-for-swtpm.patch \
 	patches/0003-Set-CRYPTOLIBRARY-to-openssl.patch \
