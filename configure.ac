@@ -366,16 +366,22 @@ AC_ARG_ENABLE([default-pcr-banks],
               []
 )
 
-if test "x$enable_default_pcr_banks" != "x"; then
-    DEFAULT_PCR_BANKS="$enable_default_pcr_banks"
-fi
-AC_MSG_CHECKING([which PCR banks to activate by default])
-REGEX="^(sha1|sha256|sha384|sha512)(,(sha1|sha256|sha384|sha512)){0,3}\$"
-if bash -c "[[[ $DEFAULT_PCR_BANKS =~ $REGEX ]]] && exit 0 || exit 1"; then
-	AC_MSG_RESULT([$DEFAULT_PCR_BANKS])
-else
-	AC_MSG_ERROR([$DEFAULT_PCR_BANKS is an invalid list of PCR banks])
-fi
+AC_DEFUN([pcr_bank_checks], [
+    AC_CHECK_PROG([bash], [bash], [yes], [no])
+    AS_IF([test "x$bash" != "xyes"],
+      [AC_MSG_ERROR([PCR bank verification requires bash, but executable not found.])])
+
+    AC_MSG_CHECKING([which PCR banks to activate by default])
+    REGEX="^(sha1|sha256|sha384|sha512)(,(sha1|sha256|sha384|sha512)){0,3}\$"
+    AS_IF([bash -c "[[[ $DEFAULT_PCR_BANKS =~ $REGEX ]]] && exit 0 || exit 1"],
+        [AC_MSG_RESULT([$DEFAULT_PCR_BANKS])],
+        [AC_MSG_ERROR([$DEFAULT_PCR_BANKS is an invalid list of PCR banks])])
+])
+
+AS_IF([test "x$enable_default_pcr_banks" != "x"],[
+     DEFAULT_PCR_BANKS="$enable_default_pcr_banks"
+])
+pcr_bank_checks
 AC_SUBST([DEFAULT_PCR_BANKS])
 
 AC_PATH_PROG([EXPECT], expect)
