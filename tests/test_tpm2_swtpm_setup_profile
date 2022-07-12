@@ -1,0 +1,354 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+source "${TESTDIR}/common"
+skip_test_no_tpm20 "${SWTPM_EXE}"
+
+workdir="$(mktemp -d)" || exit 1
+export TPM_PATH=${workdir}
+SWTPM_SERVER_PORT=65480
+SWTPM_CTRL_PORT=65481
+SWTPM_SERVER_NAME=127.0.0.1
+SWTPM_INTERFACE="socket+socket"
+
+trap "cleanup" SIGTERM EXIT
+
+
+cat <<_EOF_ > "${workdir}/swtpm-localca.options"
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 2
+--platform-manufacturer "Fedora XYZ"
+--platform-version 2.1
+--platform-model "QEMU A.B"
+_EOF_
+
+cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
+create_certs_tool=\${SWTPM_LOCALCA}
+create_certs_tool_config=${workdir}/swtpm-localca.conf
+create_certs_tool_options=${workdir}/swtpm-localca.options
+_EOF_
+
+function cleanup()
+{
+	rm -rf "${workdir}"
+
+	if kill_quiet -0 "${SWTPM_PID}"; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+}
+
+test_swtpm_setup_profile()
+{
+	local workdir="${1}"
+	local profile="${2}"
+	local exp_response="${3}"	# expected 'ActiveProfile' response; optional
+	local disabled_algos="${4}"	# disabled algorithms; optional
+	local tpm2request="${5}"	# TPM 2 request to send; optional
+	local exp_tpm2response="${6}"	# expected response; optional
+	local exp_fail="${7}"		# swtpm_setup is expexted to fail when '1'
+
+	local response
+
+	rm -f "${workdir}/logfile"
+
+	if ! $SWTPM_SETUP \
+		--tpm2 \
+		--tpmstate "${workdir}" \
+		--config "${workdir}/swtpm_setup.conf" \
+		--log "${workdir}/logfile" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--overwrite \
+		${profile:+--profile ${profile}}
+	then
+		if [ "${exp_fail}" -eq 1 ]; then
+			# swtpm_setup failed as expected
+			return 0
+		fi
+		echo "Test failed: Error: Could not run $SWTPM_SETUP."
+		echo "Setup Logfile:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
+	if [ -n "${exp_fail}" ] && [ "${exp_fail}" -eq 1 ]; then
+		echo "Error: swtpm_setup did not fail as expected"
+		exit 1
+	fi
+
+	run_swtpm "${SWTPM_INTERFACE}" \
+		--tpm2 \
+		--flags not-need-init,startup-clear
+
+	if ! kill_quiet -0 "${SWTPM_PID}"; then
+		echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+		exit 1
+	fi
+
+	response=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x20)
+	if ! [[ "${response}" =~ ${exp_response} ]]; then
+		echo "Error: Response does not match expected response regular expression"
+		echo "Actual   : ${response}"
+		echo "Expected : ${exp_response}"
+		exit 1
+	fi
+
+	if [ -n "${disabled_algos}" ]; then
+		response=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x8 |
+			   sed -n 's/.*"Disabled":"\([^"]\+\).*/\1/p')
+		if [ "${response}" != "${disabled_algos}" ]; then
+			echo "Error: Response for disabled algorithms does not match expected response"
+			echo "Actual   : ${response}"
+			echo "Expected : ${disabled_algos}"
+			exit 1
+		fi
+	fi
+
+	if [ -n "${tpm2request}" ]; then
+		response=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" "${tpm2request}")
+		if [ "${response}" != "${exp_tpm2response}" ]; then
+			echo "Error: TPM 2 response does not match expected response"
+			echo "Actual   : ${response}"
+			echo "Expected : ${exp_tpm2response}"
+			exit 1
+		fi
+	fi
+
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+		echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+		exit 1
+	fi
+
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+		exit 1
+	fi
+}
+
+# Get available profiles and algorithms that are implemented and those that can be disabled
+run_swtpm "${SWTPM_INTERFACE}" \
+	--tpm2 \
+	--flags not-need-init
+
+if ! kill_quiet -0 "${SWTPM_PID}"; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+profiles=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x20 |
+	   sed 's/{"Name/\n{"Name/g' |
+	   sed -n 's/^{"Name":"\([^"]\+\)".*/\1/p')
+
+canbedisabled_algos_str=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x8 |
+			  sed -n 's/.*"CanBeDisabled":"\([^"]\+\).*/\1/p')
+
+implemented_algos_str=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x8 |
+			sed -n 's/.*"Implemented":"\([^"]\+\).*/\1/p')
+
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+# Test with no profile
+exp_response=$(echo "^\{\"ActiveProfile\":\{" \
+               "\"Name\":\"null\"," \
+               "\"StateFormatLevel\":[0-9]+,"\
+               "\"Commands\":\"[,x[:xdigit:]-]+\","\
+               "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+               "\"Description\":\"[[:print:]]+\""\
+               "\}\}\$"| tr -d " ")
+test_swtpm_setup_profile \
+	"${workdir}" "" "${exp_response}" \
+	"" "" "" ""
+
+echo "Test without profile passed"
+
+# Test-setup each profile that is implemented
+for profile in ${profiles}; do
+	exp_response=$(echo "^\{\"ActiveProfile\":\{" \
+	               "\"Name\":\"${profile}\"," \
+	               "\"StateFormatLevel\":[0-9]+,"\
+	               "\"Commands\":\"[,x[:xdigit:]-]+\","\
+	               "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+	               "\"Description\":\"[[:print:]]+\""\
+	               "\}\}\$"| tr -d " ")
+	test_swtpm_setup_profile \
+		"${workdir}" "{\"Name\":\"${profile}\"}" "${exp_response}" "" "" "" ""
+
+	echo "Test with profile '${profile}' passed"
+done
+
+# Setup the custom profile with an increasing set of disabled algorithms
+# that swtpm_ioctl has to show then.
+IFS="," read -r -a canbedisabled_algos <<< "${canbedisabled_algos_str}"
+IFS="," read -r -a implemented_algos <<< "${implemented_algos_str}"
+
+algos="${implemented_algos[*]}"
+disabled=()
+for todisable in "${canbedisabled_algos[@]}"; do
+	# Remove algorithm ${todisable} from list of implemented algorithms
+	algos=$(echo "${algos}" | sed "s/${todisable}//" | tr -s ' ')
+	disabled+=("${todisable}")
+
+	# Format profile
+	a=$(echo "${algos}" | sed -e 's/ /,/g' -e 's/,$//')
+	profile="{\"Name\":\"custom\",\"Algorithms\":\"${a}\"}"
+
+        d=${disabled[*]}
+        d=${d// /,}
+
+	test_swtpm_setup_profile \
+		"${workdir}" "${profile}" "" "${d}" "" "" ""
+	echo "Test with custom profile and disabled algorithms '${d}' passed"
+done
+
+# Test the custom profiles with disabled commands and various StateFormatLevels
+
+# because of 0x199-0x19a we must have StateFormatLevel >=3 for it to be acceptable
+cmds="0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x199-0x19a"
+for sfls in 1:0:1 2:0:1 3:3:0 4:4:0; do
+	sfl=$(cut -d":" -f1 <<< "${sfls}")
+	exp_sfl=$(cut -d":" -f2 <<< "${sfls}")
+	exp_fail=$(cut -d":" -f3 <<< "${sfls}")
+	profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\",\"StateFormatLevel\":${sfl}}"
+	exp_response=".*,\"StateFormatLevel\":${exp_sfl},.*"
+	test_swtpm_setup_profile \
+		"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
+	echo "Test with custom profile and commands (with 0x199-0x19a) passed with StateFormatLevel ${sfl}."
+done
+
+# Without given StateFormatLevel it should go up to StateFormatLevel '4' (due to AES-192 being selected)
+profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\"}"
+exp_response=".*,\"StateFormatLevel\":4,.*"
+test_swtpm_setup_profile \
+	"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
+
+# with cmds 0x199-0x19a missing it can have many StateFormatLevels >= 2
+cmds="0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193"
+# StateFormatLevel 3 enables 'nothing' additional and so will fall down to '2'
+# StateFormatLevel 4 enables AES-192 and will remain at '4'
+for sfls in 1:0:1 2:2:0 3:2:0 4:4:0; do
+	sfl=$(cut -d":" -f1 <<< "${sfls}")
+	exp_sfl=$(cut -d":" -f2 <<< "${sfls}")
+	exp_fail=$(cut -d":" -f3 <<< "${sfls}")
+	profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\",\"StateFormatLevel\":${sfl}}"
+	exp_response=".*,\"StateFormatLevel\":${exp_sfl},.*"
+	test_swtpm_setup_profile \
+		"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
+	echo "Test with custom profile and commands passed with StateFormatLevel ${sfl}."
+done
+
+# Without given StateFormatLevel it should go up to StateFormatLevel '4' (due to AES-192 being selected)
+profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\"}"
+exp_response=".*,\"StateFormatLevel\":4,.*"
+test_swtpm_setup_profile \
+	"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
+
+# Setup the TPM 2 with custom profile and sha1 removed
+# Check that the GetCapability command returns the proper set of PCR banks
+
+algos="${implemented_algos[*]}"
+algos=$(echo "${algos}" | sed "s/sha1//" | tr -s ' ')
+# Format profile
+a=$(echo "${algos}" | sed -e 's/ /,/g' -e 's/,$//')
+profile="{\"Name\":\"custom\",\"Algorithms\":\"${a}\"}"
+
+# Check PCR bank sha1 is not available: tssgetcapability -cap 5
+test_swtpm_setup_profile \
+	"${workdir}" \
+	"${profile}" \
+	"" \
+	"" \
+	"\x80\x01\x00\x00\x00\x16\x00\x00\x01\x7a\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x40" \
+	" 80 01 00 00 00 25 00 00 00 00 00 00 00 00 05 00 00 00 03 00 0b 03 ff ff ff 00 0c 03 00 00 00 00 0d 03 00 00 00"
+
+echo "Test with custom profile and 'sha1' disabled algorithms passed"
+
+
+# Copy TPM 2 state written by libtpms v0.9 and have the TPM read and re-write the state.
+# The size of the state file must not change since we don't want the profile to be
+# written into it.
+
+cp "${TESTDIR}/data/tpm2state6/tpm2-00.permall" "${workdir}"
+before=$(get_filesize "${workdir}/tpm2-00.permall")
+
+# Avoid swptm sending TPM2_Shutdown(SU_STATE) and adding savestate to the state file
+run_swtpm "${SWTPM_INTERFACE}" \
+	--tpm2 \
+	--flags not-need-init,startup-clear,disable-auto-shutdown
+
+if ! kill_quiet -0 "${SWTPM_PID}"; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# Run ChangeEPS so the state is re-written: tsschangeeps
+cmd='\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x24\x40\x00\x00\x0c\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00'
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" "${cmd}")
+exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_ChangeEPS"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+after=$(get_filesize "${workdir}/tpm2-00.permall")
+if [ "${after}" -ne "${before}" ]; then
+	echo "Error: The size of the TPM 2 state file has changed"
+	echo "Actual   : ${after}"
+	echo "Expected : ${before}"
+	exit 1
+fi
+
+echo "Test with state written by libtpms v0.9 passed"
+
+# If the user passes the null profile in then libtpms has to write state
+# at the level of libtpms v0.9 and the size of the state file has to be
+# the same as the one created with libtpms v0.9
+rm -f "${workdir}"/tpm2-00.*
+
+if ! $SWTPM_SETUP \
+	--tpm2 \
+	--tpmstate "${workdir}" \
+	--config "${workdir}/swtpm_setup.conf" \
+	--log "${workdir}/logfile" \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--profile '{"Name":"null"}'
+then
+	echo "Test failed: Error: Could not run $SWTPM_SETUP and set null-profile."
+	echo "Setup Logfile:"
+	cat "${workdir}/logfile"
+	exit 1
+fi
+
+after=$(get_filesize "${workdir}/tpm2-00.permall")
+if [ "${after}" -ne "${before}" ]; then
+	echo "Error: The size of the TPM 2 state file is different than if created by libtpms v0.9"
+	echo "Actual   : ${after}"
+	echo "Expected : ${before}"
+	exit 1
+fi
+
+echo "Test of writing state at the level of libtpms v0.9 passed"
+
+exit 0
