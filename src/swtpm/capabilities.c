@@ -150,7 +150,7 @@ int capabilities_print_json(bool cusetpm)
          with_tpm1,
          with_tpm2,
          !cusetpm     ? "\"tpm-send-command-header\", ": "",
-         !cusetpm     ? "\"flags-opt-startup\", "      : "",
+         true         ? "\"flags-opt-startup\", "      : "",
          cmdarg_seccomp,
          true         ? "\"cmdarg-key-fd\", "          : "",
          true         ? "\"cmdarg-pwd-fd\", "          : "",
