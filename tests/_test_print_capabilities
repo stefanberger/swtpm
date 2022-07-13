@@ -22,10 +22,10 @@ if has_seccomp_support "${SWTPM_EXE}"; then
 	seccomp='"cmdarg-seccomp", '
 fi
 if [ "${SWTPM_IFACE}" != "cuse" ]; then
-	noncuse='"tpm-send-command-header", "flags-opt-startup", '
+	noncuse='"tpm-send-command-header", '
 fi
 
-exp='\{ "type": "swtpm", "features": \[ "tpm-1.2",( "tpm-2.0",)? '${noncuse}${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd", "cmdarg-print-states", "nvram-backend-dir", "nvram-backend-file" \], "version": "[^"]*" \}'
+exp='\{ "type": "swtpm", "features": \[ "tpm-1.2",( "tpm-2.0",)? '${noncuse}'"flags-opt-startup", '${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd", "cmdarg-print-states", "nvram-backend-dir", "nvram-backend-file" \], "version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-capabilities:"
 	echo "Actual   : ${msg}"
