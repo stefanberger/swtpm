@@ -1616,8 +1616,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
          * Choose the TPM version so that getting/setting buffer size works.
          * Ignore failure, for backward compatibility when TPM 1.2 is disabled.
          */
-        TPMLIB_ChooseTPMVersion(tpmversion);
-        ret = capabilities_print_json(true) ? EXIT_FAILURE : EXIT_SUCCESS;
+        ret = capabilities_print_json(true, tpmversion) ? EXIT_FAILURE : EXIT_SUCCESS;
         goto exit;
     }
 
