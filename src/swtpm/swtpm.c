@@ -432,8 +432,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
          * Choose the TPM version so that getting/setting buffer size works.
          * Ignore failure, for backward compatibility when TPM 1.2 is disabled.
          */
-        TPMLIB_ChooseTPMVersion(mlp.tpmversion);
-        ret = capabilities_print_json(false);
+        ret = capabilities_print_json(false, mlp.tpmversion);
         exit(ret ? EXIT_FAILURE : EXIT_SUCCESS);
     }
 

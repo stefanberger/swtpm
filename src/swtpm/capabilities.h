@@ -40,6 +40,8 @@
 
 #include <stdbool.h>
 
-int capabilities_print_json(bool cusetpm);
+#include <libtpms/tpm_library.h>
+
+int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion);
 
 #endif /* SWTPM_CAPABILITIES_H */
