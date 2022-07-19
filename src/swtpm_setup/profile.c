@@ -16,7 +16,6 @@
 #include "swtpm_utils.h"
 
 /* Return the names of the supported profiles */
-static
 int get_profile_names(const gchar *swtpm_capabilities_json, gchar ***profile_names)
 {
     g_autoptr(GError) error = NULL;
