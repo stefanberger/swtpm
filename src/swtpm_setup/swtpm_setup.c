@@ -929,16 +929,16 @@ static void usage(const char *prgname, const char *default_config_file)
         );
 }
 
-static int get_supported_tpm_versions(gchar **swtpm_prg_l, gboolean *swtpm_has_tpm12,
-                                      gboolean *swtpm_has_tpm2)
+static int get_swtpm_capabilities(gchar **swtpm_prg_l, gboolean is_tpm2,
+                                  gchar **standard_output)
 {
-    gboolean success;
-    g_autofree gchar *standard_output = NULL;
-    int exit_status = 0;
-    g_autoptr(GError) error = NULL;
-    g_autofree gchar **argv = NULL;
-    gchar *my_argv[] = { "--print-capabilities", NULL };
+    gchar *my_argv[] = { "--print-capabilities", is_tpm2 ? "--tpm2" : NULL, NULL };
     g_autofree gchar *logop = NULL;
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar **argv;
+    int exit_status = 0;
+    gboolean success;
+    int ret = 1;
 
     argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
 
@@ -948,11 +948,26 @@ static int get_supported_tpm_versions(gchar **swtpm_prg_l, gboolean *swtpm_has_t
     }
 
     success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-                           &standard_output, NULL, &exit_status, &error);
+                           standard_output, NULL, &exit_status, &error);
     if (!success) {
         logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
-        return 1;
+        goto error;
     }
+    ret = 0;
+
+error:
+    return ret;
+}
+
+static int get_supported_tpm_versions(gchar **swtpm_prg_l, gboolean *swtpm_has_tpm12,
+                                      gboolean *swtpm_has_tpm2)
+{
+    g_autofree gchar *standard_output = NULL;
+    int ret;
+
+    ret = get_swtpm_capabilities(swtpm_prg_l, FALSE, &standard_output);
+    if (ret)
+        return ret;
 
     *swtpm_has_tpm12 = g_strstr_len(standard_output, -1, "\"tpm-1.2\"") != NULL;
     *swtpm_has_tpm2 = g_strstr_len(standard_output, -1, "\"tpm-2.0\"") != NULL;
@@ -968,37 +983,19 @@ static int get_supported_tpm_versions(gchar **swtpm_prg_l, gboolean *swtpm_has_t
 static int get_rsa_keysizes(unsigned long flags, gchar **swtpm_prg_l,
                             unsigned int **keysizes, size_t *n_keysizes)
 {
-    gboolean success;
-    gchar *standard_output = NULL;
-    int exit_status = 0;
-    GError *error = NULL;
-    int ret = 1;
+    g_autofree gchar *standard_output = NULL;
     const gchar *needle = "\"rsa-keysize-";
     unsigned int keysize;
-    gchar **argv = NULL;
+    int ret = 1;
     char *p;
     int n;
-    g_autofree gchar *logop = NULL;
 
     *n_keysizes = 0;
 
     if (flags & SETUP_TPM2_F) {
-        gchar *my_argv[] = { "--tpm2", "--print-capabilities", NULL };
-
-        argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
-
-        if (gl_LOGFILE != NULL) {
-            logop = g_strdup_printf("file=%s", gl_LOGFILE);
-            argv = concat_arrays(argv, (gchar*[]){"--log", logop, NULL}, TRUE);
-        }
-
-        success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-                               &standard_output, NULL, &exit_status, &error);
-        if (!success) {
-            logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
-            g_error_free(error);
+        ret = get_swtpm_capabilities(swtpm_prg_l, TRUE, &standard_output);
+        if (ret)
             goto error;
-        }
 
         p = standard_output;
         /* A crude way of parsing the json output just looking for "rsa-keysize-%u" */
@@ -1015,9 +1012,6 @@ static int get_rsa_keysizes(unsigned long flags, gchar **swtpm_prg_l,
     ret = 0;
 
 error:
-    g_free(argv);
-    g_free(standard_output);
-
     return ret;
 }
 
