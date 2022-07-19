@@ -440,3 +440,34 @@ int check_directory_access(const gchar *directory, int mode, const struct passwd
     }
     return 0;
 }
+
+/*
+ * write_full: Write all bytes of a buffer into the file descriptor
+ *             and handle partial writes on the way.
+ *
+ * @fd: file descriptor to write to
+ * @buffer: buffer
+ * @buflen: length of buffer
+ *
+ * Returns -1 in case not all bytes could be transferred, number of
+ * bytes written otherwise (must be equal to buflen).
+ */
+ssize_t write_full(int fd, const void *buffer, size_t buflen)
+{
+    size_t written = 0;
+    ssize_t n;
+
+    while (written < buflen) {
+        n = write(fd, buffer, buflen - written);
+        if (n == 0)
+            return -1;
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+        written += n;
+        buffer += n;
+    }
+    return written;
+}

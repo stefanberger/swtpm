@@ -43,4 +43,6 @@ gchar *str_replace(const char *in, const char *torep, const char *rep);
 
 int check_directory_access(const gchar *directory, int mode, const struct passwd *curr_user);
 
+ssize_t write_full(int fd, const void *buffer, size_t buflen);
+
 #endif /* SWTPM_UTILS_H */

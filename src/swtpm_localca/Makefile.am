@@ -31,6 +31,7 @@ swtpm_localca_LDFLAGS = \
 	-L$(top_builddir)/src/utils -lswtpm_utils \
 	$(MY_LDFLAGS) \
 	$(GLIB_LIBS) \
+	$(LOCALCA_LIBS) \
 	$(HARDENING_LDFLAGS)
 
 swtpm_localca_SOURCES = \

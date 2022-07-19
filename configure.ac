@@ -312,14 +312,6 @@ if test "x$with_gnutls" != "xno"; then
             with_gnutls=no
         fi
     fi
-    dnl certtool changed how it takes private key passwords
-    dnl 3.3.29 is too old (RHEL 7); we need at least gnutls 3.4.0
-    AC_MSG_CHECKING([for gnutls 3.4.0 or later])
-    $(pkg-config gnutls --atleast-version=3.4.0)
-    if test $? -ne 0; then
-        AC_MSG_ERROR([gnutls 3.4.0 is required])
-    fi
-    AC_MSG_RESULT([yes])
 fi
 
 if test "x$with_gnutls" != "xno"; then
@@ -579,6 +571,9 @@ if test "$with_seccomp" != "no"; then
                      [whether to build in seccomp profile (Linux only)])
 fi
 
+AC_SEARCH_LIBS(forkpty, util bsd, LOCALCA_LIBS="$ac_cv_search_forkpty")
+AC_SUBST([LOCALCA_LIBS])
+
 MY_CFLAGS="$CFLAGS"
 MY_LDFLAGS="$LDFLAGS"
 AC_SUBST([MY_CFLAGS])
@@ -641,6 +636,7 @@ echo "   JSON_GLIB_LIBS = $JSON_GLIB_LIBS"
 echo "      GLIB_CFLAGS = $GLIB_CFLAGS"
 echo "        GLIB_LIBS = $GLIB_LIBS"
 echo "      GNUTLS_LIBS = $GNUTLS_LIBS"
+echo "     LOCALCA_LIBS = $LOCALCA_LIBS"
 echo
 echo "TSS_USER=$TSS_USER"
 echo "TSS_GROUP=$TSS_GROUP"

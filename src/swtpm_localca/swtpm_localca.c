@@ -12,6 +12,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <poll.h>
+#include <pty.h>
 #include <pwd.h>
 #include <regex.h>
 #include <stdio.h>
@@ -21,6 +23,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #include <glib.h>
 
@@ -68,28 +71,153 @@ static int init(gchar **options_file, gchar **config_file)
 /* Run the certtool command line prepared in cmd. Display error message
  * in case of failure and also display the keyfile if something goes wrong.
  */
-static int run_certtool(gchar **cmd, gchar **env, const char *msg, gchar *keyfile)
+static int run_certtool(gchar **cmd, gchar **env, const char *msg, gchar *keyfile, gchar **passwords)
 {
     g_autofree gchar *standard_error = NULL;
-    gint exit_status;
-    GError *error = NULL;
-    gboolean success;
+    size_t bufused = 0, buflen = 0;
+    ssize_t len;
+    int status, ret;
+    int errpipe[2] = {-1, -1};
+    int mfd = -1;
+    pid_t pid;
 
-    success = g_spawn_sync(NULL, cmd, env, G_SPAWN_STDOUT_TO_DEV_NULL, NULL, NULL,
-                           NULL, &standard_error, &exit_status, &error);
-    if (!success || exit_status != 0) {
-        logerr(gl_LOGFILE, "%s" , msg);
+    ret = pipe(errpipe);
+    if (ret == -1) {
+        logerr(gl_LOGFILE, "%s", msg);
+        logerr(gl_LOGFILE, "pipe failed: %s\n", strerror(errno));
+        goto error;
+    }
+
+    pid = forkpty(&mfd, NULL, NULL, NULL);
+    if (pid == -1) {
+        logerr(gl_LOGFILE, "%s", msg);
+        logerr(gl_LOGFILE, "forkpty failed: %s\n", strerror(errno));
+        goto error;
+    } else if (pid == 0) {
+        if (close(0) == -1 || close(1) == -1 || close(2) == -1)
+            exit(127);
+
+        /* stdin to /dev/null */
+        if (open("/dev/null", O_RDONLY) == -1)
+            exit(127);
+
+        /* stdout to /dev/null */
+        if (open("/dev/null", O_WRONLY) == -1)
+            exit(127);
+
+        /* pipe to stderr */
+        if (dup2(errpipe[1], 2) == -1)
+            exit(127);
+
+        if (close(errpipe[0]) == -1 || close(errpipe[1]) == -1)
+            exit(127);
+
+        execve(cmd[0], cmd, env);
+        exit(127);
+    }
+
+    close(errpipe[1]);
+    errpipe[1] = -1;
+
+    for (;;) {
+        struct pollfd pollfds[2] = {{errpipe[0], POLLIN, 0}, {mfd, POLLIN, 0}};
+
+        ret = poll(pollfds, 2, 0);
+        if (ret == -1 && errno != EINTR) {
+            logerr(gl_LOGFILE, "%s", msg);
+            logerr(gl_LOGFILE, "poll failed: %s\n", strerror(errno));
+            goto error;
+        }
+
+        if ((pollfds[0].revents & POLLIN)) {
+            if (buflen - bufused == 0) {
+                buflen = buflen > 0 ? buflen * 2 : 1024;
+                standard_error = g_realloc(standard_error, buflen);
+                if (!standard_error) {
+                    logerr(gl_LOGFILE, "%s", msg);
+                    logerr(gl_LOGFILE, "Allocation failed: %s\n", strerror(errno));
+                    goto error;
+                }
+            }
+
+            len = read(errpipe[0], standard_error, buflen - bufused);
+            if (len == 0)
+                break;
+            if (len == -1 && errno != EINTR) {
+                logerr(gl_LOGFILE, "%s", msg);
+                logerr(gl_LOGFILE, "Read stderr failed: %s\n", strerror(errno));
+                goto error;
+            }
+            if (len > 0)
+                bufused += len;
+        }
+        if ((pollfds[0].revents & POLLHUP))
+            break;
+
+        if ((pollfds[1].revents & POLLIN)) {
+            unsigned char tmpbuf[32];
+
+            len = read(mfd, tmpbuf, sizeof(tmpbuf));
+            if (len == 0)
+                break;
+            if (len == -1) {
+                if (errno == EINTR)
+                    continue;
+
+                logerr(gl_LOGFILE, "%s", msg);
+                logerr(gl_LOGFILE, "Read tty failed: %s\n", strerror(errno));
+                goto error;
+            }
+
+            /* Wait for "Enter password:" */
+            if (!memchr(tmpbuf, ':', len))
+                continue;
+
+            if (*passwords) {
+                if (write_full(mfd, *passwords, strlen(*passwords)) == -1 ||
+                        write_full(mfd, "\r\n", 2) == -1) {
+                    logerr(gl_LOGFILE, "%s", msg);
+                    logerr(gl_LOGFILE, "Write password failed: %s\n", strerror(errno));
+                    goto error;
+                }
+                passwords++;
+            } else {
+                logerr(gl_LOGFILE, "%s", msg);
+                logerr(gl_LOGFILE, "Expected password\n");
+                goto error;
+            }
+        }
+    }
+
+    if (standard_error && bufused == buflen)
+        standard_error[bufused - 1] = '\0';
+    else if (standard_error)
+        standard_error[bufused] = '\0';
+
+    waitpid(pid, &status, 0);
+
+    close(errpipe[0]);
+    close(mfd);
+
+    if ((WIFEXITED(status) && WEXITSTATUS(status)) || WIFSIGNALED(status)) {
+        status = WIFEXITED(status) ? WEXITSTATUS(status) : -WTERMSIG(status);
+        logerr(gl_LOGFILE, "%s", msg);
         if (keyfile)
             logerr(gl_LOGFILE, " %s:", keyfile);
-        if (!success) {
-            logerr(gl_LOGFILE, "%s\n", error->message);
-            g_error_free(error);
-        } else {
-            logerr(gl_LOGFILE, "%s\n", standard_error);
-        }
+        logerr(gl_LOGFILE, "Exit status: %d\n", status);
+        logerr(gl_LOGFILE, "%s\n", standard_error);
         return 1;
     }
     return 0;
+
+error:
+    if (errpipe[0] >= 0)
+        close(errpipe[0]);
+    if (errpipe[1] >= 0)
+        close(errpipe[1]);
+    if (mfd >= 0)
+        close(mfd);
+    return 1;
 }
 
 /* Create a root CA key and cert and a local CA key and cert. The latter will be
@@ -124,8 +252,8 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         const gchar *swtpm_rootca_password = g_getenv("SWTPM_ROOTCA_PASSWORD");
         g_autofree gchar *certtool = g_find_program_in_path(CERTTOOL_NAME);
         g_autofree gchar **cmd = NULL;
-        g_autofree gchar *fc = NULL;
         const char *filecontent;
+        gchar **passwords;
 
         if (certtool == NULL) {
             logerr(gl_LOGFILE, "Could not find %s in PATH.\n", CERTTOOL_NAME);
@@ -140,7 +268,8 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
             cmd = concat_arrays(cmd, (gchar*[]){
                                    "--password", (gchar *)swtpm_rootca_password, NULL
                                 }, TRUE);
-        if (run_certtool(cmd, certtool_env, "Could not create root-CA key", cakey))
+        if (run_certtool(cmd, certtool_env, "Could not create root-CA key", cakey,
+                (gchar *[]){NULL}))
             goto error;
 
         if (chmod(cakey, S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
@@ -168,12 +297,12 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
                                 "--template", template1_file,
                                 "--outfile", cacert,
                                 "--load-privkey", cakey,
+                                "--ask-pass",
                                 NULL
                             }, FALSE);
-        if (swtpm_rootca_password != NULL)
-            certtool_env = g_environ_setenv(certtool_env, "GNUTLS_PIN", swtpm_rootca_password, TRUE);
 
-        if (run_certtool(cmd, certtool_env, "Could not create root-CA:", NULL))
+        if (run_certtool(cmd, certtool_env, "Could not create root-CA:", NULL,
+                (gchar *[]){(gchar *)swtpm_rootca_password, NULL}))
             goto error;
 
         g_free(cmd);
@@ -187,7 +316,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
             cmd = concat_arrays(cmd, (gchar *[]){
                                     "--password", (gchar *)signkey_password, NULL},
                                 TRUE);
-        if (run_certtool(cmd, certtool_env, "Could not create local-CA key", cakey))
+        if (run_certtool(cmd, certtool_env, "Could not create local-CA key", cakey, (gchar *[]){NULL}))
             goto error;
 
         if (chmod(signkey, S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
@@ -199,13 +328,9 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
                       "ca\n"
                       "cert_signing_key\n"
                       "expiration_days = -1\n";
-        if (swtpm_rootca_password != NULL && signkey_password != NULL)
-            fc = g_strdup_printf("%spassword = %s\n", filecontent, swtpm_rootca_password);
-        else
-            fc = g_strdup(filecontent);
 
         template2_file_fd = write_to_tempfile(&template2_file,
-                                              (const unsigned char *)fc, strlen(fc));
+                                              (const unsigned char *)filecontent, strlen(filecontent));
         if (template2_file_fd < 0)
             goto error;
 
@@ -219,14 +344,18 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
                                 "--load-privkey", (gchar *)signkey,
                                 "--load-ca-privkey", cakey,
                                 "--load-ca-certificate", cacert,
+                                "--ask-pass",
                                 NULL
                             }, FALSE);
-        if (signkey_password != NULL)
-            certtool_env = g_environ_setenv(certtool_env, "GNUTLS_PIN", signkey_password, TRUE);
-        else if (swtpm_rootca_password != NULL)
-            certtool_env = g_environ_setenv(certtool_env, "GNUTLS_PIN", swtpm_rootca_password, TRUE);
 
-        if (run_certtool(cmd, certtool_env, "Could not create local-CA:", NULL))
+        if (swtpm_rootca_password && !signkey_password)
+            passwords = (gchar *[]){(gchar *)swtpm_rootca_password, NULL};
+        else if (!swtpm_rootca_password && signkey_password)
+            passwords = (gchar *[]){(gchar *)signkey_password, NULL};
+        else
+            passwords = (gchar *[]){(gchar *)swtpm_rootca_password, (gchar *)signkey_password, NULL};
+
+        if (run_certtool(cmd, certtool_env, "Could not create local-CA:", NULL, passwords))
             goto error;
     }
 
