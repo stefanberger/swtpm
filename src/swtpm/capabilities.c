@@ -130,10 +130,8 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
     const char *nvram_backend_dir = "\"nvram-backend-dir\", ";
     const char *nvram_backend_file = "\"nvram-backend-file\"";
 
-    if (TPMLIB_ChooseTPMVersion(tpmversion) != TPM_SUCCESS) {
-        logprintf(STDERR_FILENO, "Could not choose TPM version.\n");
-        goto cleanup;
-    }
+    /* ignore errors */
+    TPMLIB_ChooseTPMVersion(tpmversion);
 
     ret = get_rsa_keysize_caps(&keysizecaps);
     if (ret < 0)
