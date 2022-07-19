@@ -55,7 +55,7 @@ if [ $? -ne 0 ]; then
 	echo "softhsm needs to be v2.3.0 or greater and pkcs11 correctly configured"
 	exit 77
 fi
-pkcs11uri=$(echo ${msg} | sed -n 's|^keyuri: \(.*\)|\1|p')
+pkcs11uri=$(echo ${msg} | sed -n 's|^keyuri: \(.*\)|\1|p' | sed 's/;type=public/;type=private/')
 
 # Now we need to create the root CA ...
 template=${workdir}/template
