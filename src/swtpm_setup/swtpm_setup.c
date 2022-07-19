@@ -1118,7 +1118,10 @@ static int validate_json_profile(gchar **swtpm_prg_l, const char *json_profile)
 static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
                               gboolean swtpm_has_tpm2)
 {
+    g_autofree gchar *standard_output = NULL;
     g_autofree gchar *param = g_strdup("");
+    g_autofree gchar *profile_list = NULL;
+    gchar **profile_names = NULL;
     gchar **keysize_strs = NULL;
     gchar *tmp;
     size_t i;
@@ -1134,6 +1137,21 @@ static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
         param = tmp;
     }
 
+    if (swtpm_has_tpm2) {
+        ret = get_swtpm_capabilities(swtpm_prg_l, TRUE, &standard_output);
+        if (ret)
+            goto error;
+        ret = get_profile_names(standard_output, &profile_names);
+        if (ret)
+            goto error;
+
+        if (g_strv_length(profile_names) > 0) {
+            tmp = g_strjoinv("\", \"", profile_names);
+            profile_list = g_strdup_printf(" \"%s\" ", tmp);
+            g_free(tmp);
+        }
+    }
+
     printf("{ \"type\": \"swtpm_setup\", "
            "\"features\": [ %s%s\"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
            ", \"cmdarg-write-ek-cert-files\", \"cmdarg-create-config-files\""
@@ -1142,15 +1160,20 @@ static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
            ", \"cmdarg-profile\""
            ""
            " ], "
+           "\"profiles\": [%s], "
            "\"version\": \"" VERSION "\" "
            "}\n",
            swtpm_has_tpm12 ? "\"tpm-1.2\", " : "",
            swtpm_has_tpm2  ? "\"tpm-2.0\", " : "",
-           param);
+           param,
+           profile_list ? profile_list : ""
+           );
 
+error:
     g_strfreev(keysize_strs);
+    g_strfreev(profile_names);
 
-    return 0;
+    return ret;
 }
 
 static int change_process_owner(const char *user)

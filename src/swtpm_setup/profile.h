@@ -12,6 +12,7 @@
 
 #include <glib.h>
 
+int get_profile_names(const gchar *swtpm_capabilities_json, gchar ***profile_names);
 int check_json_profile(const gchar *swtpm_capabilities_json, const char *json_profile);
 
 #endif /* SWTPM_SETUP_PROFILE_H */
