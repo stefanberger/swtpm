@@ -51,6 +51,8 @@
 #include <sys/param.h>
 #endif
 
+#include <json-glib/json-glib.h>
+
 #include "utils.h"
 #include "logging.h"
 #include "tpmlib.h"
@@ -345,4 +347,96 @@ ssize_t read_eintr(int fd, void *buffer, size_t buflen)
         }
         return n;
     }
+}
+
+/*
+ * In the given JSON map find a map with name @field_name and then
+ * access the field @field_name2 in this map and return its value.
+ *
+ * @json_input: JSON object as string
+ * @field_name: Name of map
+ * @field_name2: Name of entry in map
+ * @value: Results is returned here
+ *
+ * Returns 0 in case of success, 1 otherwise.
+ */
+int json_get_submap_value(const char *json_input, const char *field_name,
+                          const char *field_name2, char **value)
+{
+    g_autoptr(GError) error = NULL;
+    JsonParser *jp = NULL;
+    JsonReader *jr = NULL;
+    JsonNode *root;
+    int ret = 1;
+
+    jp = json_parser_new();
+    if (!json_parser_load_from_data(jp, json_input, -1, &error)) {
+        logprintf(STDERR_FILENO,
+                  "Could not parse JSON '%s': %s\n", json_input, error->message);
+        goto error_unref_jp;
+    }
+
+    root = json_parser_get_root(jp);
+    jr = json_reader_new(root);
+
+    if (!json_reader_read_member(jr, field_name)) {
+        logprintf(STDERR_FILENO, "Missing '%s' field in '%s'\n",
+                  field_name, json_input);
+        goto error_unref_jr;
+    }
+
+    if (!json_reader_read_member(jr, field_name2)) {
+        logprintf(STDERR_FILENO, "Missing '%s/%s' field in '%s'\n",
+                  field_name, field_name2, json_input);
+        goto error_unref_jr;
+    }
+    *value = g_strdup(json_reader_get_string_value(jr));
+
+    ret = 0;
+
+error_unref_jr:
+    g_object_unref(jr);
+
+error_unref_jp:
+    g_object_unref(jp);
+
+    return ret;
+}
+
+ssize_t strv_strncmp(const gchar *const*str_array, const gchar *s, size_t n)
+{
+    size_t i;
+
+    for (i = 0; str_array[i]; i++) {
+        if (strncmp(str_array[i], s, n) == 0)
+            return (ssize_t)i;
+    }
+    return -1;
+}
+
+/* Try to find exactly the needle in the given haystack */
+static ssize_t strv_strcmp(const gchar *const*haystack, const gchar *needle)
+{
+    size_t i;
+
+    for (i = 0; haystack[i]; i++) {
+        if (strcmp(haystack[i], needle) == 0)
+            return (ssize_t)i;
+    }
+    return -1;
+}
+
+/*
+ * Try to find all the needles in the haystack; both arrays of strings
+ * must be NULL-terminated.
+ */
+gboolean strv_contains_all(const gchar *const*haystack, const gchar *const*needles)
+{
+    size_t i;
+
+    for (i = 0; needles[i]; i++) {
+        if (strv_strcmp(haystack, needles[i]) < 0)
+            return false;
+    }
+    return true;
 }
