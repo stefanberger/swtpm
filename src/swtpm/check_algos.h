@@ -1,7 +1,7 @@
 /*
- * utils.h -- utilities
+ * check_algos.h -- Check available algorithms
  *
- * (c) Copyright IBM Corporation 2015.
+ * (c) Copyright IBM Corporation 2024.
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -35,51 +35,25 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SWTPM_UTILS_H_
-#define _SWTPM_UTILS_H_
+#ifndef _SWTPM_CHECK_ALGOS_H_
+#define _SWTPM_CHECK_ALOGO_H_
 
-#include "config.h"
-
-#include <signal.h>
 #include <stdbool.h>
-#include <sys/uio.h>
 
 #include <glib.h>
 
-#include <libtpms/tpm_library.h>
+unsigned int ossl_algorithms_are_disabled(const gchar *const*algorithms,
+                                          unsigned int disabled_filter,
+                                          bool stop_on_first_disabled);
 
-#define ROUND_TO_NEXT_POWER_OF_2_32(a) \
-    do { \
-      a--; \
-      a |= a >> 1; \
-      a |= a >> 2; \
-      a |= a >> 4; \
-      a |= a >> 8; \
-      a |= a >> 16; \
-      a++; \
-    } while(0);
+/* disabled_filters: */
+#define DISABLED_BY_FIPS            (1 << 0)
+#define DISABLED_SHA1_SIGNATURES    (1 << 1)
+#define DISABLED_BY_CONFIG          (1 << 2)
 
-typedef void (*sighandler_t)(int);
+/* return value: flags indicating how to configure OpenSSL */
+#define FIX_DISABLE_FIPS            (1 << 0) /* fix by disabling FIPS mode */
+#define FIX_ENABLE_SHA1_SIGNATURES  (1 << 1) /* fix by setting OPENSSL_ENABLE_SHA1_SIGNATURES=1 */
+#define FIX_DISABLE_CONFIG          (1 << 2) /* fix by modifying openssl config (how?) */
 
-int install_sighandlers(int pipefd[2], sighandler_t handler);
-void uninstall_sighandlers(void);
-int change_process_owner(const char *owner);
-int do_chroot(const char *path);
-
-void tpmlib_debug_libtpms_parameters(TPMLIB_TPMVersion);
-
-char *fd_to_filename(int fd);
-
-ssize_t write_full(int fd, const void *buffer, size_t buflen);
-ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt);
-
-ssize_t read_eintr(int fd, void *buffer, size_t buflen);
-
-int json_get_submap_value(const char *json_input, const char *field_name,
-                          const char *field_name2, char **value);
-
-ssize_t strv_strncmp(const gchar *const*str_array, const gchar *s, size_t n);
-
-gboolean strv_contains_all(const gchar *const*haystack, const gchar *const*needles);
-
-#endif /* _SWTPM_UTILS_H_ */
+#endif /* _SWTPM_CHECK_ALGOS_H_ */

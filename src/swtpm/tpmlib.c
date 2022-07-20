@@ -48,6 +48,8 @@
 #include <libtpms/tpm_nvfilename.h>
 #include <libtpms/tpm_memory.h>
 
+#include <json-glib/json-glib.h>
+
 #include "tpmlib.h"
 #include "logging.h"
 #include "tpm_ioctl.h"
@@ -60,6 +62,7 @@
 #include "compiler_dependencies.h"
 #include "swtpm_utils.h"
 #include "fips.h"
+#include "check_algos.h"
 
 /*
  * convert the blobtype integer into a string that libtpms
@@ -105,6 +108,128 @@ TPM_RESULT tpmlib_choose_tpm_version(TPMLIB_TPMVersion tpmversion)
     return res;
 }
 
+static int tpmlib_check_disabled_algorithms(unsigned int *fix_flags,
+                                            unsigned int disabled_filter,
+                                            bool stop_on_first_disabled)
+{
+    char *info_data = TPMLIB_GetInfo(TPMLIB_INFO_RUNTIME_ALGORITHMS);
+    g_autofree gchar *enabled = NULL;
+    gchar **algorithms;
+    int ret;
+
+    *fix_flags = 0;
+
+    ret = json_get_submap_value(info_data, "RuntimeAlgorithms", "Enabled",
+                                &enabled);
+    if (ret)
+        goto error;
+
+    algorithms = g_strsplit(enabled, ",", -1);
+
+    *fix_flags = ossl_algorithms_are_disabled((const gchar * const *)algorithms,
+                                              disabled_filter,
+                                              stop_on_first_disabled);
+
+    g_strfreev(algorithms);
+error:
+    free(info_data);
+
+    return ret;
+}
+
+/*
+ * This function only applies to TPM2: If FIPS mode was enabled on the host,
+ * determine whether OpenSSL needs to deactivate FIPS mode (FIX_DISABLE_FIPS is
+ * set). It doesn't need to deactivate it if a profile was chosen that has no
+ * algorithms that FIPS deactivates, otherwise it has to deactivate FIPS mode in
+ * the OpenSSL instance being used.
+ */
+static int tpmlib_check_need_disable_fips_mode(unsigned int *fix_flags)
+{
+     return tpmlib_check_disabled_algorithms(fix_flags,
+                                             DISABLED_BY_FIPS,
+                                             true);
+}
+
+/* Check whether SHA1 signatures need to be enabled. */
+static int tpmlib_check_need_enable_sha1_signatures(unsigned int *fix_flags)
+{
+     return tpmlib_check_disabled_algorithms(fix_flags,
+                                             DISABLED_SHA1_SIGNATURES,
+                                             true);
+}
+
+/*
+ * Check whether swtpm would have to be started with a modified config so that
+ * libtpms can use the algorithms given by its profile.
+ * Again also check the functioning of SHA1 signatures since this is enabled
+ * with an OpenSSL patch and we want to detect now that
+ * OPENSSL_ENABLE_SHA1_SIGNATURES=1 has the desired effect.
+ */
+static int tpmlib_check_need_modify_ossl_config(unsigned int *fix_flags,
+                                                bool check_sha1_signatures)
+{
+     unsigned int disabled_filter = DISABLED_BY_CONFIG;
+
+     if (check_sha1_signatures)
+         disabled_filter |= DISABLED_SHA1_SIGNATURES;
+     return tpmlib_check_disabled_algorithms(fix_flags,
+                                             disabled_filter,
+                                             false);
+}
+
+/* Determine wheter FIPS mode is enabled in the crypto library. If FIPS mode is
+ * enabled check whether any of the algorithms that the TPM 2 uses would need
+ * OpenSSL FIPS mode to be disabled for the TPM 2 to work and then try to disable
+ * it.
+ * Check whether signing and/or verifying SHA1 signatures is prevented and to
+ * work around it set OPENSSL_ENABLE_SHA1_SIGNATURES=1.
+ */
+static int tpmlib_maybe_configure_openssl(TPMLIB_TPMVersion tpmversion)
+{
+    bool check_sha1_signatures = false;
+    unsigned int fix_flags = 0;
+    int ret;
+
+    if (fips_mode_enabled()) {
+        switch (tpmversion) {
+        case TPMLIB_TPM_VERSION_1_2:
+            fix_flags = FIX_DISABLE_FIPS;
+            break;
+        case TPMLIB_TPM_VERSION_2:
+            ret = tpmlib_check_need_disable_fips_mode(&fix_flags);
+            if (ret)
+                return 1;
+            break;
+        }
+        if ((fix_flags & FIX_DISABLE_FIPS) && fips_mode_disable())
+            return 1;
+    }
+
+    if (tpmversion == TPMLIB_TPM_VERSION_2) {
+        ret = tpmlib_check_need_enable_sha1_signatures(&fix_flags);
+        if (ret)
+            return 1;
+        if (fix_flags & FIX_ENABLE_SHA1_SIGNATURES) {
+            logprintf(STDOUT_FILENO,
+                      "Warning: Setting OPENSSL_ENABLE_SHA1_SIGNATURES=1\n");
+            g_setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", true);
+            check_sha1_signatures = true;
+        }
+
+        ret = tpmlib_check_need_modify_ossl_config(&fix_flags, check_sha1_signatures);
+        if (ret)
+            return 1;
+        if (fix_flags) {
+            logprintf(STDERR_FILENO,
+                     "Error: Need to start with modified OpenSSL config file to enable all needed algorithms.\n");
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
                         bool lock_nvram, const char *json_profile)
 {
@@ -143,8 +268,10 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
         }
     }
 
-    if (fips_mode_enabled() && fips_mode_disable() < 0)
+    if (tpmlib_maybe_configure_openssl(tpmversion)) {
+        res = TPM_FAIL;
         goto error_terminate;
+    }
 
     return TPM_SUCCESS;
 
