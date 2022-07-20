@@ -71,6 +71,4 @@ ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt);
 
 ssize_t read_eintr(int fd, void *buffer, size_t buflen);
 
-int disable_fips_mode(void);
-
 #endif /* _SWTPM_UTILS_H_ */

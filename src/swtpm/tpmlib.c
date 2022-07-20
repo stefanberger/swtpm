@@ -59,6 +59,7 @@
 #include "utils.h"
 #include "compiler_dependencies.h"
 #include "swtpm_utils.h"
+#include "fips.h"
 
 /*
  * convert the blobtype integer into a string that libtpms
@@ -130,6 +131,10 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion)
             goto error_terminate;
         }
     }
+
+    if (fips_mode_disable() < 0)
+        goto error_terminate;
+
     return TPM_SUCCESS;
 
 error_terminate:
