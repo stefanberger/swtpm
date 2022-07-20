@@ -9,6 +9,7 @@ MY_LDFLAGS = @MY_LDFLAGS@
 
 noinst_HEADERS = \
 	capabilities.h \
+	check_algos.h \
 	common.h \
 	ctrlchannel.h \
 	fips.h \
@@ -39,6 +40,7 @@ privlib_LTLIBRARIES = libswtpm_libtpms.la
 
 libswtpm_libtpms_la_SOURCES = \
 	capabilities.c \
+	check_algos.c \
 	common.c \
 	ctrlchannel.c \
 	fips.c \
