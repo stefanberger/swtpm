@@ -63,7 +63,7 @@ extern int FIPS_mode_set(int);
  * Returns < 0 on error, 0 otherwise.
  */
 #if defined(HAVE_OPENSSL_FIPS_H) || defined(HAVE_OPENSSL_FIPS_MODE_SET_API)
-int disable_fips_mode(void)
+int fips_mode_disable(void)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     int mode = EVP_default_properties_is_fips_enabled(NULL);
@@ -93,7 +93,7 @@ int disable_fips_mode(void)
 }
 #else
 /* OpenBSD & DragonFlyBSD case */
-int disable_fips_mode(void)
+int fips_mode_disable(void)
 {
     return 0;
 }

@@ -35,9 +35,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SWTPM_UTILS_H_
-#define _SWTPM_UTILS_H_
+#ifndef _SWTPM_FIPS_H_
+#define _SWTPM_FIPS_H_
 
-int disable_fips_mode(void);
+int fips_mode_disable(void);
 
-#endif /* _SWTPM_UTILS_H_ */
+#endif /* _SWTPM_FIPS_H_ */
