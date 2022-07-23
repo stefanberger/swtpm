@@ -132,7 +132,7 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion)
         }
     }
 
-    if (fips_mode_disable() < 0)
+    if (fips_mode_enabled() && fips_mode_disable() < 0)
         goto error_terminate;
 
     return TPM_SUCCESS;
