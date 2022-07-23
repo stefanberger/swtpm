@@ -38,6 +38,9 @@
 #ifndef _SWTPM_FIPS_H_
 #define _SWTPM_FIPS_H_
 
+#include <stdbool.h>
+
+bool fips_mode_enabled(void);
 int fips_mode_disable(void);
 
 #endif /* _SWTPM_FIPS_H_ */

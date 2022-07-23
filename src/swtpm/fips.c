@@ -54,6 +54,16 @@ extern int FIPS_mode_set(int);
 
 #include <openssl/err.h>
 
+bool fips_mode_enabled(void)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    int mode = EVP_default_properties_is_fips_enabled(NULL);
+#else
+    int mode = FIPS_mode();
+#endif
+    return mode != 0;
+}
+
 /*
  * disable_fips_mode: If possible, disable FIPS mode to avoid libtpms failures
  *
@@ -65,29 +75,22 @@ extern int FIPS_mode_set(int);
 #if defined(HAVE_OPENSSL_FIPS_H) || defined(HAVE_OPENSSL_FIPS_MODE_SET_API)
 int fips_mode_disable(void)
 {
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-    int mode = EVP_default_properties_is_fips_enabled(NULL);
-#else
-    int mode = FIPS_mode();
-#endif
     int ret = 0;
 
-    if (mode != 0) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-        int rc = EVP_default_properties_enable_fips(NULL, 0);
+    int rc = EVP_default_properties_enable_fips(NULL, 0);
 #else
-        int rc = FIPS_mode_set(0);
+    int rc = FIPS_mode_set(0);
 #endif
-        if (rc == 1) {
-            logprintf(STDOUT_FILENO,
-                      "Warning: Disabled OpenSSL FIPS mode\n");
-        } else {
-            unsigned long err = ERR_get_error();
-            logprintf(STDERR_FILENO,
-                      "Failed to disable OpenSSL FIPS mode: %s\n",
-                      ERR_error_string(err, NULL));
-            ret = -1;
-        }
+    if (rc == 1) {
+        logprintf(STDOUT_FILENO,
+                  "Warning: Disabled OpenSSL FIPS mode\n");
+    } else {
+        unsigned long err = ERR_get_error();
+        logprintf(STDERR_FILENO,
+                  "Failed to disable OpenSSL FIPS mode: %s\n",
+                  ERR_error_string(err, NULL));
+        ret = -1;
     }
     return ret;
 }
