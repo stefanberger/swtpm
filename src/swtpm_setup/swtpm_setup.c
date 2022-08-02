@@ -1231,13 +1231,6 @@ int main(int argc, char *argv[])
     if (init(&config_file) < 0)
         goto error;
 
-    swtpm_prg = g_find_program_in_path("swtpm");
-    if (swtpm_prg) {
-        tmp = g_strconcat(swtpm_prg, " socket", NULL);
-        g_free(swtpm_prg);
-        swtpm_prg = tmp;
-    }
-
     while ((opt = getopt_long(argc, argv, "h?",
                               long_options, &option_index)) != -1) {
         switch (opt) {
@@ -1406,6 +1399,14 @@ int main(int argc, char *argv[])
     }
 
     if (swtpm_prg == NULL) {
+        swtpm_prg = "swtpm";
+    }
+
+    if (swtpm_prg) {
+        tmp = g_strconcat(swtpm_prg, " socket", NULL);
+        g_free(swtpm_prg);
+        swtpm_prg = tmp;
+    } else {
         logerr(gl_LOGFILE,
                "Default TPM 'swtpm' could not be found and was not provided using --tpm.\n");
         goto error;
