@@ -161,6 +161,7 @@ typedef struct stateblob_desc {
 } stateblob_desc;
 
 typedef enum tx_state_type {
+    TX_STATE_CLOSED = 0,
     TX_STATE_RW_COMMAND = 1,
     TX_STATE_SET_STATE_BLOB = 2,
     TX_STATE_GET_STATE_BLOB = 3,
@@ -616,6 +617,9 @@ static void ptm_read(fuse_req_t req, size_t size, off_t off SWTPM_ATTR_UNUSED,
     case TX_STATE_GET_STATE_BLOB:
         ptm_read_stateblob(req, size);
         break;
+    case TX_STATE_CLOSED:
+        /* not possible */
+        break;
     }
 }
 
@@ -937,6 +941,9 @@ static void ptm_write(fuse_req_t req, const char *buf, size_t size,
     case TX_STATE_SET_STATE_BLOB:
         ptm_write_stateblob(req, buf, size);
         break;
+    case TX_STATE_CLOSED:
+        /* not possible */
+        break;
     }
 }
 
@@ -945,9 +952,24 @@ static void ptm_write(fuse_req_t req, const char *buf, size_t size,
  */
 static void ptm_open(fuse_req_t req, struct fuse_file_info *fi)
 {
+    if (tx_state.state != TX_STATE_CLOSED) {
+        fuse_reply_err(req, EBUSY);
+        return;
+    }
+
     tx_state.state = TX_STATE_RW_COMMAND;
 
     fuse_reply_open(req, fi);
+}
+
+/*
+ * ptm_release:
+ */
+static void ptm_release(fuse_req_t req, struct fuse_file_info *fi)
+{
+    tx_state.state = TX_STATE_CLOSED;
+
+    fuse_reply_err(req, 0);
 }
 
 /*
@@ -1392,6 +1414,7 @@ static const struct cuse_lowlevel_ops clops = {
     .open = ptm_open,
     .read = ptm_read,
     .write = ptm_write,
+    .release = ptm_release,
     .ioctl = ptm_ioctl,
     .init_done = ptm_init_done,
 };

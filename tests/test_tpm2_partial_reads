@@ -25,11 +25,9 @@ function cleanup()
 
 function swtpm_read_n_bytes_fd100()
 {
-	dd bs=1 count=$1 if=/proc/self/fd/100 2>/dev/null | \
-		od -t x1 -A n | \
-		tr -s ' ' | \
-		tr -d '\n' | \
-		sed 's/ $//g'
+	# read n bytes from fd 100 and write to stdout
+	python -c "import os; os.write(1, os.read(100, $1))" | \
+		od -t x1 -A n
 }
 
 trap "cleanup" EXIT
@@ -129,7 +127,7 @@ if [ "$res2" != "$exp2" ]; then
 	echo "Actual  : $res2"
 	exit 1
 fi
-
+exec 100>&-
 
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
