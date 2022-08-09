@@ -70,7 +70,6 @@ function tx_cmd()
 		fi
 	fi
 	if [ "$startup" != "0" ]; then
-		swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 		RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 		tmp=' 80 01 00 00 00 0a 00 00 00 00'
 		if [ "$RES" != "$tmp" ]; then
@@ -79,10 +78,8 @@ function tx_cmd()
 			echo "received: $RES"
 			return 1
 		fi
-		exec 100>&-
 	fi
 
-	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
 	if [ "$RES" == "$allowed_error" ]; then
 		echo "Skip: Encountered allowed error response ($allowed_error)"
@@ -92,7 +89,6 @@ function tx_cmd()
 		echo "received: $RES"
 		return 1
 	fi
-	exec 100>&-
 
 	return 0
 }

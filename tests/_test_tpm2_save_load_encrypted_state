@@ -72,7 +72,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Startup the TPM (SU_CLEAR)
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -91,7 +90,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Read PCR 17
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
 if [ "$RES" != "$exp" ]; then
@@ -138,7 +136,6 @@ echo "Saved volatile state."
 rm -f $VOLATILE_STATE_FILE $STATE_FILE
 
 # Stop the TPM; this will not shut it down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} --stop
 
 kill_quiet -0 ${SWTPM_PID}
@@ -189,7 +186,6 @@ if [ -r $VOLATILE_STATE_FILE ]; then
 fi
 
 # Read the PCR again ...
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
 if [ "$RES" != "$exp" ]; then
@@ -232,7 +228,6 @@ if [ -r $VOLATILE_STATE_FILE ]; then
 fi
 
 # Read the PCR again ...
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
 if [ "$RES" != "$exp" ]; then
@@ -394,7 +389,6 @@ fi
 echo "Test 3: Ok"
 
 # Final shut down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."

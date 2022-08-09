@@ -55,7 +55,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Startup the TPM
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')
 exp=' 00 c4 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -86,7 +85,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Read PCR 17
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
 if [ "$RES" != "$exp" ]; then
@@ -118,7 +116,6 @@ if [ $? -ne -0 ]; then
 fi
 
 # \x40 or \x0B seems to confuse 'normal' echo
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0A\x40\x00\x00\x0B')
 exp=' 00 c4 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -154,7 +151,6 @@ dd if=/dev/zero bs=1024 count=1024 2>/dev/null| \
 	run_swtpm_ioctl ${SWTPM_INTERFACE} -h -
 
 # Read PCR 17
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 d8 0e 7a 7b 3c 37 88 7d b4 c2 88 08 1d a7 53 f6 4b 11 3a 9c'
 if [ "$RES" != "$exp" ]; then

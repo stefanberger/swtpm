@@ -94,7 +94,6 @@ if [ "$ERR" != "$exp" ]; then
 fi
 
 # Startup the TPM2
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -105,7 +104,6 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Read the Buffer sizes; we want to see '4000' (0xfa0) in the buffer sizes now
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x16\x00\x00\x01\x7a\x00\x00\x00\x06\x00\x00\x01\x1e\x00\x00\x00\x02')
 exp=' 80 01 00 00 00 23 00 00 00 00 01 00 00 00 06 00 00 00 02 00 00 01 1e 00 00 0f a0 00 00 01 1f 00 00 0f a0'
 if [ "$RES" != "$exp" ]; then

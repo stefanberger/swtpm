@@ -129,8 +129,6 @@ _EOF_
 		--flags not-need-init \
 		--tpmstate "dir=${workdir}"
 
-	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
-
 	# Startup the TPM
 	res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')"
 	exp=' 00 c4 00 00 00 0a 00 00 00 00'

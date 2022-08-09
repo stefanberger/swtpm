@@ -539,6 +539,7 @@ function swtpm_open_cmddev()
 			echo "SWTPM_DEV_NAME not defined"
 			exit 1
 		}
+		exec 100>&-
 		exec 100<>${SWTPM_DEV_NAME}
 		return $?
 		;;
@@ -574,11 +575,13 @@ function swtpm_cmd_tx()
 
 	cmd_path=$(mktemp)
 
+	swtpm_open_cmddev "${iface}" 100
+
 	case "${iface}" in
 	cuse)
 		echo -en "$2" > ${cmd_path}
 		cat ${cmd_path} >&100
-		dd if=/proc/self/fd/100 2>/dev/null | \
+		cat <&100 | \
 		    od -t x1 -A n | \
 		    tr -s ' ' | \
 		    tr -d '\n' | \

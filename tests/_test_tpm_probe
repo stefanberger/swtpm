@@ -41,9 +41,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-# Open access to the TPM
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
-
 # Before TPM_INIT: Read PCR 17 -- this gives a TPM_FAIL
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
@@ -58,7 +55,6 @@ fi
 run_swtpm_ioctl ${SWTPM_INTERFACE} -i
 
 # Read PCR 17 -- this should give TPM_INVALID_POSTINIT
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 0a 00 00 00 26'
 if [ "$RES" != "$exp" ]; then
