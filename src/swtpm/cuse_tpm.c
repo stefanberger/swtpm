@@ -545,6 +545,9 @@ static void ptm_read_result(fuse_req_t req, size_t size)
 {
     size_t len = 0;
 
+    /* prevent other threads from reading or writing cmds or doing ioctls */
+    g_mutex_lock(FILE_OPS_LOCK);
+
     if (tpm_running) {
         /* wait until results are ready */
         worker_thread_wait_done();
@@ -553,12 +556,14 @@ static void ptm_read_result(fuse_req_t req, size_t size)
     if (ptm_read_offset < ptm_res_len) {
         len = ptm_res_len - ptm_read_offset;
         if (size < len)
-           len = size;
+            len = size;
     }
 
     fuse_reply_buf(req, (const char *)&ptm_response[ptm_read_offset], len);
 
     ptm_read_offset += len;
+
+    g_mutex_unlock(FILE_OPS_LOCK);
 }
 
 /*
@@ -869,7 +874,7 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
     ptm_req_len = size;
     ptm_res_len = 0;
 
-    /* prevent other threads from writing or doing ioctls */
+    /* prevent other threads from reading or writing cmds or doing ioctls */
     g_mutex_lock(FILE_OPS_LOCK);
 
     if (tpm_running) {
