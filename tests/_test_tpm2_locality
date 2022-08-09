@@ -91,7 +91,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Startup the TPM
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -109,7 +108,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Reset PCR 20
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x3d\x00\x00\x00\x14\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00')
 exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -127,7 +125,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Reset PCR 20
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x02\x00\x00\x00\x1b\x00\x00\x01\x3d\x00\x00\x00\x14\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00')
 exp=' 80 01 00 00 00 0a 00 00 09 07'
 if [ "$RES" != "$exp" ]; then

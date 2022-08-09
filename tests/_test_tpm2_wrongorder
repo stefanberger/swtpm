@@ -71,9 +71,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-# Open access to the TPM
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
-
 # Read PCR 17
 #                                                       length         CC            count       hashalg         sz
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
@@ -84,8 +81,6 @@ if [ "$RES" != "$exp" ]; then
 	echo "received: $RES"
 	exit 1
 fi
-
-exec 100>&-
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then

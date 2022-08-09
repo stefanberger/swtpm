@@ -69,7 +69,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Startup the TPM
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -80,7 +79,6 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Create an NVRAM location: nvdefinespace -hi o -ha 01000000 -pwdn nnn  -sz 16 -at da
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x02\x00\x00\x00\x30\x00\x00\x01\x2a\x40\x00\x00\x01\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x03\x6e\x6e\x6e\x00\x0e\x01\x00\x00\x00\x00\x0b\x00\x04\x00\x04\x00\x00\x00\x10')
 exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -99,7 +97,6 @@ NVWRITE_BAD='\x80\x02\x00\x00\x00\x29\x00\x00\x01\x37\x01\x00\x00\x00\x01\x00\x0
 # Write some data into the NVRAM area: nvwrite -ha 01000000 -ic test -pwdn nnn
 # Due to -at da being used on TPM2_NV_DefineSpace, the first time the command will request a retry
 for ((i = 0; i < 2; i++)); do
-	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 	if [ $i -eq 1 ] && [ "$RES" != "$exp" ]; then
@@ -111,7 +108,6 @@ for ((i = 0; i < 2; i++)); do
 done
 
 # Set the dictionary attack parameters: dictionaryattackparameters -lr 6 -nrt 6
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x02\x00\x00\x00\x27\x00\x00\x01\x3a\x40\x00\x00\x0a\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x06\x00\x00\x00\x06')
 exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -124,7 +120,6 @@ fi
 timenow=$(date +%s)
 timeout=$((timenow + 6))
 # Send TPM2_NV_Write with wrong password
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_BAD})
 exp=' 80 01 00 00 00 0a 00 00 09 8e'
 if [ "$RES" != "$exp" ]; then
@@ -140,7 +135,6 @@ timerecovery=$((timenow + 6))
 while :; do
 	timenow=$(date +%s)
 	echo "Writing with good password failed due to lockout until $timeout - now is $timenow."
-	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 01 00 00 00 0a 00 00 09 21'
 	# busy systems may run the above at >= $timeout and get an unexpected result; check time again
@@ -163,7 +157,6 @@ done
 timenow_after=$(date +%s)
 echo "Time is now ${timenow_after} -- trying with good password should work now."
 # Now writing with the good password must work again
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -181,7 +174,6 @@ fi
 timenow=$(date +%s)
 timeout=$((timenow + 6))
 # Again cause lockout: Send TPM2_NV_Write with wrong password
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_BAD})
 exp=' 80 01 00 00 00 0a 00 00 09 8e'
 if [ "$RES" != "$exp" ]; then
@@ -228,7 +220,6 @@ echo "Saved volatile state."
 rm -f $VOLATILE_STATE_FILE $STATE_FILE
 
 # Stop the TPM; this will not shut it down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} --stop
 if [ $? -ne 0 ]; then
 	echo "Error: Could not stop the ${SWTPM_INTERFACE} TPM."
@@ -289,7 +280,6 @@ fi
 while :; do
 	timenow=$(date +%s)
 	echo "Writing with good password failed due to lockout until $timeout - now is $timenow."
-	swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 	exp=' 80 01 00 00 00 0a 00 00 09 21'
 	# busy systems may run the above at >= $timeout and get an unexpected result; check time again
@@ -312,7 +302,6 @@ done
 timenow_after=$(date +%s)
 echo "Time is now $timenow_after -- trying with good password should work now."
 # Now writing with the good password must work again
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${NVWRITE_GOOD})
 exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -327,9 +316,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-
 # Final shut down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."

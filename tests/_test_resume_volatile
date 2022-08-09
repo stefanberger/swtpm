@@ -62,7 +62,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Read PCR 10 (extend -ix 10 -ic test)
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
 if [ "$RES" != "$exp" ]; then
@@ -84,7 +83,6 @@ if [ ! -r $VOLATILE_STATE_FILE ]; then
 fi
 
 # Shut the TPM down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 
 echo "Test 1: Ok"
@@ -119,7 +117,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Read PCR 10 (extend -ix 10 -ic test)
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
 if [ "$RES" != "$exp" ]; then
@@ -141,7 +138,6 @@ if [ ! -r $VOLATILE_STATE_FILE ]; then
 fi
 
 # Shut the TPM down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
@@ -179,7 +175,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Read PCR 10
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
 if [ "$RES" != "$exp" ]; then
@@ -201,7 +196,6 @@ if [ ! -r $VOLATILE_STATE_FILE ]; then
 fi
 
 # Shut the TPM down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."

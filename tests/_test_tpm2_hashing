@@ -56,7 +56,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Startup the TPM2
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
@@ -87,7 +86,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 # Read PCR 17
 #                                                    length         CC            count       hashalg         sz
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE}'\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
@@ -148,7 +146,6 @@ fi
 dd if=/dev/zero bs=1024 count=1024 2>/dev/null| \
 	run_swtpm_ioctl ${SWTPM_INTERFACE} -h -
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 # Read PCR 17
 #                                                      length         CC            count       hashalg         sz
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')

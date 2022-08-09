@@ -66,9 +66,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-
 # Read PCR 17 -- this should give a fatal error response
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
 if [ "$RES" != "$exp" ]; then
@@ -77,8 +75,6 @@ if [ "$RES" != "$exp" ]; then
 	echo "received: $RES"
 	exit 1
 fi
-
-exec 100>&-
 
 kill_quiet -0 ${SWTPM_PID}
 if [ $? -ne 0 ]; then

@@ -55,7 +55,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # We do NOT need to startup the TPM; Hashing will affect PCR 0
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 
 # Check the TPM Established bit before the hashing
 RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
@@ -89,7 +88,6 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 # Read PCR 0
 #                                                     length         CC            count       hashalg         sz
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x01\x00\x00')

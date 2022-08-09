@@ -233,8 +233,6 @@ fi
 
 validate_pidfile $PID $PID_FILE
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
-
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
 if [[ "$(uname -s)" =~ (Linux|OpenBSD|FreeBSD|NetBSD|Darwin|DragonFly) ]]; then
@@ -361,7 +359,6 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Read PCR 17
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')"
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c4 e1 e1 c9 81 c0 cd b1 e0 43 df 97 20 72 f9 5d a9 ff 06 ff'
 if [ "$res" != "$exp" ]; then
@@ -394,7 +391,6 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Read PCR 17 -- should fail now
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')"
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
 if [ "$res" != "$exp" ]; then
@@ -461,7 +457,6 @@ fi
 validate_pidfile $PID $PID_FILE
 
 # Read PCR 10
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
 if [ "$res" != "$exp" ]; then
@@ -527,7 +522,6 @@ fi
 validate_pidfile $PID $PID_FILE
 
 # Read PCR 10 -- this should fail now
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
 exp=' 00 c4 00 00 00 0a 00 00 00 26'
 if [ "$res" != "$exp" ]; then
@@ -573,7 +567,6 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Read PCR 10 -- has to return same result as before
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
 if [ "$res" != "$exp" ]; then
@@ -584,7 +577,6 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Reset PCR 20 while in locality 0 -- should not work
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10')"
 exp=' 00 c4 00 00 00 0a 00 00 00 33'
 if [ "$res" != "$exp" ]; then
@@ -606,7 +598,6 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Reset PCR 20 while in locality 2 -- has to work
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
 res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10')"
 exp=' 00 c4 00 00 00 0a 00 00 00 00'
 if [ "$res" != "$exp" ]; then

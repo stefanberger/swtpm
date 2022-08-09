@@ -61,8 +61,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
-
 # Read PCR 10 (from pcrextend -ha 10 -ic test)
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
@@ -85,7 +83,6 @@ if [ ! -r $VOLATILE_STATE_FILE ]; then
 fi
 
 # Shut the TPM down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 
 echo "Test 1: Ok"
@@ -119,12 +116,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
-if [ $? -ne 0 ]; then
-	echo "Error: Could not open command interface."
-	ext 1
-fi
-
 # Read PCR 10  (from pcrextend -ha 10 -ic test)
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
@@ -147,7 +138,6 @@ if [ ! -r $VOLATILE_STATE_FILE ]; then
 fi
 
 # Shut the TPM down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the CUSE TPM."
@@ -185,12 +175,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
-if [ $? -ne 0 ]; then
-	echo "Error: Could not open command interface."
-	ext 1
-fi
-
 # Read PCR 10  (from pcrextend -ha 10 -ic test)
 RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
@@ -213,7 +197,6 @@ if [ ! -r $VOLATILE_STATE_FILE ]; then
 fi
 
 # Shut the TPM down
-exec 100>&-
 run_swtpm_ioctl ${SWTPM_INTERFACE} -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the CUSE TPM."
