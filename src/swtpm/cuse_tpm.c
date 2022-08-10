@@ -122,6 +122,14 @@ static bool g_incoming_migration;
 /* whether NVRAM storage is currently locked */
 static bool g_storage_locked;
 
+/* whether to relase the lock on outgoing migration */
+static bool g_release_lock_outgoing;
+
+/* how many times to retry locking; use for fallback after releasing
+   the lock on outgoing migration. */
+static unsigned int g_locking_retries;
+#define DEFAULT_LOCKING_RETRIES  100
+
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
@@ -259,9 +267,10 @@ static const char *usage =
 "                    :  Choose the action of the seccomp profile when a\n"
 "                       blacklisted syscall is executed; default is kill\n"
 #endif
-"--migration [incoming]\n"
+"--migration [incoming][,release-lock-outgoing]\n"
 "                    : Incoming migration defers locking of storage backend\n"
-"                      until the TPM state is received;\n"
+"                      until the TPM state is received; release-lock-outgoing\n"
+"                      releases the storage lock on outgoing migration\n"
 "--print-capabilites : print capabilities and terminate\n"
 "--print-states      : print existing TPM states and terminate\n"
 "-h|--help           :  display this help screen and terminate\n"
@@ -301,7 +310,7 @@ static bool ensure_locked_storage(void)
         return true;
 
     /* if NVRAM hasn't been initialized yet locking may need to be retried */
-    res = SWTPM_NVRAM_Lock_Storage();
+    res = SWTPM_NVRAM_Lock_Storage(g_locking_retries);
     if (res == TPM_RETRY)
         return true;
     if (res != TPM_SUCCESS)
@@ -309,8 +318,17 @@ static bool ensure_locked_storage(void)
 
     g_storage_locked = true;
     g_incoming_migration = false;
+    g_locking_retries = 0;
 
     return true;
+}
+
+static void unlock_nvram(unsigned int locking_retries)
+{
+    SWTPM_NVRAM_Unlock();
+
+    g_storage_locked = false;
+    g_locking_retries = locking_retries;
 }
 
 /************************* cached stateblob *********************************/
@@ -401,6 +419,9 @@ static TPM_RESULT cached_stateblob_load(uint32_t blobtype, TPM_BOOL decrypt)
         cached_stateblob.blobtype = blobtype;
         cached_stateblob.decrypt = decrypt;
     }
+
+    if (blobtype == PTM_BLOB_TYPE_SAVESTATE)
+        unlock_nvram(DEFAULT_LOCKING_RETRIES);
 
     return res;
 }
@@ -1770,7 +1791,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_locality_options(param.localitydata, &locality_flags) < 0 ||
         handle_flags_options(param.flagsdata, &need_init_cmd,
                              &param.startupType, &g_disable_auto_shutdown) < 0 ||
-        handle_migration_options(param.migrationdata, &g_incoming_migration) < 0) {
+        handle_migration_options(param.migrationdata, &g_incoming_migration,
+                                 &g_release_lock_outgoing) < 0) {
         ret = -3;
         goto exit;
     }

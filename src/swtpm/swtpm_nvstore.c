@@ -207,7 +207,7 @@ void SWTPM_NVRAM_Shutdown(void)
     memset(&migrationkey, 0, sizeof(migrationkey));
 }
 
-TPM_RESULT SWTPM_NVRAM_Lock_Storage(void)
+TPM_RESULT SWTPM_NVRAM_Lock_Storage(unsigned int retries)
 {
     const char *backend_uri;
 
@@ -221,9 +221,15 @@ TPM_RESULT SWTPM_NVRAM_Lock_Storage(void)
         return TPM_FAIL;
     }
     if (g_nvram_backend_ops->lock)
-        return g_nvram_backend_ops->lock(backend_uri);
+        return g_nvram_backend_ops->lock(backend_uri, retries);
 
     return TPM_SUCCESS;
+}
+
+void SWTPM_NVRAM_Unlock(void)
+{
+    if (g_nvram_backend_ops->unlock)
+        g_nvram_backend_ops->unlock();
 }
 
 /* SWTPM_NVRAM_GetFilenameForName() constructs a file name from the name.

@@ -66,6 +66,12 @@ struct mainLoopParams {
     bool incoming_migration;
     /* whether storage is is currently locked */
     bool storage_locked;
+    /* whether to release the lock on outgoing migration */
+    bool release_lock_outgoing;
+    /* how many times to retry locking; use for fallback after releasing
+       the lock on outgoing migration. */
+    unsigned int locking_retries;
+#define DEFAULT_LOCKING_RETRIES  100
 };
 
 int mainLoop(struct mainLoopParams *mlp,
@@ -73,5 +79,7 @@ int mainLoop(struct mainLoopParams *mlp,
 TPM_RESULT mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
                                     uint32_t tpmnum);
 bool mainloop_ensure_locked_storage(struct mainLoopParams *mlp);
+void mainloop_unlock_nvram(struct mainLoopParams *mlp,
+                           unsigned int locking_retries);
 
 #endif /* _SWTPM_MAINLOOP_H_ */
