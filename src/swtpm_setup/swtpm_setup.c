@@ -801,7 +801,7 @@ static void usage(const char *prgname, const char *default_config_file)
         "--runas <user>   : Run this program under the given user's account.\n"
         "\n"
         "--tpm-state <dir>: Path where the TPM's state will be written to;\n"
-        "                   this is a mandatory argument. Prefix with dir:// to"
+        "                   this is a mandatory argument. Prefix with dir:// to\n"
         "                   use directory backend, or file:// to use linear file.\n"
         "\n"
         "--tpmstate <dir> : This is an alias for --tpm-state <dir>.\n"
