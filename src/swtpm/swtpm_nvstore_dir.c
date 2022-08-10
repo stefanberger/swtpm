@@ -110,8 +110,9 @@ SWTPM_NVRAM_Unlock_Dir(void)
 }
 
 static TPM_RESULT
-SWTPM_NVRAM_Lock_Dir(const char *tpm_state_path)
+SWTPM_NVRAM_Lock_Dir(const char *backend_uri)
 {
+    const char *tpm_state_path;
     TPM_RESULT rc = 0;
     char *lockfile = NULL;
     struct flock flock = {
@@ -123,6 +124,8 @@ SWTPM_NVRAM_Lock_Dir(const char *tpm_state_path)
 
     if (lock_fd >= 0)
         return 0;
+
+    tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(backend_uri);
 
     if (asprintf(&lockfile, "%s/.lock", tpm_state_path) < 0) {
         logprintf(STDERR_FILENO,
@@ -221,8 +224,6 @@ SWTPM_NVRAM_Prepare_Dir(const char *uri)
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
     if (rc == 0)
         rc = SWTPM_NVRAM_Validate_Dir(tpm_state_path);
-    if (rc == 0)
-        rc = SWTPM_NVRAM_Lock_Dir(tpm_state_path);
 
     return rc;
 }
@@ -522,6 +523,7 @@ SWTPM_NVRAM_DeleteName_Dir(uint32_t tpm_number,
 
 struct nvram_backend_ops nvram_dir_ops = {
     .prepare = SWTPM_NVRAM_Prepare_Dir,
+    .lock    = SWTPM_NVRAM_Lock_Dir,
     .load    = SWTPM_NVRAM_LoadData_Dir,
     .store   = SWTPM_NVRAM_StoreData_Dir,
     .delete  = SWTPM_NVRAM_DeleteName_Dir,

@@ -118,6 +118,9 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion)
         return res;
     }
 
+    if ((res = SWTPM_NVRAM_Lock_Storage()) != TPM_SUCCESS)
+        goto error_terminate;
+
     if (flags & PTM_INIT_FLAG_DELETE_VOLATILE) {
         uint32_t tpm_number = 0;
         char *name = TPM_VOLATILESTATE_NAME;
