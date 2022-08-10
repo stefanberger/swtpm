@@ -563,8 +563,11 @@ int ctrlchannel_process_fd(int fd,
         TPMLIB_Terminate();
 
         *tpm_running = false;
+
+        mlp->storage_locked = !mlp->incoming_migration;
+
         res = tpmlib_start(be32toh(init_p->u.req.init_flags),
-                           mlp->tpmversion);
+                           mlp->tpmversion, mlp->storage_locked);
         if (res) {
             logprintf(STDERR_FILENO,
                       "Error: Could not initialize the TPM\n");
@@ -765,6 +768,8 @@ int ctrlchannel_process_fd(int fd,
 
         /* tpm state dir must be set */
         SWTPM_NVRAM_Init();
+        if ((*terminate = !mainloop_ensure_locked_storage(mlp)))
+            goto err_io;
 
         pss = (ptm_setstate *)input.body;
         if (n < (ssize_t)offsetof(ptm_setstate, u.req.data)) /* rw */

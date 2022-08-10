@@ -211,6 +211,9 @@ TPM_RESULT SWTPM_NVRAM_Lock_Storage(void)
 {
     const char *backend_uri;
 
+    if (!g_nvram_backend_ops)
+        return TPM_RETRY;
+
     backend_uri = tpmstate_get_backend_uri();
     if (!backend_uri) {
         logprintf(STDERR_FILENO,

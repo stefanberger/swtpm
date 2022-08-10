@@ -187,6 +187,9 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : Choose the action of the seccomp profile when a\n"
     "                   blacklisted syscall is executed; default is kill\n"
 #endif
+    "--migration [incoming]\n"
+    "                 : Incoming migration defers locking of storage backend\n"
+    "                   until the TPM state is received;\n"
     "--print-capabilites\n"
     "                 : print capabilities and terminate\n"
     "--print-states\n"
@@ -221,6 +224,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         .startupType = _TPM_ST_NONE,
         .lastCommand = TPM_ORDINAL_NONE,
         .disable_auto_shutdown = false,
+        .incoming_migration = false,
+        .storage_locked = false,
     };
     struct server *server = NULL;
     unsigned long val;
@@ -236,6 +241,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *serverdata = NULL;
     char *flagsdata = NULL;
     char *seccompdata = NULL;
+    char *migrationdata = NULL;
     char *runas = NULL;
     char *chroot = NULL;
     bool need_init_cmd = true;
@@ -266,6 +272,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 #ifdef WITH_SECCOMP
         {"seccomp"   , required_argument, 0, 'S'},
 #endif
+        {"migration" , required_argument, 0, 'i'},
         {"print-capabilities"
                      ,       no_argument, 0, 'a'},
         {"print-states",     no_argument, 0, 'e'},
@@ -411,6 +418,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             seccompdata = optarg;
             break;
 
+        case 'i':
+            migrationdata = optarg;
+            break;
+
         default:
             usage(stderr, prgname, iface);
             exit(EXIT_FAILURE);
@@ -485,7 +496,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_seccomp_options(seccompdata, &seccomp_action) < 0 ||
         handle_flags_options(flagsdata, &need_init_cmd,
-                             &mlp.startupType, &mlp.disable_auto_shutdown) < 0) {
+                             &mlp.startupType, &mlp.disable_auto_shutdown) < 0 ||
+        handle_migration_options(migrationdata, &mlp.incoming_migration) < 0) {
         goto exit_failure;
     }
 
@@ -522,7 +534,9 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         goto error_no_tpm;
 
     if (!need_init_cmd) {
-        if ((rc = tpmlib_start(0, mlp.tpmversion)))
+        mlp.storage_locked = !mlp.incoming_migration;
+
+        if ((rc = tpmlib_start(0, mlp.tpmversion, mlp.storage_locked)))
             goto error_no_tpm;
         tpm_running = true;
     }

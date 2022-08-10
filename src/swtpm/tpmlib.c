@@ -105,7 +105,8 @@ TPM_RESULT tpmlib_choose_tpm_version(TPMLIB_TPMVersion tpmversion)
     return res;
 }
 
-TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion)
+TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
+                        bool lock_nvram)
 {
     TPM_RESULT res;
 
@@ -118,7 +119,7 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion)
         return res;
     }
 
-    if ((res = SWTPM_NVRAM_Lock_Storage()) != TPM_SUCCESS)
+    if (lock_nvram && (res = SWTPM_NVRAM_Lock_Storage()) != TPM_SUCCESS)
         goto error_terminate;
 
     if (flags & PTM_INIT_FLAG_DELETE_VOLATILE) {

@@ -116,6 +116,12 @@ static uint32_t g_lastCommand = TPM_ORDINAL_NONE;
 /* TPM2_Shutdown() will NOT be sent by swtpm */
 static bool g_disable_auto_shutdown = false;
 
+/* whether to defer locking NVRAM storage due to incoming migration */
+static bool g_incoming_migration;
+
+/* whether NVRAM storage is currently locked */
+static bool g_storage_locked;
+
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
@@ -144,6 +150,7 @@ struct cuse_param {
     char *tpmstatedata;
     char *localitydata;
     char *seccompdata;
+    char *migrationdata;
     unsigned int seccomp_action;
     char *flagsdata;
     uint16_t startupType;
@@ -252,6 +259,9 @@ static const char *usage =
 "                    :  Choose the action of the seccomp profile when a\n"
 "                       blacklisted syscall is executed; default is kill\n"
 #endif
+"--migration [incoming]\n"
+"                    : Incoming migration defers locking of storage backend\n"
+"                      until the TPM state is received;\n"
 "--print-capabilites : print capabilities and terminate\n"
 "--print-states      : print existing TPM states and terminate\n"
 "-h|--help           :  display this help screen and terminate\n"
@@ -279,6 +289,29 @@ static transfer_state tx_state;
 
 /* function prototypes */
 static void ptm_cleanup(void);
+
+/************************* NVRAM locking ************************************/
+
+/* ensure that the NVRAM is locked; returns false in case of failure */
+static bool ensure_locked_storage(void)
+{
+    TPM_RESULT res;
+
+    if (g_storage_locked)
+        return true;
+
+    /* if NVRAM hasn't been initialized yet locking may need to be retried */
+    res = SWTPM_NVRAM_Lock_Storage();
+    if (res == TPM_RETRY)
+        return true;
+    if (res != TPM_SUCCESS)
+        return false;
+
+    g_storage_locked = true;
+    g_incoming_migration = false;
+
+    return true;
+}
 
 /************************* cached stateblob *********************************/
 
@@ -481,7 +514,9 @@ static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
         goto error_del_pool;
     }
 
-    *res = tpmlib_start(flags, l_tpmversion);
+    g_storage_locked = !g_incoming_migration;
+
+    *res = tpmlib_start(flags, l_tpmversion, g_storage_locked);
     if (*res != TPM_SUCCESS)
         goto error_del_pool;
 
@@ -892,6 +927,12 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
     g_mutex_lock(FILE_OPS_LOCK);
 
     if (tpm_running) {
+        /* before processing a command ensure that the NVRAM is locked */
+        if (!ensure_locked_storage()) {
+            fuse_reply_err(req, EIO);
+            goto cleanup;
+        }
+
         /* ensure that we only ever work on one TPM command */
         if (worker_thread_is_busy()) {
             fuse_reply_err(req, EBUSY);
@@ -1285,8 +1326,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
         /* tpm state dir must be set */
         SWTPM_NVRAM_Init();
-
-        if (in_bufsz != sizeof(ptm_setstate)) {
+        if ((exit_prg = !ensure_locked_storage())) {
+            fuse_reply_err(req, EIO);
+        } else if (in_bufsz != sizeof(ptm_setstate)) {
             struct iovec iov = { arg, sizeof(uint32_t) };
             fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
         } else {
@@ -1510,6 +1552,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 #ifdef WITH_SECCOMP
         {"seccomp"       , required_argument, 0, 'S'},
 #endif
+        {"migration"     , required_argument, 0, 'i'},
         {"print-capabilities"
                          ,       no_argument, 0, 'a'},
         {"print-states"  ,       no_argument, 0, 'e'},
@@ -1624,6 +1667,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case 'S':
             param.seccompdata = optarg;
             break;
+        case 'i': /* --migration */
+            param.migrationdata = optarg;
+            break;
         case 'h': /* help */
             fprintf(stdout, usage, prgname, iface);
             goto exit;
@@ -1723,7 +1769,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_seccomp_options(param.seccompdata, &param.seccomp_action) < 0 ||
         handle_locality_options(param.localitydata, &locality_flags) < 0 ||
         handle_flags_options(param.flagsdata, &need_init_cmd,
-                             &param.startupType, &g_disable_auto_shutdown) < 0) {
+                             &param.startupType, &g_disable_auto_shutdown) < 0 ||
+        handle_migration_options(param.migrationdata, &g_incoming_migration) < 0) {
         ret = -3;
         goto exit;
     }
