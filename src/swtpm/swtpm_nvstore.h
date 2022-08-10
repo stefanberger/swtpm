@@ -49,6 +49,8 @@ TPM_RESULT SWTPM_NVRAM_Init(void);
 
 void SWTPM_NVRAM_Shutdown(void);
 
+TPM_RESULT SWTPM_NVRAM_Lock_Storage(void);
+
 /*
   Basic abstraction for read and write
 */
@@ -107,6 +109,7 @@ static inline TPM_BOOL SWTPM_NVRAM_Has_MigrationKey(void)
 
 struct nvram_backend_ops {
     TPM_RESULT (*prepare)(const char *uri);
+    TPM_RESULT (*lock)(const char *uri);
     TPM_RESULT (*load)(unsigned char **data,
                        uint32_t *length,
                        uint32_t tpm_number,

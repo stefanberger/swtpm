@@ -207,6 +207,22 @@ void SWTPM_NVRAM_Shutdown(void)
     memset(&migrationkey, 0, sizeof(migrationkey));
 }
 
+TPM_RESULT SWTPM_NVRAM_Lock_Storage(void)
+{
+    const char *backend_uri;
+
+    backend_uri = tpmstate_get_backend_uri();
+    if (!backend_uri) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_Lock: Missing backend URI.\n");
+        return TPM_FAIL;
+    }
+    if (g_nvram_backend_ops->lock)
+        return g_nvram_backend_ops->lock(backend_uri);
+
+    return TPM_SUCCESS;
+}
+
 /* SWTPM_NVRAM_GetFilenameForName() constructs a file name from the name.
  * A temporary filename used to write to may be created. It should be rename()'d to
  * the non-temporary filename.
