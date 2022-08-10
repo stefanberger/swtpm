@@ -9,7 +9,6 @@ man8_PODS = \
 	swtpm.pod \
 	swtpm_bios.pod \
 	swtpm_cert.pod \
-	swtpm_cuse.pod \
 	swtpm_ioctl.pod \
 	swtpm_localca.pod \
 	swtpm_setup.pod \
@@ -24,12 +23,8 @@ man8_generated_MANS = \
 	swtpm_setup.8 \
 	swtpm-create-tpmca.8
 
-if WITH_CUSE
-man8_generated_MANS += \
-	swtpm_cuse.8
-endif
-
 man8_static_MANS = \
+	swtpm_cuse.8 \
 	swtpm-localca.8
 
 man8_MANS = \
