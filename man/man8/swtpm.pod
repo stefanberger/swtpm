@@ -318,6 +318,7 @@ may contain the following:
         "cmdarg-pwd-fd",
         "cmdarg-print-states",
         "cmdarg-chroot",
+        "cmdarg-migration",
         "nvram-backend-dir",
         "nvram-backend-file",
         "tpm-send-command-header",
@@ -365,6 +366,10 @@ The I<--print-states> option is supported.
 =item B<cmdarg-chroot> (since v0.8)
 
 The I<--chroot> option is supported.
+
+=item B<cmdarg-migration> (since v0.8)
+
+The I<--migration> option is supported.
 
 =item B<nvram-backend-dir> (since v0.7)
 
