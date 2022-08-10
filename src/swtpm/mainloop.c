@@ -92,16 +92,26 @@ bool mainloop_ensure_locked_storage(struct mainLoopParams *mlp)
         return true;
 
     /* if NVRAM hasn't been initialized yet locking may need to be retried */
-    res = SWTPM_NVRAM_Lock_Storage();
+    res = SWTPM_NVRAM_Lock_Storage(mlp->locking_retries);
     if (res == TPM_RETRY)
         return true;
     if (res != TPM_SUCCESS)
         return false;
 
+    mlp->locking_retries = 0;
     mlp->storage_locked = true;
     mlp->incoming_migration = false;
 
     return true;
+}
+
+void mainloop_unlock_nvram(struct mainLoopParams *mlp,
+                           unsigned int locking_retries)
+{
+    SWTPM_NVRAM_Unlock();
+
+    mlp->storage_locked = false;
+    mlp->locking_retries = locking_retries;
 }
 
 int mainLoop(struct mainLoopParams *mlp,

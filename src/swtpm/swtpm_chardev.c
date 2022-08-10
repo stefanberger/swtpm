@@ -209,9 +209,10 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : Choose the action of the seccomp profile when a\n"
     "                   blacklisted syscall is executed; default is kill\n"
 #endif
-    "--migration [incoming]\n"
+    "--migration [incoming][,release-lock-outgoing]\n"
     "                 : Incoming migration defers locking of storage backend\n"
-    "                   until the TPM state is received;\n"
+    "                   until the TPM state is received; release-lock-outgoing\n"
+    "                   releases the storage lock on outgoing migration\n"
     "--print-capabilites\n"
     "                 : print capabilities and terminate\n"
     "--print-states\n"
@@ -560,7 +561,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         handle_seccomp_options(seccompdata, &seccomp_action) < 0 ||
         handle_flags_options(flagsdata, &need_init_cmd,
                              &mlp.startupType, &mlp.disable_auto_shutdown) < 0 ||
-        handle_migration_options(migrationdata, &mlp.incoming_migration) < 0) {
+        handle_migration_options(migrationdata, &mlp.incoming_migration,
+                                 &mlp.release_lock_outgoing) < 0) {
         goto exit_failure;
     }
 

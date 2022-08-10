@@ -128,7 +128,8 @@ int ctrlchannel_set_client_fd(struct ctrlchannel *cc, int fd)
     return clientfd;
 }
 
-static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
+static int ctrlchannel_return_state(ptm_getstate *pgs, int fd,
+                                    struct mainLoopParams *mlp)
 {
     uint32_t blobtype = be32toh(pgs->u.req.type);
     const char *blobname;
@@ -197,6 +198,9 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd)
     }
 
     free(blob);
+
+    if (fd >= 0 && blobtype == PTM_BLOB_TYPE_SAVESTATE)
+        mainloop_unlock_nvram(mlp, DEFAULT_LOCKING_RETRIES);
 
     return fd;
 }
@@ -760,7 +764,7 @@ int ctrlchannel_process_fd(int fd,
         if (n < (ssize_t)sizeof(pgs->u.req)) /* rw */
             goto err_bad_input;
 
-        return ctrlchannel_return_state(pgs, fd);
+        return ctrlchannel_return_state(pgs, fd, mlp);
 
     case CMD_SET_STATEBLOB:
         if (*tpm_running)
