@@ -62,11 +62,16 @@ struct mainLoopParams {
     uint16_t startupType; /* use TPM 1.2 types */
     uint32_t lastCommand; /* last Command sent to TPM */
     bool disable_auto_shutdown;   /* TPM2_Shutdown() will NOT be sent by swtpm */
+    /* whether to defer locking NVRAM storage due to incoming migration */
+    bool incoming_migration;
+    /* whether storage is is currently locked */
+    bool storage_locked;
 };
 
 int mainLoop(struct mainLoopParams *mlp,
              int notify_fd);
 TPM_RESULT mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
                                     uint32_t tpmnum);
+bool mainloop_ensure_locked_storage(struct mainLoopParams *mlp);
 
 #endif /* _SWTPM_MAINLOOP_H_ */

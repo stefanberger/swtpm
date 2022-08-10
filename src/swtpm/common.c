@@ -263,6 +263,14 @@ static const OptionDesc seccomp_opt_desc[] = {
 };
 #endif
 
+static const OptionDesc migration_opt_desc[] = {
+    {
+        .name = "incoming",
+        .type = OPT_TYPE_BOOLEAN,
+    },
+    END_OPTION_DESC
+};
+
 /*
  * handle_log_options:
  * Parse and act upon the parsed log options. Initialize the logging.
@@ -1358,3 +1366,49 @@ int handle_seccomp_options(char *options, unsigned int *seccomp_action)
     return 0;
 }
 #endif /* WITH_SECCOMP */
+
+static int parse_migration_options(char *options, bool *incoming_migration)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+
+    ovs = options_parse(options, migration_opt_desc, &error);
+    if (!ovs) {
+        logprintf(STDERR_FILENO, "Error parsing migration options: %s\n", error);
+        goto error;
+    }
+
+    *incoming_migration = option_get_bool(ovs, "incoming", false);
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+    free(error);
+
+    return -1;
+}
+
+/*
+ * handle_migration_options:
+ * Parse the 'migration' options.
+ *
+ * @options: the migration options to parse
+ * @incoming_migration: whether there's an incoming migration
+ *
+ * Return 0 on success, -1 on failure.
+ */
+int handle_migration_options(char *options, bool *incoming_migration)
+{
+    *incoming_migration = false;
+
+    if (!options)
+        return 0;
+
+    if (parse_migration_options(options, incoming_migration) < 0)
+        return -1;
+
+    return 0;
+}

@@ -64,6 +64,7 @@ static inline int handle_seccomp_options(char *options SWTPM_ATTR_UNUSED,
     return 0;
 }
 #endif
+int handle_migration_options(char *options, bool *incoming_migration);
 
 #endif /* _SWTPM_COMMON_H_ */
 

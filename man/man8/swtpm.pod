@@ -422,6 +422,18 @@ the 'permall' and 'volatile' states are available.
       ]
     }
 
+=item B<--migration [incoming]>
+
+This option allows to control the locking of the NVRAM storage
+for the purpose of supporting migration between hosts that have
+shared storage setup for the swtpm's state directory and if
+locking is supported by the storage backend. The directory storage
+backend for example supports locking and therefore requires usage
+of this option in case of shared storage.
+When providing the I<incoming> option parameter swtpm defers the
+locking of the NVRAM until the state blobs are received or until the
+first TPM command is processed if no state blobs were received.
+
 =item B<-h|--help>
 
 Display usage info.
