@@ -127,8 +127,7 @@ static const OptionDesc pid_opt_desc[] = {
     {
         .name = "file",
         .type = OPT_TYPE_STRING,
-    },
-    {
+    }, {
         .name = "fd",
         .type = OPT_TYPE_INT,
     },
@@ -140,12 +139,10 @@ static const OptionDesc tpmstate_opt_desc[] = {
     {
         .name = "dir",
         .type = OPT_TYPE_STRING,
-    },
-    {
+    }, {
         .name = "mode",
         .type = OPT_TYPE_MODE_T,
-    },
-    {
+    }, {
         .name = "backend-uri",
         .type = OPT_TYPE_STRING,
     },
@@ -226,8 +223,7 @@ static const OptionDesc locality_opt_desc[] = {
     {
         .name = "reject-locality-4",
         .type = OPT_TYPE_BOOLEAN,
-    },
-    {
+    }, {
         .name = "allow-set-locality",
         .type = OPT_TYPE_BOOLEAN,
     },
@@ -238,20 +234,16 @@ static const OptionDesc flags_opt_desc[] = {
     {
         .name = "not-need-init",
         .type = OPT_TYPE_BOOLEAN,
-    },
-    {
+    }, {
         .name = "startup-none",
         .type = OPT_TYPE_BOOLEAN,
-    },
-    {
+    }, {
         .name = "startup-clear",
         .type = OPT_TYPE_BOOLEAN,
-    },
-    {
+    }, {
         .name = "startup-state",
         .type = OPT_TYPE_BOOLEAN,
-    },
-    {
+    }, {
         .name = "startup-deactivated",
         .type = OPT_TYPE_BOOLEAN,
     },
