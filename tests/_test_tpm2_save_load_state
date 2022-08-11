@@ -264,7 +264,6 @@ if [ ! -e $STATE_FILE ]; then
 	exit 1
 fi
 
-cat $logfile
 echo "OK"
 
 exit 0
