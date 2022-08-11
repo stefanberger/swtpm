@@ -73,6 +73,7 @@ TESTS += \
 	test_tpm2_save_load_state_2_block \
 	test_tpm2_save_load_state_3 \
 	test_tpm2_save_load_state_da_timeout \
+	test_tpm2_save_load_state_locking \
 	test_tpm2_setbuffersize \
 	test_tpm2_volatilestate \
 	test_tpm2_wrongorder \
@@ -207,6 +208,7 @@ EXTRA_DIST=$(TESTS) \
 	_test_tpm2_save_load_encrypted_state \
 	_test_tpm2_save_load_state \
 	_test_tpm2_save_load_state_da_timeout \
+	_test_tpm2_save_load_state_locking \
 	_test_tpm2_setbuffersize \
 	_test_tpm2_swtpm_bios \
 	_test_tpm2_volatilestate \

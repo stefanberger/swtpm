@@ -1,0 +1,266 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+VTPM_NAME="${VTPM_NAME:-vtpm-tpm2-test-save-load-state-locking}"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+export TPM_PATH="$(mktemp -d)" || exit 1
+STATE_FILE="$TPM_PATH/tpm2-00.permall"
+VOLATILE_STATE_FILE="$TPM_PATH/tpm2-00.volatilestate"
+MY_VOLATILE_STATE_FILE="$TPM_PATH/my.volatilestate"
+MY_PERMANENT_STATE_FILE="$TPM_PATH/my.permanent"
+MY_SAVESTATE_STATE_FILE="$TPM_PATH/my.savestate"
+SWTPM_INTERFACE="${SWTPM_INTERFACE:-cuse}"
+SWTPM_CMD_UNIX_PATH="${TPM_PATH}/unix-cmd.sock"
+SWTPM_CTRL_UNIX_PATH="${TPM_PATH}/unix-ctrl.sock"
+
+function cleanup()
+{
+	if [ -n "${SWTPM_PID}" ]; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+	rm -rf "$TPM_PATH"
+}
+
+trap "cleanup" EXIT
+
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
+
+run_swtpm "${SWTPM_INTERFACE}" \
+	--migration release-lock-outgoing \
+	--tpm2
+
+kill_quiet -0 "${SWTPM_PID}"
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+check_swtpm_no_storage_lock "${SWTPM_PID}"
+
+# Init the TPM
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+check_swtpm_storage_locked "${SWTPM_PID}"
+swtpm_lock_storage "re-lock"
+
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
+	exit 1
+fi
+
+# Startup the TPM
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+exp=' 80 01 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_Startup(ST_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+check_swtpm_storage_locked "${SWTPM_PID}"
+swtpm_lock_storage "re-lock"
+
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234
+if [ $? -ne 0 ]; then
+	echo "Error: Hash command did not work."
+	exit 1
+fi
+
+# Read PCR 17
+#                                                  length         CC            count       hashalg         sz
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+run_swtpm_ioctl "${SWTPM_INTERFACE}" --save permanent "$MY_PERMANENT_STATE_FILE"
+if [ $? -ne 0 ]; then
+	echo "Error: Could not write permanent state file $MY_PERMANENT_STATE_FILE."
+	exit 1
+fi
+if [ ! -r "$MY_PERMANENT_STATE_FILE" ]; then
+	echo "Error: Permanent state file $MY_PERMANENT_STATE_FILE does not exist."
+	exit 1
+fi
+echo "Saved permanent state."
+check_swtpm_storage_locked "${SWTPM_PID}"
+swtpm_lock_storage "re-lock"
+
+run_swtpm_ioctl "${SWTPM_INTERFACE}" --save volatile "$MY_VOLATILE_STATE_FILE"
+if [ $? -ne 0 ]; then
+	echo "Error: Could not write volatile state file $MY_VOLATILE_STATE_FILE."
+	exit 1
+fi
+if [ ! -r "$MY_VOLATILE_STATE_FILE" ]; then
+	echo "Error: Volatile state file $MY_VOLATILE_STATE_FILE does not exist."
+	exit 1
+fi
+echo "Saved volatile state."
+check_swtpm_storage_locked "${SWTPM_PID}"
+swtpm_lock_storage "re-lock"
+
+run_swtpm_ioctl "${SWTPM_INTERFACE}" --save savestate "$MY_SAVESTATE_STATE_FILE"
+if [ $? -ne 0 ]; then
+	echo "Error: Could not write savestate state file $MY_SAVESTATE_STATE_FILE."
+	exit 1
+fi
+if [ ! -r "$MY_SAVESTATE_STATE_FILE" ]; then
+	echo "Error: Volatile state file $MY_SAVESTATE_STATE_FILE does not exist."
+	exit 1
+fi
+echo "Saved savestate state."
+check_swtpm_no_storage_lock "${SWTPM_PID}"
+
+swtpm_lock_storage "lock"
+swtpm_lock_storage "re-lock"
+
+check_swtpm_storage_locked "${SWTPM_PID}"
+swtpm_lock_storage "re-lock"
+
+# Upon the next command swtpm must again lock storage; this simulates TPM usage after migration fall-back
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0a\x00\x00\x01\x7a')
+exp=' 80 01 00 00 00 0a 00 00 01 da'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+check_swtpm_storage_locked "${SWTPM_PID}"
+swtpm_lock_storage "re-lock"
+
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+# Restart swtpm
+rm -f "$VOLATILE_STATE_FILE" "$STATE_FILE"
+run_swtpm "${SWTPM_INTERFACE}" \
+	--migration incoming,release-lock-outgoing \
+	--tpm2
+
+kill_quiet -0 "${SWTPM_PID}"
+if [ $? -ne 0 ]; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+check_swtpm_no_storage_lock "${SWTPM_PID}"
+
+# load state into the TPM
+run_swtpm_ioctl "${SWTPM_INTERFACE}" --load permanent "$MY_PERMANENT_STATE_FILE"
+if [ $? -ne 0 ]; then
+	echo "Could not load permanent state into vTPM"
+	exit 1
+fi
+echo "Loaded permanent state."
+check_swtpm_storage_locked "${SWTPM_PID}"
+swtpm_lock_storage "re-lock"
+
+run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$MY_VOLATILE_STATE_FILE"
+if [ $? -ne 0 ]; then
+	echo "Could not load volatile state into vTPM"
+	exit 1
+fi
+echo "Loaded volatile state."
+check_swtpm_storage_locked "${SWTPM_PID}"
+
+# Init the TPM
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
+if [ $? -ne 0 ]; then
+	echo "TPM Init failed."
+	exit 1
+fi
+check_swtpm_storage_locked "${SWTPM_PID}"
+swtpm_lock_storage "re-lock"
+
+# Volatile state must have been removed by TPM now
+if [ -r "$VOLATILE_STATE_FILE" ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	exit 1
+fi
+
+# Read the PCR again ...
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Save the volatile state again
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
+if [ $? -ne 0 ]; then
+	echo "Error: Could not have the ${SWTPM_INTERFACE} TPM store the volatile state to a file."
+	exit 1
+fi
+
+if [ ! -r "$VOLATILE_STATE_FILE" ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
+	exit 1
+fi
+
+# Send a new TPM_Init
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
+if [ $? -ne 0 ]; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+# Volatile state must have been removed by TPM now
+if [ -r "$VOLATILE_STATE_FILE" ]; then
+	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
+	exit 1
+fi
+
+# Read the PCR again ...
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
+exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 18 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: (3) Did not get expected result from TPM_PCRRead(17)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+# Final shut down
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
+if [ $? -ne 0 ]; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+if [ ! -e "$STATE_FILE" ]; then
+	echo "Error: TPM state file $STATE_FILE does not exist."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0
