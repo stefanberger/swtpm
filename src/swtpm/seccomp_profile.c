@@ -95,10 +95,31 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(clock_settime64),
 #endif
         SCMP_SYS(adjtimex),
+#ifdef __NR_fsopen
+        SCMP_SYS(fsopen),
+#endif
+#ifdef __NR_fsconfig
+        SCMP_SYS(fsconfig),
+#endif
+#ifdef __NR_fsmount
+        SCMP_SYS(fs_mount),
+#endif
+#ifdef __NR_fspick
+        SCMP_SYS(fspick),
+#endif
         SCMP_SYS(mount),
+#ifdef __NR_move_mount
+        SCMP_SYS(move_mount),
+#endif
+#ifdef __NR_mount_setattr
+        SCMP_SYS(mount_setattr),
+#endif
         SCMP_SYS(umount2),
 #ifdef __NR_fsmount
         SCMP_SYS(fsmount),
+#endif
+#ifdef __NR_open_tree
+        SCMP_SYS(open_tree),
 #endif
 #ifdef __NR_move_mount
         SCMP_SYS(move_mount),
@@ -153,6 +174,9 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(sethostname),
         SCMP_SYS(setdomainname),
         SCMP_SYS(quotactl),
+#ifdef __NR_quotactl_fd
+        SCMP_SYS(quotactl_fd),
+#endif
         SCMP_SYS(readahead),
         SCMP_SYS(lookup_dcookie),
         SCMP_SYS(add_key),
