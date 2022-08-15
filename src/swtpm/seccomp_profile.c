@@ -91,31 +91,31 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(settimeofday),
         SCMP_SYS(clock_adjtime),
         SCMP_SYS(clock_settime),
-#ifdef __NR_clock_settime64
+#ifdef __SNR_clock_settime64
         SCMP_SYS(clock_settime64),
 #endif
         SCMP_SYS(adjtimex),
-#ifdef __NR_fsopen
+#ifdef __SNR_fsopen
         SCMP_SYS(fsopen),
 #endif
-#ifdef __NR_fsconfig
+#ifdef __SNR_fsconfig
         SCMP_SYS(fsconfig),
 #endif
-#ifdef __NR_fsmount
+#ifdef __SNR_fsmount
         SCMP_SYS(fsmount),
 #endif
-#ifdef __NR_fspick
+#ifdef __SNR_fspick
         SCMP_SYS(fspick),
 #endif
         SCMP_SYS(mount),
-#ifdef __NR_move_mount
+#ifdef __SNR_move_mount
         SCMP_SYS(move_mount),
 #endif
-#ifdef __NR_mount_setattr
+#ifdef __SNR_mount_setattr
         SCMP_SYS(mount_setattr),
 #endif
         SCMP_SYS(umount2),
-#ifdef __NR_open_tree
+#ifdef __SNR_open_tree
         SCMP_SYS(open_tree),
 #endif
         SCMP_SYS(swapon),
@@ -131,7 +131,7 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(delete_module), 
         SCMP_SYS(seccomp),
         SCMP_SYS(kexec_file_load),
-#ifdef __NR_sysctl
+#ifdef __SNR_sysctl
         SCMP_SYS(sysctl),
 #endif
         /* semaphores and messages queues */
@@ -168,7 +168,7 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(sethostname),
         SCMP_SYS(setdomainname),
         SCMP_SYS(quotactl),
-#ifdef __NR_quotactl_fd
+#ifdef __SNR_quotactl_fd
         SCMP_SYS(quotactl_fd),
 #endif
         SCMP_SYS(readahead),
@@ -186,10 +186,10 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(signalfd),
         SCMP_SYS(eventfd),
         SCMP_SYS(timerfd_settime),
-#ifdef __NR_timer_settime64
+#ifdef __SNR_timer_settime64
         SCMP_SYS(timer_settime64),
 #endif
-#ifdef __NR_timerfd_settime64
+#ifdef __SNR_timerfd_settime64
         SCMP_SYS(timerfd_settime64),
 #endif
         SCMP_SYS(timerfd_gettime),
@@ -202,10 +202,10 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(acct),
         SCMP_SYS(prlimit64),
         SCMP_SYS(setrlimit),
-#ifdef __NR_bpf
+#ifdef __SNR_bpf
         SCMP_SYS(bpf),
 #endif
-#ifdef __NR_copy_filerange
+#ifdef __SNR_copy_filerange
         SCMP_SYS(copy_filerange),
 #endif
         /* xattrs */
@@ -268,7 +268,7 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(fork),
         SCMP_SYS(vfork),
         SCMP_SYS(prctl),
-#ifdef __NR_clone3
+#ifdef __SNR_clone3
         SCMP_SYS(clone3),
 #endif
         /* misc */
