@@ -102,7 +102,7 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(fsconfig),
 #endif
 #ifdef __NR_fsmount
-        SCMP_SYS(fs_mount),
+        SCMP_SYS(fsmount),
 #endif
 #ifdef __NR_fspick
         SCMP_SYS(fspick),
@@ -115,14 +115,8 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(mount_setattr),
 #endif
         SCMP_SYS(umount2),
-#ifdef __NR_fsmount
-        SCMP_SYS(fsmount),
-#endif
 #ifdef __NR_open_tree
         SCMP_SYS(open_tree),
-#endif
-#ifdef __NR_move_mount
-        SCMP_SYS(move_mount),
 #endif
         SCMP_SYS(swapon),
         SCMP_SYS(swapoff),
