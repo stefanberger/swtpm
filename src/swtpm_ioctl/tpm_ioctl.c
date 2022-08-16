@@ -1316,7 +1316,8 @@ int main(int argc, char *argv[])
 
 exit:
     free(tcp_hostname);
-    close(fd);
+    if (fd >= 0)
+        close(fd);
 
     return ret;
 }
