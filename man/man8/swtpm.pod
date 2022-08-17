@@ -277,7 +277,7 @@ The I<log> action is only available if libseccomp supports logging.
 This option is only available on Linux and only if swtpm was compiled with
 libseccomp support.
 
-=item B<--flags [not-need-init] [,startup-clear|startup-state|startup-deactivated|startup-none]>
+=item B<--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none][,disable-auto-shutdown]>
 
 The I<not-need-init> flag enables the TPM to accept TPM commands right after
 start without requiring an INIT to be sent to it through the command channel
@@ -290,6 +290,13 @@ I<startup-none> option, which results in no command being sent.
 
 If I<--vtpm-proxy> is used, I<startup-clear> is automatically chosen but
 this can be changed with this option.
+
+The I<disable-auto-shutdown> flag prevents swtpm from automatically sending a
+TPM2_Shutdown() before the reset of a TPM 2 or before the swtpm process
+is terminated. When this flag is not provide swtpm will send this command to
+avoid increasing the dictionary attack (DA) lockout counter and ulimately
+a DA lockout by the TPM 2 due to omission of sending a required TPM2_Shutdown()
+before TPM 2 reset or swtpm process termination.
 
 =item B<--print-capabilities> (since v0.2)
 
@@ -309,6 +316,7 @@ may contain the following:
         "nvram-backend-file",
         "tpm-send-command-header",
         "flags-opt-startup",
+        "flags-opt-disable-auto-shutdown",
         "rsa-keysize-1024",
         "rsa-keysize-2048",
         "rsa-keysize-3072"
@@ -368,6 +376,10 @@ The TPM 2 will respond by preprending a 4-byte response indicator and a
 =item B<flags-opt-startup> (since v0.3)
 
 The I<--flags> option supports the I<startup-...> options.
+
+=item B<flags-opt-disable-auto-shutdown> (since v0.8)
+
+The I<--flags> option supports the I<disable-auto-shutdown> flag.
 
 =item B<rsa-keysize-2048> (since v0.4)
 

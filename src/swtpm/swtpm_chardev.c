@@ -189,12 +189,14 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "--locality [reject-locality-4][,allow-set-locality]\n"
     "                 : reject-locality-4: reject any command in locality 4\n"
     "                   allow-set-locality: accept SetLocality command\n"
-    "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none]\n"
+    "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none][,disable-auto-shutdown]\n"
     "                 : not-need-init: commands can be sent without needing to\n"
     "                   send an INIT via control channel; not needed when using\n"
     "                   --vtpm-proxy\n"
     "                   startup-...: send Startup command with this type;\n"
     "                   when --vtpm-proxy is used, startup-clear is used\n"
+    "                   disable-auto-shutdown disables automatic sending of\n"
+    "                   TPM2_Shutdown before TPM 2 reset or swtpm termination;\n"
     "--tpm2           : choose TPM2 functionality\n"
 #ifdef WITH_SECCOMP
 # ifndef SCMP_ACT_LOG
@@ -275,6 +277,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         .tpmversion = TPMLIB_TPM_VERSION_1_2,
         .startupType = _TPM_ST_NONE,
         .lastCommand = TPM_ORDINAL_NONE,
+        .disable_auto_shutdown = false,
     };
     unsigned long val;
     char *end_ptr;
@@ -532,7 +535,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_seccomp_options(seccompdata, &seccomp_action) < 0 ||
         handle_flags_options(flagsdata, &need_init_cmd,
-                             &mlp.startupType) < 0) {
+                             &mlp.startupType, &mlp.disable_auto_shutdown) < 0) {
         goto exit_failure;
     }
 

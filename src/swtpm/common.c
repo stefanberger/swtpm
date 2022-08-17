@@ -246,6 +246,9 @@ static const OptionDesc flags_opt_desc[] = {
     }, {
         .name = "startup-deactivated",
         .type = OPT_TYPE_BOOLEAN,
+    }, {
+        .name = "disable-auto-shutdown",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -1234,7 +1237,7 @@ int handle_locality_options(char *options, uint32_t *flags)
 }
 
 static int parse_flags_options(char *options, bool *need_init_cmd,
-                               uint16_t *startupType)
+                               uint16_t *startupType, bool *disable_auto_shutdown)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -1247,6 +1250,8 @@ static int parse_flags_options(char *options, bool *need_init_cmd,
 
     if (option_get_bool(ovs, "not-need-init", false))
         *need_init_cmd = false;
+    if (option_get_bool(ovs, "disable-auto-shutdown", false))
+        *disable_auto_shutdown = true;
 
     if (option_get_bool(ovs, "startup-clear", false))
         *startupType = TPM_ST_CLEAR;
@@ -1280,12 +1285,13 @@ error:
  * Returns 0 on success, -1 on failure.
  */
 int handle_flags_options(char *options, bool *need_init_cmd,
-                         uint16_t *startupType)
+                         uint16_t *startupType, bool *disable_auto_shutdown)
 {
     if (!options)
         return 0;
 
-    if (parse_flags_options(options, need_init_cmd, startupType) < 0)
+    if (parse_flags_options(options, need_init_cmd, startupType,
+                            disable_auto_shutdown) < 0)
         return -1;
 
     return 0;

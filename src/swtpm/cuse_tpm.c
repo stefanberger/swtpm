@@ -113,6 +113,9 @@ static struct fuse_session *ptm_fuse_session;
 /* last command sent to the TPM */
 static uint32_t g_lastCommand = TPM_ORDINAL_NONE;
 
+/* TPM2_Shutdown() will NOT be sent by swtpm */
+static bool g_disable_auto_shutdown = false;
+
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
@@ -229,10 +232,12 @@ static const char *usage =
 "                       instead of dir option;\n"
 "                       mode allows a user to set the file mode bits of the state\n"
 "                       files; the default mode is 0640;\n"
-"--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none]\n"
+"--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none][,disable-auto-shutdown]\n"
 "                    :  not-need-init: commands can be sent without needing to\n"
 "                       send an INIT via control channel;\n"
 "                       startup-...: send Startup command with this type;\n"
+"                       disable-auto-shutdown disables automatic sending of\n"
+"                       TPM2_Shutdown before TPM 2 reset or swtpm termination;\n"
 "-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
 "                       user\n"
 "--tpm2              :  choose TPM2 functionality\n"
@@ -1091,7 +1096,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
             worker_thread_end();
 
-            if (tpm_running)
+            if (tpm_running && !g_disable_auto_shutdown)
                 tpmlib_maybe_send_tpm2_shutdown(tpmversion,
                                                 &g_lastCommand);
 
@@ -1112,7 +1117,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     case PTM_STOP:
         worker_thread_end();
 
-        if (tpm_running)
+        if (tpm_running && !g_disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
 
         res = TPM_SUCCESS;
@@ -1130,7 +1135,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     case PTM_SHUTDOWN:
         worker_thread_end();
 
-        if (tpm_running)
+        if (tpm_running && !g_disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
 
         res = TPM_SUCCESS;
@@ -1705,7 +1710,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_seccomp_options(param.seccompdata, &param.seccomp_action) < 0 ||
         handle_locality_options(param.localitydata, &locality_flags) < 0 ||
         handle_flags_options(param.flagsdata, &need_init_cmd,
-                             &param.startupType) < 0) {
+                             &param.startupType, &g_disable_auto_shutdown) < 0) {
         ret = -3;
         goto exit;
     }
