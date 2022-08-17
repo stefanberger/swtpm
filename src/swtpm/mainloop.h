@@ -61,6 +61,7 @@ struct mainLoopParams {
     TPMLIB_TPMVersion tpmversion;
     uint16_t startupType; /* use TPM 1.2 types */
     uint32_t lastCommand; /* last Command sent to TPM */
+    bool disable_auto_shutdown;   /* TPM2_Shutdown() will NOT be sent by swtpm */
 };
 
 int mainLoop(struct mainLoopParams *mlp,

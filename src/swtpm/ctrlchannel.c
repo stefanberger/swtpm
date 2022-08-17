@@ -554,7 +554,7 @@ int ctrlchannel_process_fd(int fd,
         if (n != (ssize_t)sizeof(ptm_init)) /* r/w */
             goto err_bad_input;
 
-        if (*tpm_running)
+        if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
                                             &mlp->lastCommand);
 
@@ -580,7 +580,7 @@ int ctrlchannel_process_fd(int fd,
         if (n != 0) /* wo */
             goto err_bad_input;
 
-        if (*tpm_running)
+        if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
                                             &mlp->lastCommand);
 
@@ -596,7 +596,7 @@ int ctrlchannel_process_fd(int fd,
         if (n != 0) /* wo */
             goto err_bad_input;
 
-        if (*tpm_running)
+        if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
                                             &mlp->lastCommand);
 

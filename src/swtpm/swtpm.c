@@ -168,10 +168,12 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   mode allows a user to set the file mode bits of the socket; the\n"
     "                   value must be given in octal number format;\n"
     "                   uid and gid set the ownership of the Unixio socket's file;\n"
-    "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none]\n"
+    "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none][,disable-auto-shutdown]\n"
     "                 : not-need-init: commands can be sent without needing to\n"
     "                   send an INIT via control channel;\n"
     "                   startup-...: send Startup command with this type;\n"
+    "                   disable-auto-shutdown disables automatic sending of\n"
+    "                   TPM2_Shutdown before TPM 2 reset or swtpm termination;\n"
     "-r|--runas <user>: change to the given user\n"
     "--tpm2           : choose TPM2 functionality\n"
 #ifdef WITH_SECCOMP
@@ -216,6 +218,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         .tpmversion = TPMLIB_TPM_VERSION_1_2,
         .startupType = _TPM_ST_NONE,
         .lastCommand = TPM_ORDINAL_NONE,
+        .disable_auto_shutdown = false,
     };
     struct server *server = NULL;
     unsigned long val;
@@ -469,7 +472,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         handle_tpmstate_options(tpmstatedata) < 0 ||
         handle_seccomp_options(seccompdata, &seccomp_action) < 0 ||
         handle_flags_options(flagsdata, &need_init_cmd,
-                             &mlp.startupType) < 0) {
+                             &mlp.startupType, &mlp.disable_auto_shutdown) < 0) {
         goto exit_failure;
     }
 
