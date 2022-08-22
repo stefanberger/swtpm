@@ -111,7 +111,7 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
 #ifdef __SNR_move_mount
         SCMP_SYS(move_mount),
 #endif
-#ifdef __SNR_mount_setattr
+#if defined(__SNR_mount_setattr) && defined(__NR_mount_setattr)
         SCMP_SYS(mount_setattr),
 #endif
         SCMP_SYS(umount2),
@@ -168,7 +168,7 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(sethostname),
         SCMP_SYS(setdomainname),
         SCMP_SYS(quotactl),
-#ifdef __SNR_quotactl_fd
+#if defined(__SNR_quotactl_fd) && defined(__NR_quotactl_fd)
         SCMP_SYS(quotactl_fd),
 #endif
         SCMP_SYS(readahead),
