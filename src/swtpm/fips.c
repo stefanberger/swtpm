@@ -40,6 +40,8 @@
 #include "fips.h"
 #include "logging.h"
 
+#include <openssl/opensslv.h>
+
 #if defined(HAVE_OPENSSL_FIPS_H)
 # include <openssl/fips.h>
 #elif defined(HAVE_OPENSSL_FIPS_MODE_SET_API)
