@@ -1088,6 +1088,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     case PTM_CANCEL_TPM_CMD:
     case PTM_GET_CONFIG:
     case PTM_SET_BUFFERSIZE:
+    case PTM_LOCK_STORAGE:
         /* no need to wait */
         break;
     case PTM_INIT:
@@ -1129,7 +1130,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                     | PTM_CAP_STOP
                     | PTM_CAP_GET_CONFIG
                     | PTM_CAP_SET_BUFFERSIZE
-                    | PTM_CAP_GET_INFO;
+                    | PTM_CAP_GET_INFO
+                    | PTM_CAP_LOCK_STORAGE;
                 break;
             case TPMLIB_TPM_VERSION_1_2:
                 ptm_caps = PTM_CAP_INIT | PTM_CAP_SHUTDOWN
@@ -1144,7 +1146,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                     | PTM_CAP_STOP
                     | PTM_CAP_GET_CONFIG
                     | PTM_CAP_SET_BUFFERSIZE
-                    | PTM_CAP_GET_INFO;
+                    | PTM_CAP_GET_INFO
+                    | PTM_CAP_LOCK_STORAGE;
                 break;
             }
             fuse_reply_ioctl(req, 0, &ptm_caps, sizeof(ptm_caps));
@@ -1431,6 +1434,25 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
             fuse_reply_ioctl(req, 0, &out_pgi, sizeof(out_pgi));
         }
+        break;
+
+    case PTM_LOCK_STORAGE:
+        if (out_bufsz != sizeof(ptm_lockstorage)) {
+            struct iovec iov = { arg, sizeof(uint32_t) };
+            fuse_reply_ioctl_retry(req, &iov, 1, NULL, 0);
+        } else {
+            ptm_lockstorage *in_pls = (ptm_lockstorage *)in_buf;
+            ptm_lockstorage out_pls;
+
+            g_locking_retries = in_pls->u.req.retries;
+
+            if (!ensure_locked_storage())
+                out_pls.u.resp.tpm_result = TPM_FAIL;
+            else
+                out_pls.u.resp.tpm_result = TPM_SUCCESS;
+            fuse_reply_ioctl(req, 0, &out_pls, sizeof(out_pls));
+        }
+
         break;
 
     default:

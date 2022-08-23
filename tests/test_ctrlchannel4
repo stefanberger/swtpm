@@ -49,7 +49,7 @@ PID="$(cat $PID_FILE)"
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
 res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
-exp=" 00 00 00 00 00 00 7f ff"
+exp=" 00 00 00 00 00 01 7f ff"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_GET_CAPABILITY:"
 	echo "       actual  : $res"

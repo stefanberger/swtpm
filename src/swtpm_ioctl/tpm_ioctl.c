@@ -899,6 +899,8 @@ static void usage(const char *prgname)
 "                        size; get minimum and maximum supported sizes\n"
 "--info <flags>        : get TPM implementation specific information;\n"
 "                        flags must be an integer value\n"
+"--lock-storage <n>    : lock the storage after it was unlocked; retry\n"
+"                        n times with 10ms delay in between\n"
 "--version             : display version and exit\n"
 "--help                : display help screen and exit\n"
 "\n"
@@ -917,6 +919,7 @@ int main(int argc, char *argv[])
     ptm_getconfig cfg;
     ptm_setbuffersize psbs;
     ptm_getinfo pgi;
+    ptm_lockstorage pls;
     char *tmp;
     size_t buffersize = 0;
     static struct option long_options[] = {
@@ -939,6 +942,7 @@ int main(int argc, char *argv[])
         {"load", required_argument, NULL, 'L'},
         {"version", no_argument, NULL, 'V'},
         {"info", required_argument, NULL, 'I'},
+        {"lock-storage", required_argument, NULL, 'o'},
         {"help", no_argument, NULL, 'H'},
         {NULL, 0, NULL, 0},
     };
@@ -950,6 +954,7 @@ int main(int argc, char *argv[])
     unsigned int locality = 0;
     unsigned int tpmbuffersize = 0;
     unsigned int tcp_port = 0;
+    unsigned int retries;
     bool is_chardev;
     unsigned long int info_flags = 0;
     char *endptr = NULL;
@@ -1039,6 +1044,14 @@ int main(int argc, char *argv[])
             info_flags = strtoul(argv[optind - 1], &endptr, 0);
             if (errno || endptr[0] != '\0') {
                 fprintf(stderr, "Cannot parse info flags.\n");
+                goto exit;
+            }
+            break;
+        case 'o':
+            command = argv[optind - 2];
+            if (sscanf(argv[optind - 1], "%u", &retries) != 1) {
+                fprintf(stderr, "Could not parse lock retries from %s.\n",
+                        argv[optind - 1]);
                 goto exit;
             }
             break;
@@ -1307,6 +1320,26 @@ int main(int argc, char *argv[])
             goto exit;
         }
         printf("%s\n", pgi.u.resp.buffer);
+    } else if (!strcmp(command, "--lock-storage")) {
+        memset(&pls, 0, sizeof(pls));
+        pls.u.req.retries = htodev32(is_chardev, 0);
+
+        n = ctrlcmd(fd, PTM_LOCK_STORAGE, &pls,
+                    sizeof(pls.u.req), sizeof(pls.u.resp));
+        if (n < 0) {
+            fprintf(stderr,
+                    "Could not execute PTM_LOCK_STORAGE: "
+                    "%s\n", strerror(errno));
+            goto exit;
+        }
+        res = devtoh32(is_chardev, pls.u.resp.tpm_result);
+        if (devtoh32(is_chardev, res) != 0) {
+            fprintf(stderr,
+                    "TPM result from PTM_LOCK_STORAGE: 0x%x\n",
+                    devtoh32(is_chardev, res));
+            goto exit;
+        }
+
     } else {
         usage(argv[0]);
         goto exit;
