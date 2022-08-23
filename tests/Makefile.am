@@ -47,6 +47,9 @@ TESTS += \
 
 TESTS += \
 	test_tpm2_avoid_da_lockout \
+	test_tpm2_chroot_socket \
+	test_tpm2_chroot_chardev \
+	test_tpm2_chroot_cuse \
 	test_tpm2_ctrlchannel2 \
 	test_tpm2_derived_keys \
 	test_tpm2_encrypted_state \

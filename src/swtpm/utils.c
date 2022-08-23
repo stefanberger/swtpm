@@ -146,6 +146,23 @@ change_process_owner(const char *user)
     return 0;
 }
 
+int
+do_chroot(const char *path)
+{
+    if (chroot(path) < 0) {
+        logprintf(STDERR_FILENO, "chroot failed: %s\n",
+                  strerror(errno));
+        return -1;
+    }
+
+    if (chdir("/") < 0) {
+        logprintf(STDERR_FILENO, "chdir failed: %s\n",
+                  strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
 void tpmlib_debug_libtpms_parameters(TPMLIB_TPMVersion tpmversion)
 {
     switch (tpmversion) {

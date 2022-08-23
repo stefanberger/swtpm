@@ -136,6 +136,7 @@ static GMutex *file_ops_lock;
 
 struct cuse_param {
     char *runas;
+    char *chroot;
     char *logging;
     char *keydata;
     char *migkeydata;
@@ -240,6 +241,7 @@ static const char *usage =
 "                       TPM2_Shutdown before TPM 2 reset or swtpm termination;\n"
 "-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
 "                       user\n"
+"-R|--chroot <path>  :  chroot to the given directory at startup\n"
 "--tpm2              :  choose TPM2 functionality\n"
 #ifdef WITH_SECCOMP
 # ifndef SCMP_ACT_LOG
@@ -1494,6 +1496,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {"min"           , required_argument, 0, 'm'},
         {"name"          , required_argument, 0, 'n'},
         {"runas"         , required_argument, 0, 'r'},
+        {"chroot"        , required_argument, 0, 'R'},
         {"log"           , required_argument, 0, 'l'},
         {"locality"      , required_argument, 0, 'L'},
         {"key"           , required_argument, 0, 'k'},
@@ -1537,7 +1540,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     tpmversion = TPMLIB_TPM_VERSION_1_2;
 
     while (true) {
-        opt = getopt_long(argc, argv, "M:m:n:r:hv", longopts, &longindex);
+        opt = getopt_long(argc, argv, "M:m:n:r:R:hv", longopts, &longindex);
 
         if (opt == -1)
             break;
@@ -1590,6 +1593,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
             break;
         case 'r': /* runas */
             param.runas = optarg;
+            break;
+        case 'R':
+            param.chroot = optarg;
             break;
         case 'l': /* log */
             param.logging = optarg;
@@ -1649,6 +1655,13 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
                   "euid = %d, gid = %d\n", getuid(), geteuid(), getgid());
         ret = -4;
         goto exit;
+    }
+
+    if (param.chroot) {
+        if (do_chroot(param.chroot) < 0) {
+            ret = EXIT_FAILURE;
+            goto exit;
+        }
     }
 
     if (param.runas) {
