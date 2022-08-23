@@ -182,6 +182,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   mode allows a user to set the file mode bits of the state files;\n"
     "                   the default mode is 0640;\n"
     "-r|--runas <user>: change to the given user\n"
+    "-R|--chroot <path>\n"
+    "                 : chroot to the given directory at startup\n"
 #ifdef WITH_VTPM_PROXY
     "--vtpm-proxy     : spawn a Linux vTPM proxy driver device and read TPM\n"
 #endif
@@ -291,6 +293,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *flagsdata = NULL;
     char *seccompdata = NULL;
     char *runas = NULL;
+    char *chroot = NULL;
 #ifdef WITH_VTPM_PROXY
     bool use_vtpm_proxy = false;
 #endif
@@ -307,6 +310,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"chardev"   , required_argument, 0, 'c'},
         {"fd"        , required_argument, 0, 'f'},
         {"runas"     , required_argument, 0, 'r'},
+        {"chroot"    , required_argument, 0, 'R'},
         {"locality"  , required_argument, 0, 'L'},
         {"log"       , required_argument, 0, 'l'},
         {"key"       , required_argument, 0, 'k'},
@@ -331,7 +335,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     log_set_prefix("swtpm: ");
 
     while (TRUE) {
-        opt = getopt_long(argc, argv, "dhc:f:r:", longopts, &longindex);
+        opt = getopt_long(argc, argv, "dhc:f:r:R:", longopts, &longindex);
 
         if (opt == -1)
             break;
@@ -444,6 +448,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             runas = optarg;
             break;
 
+        case 'R':
+            chroot = optarg;
+            break;
+
 #ifdef WITH_VTPM_PROXY
         case 'v':
             use_vtpm_proxy = true;
@@ -464,6 +472,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         logprintf(STDERR_FILENO,
                   "Unknown parameter '%s'\n", argv[optind]);
         exit(EXIT_FAILURE);
+    }
+
+    if (chroot) {
+        if (do_chroot(chroot) < 0)
+            exit(EXIT_FAILURE);
     }
 
     /* change process ownership before accessing files */

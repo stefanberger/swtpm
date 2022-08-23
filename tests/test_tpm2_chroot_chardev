@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+if [ "$(id -u)" -ne 0 ]; then
+        echo "Need to be root to run this test."
+        exit 77
+fi
+
+if [ "$(uname -s)" != "Linux" ]; then
+	# Due to using /proc/<pid>/root
+	echo "This test only runs only Linux."
+	exit 77
+fi
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+SWTPM=swtpm
+SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
+PID_FILE=/${SWTPM}.pid
+
+source ${TESTDIR}/common
+source ${TESTDIR}/test_common
+skip_test_no_chardev "${SWTPM_EXE}"
+skip_test_no_tpm20 "${SWTPM_EXE}"
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf $TPMDIR
+	if [ -n "$PID" ]; then
+		kill_quiet -SIGTERM $PID 2>/dev/null
+	fi
+}
+
+for OPTION in --chroot -R; do
+	TPMDIR="$(mktemp -d)" || exit 1
+	mkdir $TPMDIR/dev
+	mknod -m 0666 $TPMDIR/dev/urandom c 1 9
+
+	# use a pseudo terminal
+	exec 100<>/dev/ptmx
+	$SWTPM_EXE chardev \
+		--fd 100 \
+		"$OPTION" $TPMDIR \
+		--tpmstate dir=/ \
+		--pid file=$PID_FILE \
+		--tpm2 \
+		--flags not-need-init \
+		${SWTPM_TEST_SECCOMP_OPT} &
+	PID=$!
+
+	if wait_for_file $TPMDIR/$PID_FILE 3; then
+		echo "Error: Chardev TPM did not write pidfile."
+		exit 1
+	fi
+
+	validate_pidfile $PID $TPMDIR/$PID_FILE
+
+	if [ "$(readlink /proc/$PID/root)" != $TPMDIR ]; then
+		echo "Test 1 failed: Unexpected chroot dir"
+		exit 1
+	fi
+
+	if [ ! -f ${TPMDIR}/tpm2-00.permall ]; then
+		echo "Missing state file"
+		exit 1
+	fi
+
+	echo "Test $OPTION passed"
+	cleanup
+done

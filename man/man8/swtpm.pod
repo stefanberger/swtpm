@@ -267,6 +267,11 @@ has been opened for writing.
 
 Switch to the given user. This option can only be used when swtpm is started as root.
 
+=item B<-R|--chroot E<lt>path<gt>>
+
+Chroot to the given directory at startup. This option can only be used when swtpm is
+started as root.
+
 =item B<--seccomp action=none|log|kill> (since v0.2)
 
 This option allows a user to select the action to take by the seccomp profile when

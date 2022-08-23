@@ -175,6 +175,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   disable-auto-shutdown disables automatic sending of\n"
     "                   TPM2_Shutdown before TPM 2 reset or swtpm termination;\n"
     "-r|--runas <user>: change to the given user\n"
+    "-R|--chroot <path>\n"
+    "                 : chroot to the given directory at startup\n"
     "--tpm2           : choose TPM2 functionality\n"
 #ifdef WITH_SECCOMP
 # ifndef SCMP_ACT_LOG
@@ -235,6 +237,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *flagsdata = NULL;
     char *seccompdata = NULL;
     char *runas = NULL;
+    char *chroot = NULL;
     bool need_init_cmd = true;
 #ifdef DEBUG
     time_t              start_time;
@@ -249,6 +252,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"fd"        , required_argument, 0, 'f'},
         {"server"    , required_argument, 0, 'c'},
         {"runas"     , required_argument, 0, 'r'},
+        {"chroot"    , required_argument, 0, 'R'},
         {"terminate" ,       no_argument, 0, 't'},
         {"locality"  , required_argument, 0, 'L'},
         {"log"       , required_argument, 0, 'l'},
@@ -271,7 +275,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     log_set_prefix("swtpm: ");
 
     while (TRUE) {
-        opt = getopt_long(argc, argv, "dhp:f:tr:", longopts, &longindex);
+        opt = getopt_long(argc, argv, "dhp:f:tr:R:", longopts, &longindex);
 
         if (opt == -1)
             break;
@@ -399,6 +403,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             runas = optarg;
             break;
 
+        case 'R':
+            chroot = optarg;
+            break;
+
         case 'S':
             seccompdata = optarg;
             break;
@@ -413,6 +421,11 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         logprintf(STDERR_FILENO,
                   "Unknown parameter '%s'\n", argv[optind]);
         exit(EXIT_FAILURE);
+    }
+
+    if (chroot) {
+        if (do_chroot(chroot) < 0)
+            exit(EXIT_FAILURE);
     }
 
     /* change process ownership before accessing files */
