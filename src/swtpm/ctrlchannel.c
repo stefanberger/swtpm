@@ -456,7 +456,8 @@ static uint64_t get_ptm_caps_supported(TPMLIB_TPMVersion tpmversion)
             | PTM_CAP_SET_DATAFD
 #endif
             | PTM_CAP_SET_BUFFERSIZE
-            | PTM_CAP_GET_INFO;
+            | PTM_CAP_GET_INFO
+            | PTM_CAP_LOCK_STORAGE;
     if (tpmversion == TPMLIB_TPM_VERSION_2)
         caps |= PTM_CAP_SEND_COMMAND_HEADER;
 
@@ -520,6 +521,7 @@ int ctrlchannel_process_fd(int fd,
     ptm_loc *pl;
     ptm_setbuffersize *psbs;
     ptm_getinfo *pgi, _pgi;
+    ptm_lockstorage *pls;
 
     size_t out_len = 0;
     TPM_RESULT res;
@@ -878,6 +880,24 @@ int ctrlchannel_process_fd(int fd,
         free(info_data);
 
         out_len = offsetof(ptm_getinfo, u.resp.buffer) + length;
+
+        break;
+
+    case CMD_LOCK_STORAGE:
+        if (n < (ssize_t)sizeof(pls->u.req)) /* rw */
+            goto err_bad_input;
+
+        pls = (ptm_lockstorage *)input.body;
+
+        mlp->locking_retries = be32toh(pls->u.req.retries);
+
+        pls = (ptm_lockstorage *)&output.body;
+        out_len = sizeof(pls->u.resp);
+
+        if (!mainloop_ensure_locked_storage(mlp))
+            pls->u.resp.tpm_result = htobe32(TPM_FAIL);
+        else
+            pls->u.resp.tpm_result = htobe32(TPM_SUCCESS);
 
         break;
 

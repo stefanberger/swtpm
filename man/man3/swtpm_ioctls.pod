@@ -91,9 +91,13 @@ The PTM_GET_CONFIG ioctl or CMD_GET_CONFIG command is supported.
 The CMD_SET_DATAFD command is supported. This command only applies to UnixIO
 and there is no support for PTM_SET_DATAFD.
 
-=item B<PTM_SET_BUFFERSIZE (since v0.1)>
+=item B<PTM_CAP_SET_BUFFERSIZE (since v0.1)>
 
 The PTM_SET_BUFFERSIZE ioctl or CMD_SET_BUFFERSIZE command is supported.
+
+=item B<PTM_CAP_LOCK_STORAGE (since v0.8)>
+
+The PTM_LOCK_STORAGE ioctl or CMD_LOCK_STORAGE command is supported.
 
 =back
 
@@ -397,6 +401,28 @@ buffer sizes are returned in the response.
 
 The buffersize can only be changed when the TPM is stopped. The
 currently used buffersize can be read at any time.
+
+=item B<CMD_LOCK_STORAGE, ptm_lockstorage>
+
+Lock the storage and retry a given number of times with 10ms delay in between.
+Locking the storage may be necessary to do after the state of the TPM has been
+migrated out and the lock on the storage has been released when the 'savestate'
+blob was received and now the storage should be locked again.
+
+The ptm_lockstorage data structure looks as follows:
+
+ struct ptm_lockstorage {
+     union {
+         struct {
+             uint32_t retries; /* number of retries */
+         } req; /* request */
+         struct {
+             ptm_res tpm_result;
+         } resp; /* reponse */
+     } u;
+ };
+
+A TPM result code is returned in the tpm_result field.
 
 =back
 

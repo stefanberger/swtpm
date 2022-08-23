@@ -230,6 +230,20 @@ struct ptm_getinfo {
 #define SWTPM_INFO_TPMSPECIFICATION ((uint64_t)1 << 0)
 #define SWTPM_INFO_TPMATTRIBUTES    ((uint64_t)1 << 1)
 
+/*
+ * PTM_LOCK_STORAGE: Lock the storage and retry n times
+ */
+struct ptm_lockstorage {
+    union {
+        struct {
+            uint32_t retries; /* number of retries */
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+        } resp; /* reponse */
+    } u;
+};
+
 typedef uint64_t ptm_cap;
 typedef struct ptm_est ptm_est;
 typedef struct ptm_reset_est ptm_reset_est;
@@ -241,6 +255,7 @@ typedef struct ptm_setstate ptm_setstate;
 typedef struct ptm_getconfig ptm_getconfig;
 typedef struct ptm_setbuffersize ptm_setbuffersize;
 typedef struct ptm_getinfo ptm_getinfo;
+typedef struct ptm_lockstorage ptm_lockstorage;
 
 /* capability flags returned by PTM_GET_CAPABILITY */
 #define PTM_CAP_INIT               (1)
@@ -259,6 +274,7 @@ typedef struct ptm_getinfo ptm_getinfo;
 #define PTM_CAP_SET_BUFFERSIZE     (1 << 13)
 #define PTM_CAP_GET_INFO           (1 << 14)
 #define PTM_CAP_SEND_COMMAND_HEADER (1 << 15)
+#define PTM_CAP_LOCK_STORAGE       (1 << 16)
 
 #ifndef _WIN32
 enum {
@@ -280,6 +296,7 @@ enum {
     PTM_SET_DATAFD         = _IOR('P', 15, ptm_res),
     PTM_SET_BUFFERSIZE     = _IOWR('P', 16, ptm_setbuffersize),
     PTM_GET_INFO           = _IOWR('P', 17, ptm_getinfo),
+    PTM_LOCK_STORAGE       = _IOWR('P', 18, ptm_lockstorage),
 };
 #endif
 
@@ -312,6 +329,7 @@ enum {
     CMD_SET_DATAFD,           /* 0x10 */
     CMD_SET_BUFFERSIZE,       /* 0x11 */
     CMD_GET_INFO,             /* 0x12 */
+    CMD_LOCK_STORAGE,         /* 0x13 */
 };
 
 #endif /* _TPM_IOCTL_H_ */

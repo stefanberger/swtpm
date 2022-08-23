@@ -119,6 +119,12 @@ about the specification the TPM implementation followed. The flag
 I<TPMLIB_INFO_TPMATTRIBUTES>, which has the value 2, returns information
 about the manufacturer, model, and version of the TPM.
 
+=item B<--lock-storage E<lt>retriesE<gt>>
+
+Lock the storage and retry a given number of times with 10ms delay in between.
+Locking the storage may be necessary to do after the state of the TPM has been
+migrated out and the lock on the storage has been released when the 'savestate'
+blob was received and now the storage should be locked again.
 
 =back
 
