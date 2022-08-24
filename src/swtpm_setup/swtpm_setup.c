@@ -887,6 +887,8 @@ static void usage(const char *prgname, const char *default_config_file)
         "\n"
         "--not-overwrite  : Do not overwrite existing TPM state but silently end\n"
         "\n"
+        "--vmid <vm id>   : Unique (VM) identifier to use as common name in certificate\n"
+        "\n"
         "--pcr-banks <banks>\n"
         "                 : Set of PCR banks to activate. Provide a comma separated list\n"
         "                   like 'sha1,sha256'. '-' to skip and leave all banks active.\n"
