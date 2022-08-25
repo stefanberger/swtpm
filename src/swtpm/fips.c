@@ -56,6 +56,10 @@ extern int FIPS_mode_set(int);
 
 #include <openssl/err.h>
 
+#if defined(HAVE_OPENSSL_FIPS_H) || defined(HAVE_OPENSSL_FIPS_MODE_SET_API)
+/*
+ * fips_mode_enabled: Determine whether FIPS mode is enabled
+ */
 bool fips_mode_enabled(void)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -74,7 +78,6 @@ bool fips_mode_enabled(void)
  *
  * Returns < 0 on error, 0 otherwise.
  */
-#if defined(HAVE_OPENSSL_FIPS_H) || defined(HAVE_OPENSSL_FIPS_MODE_SET_API)
 int fips_mode_disable(void)
 {
     int ret = 0;
@@ -98,6 +101,11 @@ int fips_mode_disable(void)
 }
 #else
 /* OpenBSD & DragonFlyBSD case */
+bool fips_mode_enabled(void)
+{
+    return false;
+}
+
 int fips_mode_disable(void)
 {
     return 0;
