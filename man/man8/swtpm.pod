@@ -317,6 +317,7 @@ may contain the following:
         "cmdarg-key-fd",
         "cmdarg-pwd-fd",
         "cmdarg-print-states",
+        "cmdarg-chroot",
         "nvram-backend-dir",
         "nvram-backend-file",
         "tpm-send-command-header",
@@ -360,6 +361,10 @@ The I<--key> option supports the I<pwdfd=> parameter.
 =item B<cmdarg-print-states> (since v0.7)
 
 The I<--print-states> option is supported.
+
+=item B<cmdarg-chroot> (since v0.8)
+
+The I<--chroot> option is supported.
 
 =item B<nvram-backend-dir> (since v0.7)
 
