@@ -23,8 +23,23 @@ function cleanup()
 	fi
 }
 
+if [ -z "$(type -P fallocate)" ]; then
+	echo "This test requires the fallocate tool."
+	exit 77
+fi
+
+if [ -z "$(fallocate --help 2>&1 | grep -E "\-\-posix")" ]; then
+	echo "This test requires fallocate to support --posix."
+	exit 77
+fi
+
+if [ -z "$(type -P losetup)" ]; then
+	echo "This test requires the losetup tool."
+	exit 77
+fi
+
 # allocate 4 MiB file
-fallocate -x -l $((4 * 1024 * 1024)) "$STATEIMG"
+fallocate --posix -l $((4 * 1024 * 1024)) "$STATEIMG"
 # and loop mount it
 STATEFILE=$(losetup --show -f $STATEIMG)
 
