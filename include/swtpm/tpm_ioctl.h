@@ -13,9 +13,11 @@
 #endif
 
 #include <stdint.h>
-#include <sys/uio.h>
 #include <sys/types.h>
+#ifndef _WIN32
+#include <sys/uio.h>
 #include <sys/ioctl.h>
+#endif
 
 #ifdef HAVE_SYS_IOCCOM_H
 #include <sys/ioccom.h>
@@ -258,6 +260,7 @@ typedef struct ptm_getinfo ptm_getinfo;
 #define PTM_CAP_GET_INFO           (1 << 14)
 #define PTM_CAP_SEND_COMMAND_HEADER (1 << 15)
 
+#ifndef _WIN32
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
     PTM_INIT               = _IOWR('P', 1, ptm_init),
@@ -278,6 +281,7 @@ enum {
     PTM_SET_BUFFERSIZE     = _IOWR('P', 16, ptm_setbuffersize),
     PTM_GET_INFO           = _IOWR('P', 17, ptm_getinfo),
 };
+#endif
 
 /*
  * Commands used by the non-CUSE TPMs
