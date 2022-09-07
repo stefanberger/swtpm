@@ -1,5 +1,10 @@
 CHANGES - changes for swtpm
 
+version 0.6.4:
+  - swtpm
+    - Use uint64_t in tlv_data_append() to avoid integer overflows
+    - Use uint64_t to avoid integer wrap-around when adding a uint32_t
+
 version 0.6.3:
   - swtpm:
     - Do not chdir(/) when using --daemon
