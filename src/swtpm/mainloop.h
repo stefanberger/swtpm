@@ -71,7 +71,7 @@ struct mainLoopParams {
     /* how many times to retry locking; use for fallback after releasing
        the lock on outgoing migration. */
     unsigned int locking_retries;
-#define DEFAULT_LOCKING_RETRIES  100
+#define DEFAULT_LOCKING_RETRIES  300 /* 300 * 10ms */
 };
 
 int mainLoop(struct mainLoopParams *mlp,
