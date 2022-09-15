@@ -128,7 +128,7 @@ static bool g_release_lock_outgoing;
 /* how many times to retry locking; use for fallback after releasing
    the lock on outgoing migration. */
 static unsigned int g_locking_retries;
-#define DEFAULT_LOCKING_RETRIES  100
+#define DEFAULT_LOCKING_RETRIES  300 /* 300 * 10ms */
 
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
