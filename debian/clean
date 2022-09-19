@@ -1,3 +1,10 @@
 include/swtpm/*.gch
 man/*/*.3
-man/*/*.8
+man/man8/swtpm.8
+man/man8/swtpm_bios.8
+man/man8/swtpm_cert.8
+man/man8/swtpm-create-tpmca.8
+man/man8/swtpm_ioctl.8
+man/man8/swtpm_localca.8
+man/man8/swtpm-localca.8
+man/man8/swtpm_setup.8
