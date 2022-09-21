@@ -43,7 +43,8 @@ Use the given port rather than using the environment variable TPM_PORT.
 
 =item B<-t|--terminate>
 
-Terminate the TPM after the client has closed the connection.
+Terminate the TPM after the client has closed the data channel connection
+(TCP only).
 
 =item B<--server [type=tcp][,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt> [,ifname=E<lt>ifnameE<gt>]]][,fd=E<lt>fdE<gt>][,disconnect]>
 
