@@ -70,6 +70,7 @@
 #include "server.h"
 #include "seccomp_profile.h"
 #include "tpmlib.h"
+#include "mainloop.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -180,6 +181,9 @@ static const OptionDesc ctrl_opt_desc[] = {
     }, {
         .name = "gid",
         .type = OPT_TYPE_GID_T,
+    }, {
+        .name = "terminate",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -924,10 +928,13 @@ error:
  * Parse the 'ctrl' (control channel) options.
  *
  * @options: the control channel options to parse
+ * @cc: pointer for pointer to allocated ctrlchannel struct
+ * @mainloop_flags: pointer to mainloop flags to add a flag to
  *
  * Returns 0 on success, -1 on failure.
  */
-static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
+static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc,
+                                     uint32_t *mainloop_flags)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -1027,6 +1034,9 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc)
     if (*cc == NULL)
         goto error;
 
+    if (option_get_bool(ovs, "terminate", false))
+        *mainloop_flags |= MAIN_LOOP_FLAG_CTRL_END_ON_HUP;
+
     option_values_free(ovs);
 
     return 0;
@@ -1043,15 +1053,18 @@ error:
  * Parse and act upon the parsed 'ctrl' (control channel) options.
  *
  * @options: the control channel options to parse
+ * @cc: pointer for pointer to allocated ctrlchannel struct
+ * @mainloop_flags: pointer to mainloop flags to add a flag to
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc)
+int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc,
+                               uint32_t *mainloop_flag)
 {
     if (!options)
         return 0;
 
-    if (parse_ctrlchannel_options(options, cc) < 0)
+    if (parse_ctrlchannel_options(options, cc, mainloop_flag) < 0)
         return -1;
 
     return 0;

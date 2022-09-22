@@ -260,6 +260,10 @@ int mainLoop(struct mainLoopParams *mlp,
                                                     &mainloop_terminate,
                                                     &locality, &tpm_running,
                                                     mlp);
+                if (ctrlclntfd < 0 &&
+                    mlp->flags & MAIN_LOOP_FLAG_CTRL_END_ON_HUP)
+                    mainloop_terminate = true;
+
                 if (mainloop_terminate)
                     break;
             }
@@ -268,6 +272,11 @@ int mainLoop(struct mainLoopParams *mlp,
                 if (ctrlclntfd >= 0)
                     close(ctrlclntfd);
                 ctrlclntfd = -1;
+                /* unixio gets this signal, not tcp */
+                if (mlp->flags & MAIN_LOOP_FLAG_CTRL_END_ON_HUP) {
+                    mainloop_terminate = true;
+                    break;
+                }
             }
 
             if (!(pollfds[DATA_CLIENT_FD].revents & POLLIN))

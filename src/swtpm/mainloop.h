@@ -50,10 +50,11 @@ extern bool tpm_running;
 
 struct mainLoopParams {
     uint32_t flags;
-#define MAIN_LOOP_FLAG_TERMINATE  (1 << 0)
-#define MAIN_LOOP_FLAG_USE_FD     (1 << 1)
-#define MAIN_LOOP_FLAG_KEEP_CONNECTION (1 << 2)
-#define MAIN_LOOP_FLAG_END_ON_HUP (1 << 3)
+#define MAIN_LOOP_FLAG_TERMINATE        (1 << 0)
+#define MAIN_LOOP_FLAG_USE_FD           (1 << 1)
+#define MAIN_LOOP_FLAG_KEEP_CONNECTION  (1 << 2)
+#define MAIN_LOOP_FLAG_END_ON_HUP       (1 << 3)
+#define MAIN_LOOP_FLAG_CTRL_END_ON_HUP  (1 << 4) /* terminate on ctrl ch. client loss (QEMU) */
 
     int fd;
     struct ctrlchannel *cc;

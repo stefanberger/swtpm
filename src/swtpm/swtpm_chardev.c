@@ -136,7 +136,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : use the given character device\n"
     "-f|--fd <fd>     : use the given character device file descriptor\n"
     "-d|--daemon      : daemonize the TPM\n"
-    "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=address[,ifname=ifname]]][,fd=<filedescriptor|clientfd=<filedescriptor>][,mode=0...][,uid=uid][,gid=gid]\n"
+    "--ctrl type=[unixio|tcp][,path=<path>][,port=<port>[,bindaddr=address[,ifname=ifname]]][,fd=<filedescriptor|clientfd=<filedescriptor>][,mode=0...][,uid=uid][,gid=gid][,terminate]\n"
     "                 : TPM control channel using either UnixIO or TCP sockets;\n"
     "                   the path is only valid for Unixio channels; the port must\n"
     "                   be given in case the type is TCP; the TCP socket is bound\n"
@@ -150,6 +150,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   mode allows a user to set the file mode bits of a Unixio socket;\n"
     "                   the value must be given in octal number format\n"
     "                   uid and gid set the ownership of the Unixio socket's file;\n"
+    "                   terminate terminates on ctrl channel connection loss;\n"
     "--migration-key file=<path>|fd=<fd>[,mode=aes-cbc|aes-256-cbc][,format=hex|binary][,remove=[true|false]]\n"
     "                 : use an AES key for the encryption of the TPM's state\n"
     "                   when it is retrieved from the TPM via ioctls;\n"
@@ -550,7 +551,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         exit(EXIT_FAILURE);
     }
 
-    if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc) < 0) {
+    if (handle_ctrlchannel_options(ctrlchdata, &mlp.cc, &mlp.flags) < 0) {
         goto exit_failure;
     }
 
