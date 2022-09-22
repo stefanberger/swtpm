@@ -42,7 +42,7 @@ def test_ReadPCR10(fd):
 
 
 def test_SetDatafd():
-    fd, _fd = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
+    fd, _fd = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
     sock_path = os.getenv('SOCK_PATH')
     cmd_set_data_fd = bytearray([0x00, 0x00, 0x00, 0x10])
     expected_res = bytearray([0x00, 0x00, 0x00, 0x00])

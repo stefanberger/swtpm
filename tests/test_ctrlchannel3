@@ -55,6 +55,11 @@ if [ $res -ne 0 ]; then
 	exit 1
 fi
 
+if wait_process_gone ${PID} 4; then
+	echo "Error: TPM should not be running anymore."
+	exit 1
+fi
+
 echo "OK"
 
 exit 0
