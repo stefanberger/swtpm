@@ -611,6 +611,8 @@ int ctrlchannel_process_fd(int fd,
 
         TPMLIB_Terminate();
 
+        *tpm_running = false;
+
         *res_p = htobe32(TPM_SUCCESS);
         out_len = sizeof(ptm_res);
 
