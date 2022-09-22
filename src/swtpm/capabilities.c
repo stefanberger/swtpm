@@ -146,7 +146,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"version\": \"" VERSION "\" "
          "}",
@@ -155,6 +155,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          !cusetpm     ? "\"tpm-send-command-header\", ": "",
          true         ? "\"flags-opt-startup\", "      : "",
          true         ? "\"flags-opt-disable-auto-shutdown\", ": "",
+         true         ? "\"ctrl-opt-terminate\", "     : "",
          cmdarg_seccomp,
          true         ? "\"cmdarg-key-fd\", "          : "",
          true         ? "\"cmdarg-pwd-fd\", "          : "",
