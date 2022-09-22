@@ -366,6 +366,9 @@ skip_process:
             break;
     }
 
+    if (tpm_running && !mlp->disable_auto_shutdown)
+        tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion, &mlp->lastCommand);
+
     free(rbuffer);
     free(command);
 
