@@ -1208,6 +1208,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         res = TPM_SUCCESS;
         TPMLIB_Terminate();
 
+        tpm_running = false;
+
         free(ptm_response);
         ptm_response = NULL;
 
