@@ -49,7 +49,8 @@ int handle_migration_key_options(char *options);
 int handle_pid_options(char *options);
 int handle_tpmstate_options(char *options);
 struct ctrlchannel;
-int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc);
+int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc,
+                               uint32_t *mainloop_flag);
 struct server;
 int handle_server_options(char *options, struct server **s);
 int handle_locality_options(char *options, uint32_t *flags);

@@ -126,7 +126,7 @@ For the socket interface, this option automatically assumes -t.
 
 Daemonize the process.
 
-=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>] [,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]] [,fd=E<lt>filedescriptorE<gt>|clientfd=E<lt>filedescriptorE<gt>] [,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>] >
+=item B<--ctrl type=[unixio|tcp][,path=E<lt>pathE<gt>] [,port=E<lt>portE<gt>[,bindaddr=E<lt>addressE<gt>[,ifname=E<lt>ifnameE<gt>]]] [,fd=E<lt>filedescriptorE<gt>|clientfd=E<lt>filedescriptorE<gt>] [,mode=E<lt>0...E<gt>][,uid=E<lt>uidE<gt>][,gid=E<lt>gidE<gt>][,terminate] >
 
 This option adds a control channel to the TPM. The control channel can either use a UnixIO socket with
 a given I<path> or I<filedescriptor> or it can use a TCP socket on the given I<port> or I<filedescriptor>.
@@ -135,10 +135,16 @@ can be provided as well; the default bind address is 127.0.0.1. If a link
 local IPv6 address is provided, the name of the interface to bind to must be
 provided with I<ifname>.
 
-The mode parameter allows a user to set the file mode bits of the UnixIO path.
+The I<mode> parameter allows a user to set the file mode bits of the UnixIO path.
 The mode bits value must be given as an octal number starting with a '0'.
-The default value is 0770. uid and gid set the ownership of the UnixIO socket's path.
+The default value is 0770. I<uid> and I<gid> set the ownership of the UnixIO socket's path.
 This operation requires root privileges.
+
+The I<terminate> parameter enables the automatic termination of swtpm when the
+control channel connection has been lost. This is useful in scenarios where
+the control channel connection is held permanently, such as by QEMU, and
+swtpm should terminate upon abnormal termination of the client that could
+not send a CMD_SHUTDOWN via the control channel anymore.
 
 The control channel enables out-of-band control of the TPM, such as resetting the TPM.
 
