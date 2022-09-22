@@ -514,7 +514,7 @@ void tpmlib_maybe_send_tpm2_shutdown(TPMLIB_TPMVersion tpmversion,
     for (i = 0; i < ARRAY_LEN(shutdownTypes); i++) {
 #if 0
         logprintf(STDERR_FILENO,
-                  "Need to send TPM2_Shutdown(%s); previous command: 0x08x\n",
+                  "Need to send TPM2_Shutdown(%s); previous command: 0x%08x\n",
                   shutdownTypes[i] == TPM2_SU_STATE ? "SU_STATE" : "SU_CLEAR",
                   *lastCommand);
 #endif
