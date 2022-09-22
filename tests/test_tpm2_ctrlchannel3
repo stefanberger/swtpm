@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+TPMDIR="$(mktemp -d)" || exit 1
+SWTPM_CTRL_UNIX_PATH=$TPMDIR/sock
+PID_FILE=$TPMDIR/swtpm.pid
+LOG_FILE=$TPMDIR/swtpm.log
+
+SWTPM_SERVER_PORT=65474
+SWTPM_CTRL_PORT=65475
+
+source "${TESTDIR}/test_common"
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf "${TPMDIR}"
+	if [ -n "${SWTPM_PID}" ]; then
+		kill_quiet -SIGTERM "${SWTPM_PID}" 2>/dev/null
+	fi
+}
+
+source "${TESTDIR}/common"
+skip_test_no_tpm12 "${SWTPM_EXE}"
+
+
+if ! [[ "$(uname -s)" =~ Linux ]]; then
+	echo "Need Linux to run UnixIO test for CMD_SET_DATAFD."
+	echo "Test 1: Skipped"
+else
+
+	# Test CMD_SET_DATAFD
+	cp "${TESTDIR}/data/tpmstate1/"* "${TPMDIR}"
+	$SWTPM_EXE socket \
+		--tpm2 \
+		--flags not-need-init \
+		--ctrl "type=unixio,path=${SWTPM_CTRL_UNIX_PATH}" \
+		--tpmstate dir="${TPMDIR}" \
+		-t \
+		--pid "file=${PID_FILE}" \
+		--log "file=${LOG_FILE},level=20" \
+		${SWTPM_TEST_SECCOMP_OPT} &
+	SWTPM_PID=$!
+
+	if wait_for_file "${PID_FILE}" 3; then
+		echo "Error: Socket TPM did not write pidfile."
+		exit 1
+	fi
+
+	LOG=$(SOCK_PATH=${SWTPM_CTRL_UNIX_PATH} exec "${TESTDIR}/test_setdatafd.py" --tpm2)
+	res=$?
+
+	if [ $res -ne 0 ]; then
+		echo "Error: CMD_SET_DATAFD failed: $LOG"
+		exit 1
+	fi
+
+	if wait_process_gone ${SWTPM_PID} 4; then
+		echo "Error: TPM should not be running anymore after data channel loss."
+		exit 1
+	fi
+
+	echo "Test 1: OK"
+fi
+
+# Test that loss of control channel terminates swtpm
+
+$SWTPM_EXE socket \
+	--tpm2 \
+	--ctrl "type=unixio,path=${SWTPM_CTRL_UNIX_PATH},terminate" \
+	--server "type=tcp,port=${SWTPM_SERVER_PORT}" \
+	--tpmstate "dir=${TPMDIR}" \
+	--pid "file=${PID_FILE}" \
+	${SWTPM_TEST_SECCOMP_OPT} &
+SWTPM_PID=$!
+
+if wait_for_file "${PID_FILE}" 3; then
+	echo "Error: Socket TPM did not write pidfile."
+	exit 1
+fi
+
+# Opening the data socket must NOT terminate it
+exec 100<>/dev/tcp/127.0.0.1/${SWTPM_SERVER_PORT}
+exec 100>&-
+sleep 1
+
+if ! kill -0 "${SWTPM_PID}"; then
+	echo "Error: Opening and closing data channel must not have terminated swtpm"
+	exit 1
+fi
+
+if ! socat -T1 - "UNIX-CONNECT:${SWTPM_CTRL_UNIX_PATH}"; then
+	echo "Error: Socat failed"
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: TPM should not be running anymore after control channel loss."
+	exit 1
+fi
+
+echo "Test 2: OK"
+
+$SWTPM_EXE socket \
+	--tpm2 \
+	--ctrl "type=tcp,port=${SWTPM_CTRL_PORT},terminate" \
+	--server "type=tcp,port=${SWTPM_SERVER_PORT}" \
+	--tpmstate "dir=${TPMDIR}" \
+	--pid "file=${PID_FILE}" \
+	${SWTPM_TEST_SECCOMP_OPT} &
+SWTPM_PID=$!
+
+if wait_for_file "${PID_FILE}" 3; then
+	echo "Error: Swtpm did not write pidfile."
+	exit 1
+fi
+
+# Opening the data socket must NOT terminate it
+exec 100<>/dev/tcp/127.0.0.1/${SWTPM_SERVER_PORT}
+exec 100>&-
+sleep 1
+
+if ! kill -0 "${SWTPM_PID}"; then
+	echo "Error: Opening and closing data channel must not have terminated swtpm"
+	exit 1
+fi
+
+# Opening the ctrl socket must be enough to terminate it
+exec 100<>/dev/tcp/127.0.0.1/${SWTPM_CTRL_PORT}
+exec 100>&-
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: TPM should not be running anymore after control channel loss."
+	exit 1
+fi
+
+echo "Test 3: OK"
+
+exit 0

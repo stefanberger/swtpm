@@ -9,14 +9,22 @@ import struct
 
 from array import array
 
+
 def toString(arr):
     return ' '.join('{:02x}'.format(x) for x in arr)
 
 
-def test_ReadPCR10(fd):
-    send_data = bytearray(b"\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01")
-    exp_data = bytearray([0x00, 0xC4, 0x00, 0x00, 0x00, 0x0A,
-                          0x00, 0x00, 0x00, 0x26])
+def test_ReadPCR10(fd, is_tpm2):
+    if is_tpm2:
+        send_data = bytearray(b"\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e"\
+                              b"\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00")
+        exp_data = bytearray([0x80, 0x01, 0x00, 0x00, 0x00, 0x0A,
+                              0x00, 0x00, 0x01, 0x00])
+    else:
+        send_data = bytearray(b"\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99"\
+                              b"\x00\x01")
+        exp_data = bytearray([0x00, 0xC4, 0x00, 0x00, 0x00, 0x0A,
+                              0x00, 0x00, 0x00, 0x26])
 
     try:
         print("Sending data over ....")
@@ -41,7 +49,7 @@ def test_ReadPCR10(fd):
         return False
 
 
-def test_SetDatafd():
+def test_SetDatafd(is_tpm2):
     fd, _fd = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
     sock_path = os.getenv('SOCK_PATH')
     cmd_set_data_fd = bytearray([0x00, 0x00, 0x00, 0x10])
@@ -70,7 +78,7 @@ def test_SetDatafd():
     if buf:
         caps = bytearray(buf)
         if caps == expected_res:
-            return test_ReadPCR10(fd)
+            return test_ReadPCR10(fd, is_tpm2)
         else:
             print("Unexpected reply for CMD_SET_DATA_FD: \n"
                   "  actual: %s\n  expected: %s"
@@ -80,9 +88,13 @@ def test_SetDatafd():
         print("Null reply from swtpm")
         return False
 
+
 if __name__ == "__main__":
+    is_tpm2 = False
+    if len(sys.argv) >= 2:
+        is_tpm2 = sys.argv[1] == '--tpm2'
     try:
-        if not test_SetDatafd():
+        if not test_SetDatafd(is_tpm2):
             res = 1
         else:
             res = 0
