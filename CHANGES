@@ -1,5 +1,33 @@
 CHANGES - changes for swtpm
 
+version 0.8.0:
+  - swtpm:
+    - Implement release-lock-outgoing parameter for --migration option
+    - Introduce --migration option and 'incoming' parameter
+    - Implement terminate parameter for ctrl channel loss
+    - Add a chroot option
+    - Introduce disable-auto-shutdown flag for --flags option
+    - If necessary send TPM2_Shutdown() before TPMLIB_Terminate()
+    - Add some more recent syscalls to seccomp profile
+    - Disable OpenSSL FIPS mode to avoid libtpms failures
+    - Avoid locking directory multiple times
+    - Remove support for pre-v0.1 state files without header
+    - Use uint64_t in tlv_data_append() to avoid integer overflows
+    - Use uint64_t to avoid integer wrap-around when adding a uint32_t
+    - Do not chdir(/) when using --daemon
+    - Check header size indicator against expected size (CVE-2022-23645)
+  - build-sys:
+    - Fix configure script to support _FORTIFY_SOURCE=3
+    - Define __USE_LINUX_IOCTL_DEFS in header file (Cygwin)
+  - swtpm-localca:
+    - Re-implement variable resolution for swtpm-localca.conf
+    - Test for available issuercert before creating CA
+  - tests:
+    - Use ${WORKDIR} in config files to test env. var replacement
+    - Patch IBM TSS2 test suite for OpenSSL 3.x
+  - build-sys:
+    - Add probing for -fstack-protector
+
 version 0.7.0:
   - swtpm:
     - Support for linear file storage backend (file://)
