@@ -84,14 +84,16 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
     long unsigned int lui;
     struct passwd *passwd;
     struct group *group;
-    
     size_t idx = ovs->n_options;
-    
-    ovs->options = realloc(ovs->options, (idx + 1) * sizeof(*ovs->options));
-    if (!ovs->options) {
+    void *tmp;
+
+    tmp = realloc(ovs->options, (idx + 1) * sizeof(*ovs->options));
+    if (!tmp) {
+        free(ovs->options);
         option_error_set(error, "Out of memory");
         return -1;
     }
+    ovs->options = tmp;
 
     ovs->n_options = idx + 1;
     ovs->options[idx].type = optdesc.type;
