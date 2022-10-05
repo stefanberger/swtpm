@@ -325,7 +325,7 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
             logprintf(STDERR_FILENO,
                       "Unable to read passphrase: %s\n",
                       strerror(errno));
-            goto exit;
+            goto err_free_buffer;
         }
         /* EOF ? */
         if ((size_t)len < filelen - offset) {
@@ -345,7 +345,7 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
             logprintf(STDERR_FILENO,
                       "Requested %zu bytes for key, only got %zu.\n",
                       *keylen, sizeof(hashbuf));
-            goto exit;
+            goto err_free_buffer;
         }
         SHA512(filebuffer, len, hashbuf);
         memcpy(key, hashbuf, *keylen);
@@ -356,21 +356,21 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
                               EVP_sha512(), *keylen, key) != 1) {
             logprintf(STDERR_FILENO,
                       "PKCS5_PBKDF2_HMAC with SHA512 failed\n");
-            goto exit;
+            goto err_free_buffer;
         }
         break;
     case KDF_IDENTIFIER_UNKNOWN:
         logprintf(STDERR_FILENO,
                   "Unknown KDF\n");
-        goto exit;
+        goto err_free_buffer;
     }
 
     ret = 0;
 
-exit:
-
+err_free_buffer:
     free(filebuffer);
 
+exit:
     return ret;
 }
 
