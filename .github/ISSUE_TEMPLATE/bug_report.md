@@ -8,16 +8,20 @@ assignees: ''
 ---
 
 **Describe the bug**
+
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1.
-2.
-3.
-4.
+**Required: To Reproduce (without these steps your issue may be deleted)**
+
+Steps to reproduce the behavior/issue showing all commands on command line, needed XML or JSON (if necessary), etc.:
+
+ 1.
+ 2.
+ 3.
+ 4.
 
 **Expected behavior**
+
 A clear and concise description of what you expected to happen.
 
 **Desktop (please complete the following information):**
