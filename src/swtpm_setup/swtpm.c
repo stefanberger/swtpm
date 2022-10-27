@@ -66,6 +66,7 @@ static int swtpm_start(struct swtpm *self)
     struct stat statbuf;
     gboolean success;
     GError *error = NULL;
+    GSpawnFlags flags;
     unsigned ctr;
     int pidfile_fd;
     int ret = 1;
@@ -128,8 +129,16 @@ static int swtpm_start(struct swtpm *self)
     }
 #endif
 
-    success = g_spawn_async(NULL, argv, NULL,
-                            G_SPAWN_LEAVE_DESCRIPTORS_OPEN | G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL,
+    flags = G_SPAWN_LEAVE_DESCRIPTORS_OPEN;
+    if (gl_LOGFILE) {
+        flags |= G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL;
+    } else {
+#if GLIB_CHECK_VERSION(2, 74, 0)
+        flags |= G_SPAWN_CHILD_INHERITS_STDOUT | G_SPAWN_CHILD_INHERITS_STDERR;
+#endif
+    }
+
+    success = g_spawn_async(NULL, argv, NULL, flags,
                             NULL, NULL, &self->pid, &error);
     if (!success) {
         logerr(self->logfile, "Could not start swtpm: %s\n", error->message);
