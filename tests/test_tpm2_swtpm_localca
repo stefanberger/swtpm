@@ -24,6 +24,10 @@ PATH=${TOPBUILD}/src/swtpm_cert:$PATH
 
 source ${TESTDIR}/common
 
+if [ -n "$(${CERTTOOL} --help | grep -E "\-\-verify-profile")" ]; then
+	verify_profile="--verify-profile=medium"
+fi
+
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
@@ -125,6 +129,7 @@ do
 
   ${CERTTOOL} \
     --verify \
+    ${verify_profile} \
     --load-ca-certificate "${ISSUERCERT}" \
     --infile "${workdir}/ek.pem"
   if [ $? -ne 0 ]; then
