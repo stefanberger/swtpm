@@ -16,12 +16,15 @@ version 0.8.0:
     - Use uint64_t to avoid integer wrap-around when adding a uint32_t
     - Do not chdir(/) when using --daemon
     - Check header size indicator against expected size (CVE-2022-23645)
+    - Fixes for gcc 12.2.1 -fanalyzer
   - build-sys:
     - Fix configure script to support _FORTIFY_SOURCE=3
     - Define __USE_LINUX_IOCTL_DEFS in header file (Cygwin)
   - swtpm-localca:
     - Re-implement variable resolution for swtpm-localca.conf
     - Test for available issuercert before creating CA
+  - swtpm_setup:
+    - Configure swtpm to log to stdout/err if needed (glib >=2.74)
   - tests:
     - Use ${WORKDIR} in config files to test env. var replacement
     - Patch IBM TSS2 test suite for OpenSSL 3.x
