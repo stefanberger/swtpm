@@ -91,8 +91,10 @@ int log_init(const char *filename, bool truncate)
     }
 
     logfd = open(filename, flags, S_IRUSR|S_IWUSR);
-    if (logfd < 0)
+    if (logfd < 0) {
+        logfd = CONSOLE_LOGGING;
         return -1;
+    }
 
     log_prefix_clear();
 
