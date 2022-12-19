@@ -937,7 +937,7 @@ static int get_swtpm_capabilities(gchar **swtpm_prg_l, gboolean is_tpm2,
     gchar *my_argv[] = { "--print-capabilities", is_tpm2 ? "--tpm2" : NULL, NULL };
     g_autofree gchar *logop = NULL;
     g_autoptr(GError) error = NULL;
-    g_autofree gchar **argv;
+    g_autofree gchar **argv = NULL;
     int exit_status = 0;
     gboolean success;
     int ret = 1;
