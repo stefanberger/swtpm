@@ -24,8 +24,12 @@ man8_generated_MANS = \
 	swtpm-create-tpmca.8
 
 man8_static_MANS = \
-	swtpm_cuse.8 \
 	swtpm-localca.8
+
+if WITH_CUSE
+man8_static_MANS += \
+	swtpm_cuse.8
+endif
 
 man8_MANS = \
 	$(man8_generated_MANS) \
@@ -38,5 +42,9 @@ man8_MANS = \
 		--section=8 $< > $@
 
 EXTRA_DIST = $(man8_static_MANS) $(man8_PODS)
+if !WITH_CUSE
+EXTRA_DIST += \
+	swtpm_cuse.8
+endif
 
 CLEANFILES = $(man8_generated_MANS)
