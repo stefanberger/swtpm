@@ -1,0 +1,848 @@
+#!/usr/bin/env bash
+#set -x
+
+# shellcheck disable=SC2090
+
+# For the license, see the LICENSE file in the root directory.
+
+# This test case builds various versions of libtpms + swtpm and generates
+# TPM 2 state using swtpm_setup with profiles, if supported. After that
+# it starts the built versions of swtpm and tries to use the state that
+# was created possibly by another version of libtpms and runs tests with it.
+# Currently this only works with the null profile whose state can be created
+# and read either with libtpms v0.9 or v0.10. In the future tests can be
+# covering the default-v1 profile as well that must be exchageable with
+# libtpms >v0.10.
+
+if [ "${SWTPM_TEST_EXPENSIVE:-0}" -eq 0 ]; then
+	echo "SWTPM_TEST_EXPENSIVE must be set to run this test."
+	exit 77
+fi
+
+if [ "${SWTPM_TEST_IBMTSS2:-0}" -eq 0 ]; then
+	echo "SWTPM_TEST_IBMTSS2 must be set to run this test."
+	exit 77
+fi
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
+
+source "${TESTDIR}/common"
+
+workdir="$(mktemp -d)" || exit 1
+export TPM_PATH=${workdir}
+SWTPM_SERVER_PORT=65478
+SWTPM_CTRL_PORT=65479
+SWTPM_SERVER_NAME=127.0.0.1
+SWTPM_INTERFACE="socket+socket"
+
+LIBTPMS_URL=https://github.com/stefanberger/libtpms
+LIBTPMS_INITIAL_BRANCH=master
+
+SWTPM_URL=https://github.com/stefanberger/swtpm
+
+cat <<_EOF_ > "${workdir}/swtpm-localca.options"
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 2
+--platform-manufacturer "Fedora XYZ"
+--platform-version 2.1
+--platform-model "QEMU A.B"
+_EOF_
+
+cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
+create_certs_tool=\${SWTPM_LOCALCA}
+create_certs_tool_config=${workdir}/swtpm-localca.conf
+create_certs_tool_options=${workdir}/swtpm-localca.options
+_EOF_
+
+# Copy swtpm source tree to workdir
+pushd "${SRCDIR}" &>/dev/null || exit 1
+
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+	echo "git repo has modified files"
+	exit 1
+fi
+
+mkdir -p "${workdir}/swtpm"
+cp -rp . "${workdir}/swtpm"
+cd "${workdir}/swtpm" || exit 1
+chmod -R 0755 .   # when using 'distcheck'
+git clean -xdf &>/dev/null
+popd &>/dev/null || exit 1
+
+function cleanup()
+{
+	rm -rf "${workdir}"
+
+	if kill_quiet -0 "${SWTPM_PID}"; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+}
+
+trap "cleanup" SIGTERM EXIT
+
+function nv_storefile()
+{
+	local nvindex="$1"
+	local filename="$2"
+
+	local sz
+
+	if ! sz=$(get_filesize "${filename}"); then
+		return 1
+	fi
+
+	if ! tssnvdefinespace -ha "${nvindex}" -hi o -pwdn nv -sz "${sz}"; then
+		return 1
+	fi
+
+	if ! tssnvwrite -ha "${nvindex}" -pwdn nv -if "${filename}"; then
+		return 1
+	fi
+	return 0
+}
+
+function nv_savetofile()
+{
+	local nvindex="$1"
+	local filename="$2"
+
+	local sz
+
+	if ! tssnvread -ha "${nvindex}" -pwdn nv -of "${filename}" >/dev/null; then
+		return 1
+	fi
+	sz=$(get_filesize "${filename}")
+	if [ "${sz}" -eq 0 ]; then
+		# older versions required the -sz parameter
+		sz=$(tssnvreadpublic -ha "${nvindex}" | sed -n 's/.*data size //p')
+		if ! tssnvread -ha "${nvindex}" -pwdn nv -sz "${sz}" -of "${filename}" >/dev/null; then
+			return 1
+		fi
+	fi
+
+	return 0
+}
+
+function create_tpm_state()
+{
+	local workdir="$1"
+
+	local inputfile="${workdir}/input.txt"
+	local encfile="${workdir}/enc"
+	local signature="${workdir}/signature.bin"
+	local contextfile="${workdir}/context.bin"
+	local aespub="${workdir}/aespub.bin"
+	local aespriv="${workdir}/aespriv.bin"
+	local cc
+
+	echo "input" > "${inputfile}"
+
+	export TPM_COMMAND_PORT=${SWTPM_SERVER_PORT}
+	export TPM_PLATFORM_PORT=${SWTPM_CTRL_PORT}
+	export TPM_SERVER_NAME=${SWTPM_SERVER_NAME}
+	export TPM_INTERFACE_TYPE=socsim
+	export TPM_SERVER_TYPE=raw
+
+	# Test siging
+	if ! tsscreateprimary -hi o -pwdk ooo -si 1>/dev/null; then
+		return 1
+	fi
+
+	if ! tsssign -hk 80000000 -pwdk ooo -if "${inputfile}" -os "${signature}"; then
+		return 1
+	fi
+
+	if ! nv_storefile 01000000 "${signature}"; then
+		return 1
+	fi
+
+	# Save the key as contextfile
+	if ! tsscontextsave -ha 80000000 -of "${contextfile}"; then
+		return 1
+	fi
+
+	if ! nv_storefile 01000001 "${contextfile}"; then
+		return 1
+	fi
+
+	# Flush all keys
+	if ! tssflushcontext -ha 80000000; then
+		return 1
+	fi
+
+	# Test HMAC
+	# tsssign -salg was added in a later version only; Ubuntu Jammy does not have it
+	if tsssign -h | grep -q "salg"; then
+		if ! tsscreateprimary -hi o -pwdk ooo 1>/dev/null; then
+			return 1
+		fi
+
+		if ! tsscreate -hp 80000000 -pwdp ooo -kh -kt f -kt p -opu "${aespub}" -opr "${aespriv}" -halg sha256; then
+			return 1
+		fi
+
+		if ! nv_storefile 01000002 "${aespub}" || ! nv_storefile 01000003 "${aespriv}" ; then
+			return 1
+		fi
+
+		if ! tssload -hp 80000000 -pwdp ooo -ipu "${aespub}" -ipr "${aespriv}" 1>/dev/null; then
+			return 1
+		fi
+
+		if ! tsssign -hk 80000001 -if "${inputfile}" -salg hmac -scheme hmac -os "${signature}"; then
+			return 1
+		fi
+
+		if ! nv_storefile 01000004 "${signature}"; then
+			return 1
+		fi
+
+		if ! tsscontextsave -ha 80000000 -of "${contextfile}" || \
+		   ! nv_storefile 01000005 "${contextfile}" || \
+		   ! tsscontextsave -ha 80000001 -of "${contextfile}" || \
+		   ! nv_storefile 01000006 "${contextfile}"; then
+			return 1
+		fi
+
+		# Flush all keys
+		if ! tssflushcontext -ha 80000000 || ! tssflushcontext -ha 80000001; then
+			return 1
+		fi
+	fi
+
+	# Encryption/Decryption
+	if ! tsscreateprimary -hi o -des 1>/dev/null; then
+		return 1
+	fi
+
+	if ! tssencryptdecrypt -hk 80000000 -if "${inputfile}" -of "${encfile}"; then
+		return 1
+	fi
+
+	if ! nv_storefile 01000007 "${encfile}"; then
+		return 1
+	fi
+
+	if ! tsscontextsave -ha 80000000 -of "${contextfile}" || \
+	   ! nv_storefile 01000008 "${contextfile}"; then
+		return 1
+	fi
+
+	if ! tssflushcontext -ha 80000000; then
+		return 1
+	fi
+
+	# Test setting command audit if available; Ubuntu Jammy does not have it
+	if type -P tsssetcommandcodeauditstatus >/dev/null; then
+		# Set a couple of commands to be audited
+		for cc in 11f 12a 133 13a 140 147 150 15c 16e 17a 187 190 197; do
+			if ! tsssetcommandcodeauditstatus -hi o -set $cc; then
+				return 1
+			fi
+		done
+	fi
+
+	return 0
+}
+
+function check_tpm_state()
+{
+	local workdir="$1"
+	local is_fullresume="$2"
+
+	local inputfile="${workdir}/input.txt"
+	local encfile="${workdir}/enc"
+	local decfile="${workdir}/dec"
+	local signature="${workdir}/signature.bin"
+	local contextfile="${workdir}/context.bin"
+	local aespub="${workdir}/aespub.bin"
+	local aespriv="${workdir}/aespriv.bin"
+	local cc
+
+	echo "input" > "${inputfile}"
+
+	export TPM_COMMAND_PORT=${SWTPM_SERVER_PORT}
+	export TPM_PLATFORM_PORT=${SWTPM_CTRL_PORT}
+	export TPM_SERVER_NAME=${SWTPM_SERVER_NAME}
+	export TPM_INTERFACE_TYPE=socsim
+	export TPM_SERVER_TYPE=raw
+
+	# Test siging key
+	if ! tsscreateprimary -hi o -pwdk ooo -si 1>/dev/null; then
+		return 1
+	fi
+
+	if ! nv_savetofile 01000000 "${signature}"; then
+		return 1
+	fi
+
+	if ! tssverifysignature -hk 80000000 -if "${inputfile}" -is "${signature}"; then
+		return 1
+	fi
+	echo "INFO: Verified signature with RSA key"
+
+	if ! tssflushcontext -ha 80000000; then
+		return 1
+	fi
+
+	# Test with the key stored in context; this only works with save/restore of all state
+	if [ "${is_fullresume}" -ne 0 ]; then
+		if ! nv_savetofile 01000001 "${contextfile}"; then
+			return 1
+		fi
+
+		if ! tsscontextload -if "${contextfile}" 1>/dev/null; then
+			return 1
+		fi
+
+		if ! tssverifysignature -hk 80000000 -if "${inputfile}" -is "${signature}"; then
+			return 1
+		fi
+		echo "INFO: Verified signature with RSA key and restored key context"
+
+		if ! tssflushcontext -ha 80000000; then
+			return 1
+		fi
+	fi
+
+	# HMAC test
+	# tsssign -salg was added in a later version only
+	if tsssign -h | grep -q "salg"; then
+		if ! tsscreateprimary -hi o -pwdk ooo 1>/dev/null; then
+			return 1
+		fi
+
+		if ! nv_savetofile 01000002 "${aespub}" \
+		   || ! nv_savetofile 01000003 "${aespriv}" \
+		   || ! nv_savetofile 01000004 "${signature}"; then
+			return 1
+		fi
+
+		if ! tssload -hp 80000000 -pwdp ooo -ipu "${aespub}" -ipr "${aespriv}" 1>/dev/null; then
+			return 1
+		fi
+
+		if ! tssverifysignature -hk 80000001 -if "${inputfile}" -is "${signature}"; then
+			return 1
+		fi
+		echo "INFO: Verified HMAC"
+
+		if ! tssflushcontext -ha 80000000 || ! tssflushcontext -ha 80000001; then
+			return 1
+		fi
+
+		# Test with the keys stored in contexts; this only works with save/restore of all state
+		if [ "${is_fullresume}" -ne 0 ]; then
+			if ! nv_savetofile 01000005 "${contextfile}" || \
+			   ! tsscontextload -if "${contextfile}" 1>/dev/null; then
+				return 1
+			fi
+
+			if ! nv_savetofile 01000006 "${contextfile}" || \
+			   ! tsscontextload -if "${contextfile}" 1>/dev/null; then
+				return 1
+			fi
+
+			if ! tssverifysignature -hk 80000001 -if "${inputfile}" -is "${signature}"; then
+				return 1
+			fi
+			echo "INFO: Verified HMAC with restored key context"
+
+			if ! tssflushcontext -ha 80000000 || ! tssflushcontext -ha 80000001; then
+				return 1
+			fi
+		fi
+	fi
+
+	# Encryption/Decryption
+	if ! tsscreateprimary -hi o -des 1>/dev/null; then
+		return 1
+	fi
+
+	if ! nv_savetofile 01000007 "${encfile}"; then
+		return 1
+	fi
+
+	if ! tssencryptdecrypt -hk 80000000 -d -if "${encfile}" -of "${decfile}"; then
+		return 1
+	fi
+
+	if [ "$(get_sha1_file "${inputfile}")" != "$(get_sha1_file "${decfile}")" ]; then
+		return 1
+	fi
+	echo "INFO: Verified decryption"
+
+	if ! tssflushcontext -ha 80000000; then
+		return 1
+	fi
+
+	# Test with the key stored in context; this only works with save/restore of all state
+	if [ "${is_fullresume}" -ne 0 ]; then
+		if ! nv_savetofile 01000008 "${contextfile}" || \
+		   ! tsscontextload -if "${contextfile}" 1>/dev/null; then
+			return 1
+		fi
+		if ! tssencryptdecrypt -hk 80000000 -d -if "${encfile}" -of "${decfile}"; then
+			return 1
+		fi
+
+		if [ "$(get_sha1_file "${inputfile}")" != "$(get_sha1_file "${decfile}")" ]; then
+			return 1
+		fi
+		echo "INFO: Verified decryption with restored key context"
+
+		if ! tssflushcontext -ha 80000000; then
+			return 1
+		fi
+	fi
+
+	# Test the audited commands is command was available to set audited commands
+	if [ "${is_fullresume}" -ne 0 ]; then
+		if type -P tsssetcommandcodeauditstatus >/dev/null; then
+			for cc in 11f 12a 133 13a 140 147 150 15c 16e 17a 187 190 197; do
+				if ! tssgetcapability -cap 4 | grep -q 00000${cc}; then
+					echo "Error: Audit not set for command 0000${cc}"
+					tssgetcapability -cap 4
+					return 1
+				fi
+			done
+			echo "INFO: Verified audited commands"
+		fi
+	fi
+
+	return 0
+}
+
+function build_swtpm()
+{
+	local srcdir="$1"
+	local cflags="$2"
+	local destdir="$3"
+	local swtpm_git_version="$4"
+
+	echo -e "\nBuilding swtpm ${swtpm_git_version} with CFLAGS=${cflags} ..."
+
+	pushd "${srcdir}" &>/dev/null || exit 1
+
+	git clean -xdf &>/dev/null
+	git reset --hard HEAD
+	if ! git checkout "${swtpm_git_version}"; then
+		# Travis needs this
+		git remote add upstream "${SWTPM_URL}"
+		git fetch upstream "${swtpm_git_version}"
+		git checkout "upstream/${swtpm_git_version}"
+	fi
+	PKG_CONFIG_PATH="${destdir}" CFLAGS="${cflags}" \
+		./autogen.sh --without-cuse --without-selinux --without-seccomp
+	make -j "$(nproc)" || return 1
+
+	cp \
+		src/swtpm/.libs/swtpm src/swtpm/.libs/libswtpm*.so* \
+		src/swtpm_setup/swtpm_setup \
+		src/swtpm_ioctl/swtpm_ioctl \
+			"${destdir}"
+
+	popd &>/dev/null || exit 1
+}
+
+# Copy a compiled libtpms version to its destination directory; the destination
+# directory will be created
+# @param1: Destination directory's parent
+# @param2: The version of libtpms, e.g. '0.9' or 'master'
+function copy_libtpms()
+{
+	local dest="$1"
+	local version="$2"
+
+	local destdir="${dest}/libtpms-${version}"
+
+	mkdir -p "${destdir}"
+	cp libtpms.pc src/.libs/libtpms.so* "${destdir}"
+
+	return 0
+}
+
+# Build various versions of libtpms starting with libtpms 0.9 up to 'master'
+# Build swtpm for each one of these versions as well.
+function build_libtpms_and_swtpm()
+{
+	local workdir="$1"
+
+	local tmp major maj min
+	local libtpmsdir="${workdir}/libtpms"
+
+	pushd "${workdir}" 2>&1 || return 1
+
+	git clone "${LIBTPMS_URL}" libtpms
+
+	pushd libtpms 2>&1 || return 1
+
+	git checkout "${LIBTPMS_INITIAL_BRANCH}"
+
+	echo -e "\nBuilding libtpms ${INITIAL_BRANCH} ..."
+	CFLAGS="-g -O2" ./autogen.sh --with-tpm2 --without-tpm1
+	make -j "$(nproc)" || return 1
+
+	copy_libtpms "${workdir}" "master"
+
+	# Determine major version of what master built
+	tmp=$(ls src/.libs/libtpms.so.*.*)
+	major=$(echo "${tmp}" | sed -n 's/.*.so\.\([^\.]\+\)\.\([^\.]\+\)\..*/\1/p')
+
+	if ! build_swtpm \
+		"${workdir}/swtpm" \
+		"-I${libtpmsdir}/include -L${workdir}/libtpms-master" \
+		"${workdir}/libtpms-master" \
+		stefanberger/libtpms_profiles; then		# FIXME: should be master
+		echo "Error: Could not build swtpm"
+		return 1
+	fi
+
+	for ((maj=0; maj<=major; maj++)) {
+		min=0
+		[ "${maj}" = 0 ] && min=9  # start with v0.9
+
+		for ((;; min++)) {
+			git checkout "origin/stable-${maj}.${min}" &>/dev/null || break
+
+			# clean directory containing libtpms.so.*
+			rm -rf src/.libs
+			echo -e "\nBuilding libtpms ${maj}.${min}..."
+			make -j "$(nproc)" || return 1
+
+			copy_libtpms "${workdir}" "${maj}.${min}"
+
+			if ! build_swtpm \
+				"${workdir}/swtpm" \
+				"-I${libtpmsdir}/include -L${workdir}/libtpms-${maj}.${min}" \
+				"${workdir}/libtpms-${maj}.${min}" \
+				stable-0.9; then
+				echo "Error: Could not build swtpm"
+				return 1
+			fi
+		}
+	}
+
+	popd &>/dev/null || return 1
+
+	#ls -l libtpms-*
+	#PATH="${workdir}/libtpms-master" LD_LIBRARY_PATH=${PATH} ./libtpms-master/swtpm_setup --help
+	#PATH="${workdir}/libtpms-0.9" LD_LIBRARY_PATH=${PATH} ./libtpms-0.9/swtpm_setup socket --help
+
+	popd &>/dev/null || return 1
+
+	return 0
+}
+
+# Run swtpm_setup on all versions >= v0.10 of libtpms. The state is written
+# into directories with the name patterns of state--${branch}--${profile},
+# which leads to names like state--0.10--null for null profile and libtpms v0.10
+function swtpm_setup_create_profile_state()
+{
+	local workdir="$1"
+
+	local branch profiles libtpmsdir statedir err=0 has_option
+
+	echo -e "INFO: Creating state with various profiles\n"
+
+	pushd "${workdir}" &>/dev/null || return 1
+
+	# Setup swtpm-0.10 and later with null profile and check that swtpm-0.9 works with it
+	for libtpmsdir in libtpms-master libtpms-*.*; do
+		branch=$(echo "${libtpmsdir}" | sed -n 's/.*-//p')
+
+		export LD_LIBRARY_PATH="${workdir}/${libtpmsdir}"
+		export SWTPM_IOCTL=./${libtpmsdir}/swtpm_ioctl
+
+		echo
+		has_option=$(PATH="${workdir}/${libtpmsdir}" \
+			       swtpm socket --help | grep -E "\-profile")
+
+		if [ -n "${has_option}" ]; then
+			# get a space-separated list of profile names
+			profiles=$(PATH="${workdir}/${libtpmsdir}" \
+				     swtpm socket --tpm2 --print-capabilities \
+					| sed -n \
+						-e "s/.* \"profiles\": { \"names\": \[ \(.*\) \].*/\1/" \
+						-e 's/[ "]//g' -e 's/,/ /gp')
+		else
+			profiles="<none>"
+		fi
+
+		for profile in ${profiles}; do
+			local profileopt=""
+
+			if [ "${profile}" = "<none>" ]; then
+				profile=null
+			else
+				# shellcheck disable=SC2089
+				profileopt="--profile {\"Name\":\"${profile}\"}"
+			fi
+
+			statedir="state--${branch}--${profile}"
+			mkdir "${statedir}"
+			echo
+			PATH="${workdir}/${libtpmsdir}" \
+				swtpm -v
+			echo "state dir:$statedir, libtpms dir:$libtpmsdir, profile: $profile"
+
+			if ! PATH="${workdir}/${libtpmsdir}" \
+			     "./${libtpmsdir}/swtpm_setup" \
+				--tpm2 \
+				--tpmstate "${statedir}" \
+				--config "${workdir}/swtpm_setup.conf" \
+				--log "${statedir}/swtpm_setup.log" \
+				--tpm "${workdir}/${libtpmsdir}/swtpm socket" \
+				${profileopt:+${profileopt}}; then
+				echo "Error: Could not run swtpm_setup with libtpms from branch ${branch} with profile ${profile}"
+				err=1
+				break
+			fi
+
+			SWTPM_PID=""
+
+			if ! SWTPM_SERVER_NO_DISCONNECT=1 \
+				SWTPM_EXE=./${libtpmsdir}/swtpm \
+					run_swtpm "${SWTPM_INTERFACE}" \
+					--tpm2 \
+					--tpmstate "dir=${workdir}/${statedir}" \
+					--flags not-need-init,startup-clear; then
+				echo "Error: Could not start swtpm with null profile state and libtpms version '${libtpmsbranch}'."
+				err=1
+				break
+			fi
+
+			if ! create_tpm_state "${workdir}"; then
+				echo "Error: Creating TPM-internal state failed"
+				err=1
+				break
+			fi
+			echo "INFO: Successfully created TPM-internal state"
+
+			if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --save permanent "${workdir}/${statedir}/permanent" \
+			   || ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --save volatile  "${workdir}/${statedir}/volatile"; then
+				echo "Error: Could not save permanent or volatile state"
+				err=1
+				break
+			fi
+			echo "INFO: Successfully saved permanent and volatile state to ${workdir}/${statedir}/"
+
+			if ! check_tpm_state "${workdir}" 1; then
+				echo "Error: Checking TPM-internal state failed"
+				err=1
+				break
+			fi
+			echo "INFO: Successfully checked proper functioning of TPM-internal state"
+
+			# Use kill here rather than a shutdown to be able to compare the
+			# size of the state later on. A shutdown would generate a bigger
+			# tpm2-00.permall file that cannot be compare with while the TPM 2
+			# is running.
+			kill_quiet -9 "${SWTPM_PID}"
+			SWTPM_PID=""
+
+			echo "INFO: Sizes of state in ${workdir}/${statedir}"
+			ls -l "${workdir}/${statedir}"
+		done
+
+		if [ -n "${SWTPM_PID}" ]; then
+			kill_quiet -9 "${SWTPM_PID}"
+		fi
+		if [ "${err}" -ne 0 ]; then
+			break
+		fi
+	done
+
+	unset LD_LIBRARY_PATH
+
+	popd &>/dev/null || return 1
+
+	echo -e "INFO: Done creating state with various profiles\n\n"
+
+	return "${err}"
+}
+
+# This function tests that the NULL profile state, that was created by a certain
+# version of libtpms, can be used by swtpm with libtpms v0.9 and others.
+function swtpm_run_with_null_profile_state()
+{
+	local workdir="$1"
+
+	local statedir branch libtpmsbranch resp exp fsize err=0
+
+	echo "INFO: Running with NULL profile states using different version of libtpms"
+
+	pushd "${workdir}" &>/dev/null || return 1
+
+	for statedir in state--*--null; do
+		branch=$(echo "${statedir}" | sed -n 's/.*--\(.*\)--.*/\1/p')
+		for libtpmsdir in libtpms-master libtpms-*.*; do
+			libtpmsbranch=$(echo "${libtpmsdir}" | sed -n 's/.*-//p')
+			fsize=$(get_filesize "${workdir}/${statedir}/tpm2-00.permall")
+
+			export LD_LIBRARY_PATH="${workdir}/${libtpmsdir}"
+			export SWTPM_IOCTL="./${libtpmsdir}/swtpm_ioctl"
+
+			echo -e "\nINFO: Using swtpm in ${libtpmsdir} with TPM state in ${workdir}/${statedir}"
+
+			if ! SWTPM_SERVER_NO_DISCONNECT=1 \
+				SWTPM_EXE=./${libtpmsdir}/swtpm \
+					run_swtpm "${SWTPM_INTERFACE}" \
+					--tpm2 \
+					--tpmstate "dir=${workdir}/${statedir}" \
+					--flags not-need-init,startup-clear; then
+				echo "Error: Could not start swtpm with null profile state and libtpms version '${libtpmsbranch}'."
+				err=1
+				break
+			fi
+			# Read PCR 10
+			exp=' 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 '
+			resp=$(tsspcrread -ha 10 -halg sha256 | grep " 00" | tr -d "\n" | tr -s " ")
+			if [ "${resp}" != "${exp}" ]; then
+				echo "Error: Did not get expected result from TPM2_PCRRead(10)"
+				echo "expected: ${exp}"
+				echo "received: ${resp}"
+				err=1
+				break
+			fi
+			echo " PCR 10 is good:  profile: null   libtpms: ${libtpmsbranch}   state written by: ${branch}"
+
+			if [ "$(get_filesize "${workdir}/${statedir}/tpm2-00.permall")" != "${fsize}" ]; then
+				echo "Error: Size of tpm2 state file has changed"
+				echo "expected: ${fsize}"
+				echo "actual  : $(get_filesize "${workdir}/${statedir}/tpm2-00.permall")"
+				ls -l "${workdir}/${statedir}/"
+				err=1
+				break
+			fi
+
+			if ! check_tpm_state "${workdir}" 0; then
+				echo "Error: Checking TPM-internal state failed: profile: null   libtpms: ${libtpmsbranch}  state written by: ${branch}"
+				err=1
+				break
+			fi
+			echo "INFO: Successfully checked proper functioning of TPM-internal state"
+
+			# restore permanent and volatile state and run tests again
+			if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --stop \
+			   || ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --load permanent "${workdir}/${statedir}/permanent" \
+			   || ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile  "${workdir}/${statedir}/volatile" \
+			   || ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+				echo "Error: Could not load permanent or volatile state"
+				err=1
+				break
+			fi
+			echo "INFO: Successfully restored permanent and volatile state from ${workdir}/${statedir}/"
+
+			if ! check_tpm_state "${workdir}" 1; then
+				echo "Error: Checking TPM-internal state failed (after resume): profile: null   libtpms: ${libtpmsbranch}  state written by: ${branch}"
+				err=1
+				break
+			fi
+			echo "INFO: Successfully checked proper functioning of TPM-internal state after state resume"
+
+			kill_quiet -9 "${SWTPM_PID}"
+			echo " INFO: Passed with libtpms ${libtpmsbranch}"
+
+		done
+		if [ ${err} -ne 0 ]; then
+			kill_quiet -9 "${SWTPM_PID}"
+			break
+		fi
+	done
+
+	unset LD_LIBRARY_PATH
+
+	popd &>/dev/null || return 1
+
+	echo -e "INFO: Done running with NULL profile states using different version of libtpms\n\n"
+
+	return "${err}"
+}
+
+# This function tests that a default profile state with 'stateFormatLevel = 2' can be used
+# and remains at this level.
+function swtpm_run_with_default_profile_state()
+{
+	local workdir="$1"
+	local statefile="$2"
+
+	local libtpmsdir libtpmsbranch output err=0 exp
+
+	mkdir "${workdir}/tmp"
+	cp "${statefile}" "${workdir}/tmp/"
+
+	echo -e "\n\nINFO: Testing with previously created default profile state"
+
+	pushd "${workdir}" &>/dev/null || return 1
+
+	for libtpmsdir in libtpms-master libtpms-*.*; do
+		libtpmsbranch=$(echo "${libtpmsdir}" | sed -n 's/.*-//p')
+		[ "${libtpmsbranch}" = "0.9" ] && continue
+
+		export LD_LIBRARY_PATH="${workdir}/${libtpmsdir}"
+		export SWTPM_IOCTL="./${libtpmsdir}/swtpm_ioctl"
+
+		if ! SWTPM_EXE="./${libtpmsdir}/swtpm" \
+		     run_swtpm "${SWTPM_INTERFACE}" \
+		     --tpm2 \
+		     --tpmstate "dir=${workdir}/tmp" \
+		     --flags not-need-init,startup-clear; then
+			echo "Error: Could not start swtpm with 'default' profile state and libtpms version '${libtpmsbranch}'."
+			err=1
+			break
+		fi
+		if ! output=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x20); then
+			echo "Error: Could not run swtpm_ioctl: ${output}"
+			err=1
+			break
+		fi
+		exp=',"StateFormatLevel":2,'
+		if ! echo "${output}" | grep -q "${exp}"; then
+			echo "Error: Could not find '${exp}' in swtpm_ioctl output."
+			echo "  output: ${output}"
+			err=1
+			break
+		fi
+
+		echo " INFO: Found proper default state in libtpms ${libtpmsbranch}"
+
+		run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
+	done
+
+	if [ ${err} -ne 0 ]; then
+		run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
+	fi
+
+	unset LD_LIBRARY_PATH
+
+	popd &>/dev/null || return 1
+
+	echo -e "INFO: Done testing with previously created default profile state\n\n"
+
+	rm -rf "${workdir}/tmp/"
+
+	return "${err}"
+}
+
+if ! build_libtpms_and_swtpm "${workdir}"; then
+	echo "Error: Building libtpms and/or swtpm failed"
+	exit 1
+fi
+
+if ! swtpm_setup_create_profile_state "${workdir}"; then
+	exit 1
+fi
+
+if ! swtpm_run_with_null_profile_state "${workdir}"; then
+	exit 1
+fi
+
+if ! swtpm_run_with_default_profile_state "${workdir}" "${TESTDIR}/data/tpm2state7/tpm2-00.permall"; then
+	exit 1
+fi
+
+exit 0
