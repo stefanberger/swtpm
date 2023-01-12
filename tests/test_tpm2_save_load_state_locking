@@ -2,7 +2,7 @@
 
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
 if [ ! -d /proc/$$/fd ] && [ -z "$(type -P lsof)" ]; then

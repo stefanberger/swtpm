@@ -9,15 +9,14 @@ fi
 
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
-SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf ${workdir}
+	rm -rf "${workdir}"
 }
 
 workdir="$(mktemp -d)" || exit 1
@@ -33,7 +32,7 @@ if [ $? -ne 0 ]; then
 fi
 for f in ${FILES}; do
 	if ! [ -f "${workdir}/${f}" ]; then
-		echo "Error: File ${workedir}/${f} was not created"
+		echo "Error: File ${workdir}/${f} was not created"
 		exit 1
 	fi
 done
@@ -64,7 +63,7 @@ if [ $? -ne 0 ]; then
 fi
 for f in ${FILES}; do
 	if ! [ -f "${workdir}/${f}" ]; then
-		echo "Error: File ${workedir}/${f} was not created"
+		echo "Error: File ${workdir}/${f} was not created"
 		exit 1
 	fi
 done

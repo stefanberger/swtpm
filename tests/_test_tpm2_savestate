@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-tpm2-savestate"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm2-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
@@ -19,43 +19,43 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $TPM_PATH
+	rm -rf "$TPM_PATH"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
-run_swtpm ${SWTPM_INTERFACE} --tpm2
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Startup the TPM2
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM2_Startup(SU_Clear)"
@@ -70,7 +70,7 @@ req+='\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00'
 req+='\x0b\x68\x65\x6c\x6c\x6f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 req+='\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 req+='\x00'
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} $req)
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" $req)
 exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM2_PCR_Extend(10)"
@@ -81,7 +81,7 @@ fi
 
 # Read PCR 10
 #                         length         CC            count       hashalg         sz
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 15 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 c3 ba a5 62 69 08 26 72 c3 db 3d 11 0a 10 74 a1 a7 a6 ea 43 e8 82 16 1a af 4b ea a6 83 17 e4 b8'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM2_PCRRead(10)"
@@ -91,7 +91,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Shutdown(SU_STATE)
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x45\x00\x01')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x45\x00\x01')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM2_Shutdown(SU_STATE)"
@@ -101,14 +101,14 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 # Startup(SU_STATE) the TPM2
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x01')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x01')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM2_Startup(SU_State)"
@@ -119,7 +119,7 @@ fi
 
 # Read PCR 10
 #                                                   length         CC            count       hashalg         sz
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 19 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 c3 ba a5 62 69 08 26 72 c3 db 3d 11 0a 10 74 a1 a7 a6 ea 43 e8 82 16 1a af 4b ea a6 83 17 e4 b8'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (2) Did not get expected result from TPM2_PCR_Read(10)"
@@ -128,7 +128,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -139,7 +139,7 @@ if wait_process_gone ${SWTPM_PID} 4; then
 	exit 1
 fi
 
-if [ ! -e $STATE_FILE ]; then
+if [ ! -e "$STATE_FILE" ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
 	exit 1
 fi

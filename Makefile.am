@@ -27,4 +27,7 @@ selinux-install selinux-uninstall:
 	@cd src/selinux && $(MAKE) $(AM_MAKEFLAGS) $@
 endif
 
-.PHONY: selinux-install selinux-uninstall
+syntax-check:
+	@cd tests && $(MAKE) syntax-check
+
+.PHONY: selinux-install selinux-uninstall syntax-check

@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-tpm-probe"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
@@ -19,19 +19,19 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $TPM_PATH
+	rm -rf "$TPM_PATH"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
-run_swtpm ${SWTPM_INTERFACE}
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
 display_processes_by_name "$SWTPM"
 
@@ -42,7 +42,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Before TPM_INIT: Read PCR 17 -- this gives a TPM_FAIL
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Before TPM_INIT: Did not get expected result from TPM_PCRRead(17)"
@@ -52,10 +52,10 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 
 # Read PCR 17 -- this should give TPM_INVALID_POSTINIT
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 0a 00 00 00 26'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM_PCRRead(17)"
@@ -69,7 +69,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1

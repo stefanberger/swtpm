@@ -6,7 +6,7 @@ ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
 SWTPM_SETUP_CONF=$SRCDIR/samples/swtpm_setup.conf
@@ -18,7 +18,7 @@ trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf ${workdir} ${state_save_dir}
+	rm -rf "${workdir}" "${state_save_dir}"
 }
 
 # Test 1: no dummy file, create new state
@@ -29,14 +29,14 @@ statefile="${workdir}/swtpm-test.state"
 $SWTPM_SETUP \
 	--not-overwrite \
 	--tpm-state "file://${statefile}" \
-	--config ${SWTPM_SETUP_CONF} \
-	--logfile ${workdir}/logfile \
+	--config "${SWTPM_SETUP_CONF}" \
+	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
 
 if [ $? -ne 0 ]; then
 	echo "Test 1 failed: Error: Could not run $SWTPM_SETUP."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
@@ -45,64 +45,64 @@ echo "Test 1 passed"
 # copy out and reuse the valid state from test 1 as dummy, as file backend will
 # not detect files without at least a valid header - but append some garbage at
 # the end to distinguish it from newly created states
-cp ${statefile} ${state_save}
-echo "GARBAGE" >> ${state_save}
+cp "${statefile}" "${state_save}"
+echo "GARBAGE" >> "${state_save}"
 
-rm -rf ${workdir}
+rm -rf "${workdir}"
 
 # Test 2: --overwrite with dummy state file
 
 workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/swtpm-test.state"
-cp ${state_save} ${statefile}
+cp "${state_save}" "${statefile}"
 
 $SWTPM_SETUP \
 	--overwrite \
 	--tpm-state "file://${statefile}" \
-	--config ${SWTPM_SETUP_CONF} \
-	--logfile ${workdir}/logfile \
+	--config "${SWTPM_SETUP_CONF}" \
+	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
 
 if [ $? -ne 0 ]; then
 	echo "Test 2 failed: Error: Could not run $SWTPM_SETUP."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
 if cmp -s "${statefile}" "${state_save}"; then
 	echo "Test 2 failed: Error: The state file was not overwritten."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
 echo "Test 2 passed"
-rm -rf ${workdir}
+rm -rf "${workdir}"
 
 # Test 3: neither "--overwrite" nor "--not-overwrite" with dummy state file
 
 workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/swtpm-test.state"
-cp ${state_save} ${statefile}
+cp "${state_save}" "${statefile}"
 
 $SWTPM_SETUP \
 	--tpm-state "file://${statefile}" \
-	--config ${SWTPM_SETUP_CONF} \
-	--logfile ${workdir}/logfile \
+	--config "${SWTPM_SETUP_CONF}" \
+	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
 
 if [ $? -ne 1 ]; then
 	echo "Test 3 failed: Error: $SWTPM_SETUP did not exit with exit code 1."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
 if ! cmp -s "${statefile}" "${state_save}"; then
 	echo "Test 3 failed: Error: The state file was unexpectedly overwritten."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 

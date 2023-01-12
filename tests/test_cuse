@@ -12,7 +12,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 if [ -z "$(grep -E '#[[:blank:]]*define[[:blank:]]+WITH_CUSE[[:blank:]]+1[[:blank:]]*$' \
-		   ${PWD}/../config.h)" ]; then
+		   "${PWD}/../config.h")" ]; then
 	echo "Skipping test: swtpm was not compiled with CUSE interface"
 	exit 77
 fi

@@ -34,8 +34,8 @@ PARAMETERS=(
 )
 
 # Open read-only file descriptors referenced in test cases
-exec 100<${TESTDIR}/data/keyfile256bit.txt
-exec 101<${TESTDIR}/data/pwdfile.txt
+exec 100<"${TESTDIR}/data/keyfile256bit.txt"
+exec 101<"${TESTDIR}/data/pwdfile.txt"
 
 FILESIZES=(
 	1185
@@ -62,7 +62,7 @@ FILESIZES=(
 	1820
 )
 
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
 SWTPM=swtpm
@@ -77,7 +77,7 @@ trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf $TPMDIR
+	rm -rf "$TPMDIR"
 }
 
 # swtpm_setup.conf points to the local create_certs.sh
@@ -86,48 +86,48 @@ function cleanup()
 PATH=$PATH:$PWD
 
 for (( i=0; i<${#PARAMETERS[*]}; i++)); do
-	rm -rf $TPMDIR/*
+	rm -rf "$TPMDIR"/*
 	echo -n "Test $i: "
+	params=${PARAMETERS[$i]}
 	$TPMAUTHORING \
-		--tpm-state $TPMDIR \
+		--tpm-state "$TPMDIR" \
 		--tpm "$SWTPM_EXE socket ${SWTPM_TEST_SECCOMP_OPT}" \
-		${PARAMETERS[$i]} 2>&1 >/dev/null
+		${params:+${params}} &>/dev/null
 
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Test with parameters '${PARAMETERS[$i]}' failed."
+		echo "ERROR: Test with parameters '${params}' failed."
 		exit 1
-	elif [ ! -f $TPMDIR/tpm-00.permall ]; then
-		echo "ERROR: Test with parameters '${PARAMETERS[$i]}' did not
+	elif [ ! -f "$TPMDIR/tpm-00.permall" ]; then
+		echo "ERROR: Test with parameters '${params}' did not
 		      produce file $TPMDIR/tpm-00.permall."
 		exit 1
 	fi
 
-	FILESIZE=$(get_filesize $TPMDIR/tpm-00.permall)
-	if [ ${FILESIZE} -ne ${FILESIZES[$i]} ]; then
+	FILESIZE=$(get_filesize "$TPMDIR/tpm-00.permall")
+	if [ "${FILESIZE}" -ne "${FILESIZES[$i]}" ]; then
 		echo "ERROR: Unexpected file size of $FILESIZE, "\
-		     "expected ${FILESIZES[$i]}. Parameters: ${PARAMETERS[$i]}"
+		     "expected ${FILESIZES[$i]}. Parameters: ${params}"
 		exit 1
 	fi
 
 	# Make sure the state is encrypted when a key was given.
 	# We expect sequences of 4 0-bytes in unencrypted state
 	# and no such sequences in encrypted state.
-	nullseq="$(cat $TPMDIR/tpm-00.permall | \
-			od -t x1 -A n | tr -d '\n' | tr -s ' ' |
+	nullseq="$(od -t x1 -A n < "$TPMDIR/tpm-00.permall" | tr -d '\n' | tr -s ' ' |
 			grep "00 00 00 00")"
-	if [[ "${PARAMETERS[$i]}" =~ (keyfile|pwdfile) ]]; then
+	if [[ "$params}" =~ (keyfile|pwdfile) ]]; then
 		if [ -n "${nullseq}" ]; then
 			echo "ERROR: State file is not encrypted with" \
-			     "parameters '${PARAMETERS[$i]}'"
+			     "parameters '${params}'"
 		fi
 	else
 		if [ -z "${nullseq}" ]; then
 			echo "ERROR: State must not be encrypted with" \
-			     "parameters '${PARAMETERS[$i]}'"
+			     "parameters '${params}'"
 		fi
 	fi
 
-	echo "SUCCESS with parameters '${PARAMETERS[$i]}'."
+	echo "SUCCESS with parameters '${params}'."
 done
 
 exec 100>&-

@@ -8,20 +8,20 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 PATH=$ROOT/src/swtpm:$PATH
 
-[ "${SWTPM_IFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_IFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf ${workdir}
+	rm -rf "${workdir}"
 }
 
 # Test 1: No states
 
 workdir="$(mktemp -d)" || exit 1
-msg="$(${SWTPM_EXE} ${SWTPM_IFACE} --print-states --tpmstate dir=${workdir} 2>&1)"
+msg="$(${SWTPM_EXE} "${SWTPM_IFACE}" --print-states --tpmstate "dir=${workdir}" 2>&1)"
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not pass --print-states"
@@ -46,9 +46,9 @@ cleanup
 workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/tpm-00.permall"
 dummydata="DUMMY"
-echo $dummydata > ${statefile}
+echo "$dummydata" > "${statefile}"
 
-msg="$(${SWTPM_EXE} ${SWTPM_IFACE} --print-states --tpmstate dir=${workdir} 2>&1)"
+msg="$(${SWTPM_EXE} "${SWTPM_IFACE}" --print-states --tpmstate "dir=${workdir}" 2>&1)"
 
 if [ $? -ne 0 ]; then
 	echo "Error: Could not pass --print-states"

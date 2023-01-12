@@ -11,13 +11,11 @@ SWTPM_IOCTL=${SWTPM_IOCTL:-$ROOT/src/swtpm_ioctl/swtpm_ioctl}
 TPMDIR="$(mktemp -d)" || exit 1
 PID_FILE=$TPMDIR/${SWTPM}.pid
 SOCK_PATH=$TPMDIR/sock
-CMD_PATH=$TPMDIR/cmd
-RESP_PATH=$TPMDIR/resp
 LOGFILE=$TPMDIR/logfile
 VOLATILESTATE=$TPMDIR/volatile
 
-source ${TESTDIR}/common
-source ${TESTDIR}/test_common
+source "${TESTDIR}/common"
+source "${TESTDIR}/test_common"
 skip_test_no_chardev "${SWTPM_EXE}"
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
@@ -25,14 +23,14 @@ trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf $TPMDIR
+	rm -rf "$TPMDIR"
 	if [ -n "$PID" ]; then
-		kill_quiet -SIGTERM $PID 2>/dev/null
+		kill_quiet -SIGTERM "$PID" 2>/dev/null
 	fi
 }
 
 # Test 1: test the control channel on the chardev tpm
-if [ $(id -u) -eq 0 ]; then
+if [ "$(id -u)" -eq 0 ]; then
 	FOWNER=",uid=$(id -u nobody),gid=$(id -G nobody | cut -d" " -f1)"
 	FILEOWNER="$(id -u nobody) $(id -G nobody | cut -d" " -f1)"
 fi
@@ -50,28 +48,28 @@ FILEMODE=621
 exec 100<>/dev/ptmx
 $SWTPM_EXE chardev \
 	--fd 100 \
-	--tpmstate dir=$TPMDIR \
-	--pid file=$PID_FILE \
-	--ctrl type=unixio,path=$SOCK_PATH,mode=${FILEMODE}${FOWNER} \
+	--tpmstate "dir=$TPMDIR" \
+	--pid "file=$PID_FILE" \
+	--ctrl "type=unixio,path=$SOCK_PATH,mode=${FILEMODE}${FOWNER}" \
 	--tpm2 \
-	${SWTPM_TEST_SECCOMP_OPT} &
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &
 PID=$!
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file "$PID_FILE" 3; then
 	echo "Error: Chardev TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -c 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_CAPABILITY failed: $act"
 	exit 1
 fi
 
-filemode=$(get_filemode $SOCK_PATH)
+filemode=$(get_filemode "$SOCK_PATH")
 if [ "$filemode" != "$FILEMODE" ]; then
 	echo "Filemode bits are wrong"
 	echo "Expected: $FILEMODE"
@@ -79,7 +77,7 @@ if [ "$filemode" != "$FILEMODE" ]; then
 	exit 1
 fi
 
-fileowner=$(get_fileowner $SOCK_PATH)
+fileowner=$(get_fileowner "$SOCK_PATH")
 if [ -n "$FILEOWNER" ] && [ "$fileowner" != "$FILEOWNER" ]; then
 	echo "File ownership is wrong"
 	echo "Expected: $FILEOWNER"
@@ -94,33 +92,33 @@ if ! [[ "$act" =~ ^${exp}$ ]]; then
 fi
 
 # Send TPM_Init to the TPM: CMD_INIT = 0x00 00 00 02 + flags
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -i 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
 	exit 1
 fi
 
 # Save the volatile state: CMD_STORE_VOLATILE = 0x00 00 00 0a
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -v 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -v 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_STORE_VOLATILE failed: $act"
 	exit 1
 fi
 
-if [ ! -r $TPMDIR/tpm2-00.volatilestate ]; then
+if [ ! -r "$TPMDIR/tpm2-00.volatilestate" ]; then
 	echo "Error: Socket TPM: Did not write volatile state file"
 	exit 1
 fi
 
 # Send stop command to the TPM: CMD_STOP = 00 00 00 0e
-act=$($SWTPM_IOCTL --unix $SOCK_PATH --stop 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" --stop 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_STOP failed: $act"
 	exit 1
 fi
 
 # Send get config command to the TPM: CMD_GET_CONFIG = 00 00 00 0f
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -g 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -g 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_CONFIG failed: $act"
 	exit 1
@@ -133,18 +131,18 @@ if ! [[ "$act" =~ ^${exp}$ ]]; then
 fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
 	exit 1
 fi
 
-if wait_file_gone $PID_FILE 2; then
+if wait_file_gone "$PID_FILE" 2; then
 	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if wait_process_gone ${PID} 4; then
+if wait_process_gone "${PID}" 4; then
 	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
@@ -158,26 +156,26 @@ echo "OK"
 # use a pseudo terminal
 $SWTPM_EXE socket \
 	--server port=65532,disconnect=true \
-	--tpmstate dir=$TPMDIR \
-	--pid file=$PID_FILE \
-	--ctrl type=unixio,path=$SOCK_PATH \
-	--log file=$LOGFILE,level=20 \
+	--tpmstate "dir=$TPMDIR" \
+	--pid "file=$PID_FILE" \
+	--ctrl "type=unixio,path=$SOCK_PATH" \
+	--log "file=$LOGFILE,level=20" \
 	--tpm2 \
 	--flags startup-clear \
-	${SWTPM_TEST_SECCOMP_OPT} &
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &
 PID=$!
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file "$PID_FILE" 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 exec 100<>/dev/tcp/localhost/65532
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -c 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -c 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_CAPABILITY failed: $act"
 	exit 1
@@ -201,19 +199,19 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state: CMD_STORE_VOLATILE = 0x00 00 00 0a
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -v 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -v 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_STORE_VOLATILE failed: $act"
 	exit 1
 fi
 
-if [ ! -r $TPMDIR/tpm2-00.volatilestate ]; then
+if [ ! -r "$TPMDIR/tpm2-00.volatilestate" ]; then
 	echo "Error: Socket TPM: Did not write volatile state file"
 	exit 1
 fi
 
 # 1. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -e 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -e 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_TPMESTABLISHED failed: $act"
 	exit 1
@@ -230,14 +228,14 @@ data="a"
 while [ ${#data} -lt $((0x2000)) ]; do
   data="${data}${data}"
 done
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -h $data 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -h $data 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL data hashing failed: $act"
 	exit 1
 fi
 
 # 3. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -e 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -e 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_TPMESTABLISHED failed: $act"
 	exit 1
@@ -250,14 +248,14 @@ if [ "$act" != "$exp" ]; then
 fi
 
 # 4. Send command to reset TPM established flag: CMD_RESET_TPMESTABLISHED = 00 00 00 0b 03
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -r 3 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -r 3 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_RESET_TPMESTABLISHED failed: $act"
 	exit 1
 fi
 
 # 5. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -e 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -e 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_TPMESTABLISHED failed: $act"
 	exit 1
@@ -283,14 +281,14 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Get the volatile state of the TPM: CMD_GET_STATEBLOB = 00 00 00 0c
-act=$($SWTPM_IOCTL --unix $SOCK_PATH --save volatile $VOLATILESTATE 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" --save volatile "$VOLATILESTATE" 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_STATEBLOB failed: $act"
 	exit 1
 fi
 
 # Send stop command to the TPM: CMD_STOP = 00 00 00 0e
-act=$($SWTPM_IOCTL --unix $SOCK_PATH --stop 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" --stop 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_STOP failed: $act"
 	exit 1
@@ -310,7 +308,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Send get config command to the TPM: CMD_GET_CONFIG = 00 00 00 0f
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -g 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -g 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_CONFIG failed: $act"
 	exit 1
@@ -323,18 +321,18 @@ if ! [[ "$act" =~ ^${exp}$ ]]; then
 fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
 	exit 1
 fi
 
-if wait_file_gone $PID_FILE 2; then
+if wait_file_gone "$PID_FILE" 2; then
 	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if wait_process_gone ${PID} 4; then
+if wait_process_gone "${PID}" 4; then
 	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
@@ -344,25 +342,25 @@ echo "OK"
 # Test 3: test the control channel on the socket tpm: resume encrypted state
 
 # copy all the state files
-cp ${TESTDIR}/data/tpm2state2/* ${TPMDIR}
+cp "${TESTDIR}/data/tpm2state2/"* "${TPMDIR}"
 
 $SWTPM_EXE socket \
 	--server port=65532,disconnect=true \
-	--tpmstate dir=$TPMDIR \
-	--pid file=$PID_FILE \
-	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512 \
+	--tpmstate "dir=$TPMDIR" \
+	--pid "file=$PID_FILE" \
+	--ctrl "type=unixio,path=$SOCK_PATH" \
+	--key "pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512" \
 	--tpm2 \
 	--flags not-need-init \
-	${SWTPM_TEST_SECCOMP_OPT} &
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &
 PID=$!
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file "$PID_FILE" 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 # Read PCR 10
 exec 100<>/dev/tcp/localhost/65532
@@ -378,50 +376,50 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Get the volatile state of the TPM: CMD_GET_STATEBLOB = 00 00 00 0c
-rm -f $VOLATILESTATE
-act=$($SWTPM_IOCTL --unix $SOCK_PATH --save volatile $VOLATILESTATE 2>&1)
+rm -f "$VOLATILESTATE"
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" --save volatile "$VOLATILESTATE" 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_GET_STATEBLOB failed: $act"
 	exit 1
 fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
 	exit 1
 fi
 
-if wait_process_gone ${PID} 4; then
+if wait_process_gone "${PID}" 4; then
 	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
 
-if [ -f $PID_FILE ]; then
+if [ -f "$PID_FILE" ]; then
 	echo "Error: Socket TPM should have removed the PID file."
 	exit 1
 fi
 
 # remove volatile state
-rm -f $TPMDIR/*.volatilestate
+rm -f "$TPMDIR"/*.volatilestate
 
 $SWTPM_EXE socket \
 	--server port=65532,disconnect=true \
-	--tpmstate dir=$TPMDIR \
-	--pid file=$PID_FILE \
-	--ctrl type=unixio,path=$SOCK_PATH \
-	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512 \
+	--tpmstate "dir=$TPMDIR" \
+	--pid "file=$PID_FILE" \
+	--ctrl "type=unixio,path=$SOCK_PATH" \
+	--key "pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512" \
 	--tpm2 \
 	--flags not-need-init \
-	${SWTPM_TEST_SECCOMP_OPT} &
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &
 PID=$!
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file "$PID_FILE" 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 # Read PCR 10 -- this should fail now
 exec 100<>/dev/tcp/localhost/65532
@@ -437,21 +435,21 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Send stop command to the TPM: CMD_STOP = 00 00 00 0e
-act=$($SWTPM_IOCTL --unix $SOCK_PATH --stop 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" --stop 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_STOP failed: $act"
 	exit 1
 fi
 
 # Send the volatile state to the TPM (while it is stopped)
-act=$($SWTPM_IOCTL --unix $SOCK_PATH --load volatile $VOLATILESTATE 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" --load volatile "$VOLATILESTATE" 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_SET_STATEBLOB failed: $act"
 	exit 1
 fi
 
 # Send init command to the TPM: CMD_INIT = 00 00 00 02
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -i 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -i 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
 	exit 1
@@ -484,7 +482,7 @@ fi
 
 # In locality 2 we can reset PCR 20
 # Set the locality on the TPM: CMD_SET_LOCALITY = 00 00 00 05 <locality>
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -l 2 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -l 2 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_SET_LOCALITY failed: $act"
 	exit 1
@@ -503,18 +501,18 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
-act=$($SWTPM_IOCTL --unix $SOCK_PATH -s 2>&1)
+act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1)
 if [ $? -ne 0 ]; then
 	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
 	exit 1
 fi
 
-if wait_file_gone $PID_FILE 2; then
+if wait_file_gone "$PID_FILE" 2; then
 	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if wait_process_gone ${PID} 4; then
+if wait_process_gone "${PID}" 4; then
 	echo "Error: TPM should not be running anymore."
 	exit 1
 fi

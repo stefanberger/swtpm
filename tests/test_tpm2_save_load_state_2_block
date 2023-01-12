@@ -17,9 +17,9 @@ STATEFILE=""
 trap "cleanup" SIGTERM EXIT
 function cleanup()
 {
-	rm -rf $STATEDIR
+	rm -rf "$STATEDIR"
 	if [ -n "$STATEFILE" ]; then
-		losetup -d $STATEFILE
+		losetup -d "$STATEFILE"
 	fi
 }
 
@@ -41,11 +41,11 @@ fi
 # allocate 4 MiB file
 fallocate --posix -l $((4 * 1024 * 1024)) "$STATEIMG"
 # and loop mount it
-STATEFILE=$(losetup --show -f $STATEIMG)
+STATEFILE=$(losetup --show -f "$STATEIMG")
 
 export SWTPM_TEST_LINEAR_FILE=1
 export TPM_COMMAND_PORT=65462
 export STATEFILE
 
 # don't exec so cleanup will remove the loop device
-$(dirname $0)/test_tpm2_save_load_state_2
+"$(dirname "$0")/test_tpm2_save_load_state_2"

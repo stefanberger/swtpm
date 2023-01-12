@@ -1,4 +1,5 @@
 
+# shellcheck disable=SC2043
 # For the license, see the LICENSE file in the root directory.
 
 function wait_for_file()
@@ -29,8 +30,8 @@ function check_logfile_patterns_level_20()
 	"^       [[:print:]]+$" \
 	; do
 		shift
-		ctr=$(grep -E "${pattern}" $logfile | wc -l)
-		if [ $ctr -eq 0 ]; then
+		ctr=$(grep -E "${pattern}" "$logfile" | wc -l)
+		if [ "$ctr" -eq 0 ]; then
 			echo "Counted $ctr occurrences of pattern '${pattern}' in logfile; expected at least 1"
 			exit 1
 		fi
@@ -47,8 +48,8 @@ function check_logfile_patterns_level_1()
 	"^[[:print:]]+$" \
 	; do
 		shift
-		ctr=$(grep -E "${pattern}" $logfile | wc -l)
-		if [ $ctr -lt $minocc ]; then
+		ctr=$(grep -E "${pattern}" "$logfile" | wc -l)
+		if [ "$ctr" -lt "$minocc" ]; then
 			echo "Counted $ctr occurrences of pattern '${pattern}' in logfile; expected at least $minocc"
 			exit 1
 		fi

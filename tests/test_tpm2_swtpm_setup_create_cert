@@ -3,11 +3,10 @@
 # For the license, see the LICENSE file in the root directory.
 
 TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
-TOPSRC=${abs_top_srcdir:-$(dirname "$0")/..}
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
 SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm_localca
@@ -66,10 +65,10 @@ if [ -n "$($SWTPM_SETUP --tpm2 --print-capabilities |
 	keysizes+=" 3072"
 fi
 
-for keysize in $(echo $keysizes); do
+for keysize in ${keysizes}; do
 	echo "Testing with RSA keysize $keysize"
 	# we need to create at least one cert: --create-ek-cert
-	$SWTPM_SETUP \
+	if ! ${SWTPM_SETUP} \
 		--tpm2 \
 		--allow-signing \
 		--tpm-state "${workdir}" \
@@ -78,11 +77,10 @@ for keysize in $(echo $keysizes); do
 		--config "${workdir}/swtpm_setup.conf" \
 		--logfile "${workdir}/logfile" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-		--rsa-keysize ${keysize} \
+		--rsa-keysize "${keysize}" \
 		--overwrite \
-		--write-ek-cert-files "${USER_CERTSDIR}"
-
-	if [ $? -ne 0 ]; then
+		--write-ek-cert-files "${USER_CERTSDIR}";
+	then
 		echo "Error: Could not run $SWTPM_SETUP."
 		echo "Logfile output:"
 		cat "${workdir}/logfile"
@@ -117,7 +115,7 @@ for keysize in $(echo $keysizes); do
 		exit 1
 	fi
 
-	rm -rf "${SIGNINGKEY}" "${ISSUERCERT}" "${CERTSERIAL}" ${USER_CERTSDIR}/ek-*.crt
+	rm -rf "${SIGNINGKEY}" "${ISSUERCERT}" "${CERTSERIAL}" "${USER_CERTSDIR}"/ek-*.crt
 done
 
 echo "Test 1: OK"
@@ -131,13 +129,15 @@ function swtpm_setup_reconfigure() {
 	# since activating the PCR banks changes a few bits in the permanent
 	# state, also when the state is not encrypted.
 	local PERMALL_FILE="${workdir}/tpm2-00.permall"
-	local permall_size=$(get_filesize "${PERMALL_FILE}")
+	local permall_hash permall_size newhash newsize
+
+	permall_size=$(get_filesize "${PERMALL_FILE}")
 
 	for pcrbanks in "sha256" "sha256,sha384" "sha256,sha384,sha512"; do
 		# hash must change between before and after
 		permall_hash=$(get_sha1_file "${PERMALL_FILE}")
 
-		$SWTPM_SETUP \
+		if ! ${SWTPM_SETUP} \
 			--tpm2 \
 			--tpm-state "${workdir}" \
 			--config "${workdir}/swtpm_setup.conf" \
@@ -145,24 +145,24 @@ function swtpm_setup_reconfigure() {
 			--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 			--pcr-banks "${pcrbanks}" \
 			--reconfigure \
-			${pwdfile:+--pwdfile "${pwdfile}"}
-		if [ $? -ne 0 ]; then
+			${pwdfile:+--pwdfile "${pwdfile}"};
+		then
 			echo "Error: Could not run $SWTPM_SETUP --reconfigure."
 			echo "Logfile output:"
 			cat "${workdir}/logfile"
 			exit 1
 		fi
 
-		local newhash=$(get_sha1_file "${PERMALL_FILE}")
+		newhash=$(get_sha1_file "${PERMALL_FILE}")
 		if [ "${newhash}" = "${permall_hash}" ]; then
 			echo "Error: The hash of the permanent state did not change."
 			exit 1
 		fi
 
-		local newsize=$(get_filesize "${PERMALL_FILE}")
+		newsize=$(get_filesize "${PERMALL_FILE}")
 		if [ "${newsize}" != "${permall_size}" ]; then
 			echo "Error: The size of the permanent state file changed."
-			echo "Actual  : ${tmp}"
+			echo "Actual  : ${newsize}"
 			echo "Expected: ${permall_size}"
 		fi
 		echo "Filesize: ${newsize}; hash: ${newhash}; pwdfile: ${pwdfile}"
@@ -176,7 +176,7 @@ echo -n "password" > "${PWDFILE}"
 rm -f "${workdir}/logfile"
 
 for pwdfile in "" "${PWDFILE}"; do
-	$SWTPM_SETUP \
+	if ! ${SWTPM_SETUP} \
 		--tpm2 \
 		--ecc \
 		--tpm-state "${workdir}" \
@@ -187,9 +187,7 @@ for pwdfile in "" "${PWDFILE}"; do
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--overwrite \
 		--write-ek-cert-files "${workdir}" \
-		${pwdfile:+--pwdfile "${pwdfile}"}
-
-	if [ $? -ne 0 ]; then
+		${pwdfile:+--pwdfile "${pwdfile}"}; then
 		echo "Error: Could not run $SWTPM_SETUP."
 		echo "Logfile output:"
 		cat "${workdir}/logfile"
