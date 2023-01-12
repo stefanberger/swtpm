@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ ${SWTPM_TEST_EXPENSIVE:-0} -eq 0 ]; then
+if [ "${SWTPM_TEST_EXPENSIVE:-0}" -eq 0 ]; then
 	exit 77
 fi
 
@@ -9,13 +9,13 @@ TESTDIR=${abs_top_testdir:-${PWD}/$(dirname "$0")}
 
 function cleanup() {
 	if [ -n "${SWTPM_PID}" ]; then
-		kill -9 ${SWTPM_PID}
+		kill -9 "${SWTPM_PID}"
 	fi
 	if [ -n "${SWTPM1_PID}" ]; then
-		kill -9 ${SWTPM1_PID}
+		kill -9 "${SWTPM1_PID}"
 	fi
-	if [ -n ${WORKDIR} ]; then
-		rm -rf ${WORKDIR}
+	if [ -n "${WORKDIR}" ]; then
+		rm -rf "${WORKDIR}"
 	fi
 	# clean up after (interrupted) test suite
 	rm -f /tmp/.key-*-0 /tmp/.delegation-0 /tmp/.transdigest-*-0
@@ -23,7 +23,7 @@ function cleanup() {
 
 trap "cleanup" EXIT
 
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
 WORKDIR="$(mktemp -d)" || exit 1
@@ -42,9 +42,9 @@ SWTPM_SERVER_PORT=${TPM_SERVER_PORT}
 SWTPM_SERVER_NAME=${TPM_SERVER_NAME}
 SWTPM_CTRL_PORT=65441
 
-mkdir -p ${WORKDIR}/tpm12.1
-SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm ${SWTPM_INTERFACE} \
-	--tpmstate dir=${WORKDIR}/tpm12.1 \
+mkdir -p "${WORKDIR}/tpm12.1"
+SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
+	--tpmstate "dir=${WORKDIR}/tpm12.1" \
 	--flags not-need-init
 SWTPM1_PID=${SWTPM_PID}
 
@@ -53,12 +53,12 @@ SWTPM_SERVER_PORT=${SLAVE_TPM_PORT}
 SWTPM_SERVER_NAME=${SLAVE_TPM_SERVER}
 SWTPM_CTRL_PORT=65443
 
-mkdir -p ${WORKDIR}/tpm12.2
-SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm ${SWTPM_INTERFACE} \
-	--tpmstate dir=${WORKDIR}/tpm12.2 \
+mkdir -p "${WORKDIR}/tpm12.2"
+SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
+	--tpmstate "dir=${WORKDIR}/tpm12.2" \
 	--flags not-need-init
 
-pushd ${WORKDIR} &>/dev/null
+pushd "${WORKDIR}" &>/dev/null
 
 for ((i = 0; i < 3; i++)); do
 	curl -sJOL https://sourceforge.net/projects/ibmswtpm/files/tpm4769tar.gz/download
@@ -69,7 +69,7 @@ for ((i = 0; i < 3; i++)); do
 	sleep $((3 + (RANDOM & 7)))
 done
 hash=$(get_sha1_file tpm4769tar.gz)
-if [ $hash != ca99a3ccd3e41cdd9983086a9b944023b6049bbc ]; then
+if [ "$hash" != ca99a3ccd3e41cdd9983086a9b944023b6049bbc ]; then
 	echo "Error: Downloaded file does not have expected hash."
 	echo "Actual: $hash"
 	exit 1
@@ -78,7 +78,7 @@ tar -xzf tpm4769tar.gz
 
 pushd libtpm &>/dev/null
 
-patch -p0 < ${TESTDIR}/patches/libtpm.patch
+patch -p0 < "${TESTDIR}/patches/libtpm.patch"
 if [ $? -ne 0 ]; then
 	echo "Error: Patching failed."
 	exit 1
@@ -86,7 +86,7 @@ fi
 
 ./autogen
 LIBS="" CFLAGS="-g -O2 -DOPENSSL_SUPPRESS_DEPRECATED=1" ./configure
-make -j$(nproc)
+make -j "$(nproc)"
 
 pushd utils &>/dev/null
 
@@ -127,21 +127,21 @@ for tst in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 20 23 25 26 1; do
         TPM_TRANSPORT=1
     fi
 
-    timeout 40 ./test_console.sh \
-        --non-interactive ${tst} >> ${TESTLOG} </dev/null
+    TPM_AUDITING=${TPM_AUDITING} TPM_TRANSPORT=${TPM_TRANSPORT} timeout 40 ./test_console.sh \
+        --non-interactive "${tst}" >> "${TESTLOG}" </dev/null
     # Ignore all errors that occurred in test 1
-    if [ $tst != "1" ] && [ -n "$(grep "ERROR" ${TESTLOG})" ]; then
+    if [ $tst != "1" ] && [ -n "$(grep "ERROR" "${TESTLOG}")" ]; then
         echo "Error occurred!"
-        cat ${TESTLOG}
+        cat "${TESTLOG}"
         exit 1
     fi
 done
 
 $SWTPM_IOCTL --tcp :65441 -s
-wait_process_gone ${SWTPM1_PID} 4
+wait_process_gone "${SWTPM1_PID}" 4
 
 $SWTPM_IOCTL --tcp :65443 -s
-wait_process_gone ${SWTPM_PID} 4
+wait_process_gone "${SWTPM_PID}" 4
 
 popd &>/dev/null
 popd &>/dev/null

@@ -23,46 +23,47 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $tpmstatedir
+	rm -rf "$tpmstatedir"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
-export TPM_PATH=$tpmstatedir
+TPM_PATH=$tpmstatedir
+VOLATILE_STATE_FILE="$TPM_PATH/tpm2-00.volatilestate"
 
 # copy all the state files
-cp ${TESTDIR}/data/tpm2state1/* ${TPM_PATH}
+cp "${TESTDIR}"/data/tpm2state1/* "${TPM_PATH}"
 
-run_swtpm ${SWTPM_INTERFACE} --tpm2
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the CUSE TPM."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Read PCR 10 (from pcrextend -ha 10 -ic test)
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
@@ -72,52 +73,52 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state again
-run_swtpm_ioctl ${SWTPM_INTERFACE} -v
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
 if [ $? -ne 0 ]; then
 	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
 	exit 1
 fi
-if [ ! -r $VOLATILE_STATE_FILE ]; then
+if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
 	exit 1
 fi
 
 # Shut the TPM down
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 
 echo "Test 1: Ok"
 
 # 2nd test: with encrypted state
 # copy all the state files
-cp ${TESTDIR}/data/tpm2state2/* ${TPM_PATH}
+cp "${TESTDIR}"/data/tpm2state2/* "${TPM_PATH}"
 
-run_swtpm ${SWTPM_INTERFACE} \
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
-	--key pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512
+	--key "pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM initialization failed."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Read PCR 10  (from pcrextend -ha 10 -ic test)
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
@@ -127,18 +128,18 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state again
-run_swtpm_ioctl ${SWTPM_INTERFACE} -v
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
 if [ $? -ne 0 ]; then
 	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
 	exit 1
 fi
-if [ ! -r $VOLATILE_STATE_FILE ]; then
+if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
 	exit 1
 fi
 
 # Shut the TPM down
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the CUSE TPM."
 	exit 1
@@ -148,35 +149,35 @@ echo "Test 2: Ok"
 
 # 3rd test: with encrypted state using aes-256-cbc
 # copy all the state files
-cp ${TESTDIR}/data/tpm2state2b/* ${TPM_PATH}
+cp "${TESTDIR}"/data/tpm2state2b/* "${TPM_PATH}"
 
-run_swtpm ${SWTPM_INTERFACE} \
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
-	--key pwdfile=${TESTDIR}/data/tpm2state2b/pwdfile.txt,mode=aes-256-cbc
+	--key "pwdfile=${TESTDIR}/data/tpm2state2b/pwdfile.txt,mode=aes-256-cbc"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM initialization failed."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: CUSE TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Read PCR 10  (from pcrextend -ha 10 -ic test)
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
@@ -186,18 +187,18 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state again
-run_swtpm_ioctl ${SWTPM_INTERFACE} -v
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
 if [ $? -ne 0 ]; then
 	echo "Error: Could not have the CUSE TPM write the volatile state to a file."
 	exit 1
 fi
-if [ ! -r $VOLATILE_STATE_FILE ]; then
+if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
 	exit 1
 fi
 
 # Shut the TPM down
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the CUSE TPM."
 	exit 1

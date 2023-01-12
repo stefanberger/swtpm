@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-hashing2"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
@@ -19,30 +19,30 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $TPM_PATH
+	rm -rf "$TPM_PATH"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == cuse ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == cuse ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
-run_swtpm ${SWTPM_INTERFACE}
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
 	exit 1
@@ -50,14 +50,14 @@ fi
 
 sleep 0.5
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Startup the TPM
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')
 exp=' 00 c4 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
@@ -67,7 +67,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check the TPM Established bit before the hashing
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 if [ $? -ne 0 ]; then
 	echo "Error: Could not get the TPM Established flag from the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -80,14 +80,14 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -h 1234
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234
 if [ $? -ne 0 ]; then
 	echo "Error: Hash command did not work."
 	exit 1
 fi
 
 # Read PCR 17
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
@@ -97,7 +97,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check the TPM Established bit after the hashing
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 if [ $? -ne 0 ]; then
 	echo "Error: Could not get the TPM Established flag from the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -111,7 +111,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Reset the establishment bit; we switch to locality 0 and reset via locality 3
-run_swtpm_ioctl ${SWTPM_INTERFACE} -l 0
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 0
 if [ $? -ne 0 ]; then
 	echo "Error: Could not set locality 0"
 	exit 1
@@ -119,7 +119,7 @@ fi
 
 for ((l = 0; l <= 2; l++)); do
 	# Resetting via locality 2 must fail
-	ERR="$(run_swtpm_ioctl ${SWTPM_INTERFACE} -r $l 2>&1)"
+	ERR="$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -r "$l" 2>&1)"
 	if [ $? -eq 0 ]; then
 		echo "Error: Could reset the establishment bit via locality $l"
 		exit 1
@@ -136,13 +136,13 @@ done
 # We expect the same results for the TPM_ResetEstablishment command
 for ((l = 0; l <= 2; l++)); do
 	# Set locality
-	run_swtpm_ioctl ${SWTPM_INTERFACE} -l $l
+	run_swtpm_ioctl "${SWTPM_INTERFACE}" -l "$l"
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not choose locality $l"
 		exit 1
 	fi
 	# Have to use external echo command
-	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0a\x40\x00\x00\x0b')
+	RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0a\x40\x00\x00\x0b')
 	exp=' 00 c4 00 00 00 0a 00 00 00 3d'
 	if [ "$RES" != "$exp" ]; then
 		echo "Error: Could reset TPM establishment bit in locality $l using command"
@@ -153,13 +153,13 @@ for ((l = 0; l <= 2; l++)); do
 done
 
 # Resetting via locality 3 must work
-run_swtpm_ioctl ${SWTPM_INTERFACE} -l 3
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 3
 if [ $? -ne 0 ]; then
 	echo "Error: Could not reset the establishment bit via locality 3"
 	exit 1
 fi
 
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0a\x40\x00\x00\x0b')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0a\x40\x00\x00\x0b')
 exp=' 00 c4 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Could reset TPM establishment bit in locality 3 using command"
@@ -169,7 +169,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check the TPM Established bit after the reset
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 exp='tpmEstablished is 0'
 if [ "$RES" != "$exp" ]; then
 	echo "Error (3): TPM Established flag has wrong value."
@@ -180,10 +180,10 @@ fi
 
 # Read from a file
 dd if=/dev/zero bs=1024 count=1024 2>/dev/null |\
-	run_swtpm_ioctl ${SWTPM_INTERFACE} -h -
+	run_swtpm_ioctl "${SWTPM_INTERFACE}" -h -
 
 # Read PCR 17
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 d8 0e 7a 7b 3c 37 88 7d b4 c2 88 08 1d a7 53 f6 4b 11 3a 9c'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
@@ -192,7 +192,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -203,7 +203,7 @@ if wait_process_gone ${SWTPM_PID} 4; then
 	exit 1
 fi
 
-if [ ! -e $STATE_FILE ]; then
+if [ ! -e "$STATE_FILE" ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
 	exit 1
 fi

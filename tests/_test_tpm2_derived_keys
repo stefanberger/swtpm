@@ -23,24 +23,24 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $tpmstatedir
+	rm -rf "$tpmstatedir"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
-export TPM_PATH=$tpmstatedir
+TPM_PATH=$tpmstatedir
 
 # copy all the state files
-cp ${TESTDIR}/data/tpm2state1/* ${TPM_PATH}
+cp "${TESTDIR}"/data/tpm2state1/* "${TPM_PATH}"
 
-run_swtpm ${SWTPM_INTERFACE} --tpm2
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
@@ -63,14 +63,14 @@ function tx_cmd()
 	local RES tmp
 
 	if [ "$reset" != "0" ]; then
-		run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+		run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 		if [ $? -ne 0 ]; then
 			echo "Error: Could not send TPM_INIT"
 			return 1
 		fi
 	fi
 	if [ "$startup" != "0" ]; then
-		RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+		RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 		tmp=' 80 01 00 00 00 0a 00 00 00 00'
 		if [ "$RES" != "$tmp" ]; then
 			echo "Error: Did not get expected response from TPM2_Startup"
@@ -80,7 +80,7 @@ function tx_cmd()
 		fi
 	fi
 
-	RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} ${cmd})
+	RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" "${cmd}")
 	if [ "$RES" == "$allowed_error" ]; then
 		echo "Skip: Encountered allowed error response ($allowed_error)"
 	elif [ "$RES" != "$exp" ]; then
@@ -249,7 +249,7 @@ test5_exp2+=' 00 00 01 00 00'
 case "$(uname -s)" in
 Linux)
 	# Only 64bit apps will link with libs in /lib64/ dirs
-	if [ -n "$(grep -E "\/lib64\/" /proc/${SWTPM_PID}/maps)" ] && \
+	if [ -n "$(grep -E "\/lib64\/" "/proc/${SWTPM_PID}/maps")" ] && \
 	   [ -n "$(lscpu | grep "Little Endian")" ]; then
 		tx_cmd 1 0 "$test1_cmd" "$test1_exp" "" || exit 1 && echo "Test 1: OK"
 		tx_cmd 1 1 "$test2_cmd" "$test2_exp" "" || exit 1 && echo "Test 2: OK"
@@ -267,21 +267,21 @@ Linux)
 esac
 
 # Get revision of TPM 2.0 implementation; we need >= 155 for subsequent tests
-revision=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 1 |
+revision=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 1 |
           sed 's/.*,"revision":\([^\}]*\).*/\1/')
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 4; then
+if wait_process_gone "${SWTPM_PID}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi
 
-if [ $revision -lt 155 ]; then
+if [ "$revision" -lt 155 ]; then
 	echo "Skipping next tests since libtpms implements TPM 2.0 revision $revision, but need >= 155"
 	exit 0
 fi
@@ -294,11 +294,11 @@ echo "Testing new CryptAdjustPrimeCandidate implementation"
 # copy all the state files; the files need libtpms (0.8.0) with
 # TPM 2.0 revsion 155; there the seeds are setup so that the fixed
 # RSA key generation algorithm is used
-cp -f ${TESTDIR}/data/tpm2state4/* ${TPM_PATH}
+cp -f "${TESTDIR}"/data/tpm2state4/* "${TPM_PATH}"
 
-run_swtpm ${SWTPM_INTERFACE} --tpm2
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
@@ -318,13 +318,13 @@ tx_cmd 1 1 "$test4_cmd" "$test4_exp" "" || exit 1 && echo "Test 4: OK"
 tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" "" || exit 1
 tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" "" || exit 1 && echo "Test 5: OK"
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 4; then
+if wait_process_gone "${SWTPM_PID}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi

@@ -2,4 +2,4 @@
 
 export SWTPM_TEST_LINEAR_FILE=1
 export TPM_COMMAND_PORT=65461
-exec $(dirname $0)/test_tpm2_save_load_state_2
+exec "$(dirname "$0")/test_tpm2_save_load_state_2"

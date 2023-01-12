@@ -3,7 +3,7 @@
 # For the license, see the LICENSE file in the root directory.
 # set -x
 
-cd $(dirname "$0")
+cd "$(dirname "$0")"
 
 ROOT=${abs_top_builddir:-$(pwd)/..}
 
@@ -11,16 +11,17 @@ export SWTPM_INTERFACE=cuse
 
 VTPM_NAME="vtpm-test-tpm2-partial-reads"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 CMD_PATH="${TPM_PATH}/cmd"
+STATE_FILE="$TPM_PATH/tpm2-00.permall"
 
 function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $TPM_PATH
+	rm -rf "$TPM_PATH"
 }
 
 function swtpm_read_n_bytes_fd100()
@@ -36,22 +37,22 @@ trap "cleanup" EXIT
 source common
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
-run_swtpm ${SWTPM_INTERFACE} --tpm2
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
@@ -60,7 +61,7 @@ fi
 # Prepare the TPM2_Startup
 echo -en '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00' > "${CMD_PATH}"
 
-swtpm_open_cmddev ${SWTPM_INTERFACE} 100
+swtpm_open_cmddev "${SWTPM_INTERFACE}" 100
 
 # Startup the TPM2
 cat "${CMD_PATH}" >&100
@@ -129,18 +130,18 @@ if [ "$res2" != "$exp2" ]; then
 fi
 exec 100>&-
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 4; then
+if wait_process_gone "${SWTPM_PID}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi
 
-if [ ! -e $STATE_FILE ]; then
+if [ ! -e "$STATE_FILE" ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
 	exit 1
 fi

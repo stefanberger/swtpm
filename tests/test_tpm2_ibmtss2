@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ ${SWTPM_TEST_EXPENSIVE:-0} -eq 0 ]; then
+if [ "${SWTPM_TEST_EXPENSIVE:-0}" -eq 0 ]; then
 	exit 77
 fi
 
@@ -11,7 +11,7 @@ fi
 
 ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
-ABSTESTDIR=$(cd ${TESTDIR} &>/dev/null;echo ${PWD})
+ABSTESTDIR=$(cd "${TESTDIR}" &>/dev/null;echo "${PWD}")
 
 PATCHESDIR=${ABSTESTDIR}/patches
 
@@ -23,28 +23,28 @@ SWTPM_INTERFACE=socket+socket
 function cleanup() {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	if [ -n ${WORKDIR} ]; then
-		rm -rf ${WORKDIR}
+	if [ -n "${WORKDIR}" ]; then
+		rm -rf "${WORKDIR}"
 	fi
 }
 
 trap "cleanup" EXIT
 
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
 WORKDIR="$(mktemp -d)" || exit 1
 
 REGLOG=${WORKDIR}/reglog
 
-SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm ${SWTPM_INTERFACE} \
+SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
-	--tpmstate dir=${WORKDIR} \
+	--tpmstate "dir=${WORKDIR}" \
 	--flags not-need-init
 
-pushd ${WORKDIR} &>/dev/null
+pushd "${WORKDIR}" &>/dev/null
 
 git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
 
@@ -64,43 +64,43 @@ git config --local user.email test@test.test
 # A v1.6.0 bug work-around:
 # We cannot run the EK certificate tests since rootcerts.txt points to
 # files we do not have
-git am < ${PATCHESDIR}/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch
+git am < "${PATCHESDIR}/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch"
 
 # Implement 'powerup' for swtpm
-git am < ${PATCHESDIR}/0002-Implement-powerup-for-swtpm.patch
+git am < "${PATCHESDIR}/0002-Implement-powerup-for-swtpm.patch"
 
 # set CRYPTOLIBRARY=openssl
-git am < ${PATCHESDIR}/0003-Set-CRYPTOLIBRARY-to-openssl.patch
+git am < "${PATCHESDIR}/0003-Set-CRYPTOLIBRARY-to-openssl.patch"
 
 # Store and restore volatile state at every step
-git am < ${PATCHESDIR}/0004-Store-and-restore-volatile-state-at-every-step.patch
+git am < "${PATCHESDIR}/0004-Store-and-restore-volatile-state-at-every-step.patch"
 
 # Disable 'Events' test
-git am < ${PATCHESDIR}/0005-Disable-tests-related-to-events.patch
+git am < "${PATCHESDIR}/0005-Disable-tests-related-to-events.patch"
 
-rsa3072=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 4 |
+rsa3072=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 4 |
           sed -n 's/.*"RSAKeySizes":\[\([0-9,]*\)\].*/\1/p' |
           grep 3072)
 if [ -z "$rsa3072" ]; then
 	echo "Modifying test cases related to RSA 3072 keys."
-	git am < ${PATCHESDIR}/0006-Disable-testing-with-RSA-3072.patch
+	git am < "${PATCHESDIR}/0006-Disable-testing-with-RSA-3072.patch"
 else
 	echo "swtpm/libtpms support RSA 3072 bit keys"
 fi
 
 # Adjust test suite to TPM 2.0 revision libtpms is implementing
-revision=$(run_swtpm_ioctl ${SWTPM_INTERFACE} --info 1 |
+revision=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 1 |
            sed 's/.*,"revision":\([^\}]*\).*/\1/')
 echo "Libtpms implements TPM 2.0 revision ${revision}."
-if [ $revision -lt 155 ]; then
+if [ "$revision" -lt 155 ]; then
 	echo "Removing revision 155 and later test cases."
-	git am < ${PATCHESDIR}/0007-Disable-rev155-test-cases.patch
-	git am < ${PATCHESDIR}/0008-Disable-x509-test-cases.patch
-	git am < ${PATCHESDIR}/0009-Disable-getcapability-TPM_CAP_ACT.patch
+	git am < "${PATCHESDIR}/0007-Disable-rev155-test-cases.patch"
+	git am < "${PATCHESDIR}/0008-Disable-x509-test-cases.patch"
+	git am < "${PATCHESDIR}/0009-Disable-getcapability-TPM_CAP_ACT.patch"
 fi
 
 if [ -n "$(openssl version | grep -E "^OpenSSL 3")" ]; then
-	git am < ${PATCHESDIR}/0010-Adjust-test-cases-for-OpenSSL-3.patch
+	git am < "${PATCHESDIR}/0010-Adjust-test-cases-for-OpenSSL-3.patch"
 fi
 
 autoreconf --force --install
@@ -123,24 +123,24 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-./reg.sh -a 2>&1 | tee ${REGLOG}
+./reg.sh -a 2>&1 | tee "${REGLOG}"
 
 ret=0
 
-if [ -n "$(grep -E "^ ERROR:" ${REGLOG})" ]; then
+if [ -n "$(grep -E "^ ERROR:" "${REGLOG}")" ]; then
 	echo "There were test failures running the IBM TSS 2 tests"
-	grep -E "^ ERROR:" ${REGLOG} -B2 -A2
+	grep -E "^ ERROR:" "${REGLOG}" -B2 -A2
 	ret=1
 fi
 
 # Shut down
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	ret=1
 fi
 
-if wait_process_gone ${SWTPM_PID} 4; then
+if wait_process_gone "${SWTPM_PID}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	ret=1
 fi

@@ -3,6 +3,8 @@
 
 # For the license, see the LICENSE file in the root directory.
 
+# shellcheck disable=SC1091
+
 if [ "$(id -u)" -ne 0 ]; then
 	echo "Need to be root to run this test."
 	exit 77
@@ -20,7 +22,7 @@ SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
 PATH=$ROOT/src/swtpm:$PATH
 
-source ${abs_top_builddir:-$(dirname "$0")/..}/tests/test_config
+source "${abs_top_builddir:-$(dirname "$0")/..}/tests/test_config"
 
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_CREATE_TPMCA=${SRCDIR}/samples/swtpm-create-tpmca
@@ -62,19 +64,19 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 function cleanup()
 {
 	if [ -n "${TCSD_PID}" ]; then
-		kill_quiet -15 ${TCSD_PID}
+		kill_quiet -15 "${TCSD_PID}"
 	fi
 	if [ -n "${SWTPM_PID}" ]; then
-		kill_quiet -9 ${SWTPM_PID}
+		kill_quiet -9 "${SWTPM_PID}"
 	fi
 	if [ -n "${BASH_PID}" ]; then
-		kill_quiet -9 ${BASH_PID}
+		kill_quiet -9 "${BASH_PID}"
 	fi
 	rm -rf "${workdir}"
 }
 
 trap "cleanup" SIGTERM EXIT
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
 PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
@@ -114,18 +116,18 @@ _EOF_
 		--config "${workdir}/swtpm_setup.conf" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--take-ownership \
-		${params} >/dev/null
+		${params:+${params}} >/dev/null
 
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not run $SWTPM_SETUP."
 		echo "Setup Logfile:"
-		cat ${workdir}/logfile
+		cat "${workdir}/logfile"
 		exit 1
 	fi
 
 	echo "Successfully took ownership of TPM and set owner and SRK passwords."
 
-	run_swtpm ${SWTPM_INTERFACE} \
+	run_swtpm "${SWTPM_INTERFACE}" \
 		--flags not-need-init \
 		--tpmstate "dir=${workdir}"
 
@@ -154,14 +156,14 @@ _EOF_
 	# After the changes:
 	#   - root:tss 0640   for  TSS_USER=tss and TSS_GROUP=tss
 	while :; do
-		chown ${TSS_USER}:${TSS_GROUP} "${TCSD_CONF}"
+		chown "${TSS_USER}:${TSS_GROUP}" "${TCSD_CONF}"
 		if [ "${TSS_USER}" == "${TSS_GROUP}" ]; then
 			chmod 0600 "${TCSD_CONF}"
 		else
 			chmod 0640 "${TCSD_CONF}"
 		fi
 
-		bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c "${TCSD_CONF}" -e -f &>/dev/null & echo \$! > "${TCSD_PIDFILE}"; wait" &
+		bash -c "TCSD_USE_TCP_DEVICE=1 TCSD_TCP_DEVICE_PORT=${SWTPM_SERVER_PORT} tcsd -c \"${TCSD_CONF}\" -e -f &>/dev/null & echo \$! > \"${TCSD_PIDFILE}\"; wait" &
 		BASH_PID=$!
 
 		if wait_for_file "${TCSD_PIDFILE}" 3; then
@@ -224,14 +226,14 @@ _EOF_
 		${params}; do
 		if [ -n "${regex}" ] && \
 		   [ -z "$(grep -E "${regex}" "${SWTPM_LOCALCA_CONF}")" ]; then
-			echo "Error: Could not find regex '${line}' in CA config file."
+			echo "Error: Could not find regex '${regex}' in CA config file."
 			cat "${SWTPM_LOCALCA_CONF}"
 			exit 1
 		fi
 	done
 
 	params=""
-	if [ ${vtpm_is_tpm2} -ne 0 ]; then
+	if [ "${vtpm_is_tpm2}" -ne 0 ]; then
 		params="--tpm2"
 		skip=0
 	else
@@ -257,7 +259,7 @@ _EOF_
 		exit 1
 	fi
 	#  cert was for example 541 bytes long
-	if [ $(get_filesize "${workdir}/ek.cert") -lt 500 ]; then
+	if [ "$(get_filesize "${workdir}/ek.cert")" -lt 500 ]; then
 		echo "Error: The certificate's size is dubious"
 		ls -l "${workdir}/ek.cert"
 		exit 1
@@ -273,7 +275,7 @@ _EOF_
 		'^[[:space:]]+Certificate Authority \(CA\): FALSE$'
 		'^[[:space:]]+Unknown extension 2.5.29.9 \(not critical\):$'
 		'^[[:space:]]+Hexdump: 3019301706056781050210310e300c0c03322e3002010002020092$')
-	if [ ${vtpm_is_tpm2} -ne 0 ]; then
+	if [ "${vtpm_is_tpm2}" -ne 0 ]; then
 		# TPM 2.0; due to ecc: Key agreement
 		regexs+=('^[[:space:]]+Key agreement\.$'
 			 '^[[:space:]]+Signature Algorithm: RSA-SHA256$')

@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-wrongorder"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm-00.permall
 LOG_FILE=$TPM_PATH/tpm-00.log
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
@@ -20,31 +20,31 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $TPM_PATH
+	rm -rf "$TPM_PATH"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == cuse ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
-source ${TESTDIR}/test_common
+[ "${SWTPM_INTERFACE}" == cuse ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
+source "${TESTDIR}/test_common"
 
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
-run_swtpm ${SWTPM_INTERFACE} --log file=$LOG_FILE,level=20
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --log "file=$LOG_FILE,level=20"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 if [ "${SWTPM_INTERFACE}" != "cuse" ]; then
-	run_swtpm_ioctl ${SWTPM_INTERFACE} --stop
+	run_swtpm_ioctl "${SWTPM_INTERFACE}" --stop
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not stop the ${SWTPM_INTERFACE} TPM"
 		exit 1
@@ -54,20 +54,20 @@ fi
 # Get the established bit before the TPM has been initialized
 # This should not work
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -e
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -e
 if [ $? -eq 0 ]; then
 	echo "Error: Could get established bit from ${SWTPM_INTERFACE} TPM before init."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM must have crashed."
 	exit 1
 fi
 
 # Read PCR 17 -- this should give a fatal error response
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM_PCRRead(17)"
@@ -76,26 +76,26 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM must have crashed."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -106,13 +106,13 @@ if wait_process_gone ${SWTPM_PID} 4; then
 	exit 1
 fi
 
-if [ ! -e $STATE_FILE ]; then
+if [ ! -e "$STATE_FILE" ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
 	exit 1
 fi
 
-check_logfile_patterns_level_20 $LOG_FILE
-rm -f $LOG_FILE
+check_logfile_patterns_level_20 "$LOG_FILE"
+rm -f "$LOG_FILE"
 
 echo "OK"
 

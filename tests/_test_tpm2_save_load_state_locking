@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="${VTPM_NAME:-vtpm-tpm2-test-save-load-state-locking}"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE="$TPM_PATH/tpm2-00.permall"
 VOLATILE_STATE_FILE="$TPM_PATH/tpm2-00.volatilestate"
 MY_VOLATILE_STATE_FILE="$TPM_PATH/my.volatilestate"
@@ -31,7 +31,7 @@ trap "cleanup" EXIT
 [ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
 source "${TESTDIR}/common"
 
-run_swtpm "${SWTPM_INTERFACE}" \
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--migration release-lock-outgoing \
 	--tpm2
 
@@ -155,7 +155,7 @@ fi
 
 # Restart swtpm
 rm -f "$VOLATILE_STATE_FILE" "$STATE_FILE"
-run_swtpm "${SWTPM_INTERFACE}" \
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--migration incoming,release-lock-outgoing \
 	--tpm2
 

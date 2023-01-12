@@ -4,7 +4,6 @@
 #set -x
 
 TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
-TOPSRC=${abs_top_srcdir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm_localca
@@ -13,7 +12,7 @@ workdir="$(mktemp -d "/tmp/path with spaces.XXXXXX")" || exit 1
 
 ek="80" # 2048 bit key must have highest bit set
 for ((i = 1; i < 256; i++)); do
-  ek="${ek}$(printf "%02x" $i)"
+  ek="${ek}$(printf "%02x" "$i")"
 done
 
 SIGNINGKEY=${workdir}/signingkey.pem
@@ -22,7 +21,7 @@ CERTSERIAL=${workdir}/certserial
 
 PATH=${TOPBUILD}/src/swtpm_cert:$PATH
 
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 
 if [ -n "$(${CERTTOOL} --help | grep -E "\-\-verify-profile")" ]; then
 	verify_profile="--verify-profile=medium"
@@ -60,8 +59,8 @@ for testparams in \
 	"--decryption|Key encipherment" \
 	"|Key encipherment";
 do
-  params=$(echo ${testparams} | cut -d"|" -f1)
-  usage=$(echo ${testparams} | cut -d"|" -f2)
+  params=$(echo "${testparams}" | cut -d"|" -f1)
+  usage=$(echo "${testparams}" | cut -d"|" -f2)
 
   ${SWTPM_LOCALCA} \
     --type ek \
@@ -72,7 +71,7 @@ do
     --configfile "${workdir}/swtpm-localca.conf" \
     --optsfile "${workdir}/swtpm-localca.options" \
     --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
-    ${params}
+    ${params:+${params}}
   if [ $? -ne 0 ]; then
     echo "Error: Test with parameters '$params' failed."
     exit 1
@@ -108,7 +107,7 @@ do
   IFS=","
 
   for u in $usage; do
-    echo $u
+    echo "$u"
     if [ -z "$(${CERTTOOL} -i \
                  --inder --infile "${workdir}/ek.cert" | \
                 grep "Key Usage" -A2 | \
@@ -146,14 +145,14 @@ echo
 
 #A few tests with odd vm Ids
 for vmid in \
-	's p a c e|s p a c e' \
-	'$(ls)>foo|$(ls)\>foo' \
-	'`ls`&; #12|`ls`&\; #12' \
-	'foo>&1<&2;$(ls)|foo\>&1\<&2\;$(ls)' \
+	"s p a c e|s p a c e" \
+	"\$(ls)>foo|\$(ls)\>foo" \
+	"\`ls\`&; #12|\`ls\`&\; #12" \
+	"foo>&1<&2;\$(ls)|foo\>&1\<&2\;\$(ls)" \
 	"'*|'*" \
 	'"*|\"*' \
-	':$$|:$$' \
-	'${t}[]|${t}[]';
+	":\$\$|:\$\$" \
+	"\${t}[]|\${t}[]";
 do
   in=$(echo "$vmid" | cut -d"|" -f1)
   exp=$(echo "$vmid" | cut -d"|" -f2)
@@ -167,7 +166,7 @@ do
     --configfile "${workdir}/swtpm-localca.conf" \
     --optsfile "${workdir}/swtpm-localca.options" \
     --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
-    ${params} &>/dev/null
+    ${params:+${params}} &>/dev/null
   if [ $? -ne 0 ]; then
     echo "Error: Test with parameters '$params' failed."
     exit 1

@@ -65,25 +65,25 @@ TPM2_ABRMD_PID=""
 function cleanup()
 {
 	if [ -n "${PID}" ]; then
-		echo "y" | tpm2_ptool destroy ${PID} &>/dev/null
+		echo "y" | tpm2_ptool destroy "${PID}" &>/dev/null
 	fi
 	if [ -n "${TPM2_ABRMD_PID}" ]; then
-		kill_quiet -9 ${TPM2_ABRMD_PID}
+		kill_quiet -9 "${TPM2_ABRMD_PID}"
 	fi
 	if [ -n "${SWTPM_PID}" ]; then
-		kill_quiet -9 ${SWTPM_PID}
+		kill_quiet -9 "${SWTPM_PID}"
 	fi
 	if [ -n "${BASH_PID}" ]; then
-		kill_quiet -9 ${BASH_PID}
+		kill_quiet -9 "${BASH_PID}"
 	fi
 	if [ -n "${NCAT_PID}" ]; then
-		kill_quiet -9 ${NCAT_PID}
+		kill_quiet -9 "${NCAT_PID}"
 	fi
 	rm -rf "${workdir}"
 }
 
 trap "cleanup" SIGTERM EXIT
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 
 PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
 
@@ -102,22 +102,20 @@ create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=/dev/null
 _EOF_
 
-	$SWTPM_SETUP \
+	if ! ${SWTPM_SETUP} \
 		--tpm-state "${workdir}" \
 		--logfile "${workdir}/logfile" \
 		--config "${workdir}/swtpm_setup.conf" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--swtpm_ioctl "${SWTPM_IOCTL}" \
-		--tpm2 > /dev/null
-
-	if [ $? -ne 0 ]; then
+		--tpm2 > /dev/null; then
 		echo "Error: Could not run $SWTPM_SETUP."
 		echo "Setup Logfile:"
-		cat ${workdir}/logfile
+		cat "${workdir}/logfile"
 		exit 1
 	fi
 
-	SWTPM_SERVER_NO_DISCONNECT=1 run_swtpm ${SWTPM_INTERFACE} \
+	SWTPM_SERVER_NO_DISCONNECT=1 run_swtpm "${SWTPM_INTERFACE}" \
 		--tpm2 \
 		--flags not-need-init \
 		--tpmstate "dir=${workdir}" \
@@ -130,13 +128,12 @@ _EOF_
 		exit 1
 	fi
 	NCAT_PID=$!
-	kill_quiet -0 ${NCAT_PID}
-	if [ $? -ne 0 ]; then
+	if ! kill_quiet -0 ${NCAT_PID}; then
 		echo "ncat must have terminated"
 		exit 1
 	fi
 
-	bash -c "tpm2-abrmd --tcti=mssim:host=127.0.0.1,port=${SWTPM_SERVER_PORT} --allow-root & echo \$! > "${TPM2_ABRMD_PIDFILE}"; wait" &
+	bash -c "tpm2-abrmd --tcti=mssim:host=127.0.0.1,port=${SWTPM_SERVER_PORT} --allow-root & echo \$! > \"${TPM2_ABRMD_PIDFILE}\"; wait" &
 	BASH_PID=$!
 
 	if wait_for_file "${TPM2_ABRMD_PIDFILE}" 3; then
@@ -145,14 +142,12 @@ _EOF_
 	fi
 
 	TPM2_ABRMD_PID=$(cat "${TPM2_ABRMD_PIDFILE}")
-	kill_quiet -0 "${TPM2_ABRMD_PID}"
-	if [ $? -ne 0 ]; then
+	if ! kill_quiet -0 "${TPM2_ABRMD_PID}"; then
 		echo "Error: tpm2-abrmd with pid ${TPM2_ABRMD_PID} must have terminated"
 		exit 1
 	fi
 
-	tmp="$(tpm2_ptool init 2>&1)"
-	if [ $? -ne 0 ]; then
+	if ! tmp="$(tpm2_ptool init 2>&1)"; then
 		echo "tpm2_ptool init failed:"
 		echo "${tmp}"
 		exit 1
@@ -164,15 +159,13 @@ _EOF_
 		exit 1
 	fi
 
-	tmp="$(SWTPM_PKCS11_PIN="mypin 123" SWTPM_PKCS11_SO_PIN="123" ${SWTPM_CREATE_TPMCA} \
+	if ! tmp="$(SWTPM_PKCS11_PIN="mypin 123" SWTPM_PKCS11_SO_PIN="123" ${SWTPM_CREATE_TPMCA} \
 		--dir "${SWTPM_LOCALCA_DIR}" \
 		--overwrite \
 		--outfile "${SWTPM_LOCALCA_CONF}" \
 		--group tss \
 		--tpm2 \
-		--pid "${PID}" 2>&1)"
-
-	if [ $? -ne 0 ]; then
+		--pid "${PID}" 2>&1)"; then
 		echo "Error: Could not create TPM CA"
 		echo "${tmp}"
 		exit 1
@@ -197,14 +190,14 @@ _EOF_
 		"^SWTPM_PKCS11_PIN = mypin 123"; do
 		if [ -n "${regex}" ] && \
 		   [ -z "$(grep -E "${regex}" "${SWTPM_LOCALCA_CONF}")" ]; then
-			echo "Error: Could not find regex '${line}' in CA config file."
+			echo "Error: Could not find regex '${regex}' in CA config file."
 			cat "${SWTPM_LOCALCA_CONF}"
 			exit 1
 		fi
 	done
 
 	params=""
-	if [ ${vtpm_is_tpm2} -ne 0 ]; then
+	if [ "${vtpm_is_tpm2}" -ne 0 ]; then
 		params="--tpm2"
 		skip=0
 	else
@@ -212,7 +205,7 @@ _EOF_
 	fi
 
 	# make sure we can actually sign with this new certificate
-	${SWTPM_LOCALCA} \
+	if ! ${SWTPM_LOCALCA} \
 		--type ek \
 		--ek x=739192d8f1004283957a7b1568d610b41c637ccc114aadcac4908c20456468fa,y=59f63ac06f8011f6fdd1460c6bc8e3e0a2d090d4fc188c7e04870e06795ce8ae \
 		--dir "${workdir}" --vmid test \
@@ -220,8 +213,7 @@ _EOF_
 		--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 00 \
 		--tpm-model swtpm --tpm-version 20170101 --tpm-manufacturer IBM \
 		--configfile "${SWTPM_LOCALCA_CONF}" \
-		--optsfile /dev/null
-	if [ $? -ne 0 ]; then
+		--optsfile /dev/null; then
 		echo "Error: The CA could not sign with the new certificate"
 		exit 1
 	fi
@@ -230,7 +222,7 @@ _EOF_
 		exit 1
 	fi
 	#  cert was for example 541 bytes long
-	if [ $(get_filesize "${workdir}/ek.cert") -lt 500 ]; then
+	if [ "$(get_filesize "${workdir}/ek.cert")" -lt 500 ]; then
 		echo "Error: The certificate's size is dubious"
 		ls -l "${workdir}/ek.cert"
 		exit 1
@@ -246,7 +238,7 @@ _EOF_
 		'^[[:space:]]+Certificate Authority \(CA\): FALSE$'
 		'^[[:space:]]+Unknown extension 2.5.29.9 \(not critical\):$'
 		'^[[:space:]]+Hexdump: 3019301706056781050210310e300c0c03322e3002010002020092$')
-	if [ ${vtpm_is_tpm2} -ne 0 ]; then
+	if [ "${vtpm_is_tpm2}" -ne 0 ]; then
 		# TPM 2.0; due to ecc: Key agreement
 		regexs+=('^[[:space:]]+Key agreement\.$'
 			 '^[[:space:]]+Signature Algorithm: RSA-SHA256$')
@@ -272,8 +264,7 @@ _EOF_
 	NCAT_PID=""
 
 	# Shut down TPM
-	run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-	if [ $? -ne 0 ]; then
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 		echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 		exit 1
 	fi

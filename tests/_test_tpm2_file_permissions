@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-file-permissions"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=${TPM_PATH}/tpm2-00.permall
 VOLATILE_STATE_FILE=${TPM_PATH}/tpm2-00.volatilestate
 PIDFILE=${TPM_PATH}/swtpm.pid
@@ -27,8 +27,8 @@ function cleanup()
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == cuse ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == cuse ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
 cat <<_EOF_ > "${SWTPM_SETUP_CONF}"
 create_certs_tool=unused
@@ -67,7 +67,7 @@ chmod 0600 "${TPM_PATH}"/tpm2-00* "${PIDFILE}" "${PWDFILE}" "${LOGFILE}" "${SWTP
 chown "${TESTUSER}:${TESTGROUP}" "${TPM_PATH}"/*
 
 # Test-execute the swtpm program as $TESTUSER
-tmp=$(su -m "${TESTUSER}" -c "LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" "${MY_SWTPM_EXE}" --help 2>&1")
+tmp=$(su -m "${TESTUSER}" -c "LD_LIBRARY_PATH=\"${SWTPM_LD_LIBRARY_PATH}\" \"${MY_SWTPM_EXE}\" --help 2>&1")
 if [ $? -ne 0 ]; then
 	echo "Could not run '${MY_SWTPM_EXE}' as ${TESTUSER}. Skipping swtpm_setup tests."
 	echo "Error: ${tmp}"
@@ -77,21 +77,21 @@ fi
 
 logsize=$(get_filesize "${LOGFILE}")
 
-run_swtpm ${SWTPM_INTERFACE} \
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--pid "file=${PIDFILE}" \
 	--log "file=${LOGFILE},level=20" \
 	--runas "${TESTUSER}" \
 	--tpm2 \
 	--key "pwdfile=${PWDFILE},kdf=sha512"
 
-kill -0 ${SWTPM_PID}
+kill -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -106,14 +106,14 @@ fi
 # There should be a log file now owned by the ${TESTUSER}
 # Since the CUSE TPM must be started as root root ownership is allowed for log and pid file
 if [ "${SWTPM_INTERFACE}" != "cuse" ]; then
-	fileowner="$(get_fileowner_names ${LOGFILE})"
+	fileowner="$(get_fileowner_names "${LOGFILE}")"
 	if [ "${fileowner}" != "${TESTUSER} ${TESTGROUP}" ]; then
 		echo "File ownership for logfile is wrong."
 		echo "Expected: ${TESTUSER} ${TESTGROUP}"
 		echo "Actual  : ${fileowner}"
 	fi
 
-	fileowner="$(get_fileowner_names ${PIDFILE})"
+	fileowner="$(get_fileowner_names "${PIDFILE}")"
 	if [ "${fileowner}" != "${TESTUSER} ${TESTGROUP}" ]; then
 		echo "File ownership for pidfile is wrong."
 		echo "Expected: ${TESTUSER} ${TESTGROUP}"
@@ -122,11 +122,11 @@ if [ "${SWTPM_INTERFACE}" != "cuse" ]; then
 fi
 
 # The log file must have grown
-if [ -z "$(grep "TestTest" ${LOGFILE})" ]; then
+if [ -z "$(grep "TestTest" "${LOGFILE}")" ]; then
 	echo "Error: First line 'TestTest' missing in logfile."
 	exit 1
 fi
-if [ $(get_filesize ${LOGFILE}) -le ${logsize} ]; then
+if [ "$(get_filesize "${LOGFILE}")" -le "${logsize}" ]; then
 	echo "Error: Log file did not grow!"
 	exit 1
 fi
@@ -140,7 +140,7 @@ if [ "$(cat "${PIDFILE}")" != "${SWTPM_PID}" ]; then
 fi
 
 # Read PCR 10 (from pcrextend -ha 10 -ic test)
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 16 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 f6 85 98 e5 86 8d e6 8b 97 29 99 60 f2 71 7d 17 67 89 a4 2f 9a ae a8 c7 b7 aa 79 a8 62 56 c1 de'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
@@ -149,20 +149,20 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 4; then
+if wait_process_gone "${SWTPM_PID}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi
 
 if [ -f "${PIDFILE}" ]; then
 	echo "Error: PID file should have been removed."
-	ls -l ${TPM_PATH}
+	ls -l "${TPM_PATH}"
 	exit 1
 fi
 
@@ -206,11 +206,11 @@ if [ "$(get_sha1_file "${STATE_FILE}")" = "${statefilehash}" ]; then
 	echo "Error: State file was not changed."
 	exit 1
 fi
-if [ -z "$(grep "TestTest" ${LOGFILE})" ]; then
+if [ -z "$(grep "TestTest" "${LOGFILE}")" ]; then
 	echo "Error: First line 'TestTest' missing in logfile."
 	exit 1
 fi
-if [ $(get_filesize "${LOGFILE}") -le ${logsize} ]; then
+if [ "$(get_filesize "${LOGFILE}")" -le "${logsize}" ]; then
 	echo "Error: ${SWTPM_SETUP} did not append to existing log."
 	exit 1
 fi
@@ -243,7 +243,7 @@ if [ "$(get_sha1_file "${STATE_FILE}")" = "${statefilehash}" ]; then
 	echo "Error: State file was not changed."
 	exit 1
 fi
-if [ $(get_filesize "${LOGFILE}") -le ${logsize} ]; then
+if [ "$(get_filesize "${LOGFILE}")" -le "${logsize}" ]; then
 	echo "Error: ${SWTPM_SETUP} did not append to existing log."
 	exit 1
 fi

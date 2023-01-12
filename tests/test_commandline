@@ -2,6 +2,8 @@
 
 # For the license, see the LICENSE file in the root directory.
 
+# shellcheck disable=SC2097,SC2098
+
 if [ "$(uname -s)" != "Linux" ]; then
 	# Due to netstat
 	echo "This test only runs only Linux."
@@ -12,22 +14,22 @@ ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 
 # need SWTPM to be set
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
 TPMDIR="$(mktemp -d)" || exit 1
 PID_FILE=$TPMDIR/${SWTPM}.pid
 LOG_FILE=$TPMDIR/${SWTPM}.log
 
-source ${TESTDIR}/test_common
+source "${TESTDIR}/test_common"
 
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf $TPMDIR
+	rm -rf "$TPMDIR"
 	if [ -n "$PID" ]; then
-		kill_quiet -SIGTERM $PID 2>/dev/null
+		kill_quiet -SIGTERM "$PID" 2>/dev/null
 	fi
 }
 
@@ -39,15 +41,15 @@ export TCSD_USE_TCP_DEVICE=1
 
 # Test 1: test port and directory command line parameters; use log level 20
 FILEMODE=641
-exec 100<>$LOG_FILE
+exec 100<>"$LOG_FILE"
 
 $SWTPM_EXE socket \
 	-p $PORT \
-	--tpmstate dir=$TPMDIR,mode=$FILEMODE \
-	--pid file=$PID_FILE \
+	--tpmstate "dir=$TPMDIR,mode=$FILEMODE" \
+	--pid "file=$PID_FILE" \
 	--log fd=100,level=20 \
 	--flags not-need-init \
-	${SWTPM_TEST_SECCOMP_OPT} &
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &
 PID=$!
 exec 100>&-
 
@@ -62,12 +64,12 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file "$PID_FILE" 3; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 ${SWTPM_BIOS} &>/dev/null
 if [ $? -ne 0 ]; then
@@ -75,7 +77,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-filemode=$(get_filemode ${TPMDIR}/tpm-00.permall)
+filemode=$(get_filemode "${TPMDIR}/tpm-00.permall")
 if [ "$filemode" != "$FILEMODE" ]; then
 	echo "Filemode bits are wrong"
 	echo "Expected: $FILEMODE"
@@ -83,14 +85,14 @@ if [ "$filemode" != "$FILEMODE" ]; then
 	exit 1
 fi
 
-check_logfile_patterns_level_20 $LOG_FILE
-rm -f $LOG_FILE
+check_logfile_patterns_level_20 "$LOG_FILE"
+rm -f "$LOG_FILE"
 
 kill_quiet -SIGTERM $PID &>/dev/null
-wait_process_gone $PID 2
+wait_process_gone "$PID" 2
 
 exec 20<&1-; exec 21<&2-
-kill_quiet -0 $PID &>/dev/null
+kill_quiet -0 "$PID" &>/dev/null
 RES=$?
 exec 1<&20-; exec 2<&21-
 
@@ -110,9 +112,9 @@ TPMDIR="$(mktemp -d)" || exit 1
 $SWTPM_EXE socket \
 	--flags not-need-init \
 	-p $PORT \
-	--tpmstate dir=$TPMDIR \
+	--tpmstate "dir=$TPMDIR" \
 	-t \
-	${SWTPM_TEST_SECCOMP_OPT} &>/dev/null &
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &>/dev/null &
 PID=$!
 
 if wait_port_open $PORT $PID 4; then
@@ -164,13 +166,13 @@ echo "Test 2 passed"
 # Test 3: test --fd= and --ctrl type=unxio,clientfd=
 #         The python script execs swtpm with client sockets
 exec 20<&1-; exec 21<&2-
-LOG=$(PID_FILE=$TPMDIR/swtpm.pid SWTPM_EXE=$SWTPM_EXE TPMDIR=$TPMDIR exec $TESTDIR/test_clientfds.py)
+LOG=$(PID_FILE="$TPMDIR/swtpm.pid" SWTPM_EXE=$SWTPM_EXE TPMDIR=$TPMDIR exec "$TESTDIR/test_clientfds.py")
 RES=$?
 exec 1<&20-; exec 2<&21-
 
 if [ $RES -ne 0 ]; then
-    echo "Test 3 failed: $LOG"
-    exit 1
+	echo "Test 3 failed: $LOG"
+	exit 1
 fi
 
 echo "Test 3 passed"
@@ -182,11 +184,11 @@ PID_FILE=$TPMDIR/${SWTPM}.pid
 FILEMODE=641
 
 $SWTPM_EXE socket \
-	-p $PORT \
-	--tpmstate backend-uri=dir://$TPMDIR,mode=$FILEMODE \
-	--pid file=$PID_FILE \
+	-p "$PORT" \
+	--tpmstate "backend-uri=dir://$TPMDIR,mode=$FILEMODE" \
+	--pid "file=$PID_FILE" \
 	--flags not-need-init \
-	${SWTPM_TEST_SECCOMP_OPT} &
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &
 PID=$!
 
 if wait_port_open $PORT $PID 4; then
@@ -194,18 +196,18 @@ if wait_port_open $PORT $PID 4; then
 	exit 1
 fi
 
-kill_quiet -0 $PID
+kill_quiet -0 "$PID"
 if [ $? -ne 0 ]; then
 	echo "Test 4 failed: TPM process not running"
 	exit 1
 fi
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file "$PID_FILE" 3; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 ${SWTPM_BIOS} &>/dev/null
 if [ $? -ne 0 ]; then
@@ -213,7 +215,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-filemode=$(get_filemode ${TPMDIR}/tpm-00.permall)
+filemode=$(get_filemode "${TPMDIR}/tpm-00.permall")
 if [ "$filemode" != "$FILEMODE" ]; then
 	echo "Filemode bits are wrong"
 	echo "Expected: $FILEMODE"

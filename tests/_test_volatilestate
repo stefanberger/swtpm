@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-volatilestate"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm-00.volatilestate
 SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
@@ -19,43 +19,43 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $TPM_PATH
+	rm -rf "$TPM_PATH"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == cuse ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == cuse ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
-run_swtpm ${SWTPM_INTERFACE}
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Startup the TPM
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')
 exp=' 00 c4 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
@@ -64,14 +64,14 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -h 1234
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234
 if [ $? -ne 0 ]; then
 	echo "Error: Hash command did not work."
 	exit 1
 fi
 
 # Read PCR 17
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
@@ -81,7 +81,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check the TPM Established bit after the hashing
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 exp='tpmEstablished is 1'
 if [ "$RES" != "$exp" ]; then
 	echo "Error (2): TPM Established flag has wrong value."
@@ -91,50 +91,50 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state
-run_swtpm_ioctl ${SWTPM_INTERFACE} -v
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
 if [ $? -ne 0 ]; then
 	echo "Error: Could not have the ${SWTPM_INTERFACE} TPM store the volatile state to a file."
 	exit 1
 fi
 
-if [ ! -r $VOLATILE_STATE_FILE ]; then
+if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
 	exit 1
 fi
 
 # Shut the TPM down
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 # Start the TPM again
-run_swtpm ${SWTPM_INTERFACE}
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 # Volatile state must have been removed by TPM now
-if [ -r $VOLATILE_STATE_FILE ]; then
+if [ -r "$VOLATILE_STATE_FILE" ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
 	exit 1
 fi
 
 # Read the PCR again ...
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
@@ -144,7 +144,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check that the TPM Established bit is still set
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 exp='tpmEstablished is 1'
 if [ "$RES" != "$exp" ]; then
 	echo "Error (2): TPM Established flag has wrong value."
@@ -154,32 +154,32 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state again
-run_swtpm_ioctl ${SWTPM_INTERFACE} -v
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
 if [ $? -ne 0 ]; then
 	echo "Error: Could not have the ${SWTPM_INTERFACE} TPM store the volatile state to a file."
 	exit 1
 fi
 
-if [ ! -r $VOLATILE_STATE_FILE ]; then
+if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE does not exist."
 	exit 1
 fi
 
 # Send a new TPM_Init
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 # Volatile state must have been removed by TPM now
-if [ -r $VOLATILE_STATE_FILE ]; then
+if [ -r "$VOLATILE_STATE_FILE" ]; then
 	echo "Error: Volatile state file $VOLATILE_STATE_FILE still exists."
 	exit 1
 fi
 
 # Read the PCR again ...
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')
 exp=' 00 c4 00 00 00 1e 00 00 00 00 97 e9 76 e4 f2 2c d6 d2 4a fd 21 20 85 ad 7a 86 64 7f 2a e5'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
@@ -189,7 +189,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check that the TPM Established bit is still set
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 if [ $? -ne 0 ]; then
 	echo "Error: Could not get the TPM Established flag from the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -203,7 +203,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Final shut down
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -214,7 +214,7 @@ if wait_process_gone ${SWTPM_PID} 4; then
 	exit 1
 fi
 
-if [ ! -e $STATE_FILE ]; then
+if [ ! -e "$STATE_FILE" ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
 	exit 1
 fi

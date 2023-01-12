@@ -20,74 +20,74 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $TPM_PATH
+	rm -rf "$TPM_PATH"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
-run_swtpm ${SWTPM_INTERFACE} --tpm2 --tpmstate dir=$TPM_PATH --pid file=$PID_FILE
+run_swtpm "${SWTPM_INTERFACE}" --tpm2 --tpmstate "dir=$TPM_PATH" --pid "file=$PID_FILE"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
-if wait_for_file ${PID_FILE} 4; then
+if wait_for_file "${PID_FILE}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not write pidfile."
 	exit 1
 fi
 
-PIDF="$(cat $PID_FILE)"
+PIDF="$(cat "$PID_FILE")"
 if [ "$PIDF" != "${SWTPM_PID}" ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM wrote pid $PIDF, but found ${SWTPM_PID}."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-if ! wait_process_gone ${SWTPM_PID} 4; then
+if ! wait_process_gone "${SWTPM_PID}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
 
 # must work
-res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -o 2>&1)
+res=$(run_swtpm_bios "${SWTPM_INTERFACE}" --tpm2 -o 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not startup the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 #  must work
-res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -n --cs 2>&1)
+res=$(run_swtpm_bios "${SWTPM_INTERFACE}" --tpm2 -n --cs 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not self-test the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 #  must work
-res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -n -u 2>&1)
+res=$(run_swtpm_bios "${SWTPM_INTERFACE}" --tpm2 -n -u 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not give up physical presence on the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 #  will NOT work -- we get error output in $res
-res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -n -u 2>&1)
+res=$(run_swtpm_bios "${SWTPM_INTERFACE}" --tpm2 -n -u 2>&1)
 ret=$?
 if [ $ret -eq 0 ] || [ -z "$res" ]; then
 	echo "Error: Could give up physical presence on the ${SWTPM_INTERFACE} TPM."
@@ -116,21 +116,21 @@ fi
 
 # RESET TPM
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 # must work
-res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 --cs -u 2>&1)
+res=$(run_swtpm_bios "${SWTPM_INTERFACE}" --tpm2 --cs -u 2>&1)
 if [ $? -ne 0 ] || [ -n "$res" ]; then
 	echo "Error: Could not startup the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 #  will NOT work -- we get error output in $res
-res=$(run_swtpm_bios ${SWTPM_INTERFACE} --tpm2 -n -u 2>&1)
+res=$(run_swtpm_bios "${SWTPM_INTERFACE}" --tpm2 -n -u 2>&1)
 ret=$?
 if [ $ret -eq 0 ] || [ -z "$res" ]; then
 	echo "Error: Could give up physical presence on the ${SWTPM_INTERFACE} TPM."
@@ -142,18 +142,18 @@ if [ $ret -ne 128 ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-if wait_process_gone ${SWTPM_PID} 4; then
+if wait_process_gone "${SWTPM_PID}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi
 
-if [ ! -e $STATE_FILE ]; then
+if [ ! -e "$STATE_FILE" ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
 	exit 1
 fi

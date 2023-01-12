@@ -6,7 +6,7 @@ ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm20 "${SWTPM_EXE}"
 STATEBASENAME="tpm2-00.permall"
 
@@ -16,7 +16,7 @@ trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf ${workdir}
+	rm -rf "${workdir}"
 }
 
 # Test 1: --not-overwrite with dummy state file
@@ -24,27 +24,27 @@ function cleanup()
 workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY"
-echo $dummydata > ${statefile}
+echo "$dummydata" > "${statefile}"
 
 $SWTPM_SETUP \
 	--tpm2 \
 	--not-overwrite \
-	--tpm-state ${workdir} \
-	--config ${SWTPM_SETUP_CONF} \
-	--logfile ${workdir}/logfile \
+	--tpm-state "${workdir}" \
+	--config "${SWTPM_SETUP_CONF}" \
+	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
 
 if [ $? -ne 0 ]; then
 	echo "Test 1 failed: Error: Could not run $SWTPM_SETUP."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
-if [ -z "$(grep ${dummydata} ${statefile})" ]; then
+if [ -z "$(grep "${dummydata}" "${statefile}")" ]; then
 	echo "Test 1 failed: Error: The state file was unexpectedly overwritten."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
@@ -56,27 +56,27 @@ cleanup
 workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY"
-echo $dummydata > ${statefile}
+echo "$dummydata" > "${statefile}"
 
 $SWTPM_SETUP \
 	--tpm2 \
 	--overwrite \
-	--tpm-state ${workdir} \
-	--config ${SWTPM_SETUP_CONF} \
-	--logfile ${workdir}/logfile \
+	--tpm-state "${workdir}" \
+	--config "${SWTPM_SETUP_CONF}" \
+	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
 
 if [ $? -ne 0 ]; then
 	echo "Test 2 failed: Error: Could not run $SWTPM_SETUP."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
-if [ -n "$(grep ${dummydata} ${statefile})" ]; then
+if [ -n "$(grep "${dummydata}" "${statefile}")" ]; then
 	echo "Test 2 failed: Error: The state file was not overwritten."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
@@ -88,26 +88,26 @@ cleanup
 workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY"
-echo $dummydata > ${statefile}
+echo "$dummydata" > "${statefile}"
 
 $SWTPM_SETUP \
 	--tpm2 \
-	--tpm-state ${workdir} \
-	--config ${SWTPM_SETUP_CONF} \
-	--logfile ${workdir}/logfile \
+	--tpm-state "${workdir}" \
+	--config "${SWTPM_SETUP_CONF}" \
+	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
 
 if [ $? -ne 1 ]; then
 	echo "Test 3 failed: Error: $SWTPM_SETUP did not exit with exit code 1."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 
-if [ -z "$(grep ${dummydata} ${statefile})" ]; then
+if [ -z "$(grep "${dummydata}" "${statefile}")" ]; then
 	echo "Test 3 failed: Error: The state file was unexpectedly overwritten."
 	echo "Setup Logfile:"
-	cat ${workdir}/logfile
+	cat "${workdir}/logfile"
 	exit 1
 fi
 

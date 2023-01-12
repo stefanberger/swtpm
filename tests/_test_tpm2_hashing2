@@ -8,7 +8,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 VTPM_NAME="vtpm-test-tpm2-hashing2"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
-export TPM_PATH="$(mktemp -d)" || exit 1
+TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm2-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
@@ -19,43 +19,43 @@ function cleanup()
 {
 	pid=${SWTPM_PID}
 	if [ -n "$pid" ]; then
-		kill_quiet -9 $pid
+		kill_quiet -9 "$pid"
 	fi
-	rm -rf $TPM_PATH
+	rm -rf "$TPM_PATH"
 }
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source ${TESTDIR}/test_cuse
-source ${TESTDIR}/common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+source "${TESTDIR}/common"
 
-rm -f $STATE_FILE $VOLATILE_STATE_FILE 2>/dev/null
+rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
-run_swtpm ${SWTPM_INTERFACE} --tpm2
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 ${SWTPM_PID}
+kill_quiet -0 "${SWTPM_PID}"
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl ${SWTPM_INTERFACE} -i
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
 if [ $? -ne 0 ]; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Startup the TPM
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
 exp=' 80 01 00 00 00 0a 00 00 00 00'
 if [ "$RES" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM2_Startup(SU_Clear)"
@@ -65,7 +65,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check the TPM Established bit before the hashing
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 if [ $? -ne 0 ]; then
 	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -79,7 +79,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -h 1234
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234
 if [ $? -ne 0 ]; then
 	echo "Error: The hash command failed."
 	exit 1
@@ -87,10 +87,10 @@ fi
 
 # Read PCR 17
 #                                                     length         CC            count       hashalg         sz
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
 # disregard the update counter using a regex comparison
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 .. 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 fc a5 d6 49 bf b0 c9 22 fd 33 0f 79 b2 00 43 28 9d af d6 0d 01 a4 c4 37 3c f2 8a db 56 c9 b4 54'
-if [[ "$RES" =~ "$exp" ]]; then
+if ! [[ $RES =~ ^${exp}$ ]]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"
 	echo "received: $RES"
@@ -98,7 +98,7 @@ if [[ "$RES" =~ "$exp" ]]; then
 fi
 
 # Check the TPM Established bit after the hashing
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 if [ $? -ne 0 ]; then
 	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -113,7 +113,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Reset the establishment bit; we switch to locality 0 and reset via locality 3
-run_swtpm_ioctl ${SWTPM_INTERFACE} -l 0
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 0
 if [ $? -ne 0 ]; then
 	echo "Error: Could not set locality 0"
 	exit 1
@@ -121,7 +121,7 @@ fi
 
 for ((l = 0; l <= 2; l++)); do
 	# Resetting via locality 2 must fail
-	ERR="$(run_swtpm_ioctl ${SWTPM_INTERFACE} -r $l 2>&1)"
+	ERR="$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -r "$l" 2>&1)"
 	if [ $? -eq 0 ]; then
 		echo "Error: Could reset the establishment bit via locality $l"
 		exit 1
@@ -136,14 +136,14 @@ for ((l = 0; l <= 2; l++)); do
 done
 
 # Resetting via locality 3 must work
-run_swtpm_ioctl ${SWTPM_INTERFACE} -r 3
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -r 3
 if [ $? -ne 0 ]; then
 	echo "Error: Could not reset the establishment bit via locality 3"
 	exit 1
 fi
 
 # Check the TPM Established bit after the reset
-RES=$(run_swtpm_ioctl ${SWTPM_INTERFACE} -e)
+RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
 if [ $? -ne 0 ]; then
 	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -159,21 +159,21 @@ fi
 
 # Read from a file
 dd if=/dev/zero bs=1024 count=1024 2>/dev/null| \
-	run_swtpm_ioctl ${SWTPM_INTERFACE} -h -
+	run_swtpm_ioctl "${SWTPM_INTERFACE}" -h -
 
 # Read PCR 17
 #                                                     length         CC            count       hashalg         sz
-RES=$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x00\x02')
 # disregard the update counter using a regex comparison
 exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 .. 00 00 00 01 00 0b 03 00 00 02 00 00 00 01 00 20 27 7e de f1 02 56 46 5d 8e 71 65 38 3f d3 63 c9 8a be 89 e2 90 2e 4d 3a 2b 3a 30 80 2f 28 af 19'
-if [[ "$RES" =~ "$exp" ]]; then
+if ! [[ $RES =~ ^${exp}$ ]]; then
 	echo "Error: (2) Did not get expected result from TPM_PCRRead(17)"
 	echo "expected: $exp"
 	echo "received: $RES"
 	exit 1
 fi
 
-run_swtpm_ioctl ${SWTPM_INTERFACE} -s
+run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
 if [ $? -ne 0 ]; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
@@ -181,13 +181,13 @@ fi
 
 sleep 0.5
 
-kill_quiet -0 ${SWTPM_PID} 2>/dev/null
+kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
 if [ $? -eq 0 ]; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi
 
-if [ ! -e $STATE_FILE ]; then
+if [ ! -e "$STATE_FILE" ]; then
 	echo "Error: TPM state file $STATE_FILE does not exist."
 	exit 1
 fi

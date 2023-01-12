@@ -2,6 +2,8 @@
 
 # For the license, see the LICENSE file in the root directory.
 
+# shellcheck disable=SC2035,SC2061
+
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
@@ -12,32 +14,32 @@ LOG_FILE=$TPMDIR/swtpm.log
 CMD_PATH=$TPMDIR/cmd
 RESP_PATH=$TPMDIR/resp
 
-source ${TESTDIR}/test_common
+source "${TESTDIR}/test_common"
 
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
-	rm -rf $TPMDIR
+	rm -rf "$TPMDIR"
 	if [ -n "$PID" ]; then
-		kill_quiet -SIGTERM $PID 2>/dev/null
+		kill_quiet -SIGTERM "$PID" 2>/dev/null
 	fi
 }
 
 SWTPM_INTERFACE=socket+unix
 SWTPM_SERVER_PORT=65430
 SWTPM_SERVER_NAME=localhost
-source ${TESTDIR}/common
+source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
 # Test 1: test the control channel on the socket tpm
 
 # OS X would not allow nobody to access the $TPMDIR easily; skip it
-if [ $(id -u) -eq 0 ] && [ "$(uname -s)" != "Darwin" ]; then
+if [ "$(id -u)" -eq 0 ] && [ "$(uname -s)" != "Darwin" ]; then
 	FOWNER=",uid=nobody,gid=$(id -Gn nobody | cut -d" " -f1)"
 	FILEOWNER="$(id -u nobody) $(id -G nobody | cut -d" " -f1)"
 	RUNAS="--runas nobody"
-	chown nobody $TPMDIR
+	chown nobody "$TPMDIR"
 	if [ $? -ne 0 ]; then
 		echo "Error: Could not change ownership of $TPMDIR"
 		exit 1
@@ -69,7 +71,7 @@ fi
 case $(uname -s) in
 Linux|CYGWIN_NT-|Darwin)
 	PIDPARAM="fd=101"
-	exec 101<>$PID_FILE
+	exec 101<>"$PID_FILE"
 	;;
 *)
 	PIDPARAM="file=$PID_FILE"
@@ -78,18 +80,18 @@ esac
 
 $SWTPM_EXE socket \
 	--fd 100 \
-	--tpmstate dir=$TPMDIR \
-	--pid $PIDPARAM \
-	--ctrl type=unixio,path=$SWTPM_CTRL_UNIX_PATH,mode=${FILEMODE}${FOWNER} \
-	--log file=$LOG_FILE,level=20 \
-	$RUNAS \
+	--tpmstate "dir=$TPMDIR" \
+	--pid "$PIDPARAM" \
+	--ctrl "type=unixio,path=$SWTPM_CTRL_UNIX_PATH,mode=${FILEMODE}${FOWNER}" \
+	--log "file=$LOG_FILE,level=20" \
+	${RUNAS:+${RUNAS}} \
 	--daemon \
-	${SWTPM_TEST_SECCOMP_OPT}
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}}
 exec 100>&-
 exec 101>&-
 
 
-if [ ! -f $PID_FILE ]; then
+if [ ! -f "$PID_FILE" ]; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
@@ -97,7 +99,7 @@ fi
 PID=$(cat "$PID_FILE")
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x01')"
 if [[ "$(uname -s)" =~ (Linux|OpenBSD|FreeBSD|NetBSD|Darwin|DragonFly) ]]; then
 	exp=" 00 00 00 00 00 01 7f ff"
 else
@@ -110,7 +112,7 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-filemode=$(get_filemode $SWTPM_CTRL_UNIX_PATH)
+filemode=$(get_filemode "$SWTPM_CTRL_UNIX_PATH")
 if [ "$filemode" != "$FILEMODE" ]; then
 	echo "Filemode bits are wrong"
 	echo "Expected: $FILEMODE"
@@ -118,7 +120,7 @@ if [ "$filemode" != "$FILEMODE" ]; then
 	exit 1
 fi
 
-fileowner=$(get_fileowner $SWTPM_CTRL_UNIX_PATH)
+fileowner=$(get_fileowner "$SWTPM_CTRL_UNIX_PATH")
 if [ -n "$FILEOWNER" ] && [ "$fileowner" != "$FILEOWNER" ]; then
 	echo "File ownership is wrong"
 	echo "Expected: $FILEOWNER"
@@ -127,7 +129,7 @@ if [ -n "$FILEOWNER" ] && [ "$fileowner" != "$FILEOWNER" ]; then
 fi
 
 # Send TPM_Init to the TPM: CMD_INIT = 0x00 00 00 02 + flags
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x02\x00\x00\x00\x00')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x02\x00\x00\x00\x00')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_INIT:"
@@ -137,7 +139,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Send unknown command to the TPM
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\xff\xff')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\xff\xff')"
 exp=" 00 00 00 0a"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from sending unsupported command:"
@@ -147,7 +149,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Save the volatile state: CMD_STORE_VOLATILE = 0x00 00 00 0a
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0a')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0a')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_STORE_VOLATILE:"
@@ -156,13 +158,13 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-if [ ! -r $TPMDIR/tpm-00.volatilestate ]; then
+if [ ! -r "$TPMDIR/tpm-00.volatilestate" ]; then
 	echo "Error: Socket TPM: Did not write volatile state file"
 	exit 1
 fi
 
 # Send stop command to the TPM: CMD_STOP = 00 00 00 0e
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0e')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0e')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_STOP:"
@@ -172,7 +174,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Send get config command to the TPM: CMD_GET_CONFIG = 00 00 00 0f
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0f')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0f')"
 exp=" 00 00 00 00 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_CONFIG:"
@@ -183,12 +185,12 @@ fi
 
 # To enable coverage of the above running as non-root we change the .gcda
 # files' ownership with this small hack
-if [ $(id -u) -eq 0 ] && [ "$(uname -s)" != "Darwin" ]; then
-	find $ROOT -name *.gcda -exec chown nobody {} \;
+if [ "$(id -u)" -eq 0 ] && [ "$(uname -s)" != "Darwin" ]; then
+	find "$ROOT" -name *.gcda -exec chown nobody {} \;
 fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x03')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x03')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Unexpected response from CMD_SHUTDOWN:"
@@ -197,18 +199,18 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-if wait_file_gone $PID_FILE 2; then
+if wait_file_gone "$PID_FILE" 2; then
 	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if wait_process_gone ${PID} 4; then
+if wait_process_gone "${PID}" 4; then
 	echo "Error: TPM should not be running anymore."
 	exit 1
 fi
 
-check_logfile_patterns_level_20 $LOG_FILE
-rm -f $LOG_FILE
+check_logfile_patterns_level_20 "$LOG_FILE"
+rm -f "$LOG_FILE"
 
 echo "OK"
 
@@ -217,24 +219,24 @@ echo "OK"
 # There are a few more tests here that require sending commands to the TPM
 
 # use a pseudo terminal
-run_swtpm ${SWTPM_INTERFACE} \
-	--tpmstate dir=$TPMDIR \
-	--pid file=$PID_FILE \
-	--log file=$LOG_FILE \
+run_swtpm "${SWTPM_INTERFACE}" \
+	--tpmstate "dir=$TPMDIR" \
+	--pid "file=$PID_FILE" \
+	--log "file=$LOG_FILE" \
 	--flags startup-clear  \
-	$RUNAS
+	${RUNAS:+${RUNAS}}
 PID=$SWTPM_PID
 
-if wait_for_file ${PID_FILE} 4; then
+if wait_for_file "${PID_FILE}" 4; then
 	echo "Error: Socket TPM did not write pidfile."
-	cat $LOG_FILE
+	cat "$LOG_FILE"
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 # Get the capability bits: CMD_GET_CAPABILITY = 0x00 00 00 01
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x01')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x01')"
 if [[ "$(uname -s)" =~ (Linux|OpenBSD|FreeBSD|NetBSD|Darwin|DragonFly) ]]; then
 	exp=" 00 00 00 00 00 01 7f ff"
 else
@@ -248,7 +250,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Send unknown command to the TPM
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\xff\xff')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\xff\xff')"
 exp=" 00 00 00 0a"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from sending unsupported command:"
@@ -258,7 +260,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Startup the TPM; we use --flags startup-clear, so expect this to fail with error 0x26 (INVALID POST INIT)
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')"
+res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0C\x00\x00\x00\x99\x00\x01')"
 exp=' 00 c4 00 00 00 0a 00 00 00 26'
 if [ "$res" != "$exp" ]; then
 	echo "Error: Did not get expected result from TPM_Startup(ST_Clear)"
@@ -268,7 +270,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Save the volatile state: CMD_STORE_VOLATILE = 0x00 00 00 0a
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0a')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0a')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_STORE_VOLATILE:"
@@ -277,13 +279,13 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-if [ ! -r $TPMDIR/tpm-00.volatilestate ]; then
+if [ ! -r "$TPMDIR/tpm-00.volatilestate" ]; then
 	echo "Error: Socket TPM: Did not write volatile state file"
 	exit 1
 fi
 
 # 1. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x04')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x04')"
 exp=" 00 00 00 00 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from sending CMD_GET_TPMESTABLISHED command:"
@@ -293,7 +295,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # 2. Send command to start HASH : CMD_HASH_START = 00 00 00 06
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x06')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x06')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from sending CMD_HASH_START command:"
@@ -304,12 +306,12 @@ fi
 
 # 2.1. Send command to hash data : CMD_HASH_DATA = 00 00 00 07 uint32(length) data
 # We send 0x100 null bytes
-echo -en '\x00\x00\x00\x07\x00\x00\x20\x00' > $CMD_PATH
-dd if=/dev/zero count=$((0x2000)) bs=1 >> $CMD_PATH 2>/dev/null
-socat -x -t10 FILE:$CMD_PATH,rdonly UNIX-CONNECT:$SWTPM_CTRL_UNIX_PATH 2>&1 | \
+echo -en '\x00\x00\x00\x07\x00\x00\x20\x00' > "$CMD_PATH"
+dd if=/dev/zero count=$((0x2000)) bs=1 >> "$CMD_PATH" 2>/dev/null
+socat -x -t10 "FILE:$CMD_PATH,rdonly" "UNIX-CONNECT:$SWTPM_CTRL_UNIX_PATH" 2>&1 | \
 	sed -n '/^ /p' | \
-	tail -n1 > $RESP_PATH
-res="$(cat $RESP_PATH)"
+	tail -n1 > "$RESP_PATH"
+res="$(cat "$RESP_PATH")"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from sending CMD_HASH_DATA command:"
@@ -319,7 +321,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # 3. Send command to end HASH : CMD_HASH_END = 00 00 00 08
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x08')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x08')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from sending CMD_HASH_END command:"
@@ -329,7 +331,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # 4. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x04')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x04')"
 exp=" 00 00 00 00 01 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from sending CMD_GET_TPMESTABLISHED command:"
@@ -339,7 +341,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # 5. Send command to reset TPM established flag: CMD_RESET_TPMESTABLISHED = 00 00 00 0b 03
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0b\x03')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0b\x03')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from sending CMD_GET_TPMESTABLISHED command:"
@@ -349,7 +351,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # 6. Send command to get TPM established flag: CMD_GET_TPMESTABLISHED = 00 00 00 04
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x04')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x04')"
 exp=" 00 00 00 00 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from sending CMD_GET_TPMESTABLISHED command:"
@@ -359,7 +361,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Read PCR 17
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')"
+res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')"
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c4 e1 e1 c9 81 c0 cd b1 e0 43 df 97 20 72 f9 5d a9 ff 06 ff'
 if [ "$res" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
@@ -370,7 +372,7 @@ fi
 
 # Get the volatile state of the TPM: CMD_GET_STATEBLOB = 00 00 00 0c
 #                                                  cmd  |     flags     |     type      |    offset     |
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00')"
 #      result    |   flags   | totlength |   length  |
 exp=" 00 00 00 00 00 00 00 00 00 00 04 e5 00 00 04 e5"
 if [ "${res:0:48}" != "$exp" ]; then
@@ -381,7 +383,7 @@ if [ "${res:0:48}" != "$exp" ]; then
 fi
 
 # Send stop command to the TPM: CMD_STOP = 00 00 00 0e
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0e')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0e')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_STOP:"
@@ -391,7 +393,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Read PCR 17 -- should fail now
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')"
+res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x11')"
 exp=' 00 c4 00 00 00 0a 00 00 00 09'
 if [ "$res" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(17)"
@@ -401,7 +403,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Send get config command to the TPM: CMD_GET_CONFIG = 00 00 00 0f
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0f')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0f')"
 exp=" 00 00 00 00 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_GET_CONFIG:"
@@ -411,7 +413,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x03')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x03')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_SHUTDOWN:"
@@ -420,44 +422,44 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-if wait_file_gone $PID_FILE 2; then
+if wait_file_gone "$PID_FILE" 2; then
 	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if wait_process_gone ${PID} 4; then
+if wait_process_gone "${PID}" 4; then
 	echo "Error: Socket TPM should not be running anymore."
 	exit 1
 fi
 
 # Expecting to see an error message for the unknown command
-check_logfile_patterns_level_1 $LOG_FILE 1
-rm -f $LOG_FILE
+check_logfile_patterns_level_1 "$LOG_FILE" 1
+rm -f "$LOG_FILE"
 
 echo "OK"
 
 # Test 3: test the control channel on the socket tpm: resume encrypted state
 
 # copy all the state files
-cp ${TESTDIR}/data/tpmstate2/* ${TPMDIR}
+cp "${TESTDIR}"/data/tpmstate2/* "${TPMDIR}"
 
-run_swtpm ${SWTPM_INTERFACE} \
-	--tpmstate dir=$TPMDIR \
-	--pid file=$PID_FILE \
-	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512 \
-	--log file=$LOG_FILE,level=20 \
+run_swtpm "${SWTPM_INTERFACE}" \
+	--tpmstate "dir=$TPMDIR" \
+	--pid "file=$PID_FILE" \
+	--key "pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512" \
+	--log "file=$LOG_FILE,level=20" \
 	--flags not-need-init
 PID=$SWTPM_PID
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file "$PID_FILE" 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 # Read PCR 10
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
+res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
 if [ "$res" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
@@ -468,7 +470,7 @@ fi
 
 # Get the volatile state of the TPM: CMD_GET_STATEBLOB = 00 00 00 0c
 #                                                      cmd  |     flags     |     type      |    offset     |
-vstate="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00')"
+vstate="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00')"
 #      result    |   flags   | totlength |   length  |
 exp=" 00 00 00 00 00 00 00 02 00 00 05 22 00 00 05 22"
 if [ "${vstate:0:48}" != "$exp" ]; then
@@ -479,7 +481,7 @@ if [ "${vstate:0:48}" != "$exp" ]; then
 fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x03')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x03')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_SHUTDOWN:"
@@ -488,41 +490,41 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-if wait_file_gone $PID_FILE 2; then
+if wait_file_gone "$PID_FILE" 2; then
 	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if wait_process_gone ${PID} 4; then
+if wait_process_gone "${PID}" 4; then
 	echo "Error: Socket TPM should not be running anymore."
 	exit 1
 fi
 
-check_logfile_patterns_level_20 $LOG_FILE
-rm -f $LOG_FILE
+check_logfile_patterns_level_20 "$LOG_FILE"
+rm -f "$LOG_FILE"
 
 echo "OK"
 
 # remove volatile state
-rm -f $TPMDIR/*.volatilestate
+rm -f "$TPMDIR"/*.volatilestate
 
-run_swtpm ${SWTPM_INTERFACE} \
-	--tpmstate dir=$TPMDIR \
-	--pid file=$PID_FILE \
-	--key pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512 \
-	--log file=$LOG_FILE \
+run_swtpm "${SWTPM_INTERFACE}" \
+	--tpmstate "dir=$TPMDIR" \
+	--pid "file=$PID_FILE" \
+	--key "pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512" \
+	--log "file=$LOG_FILE" \
 	--flags not-need-init
 PID=$SWTPM_PID
 
-if wait_for_file $PID_FILE 3; then
+if wait_for_file "$PID_FILE" 3; then
 	echo "Error: Socket TPM did not write pidfile."
 	exit 1
 fi
 
-validate_pidfile $PID $PID_FILE
+validate_pidfile "$PID" "$PID_FILE"
 
 # Read PCR 10 -- this should fail now
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
+res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
 exp=' 00 c4 00 00 00 0a 00 00 00 26'
 if [ "$res" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
@@ -532,7 +534,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Send stop command to the TPM: CMD_STOP = 00 00 00 0e
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x0e')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x0e')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_STOP:"
@@ -547,7 +549,7 @@ vstate=${vstate:48}
 size=$((${#vstate} / 3))
 size=$(printf "%08x" $size | sed 's/\([0-9a-f]\{2\}\)/\\x\1/g')
 vstate=$(echo "${vstate}" | sed 's/ /\\x/g')
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} "\x00\x00\x00\x0d\x00\x00\x00\x02\x00\x00\x00\x02${size}${vstate}")"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" "\x00\x00\x00\x0d\x00\x00\x00\x02\x00\x00\x00\x02${size}${vstate}")"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_SET_STATEBLOB:"
@@ -557,7 +559,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Send init command to the TPM: CMD_INIT = 00 00 00 02
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x02\x00\x00\x00\x00')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x02\x00\x00\x00\x00')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_INIT:"
@@ -567,7 +569,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Read PCR 10 -- has to return same result as before
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
+res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0E\x00\x00\x00\x15\x00\x00\x00\x0a')"
 exp=' 00 c4 00 00 00 1e 00 00 00 00 c7 8a 6e 94 c7 3c 4d 7f c3 05 c8 a6 6b bf 15 45 f4 ed b7 a5'
 if [ "$res" != "$exp" ]; then
 	echo "Error: (1) Did not get expected result from TPM_PCRRead(10)"
@@ -577,7 +579,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Reset PCR 20 while in locality 0 -- should not work
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10')"
+res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10')"
 exp=' 00 c4 00 00 00 0a 00 00 00 33'
 if [ "$res" != "$exp" ]; then
 	echo "Error: Trying to reset PCR 20 in locality 0 returned unexpected result"
@@ -588,7 +590,7 @@ fi
 
 # In locality 2 we can reset PCR 20
 # Set the localoty on the TPM: CMD_SET_LOCALITY = 00 00 00 05 <locality>
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x05\x02')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x05\x02')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_SET_LOCALITY:"
@@ -598,7 +600,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Reset PCR 20 while in locality 2 -- has to work
-res="$(swtpm_cmd_tx ${SWTPM_INTERFACE} '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10')"
+res="$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x00\xC1\x00\x00\x00\x0F\x00\x00\x00\xC8\x00\x03\x00\x00\x10')"
 exp=' 00 c4 00 00 00 0a 00 00 00 00'
 if [ "$res" != "$exp" ]; then
 	echo "Error: Could not reset PCR 20 in locality 2"
@@ -608,7 +610,7 @@ if [ "$res" != "$exp" ]; then
 fi
 
 # Send shutdown command to the TPM: CMD_SHUTDOWN = 00 00 00 03
-res="$(swtpm_ctrl_tx ${SWTPM_INTERFACE} '\x00\x00\x00\x03')"
+res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" '\x00\x00\x00\x03')"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then
 	echo "Error: Socket TPM: Unexpected response from CMD_SHUTDOWN:"
@@ -617,19 +619,19 @@ if [ "$res" != "$exp" ]; then
 	exit 1
 fi
 
-if wait_file_gone $PID_FILE 2; then
+if wait_file_gone "$PID_FILE" 2; then
 	echo "Error: TPM should have removed PID file by now."
 	exit 1
 fi
 
-if wait_process_gone ${PID} 4; then
+if wait_process_gone "${PID}" 4; then
 	echo "Error: Socket TPM should not be running anymore."
 	exit 1
 fi
 
 # (Currently) expecting to see nothing in the log file
-check_logfile_patterns_level_1 $LOG_FILE 0
-rm -f $LOG_FILE
+check_logfile_patterns_level_1 "$LOG_FILE" 0
+rm -f "$LOG_FILE"
 
 echo "OK"
 
