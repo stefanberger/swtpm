@@ -244,9 +244,8 @@ syntax-check:
 # SC2126: Consider using grep -c instead of grep | wc
 # SC2143: Use grep -q instead of comparing output with [ -n .. ].
 # SC2148: Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.
-# SC2164: Use cd ... || exit in case cd fails.
 # SC2181: Check exit code directly with e.g. if mycmd;, not indirectly with $?.
-	shellcheck -e SC2001,SC2009,SC2010,SC2115,SC2126,SC2143,SC2148,SC2164,SC2181 \
+	shellcheck -e SC2001,SC2009,SC2010,SC2115,SC2126,SC2143,SC2148,SC2181 \
 		$(TESTS) $(TEST_UTILS) $(filter _test_%,$(EXTRA_DIST))
 
 check: check-am check-display

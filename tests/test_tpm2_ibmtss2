@@ -11,7 +11,7 @@ fi
 
 ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
-ABSTESTDIR=$(cd "${TESTDIR}" &>/dev/null;echo "${PWD}")
+ABSTESTDIR=$(cd "${TESTDIR}" &>/dev/null || exit 1;echo "${PWD}")
 
 PATCHESDIR=${ABSTESTDIR}/patches
 
@@ -44,11 +44,11 @@ SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
 	--tpmstate "dir=${WORKDIR}" \
 	--flags not-need-init
 
-pushd "${WORKDIR}" &>/dev/null
+pushd "${WORKDIR}" &>/dev/null || exit 1
 
 git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
 
-pushd ibmtpm20tss-tss &>/dev/null
+pushd ibmtpm20tss-tss &>/dev/null || exit 1
 
 git checkout tags/v1.6.0
 if [ $? -ne 0 ]; then
@@ -108,7 +108,7 @@ unset CFLAGS LDFLAGS LIBS
 ./configure --disable-tpm-1.2
 make -j4
 
-pushd utils
+pushd utils || exit 1
 
 export TPM_SERVER_NAME=127.0.0.1
 export TPM_INTERFACE_TYPE=socsim
@@ -145,9 +145,9 @@ if wait_process_gone "${SWTPM_PID}" 4; then
 	ret=1
 fi
 
-popd &>/dev/null
-popd &>/dev/null
-popd &>/dev/null
+popd &>/dev/null || exit 1
+popd &>/dev/null || exit 1
+popd &>/dev/null || exit 1
 
 [ $ret -eq 0 ] && echo "OK"
 
