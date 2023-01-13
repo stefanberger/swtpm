@@ -5,7 +5,7 @@ ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 
 export SWTPM_IOCTL_BUFFERSIZE=100
 export SWTPM_INTERFACE=cuse

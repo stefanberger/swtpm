@@ -24,7 +24,7 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 source "${TESTDIR}/common"
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 
 export SWTPM_INTERFACE=cuse
 bash _test_tpm2_file_permissions

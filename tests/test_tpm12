@@ -58,7 +58,7 @@ SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
 	--tpmstate "dir=${WORKDIR}/tpm12.2" \
 	--flags not-need-init
 
-pushd "${WORKDIR}" &>/dev/null
+pushd "${WORKDIR}" &>/dev/null || exit 1
 
 for ((i = 0; i < 3; i++)); do
 	curl -sJOL https://sourceforge.net/projects/ibmswtpm/files/tpm4769tar.gz/download
@@ -76,7 +76,7 @@ if [ "$hash" != ca99a3ccd3e41cdd9983086a9b944023b6049bbc ]; then
 fi
 tar -xzf tpm4769tar.gz
 
-pushd libtpm &>/dev/null
+pushd libtpm &>/dev/null || exit 1
 
 patch -p0 < "${TESTDIR}/patches/libtpm.patch"
 if [ $? -ne 0 ]; then
@@ -88,7 +88,7 @@ fi
 LIBS="" CFLAGS="-g -O2 -DOPENSSL_SUPPRESS_DEPRECATED=1" ./configure
 make -j "$(nproc)"
 
-pushd utils &>/dev/null
+pushd utils &>/dev/null || exit 1
 
 # variables used by TPM 1.2 tools and test suite
 export TPM_SERVER_PORT=${TPM_SERVER_PORT} \
@@ -143,8 +143,8 @@ wait_process_gone "${SWTPM1_PID}" 4
 $SWTPM_IOCTL --tcp :65443 -s
 wait_process_gone "${SWTPM_PID}" 4
 
-popd &>/dev/null
-popd &>/dev/null
+popd &>/dev/null || exit 1
+popd &>/dev/null || exit 1
 
 echo "OK"
 
