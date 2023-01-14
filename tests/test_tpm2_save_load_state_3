@@ -164,8 +164,7 @@ function test_nvram_state()
 			fi
 
 			# we want one line with xdigits and spaces
-			res=$(grep -E "^[ [:xdigit:]]+$" < "$TMPFILE" |
-				wc -l)
+			res=$(grep -c -E "^[ [:xdigit:]]+$" < "$TMPFILE")
 			if [ "$res" -ne 1 ]; then
 				echo "Error: nvread did not show expected results"
 				cat "$TMPFILE"
