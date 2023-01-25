@@ -130,7 +130,7 @@ for tst in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 20 23 25 26 1; do
     TPM_AUDITING=${TPM_AUDITING} TPM_TRANSPORT=${TPM_TRANSPORT} timeout 40 ./test_console.sh \
         --non-interactive "${tst}" >> "${TESTLOG}" </dev/null
     # Ignore all errors that occurred in test 1
-    if [ $tst != "1" ] && [ -n "$(grep "ERROR" "${TESTLOG}")" ]; then
+    if [ $tst != "1" ] && grep -q "ERROR" "${TESTLOG}"; then
         echo "Error occurred!"
         cat "${TESTLOG}"
         exit 1

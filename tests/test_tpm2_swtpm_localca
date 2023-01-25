@@ -23,7 +23,7 @@ PATH=${TOPBUILD}/src/swtpm_cert:$PATH
 
 source "${TESTDIR}/common"
 
-if [ -n "$(${CERTTOOL} --help | grep -E "\-\-verify-profile")" ]; then
+if ${CERTTOOL} --help | grep -q -E "\-\-verify-profile"; then
 	verify_profile="--verify-profile=medium"
 fi
 
@@ -78,20 +78,20 @@ do
   fi
 
   # Signing key should always be password protected
-  if [ -z "$(grep "ENCRYPTED PRIVATE KEY" "${SIGNINGKEY}")" ]; then
+  if ! grep -q "ENCRYPTED PRIVATE KEY" "${SIGNINGKEY}"; then
     echo "Error: Signing key is not password protected."
     exit 1
   fi
 
   # For the root CA's key we flip the password protection
   if [ -n "${SWTPM_ROOTCA_PASSWORD}" ] ;then
-     if [ -z "$(grep "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
+     if ! grep -q "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem"; then
        echo "Error: Root CA's private key is not password protected."
        exit 1
      fi
      unset SWTPM_ROOTCA_PASSWORD
   else
-     if [ -n "$(grep "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
+     if grep -q "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem"; then
        echo "Error: Root CA's private key is password protected but should not be."
        exit 1
      fi
@@ -108,10 +108,10 @@ do
 
   for u in $usage; do
     echo "$u"
-    if [ -z "$(${CERTTOOL} -i \
-                 --inder --infile "${workdir}/ek.cert" | \
-                grep "Key Usage" -A2 | \
-                grep "$u")" ]; then
+    if ! ${CERTTOOL} -i \
+            --inder --infile "${workdir}/ek.cert" | \
+            grep "Key Usage" -A2 | \
+            grep -q "$u"; then
       echo "Error: Could not find key usage $u in key created " \
            "with $params."
     else

@@ -38,7 +38,7 @@ _EOF_
 
 # We need to copy swtpm and libswtpm_libtpms.so to the workdir
 # so that swtpm_setup can access it as TESTUSER
-if [ -z "$(file "${SWTPM_EXE}" | grep ELF)" ]; then
+if ! file "${SWTPM_EXE}" | grep -q ELF; then
 	directory="$(dirname "${SWTPM_EXE}")/.libs"
 	if [ -d "${directory}" ]; then
 		cp "${directory}/swtpm" "${TPM_PATH}"
@@ -122,7 +122,7 @@ if [ "${SWTPM_INTERFACE}" != "cuse" ]; then
 fi
 
 # The log file must have grown
-if [ -z "$(grep "TestTest" "${LOGFILE}")" ]; then
+if ! grep -q "TestTest" "${LOGFILE}"; then
 	echo "Error: First line 'TestTest' missing in logfile."
 	exit 1
 fi
@@ -206,7 +206,7 @@ if [ "$(get_sha1_file "${STATE_FILE}")" = "${statefilehash}" ]; then
 	echo "Error: State file was not changed."
 	exit 1
 fi
-if [ -z "$(grep "TestTest" "${LOGFILE}")" ]; then
+if ! grep -q "TestTest" "${LOGFILE}"; then
 	echo "Error: First line 'TestTest' missing in logfile."
 	exit 1
 fi

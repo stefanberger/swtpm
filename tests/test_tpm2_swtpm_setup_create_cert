@@ -60,8 +60,11 @@ _EOF_
 export PATH=${TOPBUILD}/src/swtpm_cert:${PATH}
 
 keysizes="2048"
-if [ -n "$($SWTPM_SETUP --tpm2 --print-capabilities |
-	    grep tpm2-rsa-keysize-3072 )" ]; then
+if ${SWTPM_SETUP} \
+	--tpm2 \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--print-capabilities |
+     grep -q tpm2-rsa-keysize-3072; then
 	keysizes+=" 3072"
 fi
 
@@ -109,7 +112,7 @@ for keysize in ${keysizes}; do
 		exit 1
 	fi
 
-	if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "${keysize} bits")" ]; then
+	if ! $CERTTOOL --inder --infile "${certfile}" -i | grep -q "${keysize} bits"; then
 		echo "Error: EK file '${certfile}' is not an RSA ${keysize} bit key."
 		$CERTTOOL --inder --infile "${certfile}" -i
 		exit 1
@@ -216,7 +219,7 @@ for pwdfile in "" "${PWDFILE}"; do
 		exit 1
 	fi
 
-	if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "384 bits")" ]; then
+	if ! $CERTTOOL --inder --infile "${certfile}" -i | grep -q "384 bits"; then
 		echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
 		$CERTTOOL --inder --infile "${certfile}" -i
 		exit 1
