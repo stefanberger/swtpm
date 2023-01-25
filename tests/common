@@ -216,16 +216,16 @@ function wait_port_open()
 
 	for ((loop = 0; loop < loops; loop++)); do
 		if [ -n "$NETSTAT" ]; then
-			if [ -n "$(netstat -naptl 2>/dev/null |
-				   grep "LISTEN" |
-				   grep " $pid/" |
-				   grep ":$port ")" ]; then
+			if netstat -naptl 2>/dev/null |
+			    grep "LISTEN" |
+			    grep " $pid/" |
+			    grep -q ":$port "; then
 				return 1
 			fi
 		else
-			if [ -n "$(ss -nptl |
-				   grep ",pid=${pid}," |
-				   grep ":$port ")" ]; then
+			if ss -nptl | \
+			     grep ",pid=${pid}," | \
+			     grep -q ":$port "; then
 				return 1
 			fi
 		fi
@@ -250,16 +250,16 @@ function wait_port_closed()
 
 	for ((loop = 0; loop < loops; loop++)); do
 		if [ -n "$NETSTAT" ]; then
-			if [ -z "$(netstat -naptl 2>/dev/null |
-				   grep "LISTEN" |
-				   grep " $pid/" |
-				   grep ":$port ")" ]; then
+			if ! netstat -naptl 2>/dev/null | \
+				grep "LISTEN" | \
+				grep " $pid/" | \
+				grep -q ":$port "; then
 				return 1
 			fi
 		else
-			if [ -z "$(ss -nptl |
-				   grep ",pid=${pid}," |
-				   grep ":$port ")" ]; then
+			if ! ss -nptl | \
+			     grep ",pid=${pid}," | \
+			     grep -q ":$port "; then
 				return 1
 			fi
 		fi
@@ -920,12 +920,12 @@ function skip_test_linked_with_asan()
 	local act_exe
 
 	if [[ "$(uname -s)" =~ Linux ]]; then
-		if [ -z "$(file "${swtpm_exe}" | grep ELF)" ]; then
+		if ! file "${swtpm_exe}" | grep -q ELF; then
 			act_exe="$(dirname "${swtpm_exe}")"/.libs/"$(basename "${swtpm_exe}")"
 		else
 			act_exe="${swtpm_exe}"
 		fi
-		if [ -n "$(nm "${act_exe}" | grep __asan_)" ]; then
+		if nm "${act_exe}" | grep -q "__asan_"; then
 			echo "${act_exe} is built with ASAN"
 			exit 77
 		fi
@@ -952,13 +952,13 @@ function check_swtpm_no_storage_lock()
 	local pid="$1"
 
 	if [ -d "/proc/${pid}/fd" ]; then
-		if [ -n "$(ls -l "/proc/${pid}/fd" | grep -E "\.lock\$")" ]; then
+		if ls -l "/proc/${pid}/fd" | grep -q -E "\.lock\$"; then
 			echo "Error: swtpm must not have storage locked"
 			ls -l "/proc/${pid}/fd"
 			exit 1
 		fi
 	elif [ -n "$(type -P lsof)" ]; then
-		if [ -n "$(lsof -p "${pid}" | grep -e "\.lock\$")" ]; then
+		if lsof -p "${pid}" | grep -q -e "\.lock\$"; then
 			echo "Error: swtpm must not have storage locked"
 			lsof -p "${pid}"
 			exit 1
@@ -975,13 +975,13 @@ function check_swtpm_storage_locked()
 	local pid="$1"
 
 	if [ -d "/proc/${pid}/fd" ]; then
-		if [ -z "$(ls -l "/proc/${pid}/fd" | grep -E "\.lock\$")" ]; then
+		if ! ls -l "/proc/${pid}/fd" | grep -q -E "\.lock\$"; then
 			echo "Error: swtpm must have storage locked"
 			ls -l "/proc/${pid}/fd"
 			exit 1
 		fi
 	elif [ -n "$(type -P lsof)" ]; then
-		if [ -z "$(lsof -p "${pid}" | grep -e "\.lock\$")" ]; then
+		if ! lsof -p "${pid}" | grep -q -e "\.lock\$"; then
 			echo "Error: swtpm must have storage locked"
 			lsof -p "${pid}"
 			exit 1

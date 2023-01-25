@@ -28,7 +28,7 @@ if [ -z "$(type -P fallocate)" ]; then
 	exit 77
 fi
 
-if [ -z "$(fallocate --help 2>&1 | grep -E "\-\-posix")" ]; then
+if ! fallocate --help 2>&1 | grep -q -E "\-\-posix"; then
 	echo "This test requires fallocate to support --posix."
 	exit 77
 fi

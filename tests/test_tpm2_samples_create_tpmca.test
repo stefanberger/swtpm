@@ -20,7 +20,7 @@ if [ -z "$(type -P tpm2_ptool)" ]; then
 	exit 77
 fi
 
-if [ -z "$(tpm2_ptool | grep ",config,")" ]; then
+if ! tpm2_ptool | grep -q ",config,"; then
 	echo "tpm2_ptool does not support the config command"
 	exit 77
 fi
@@ -189,7 +189,7 @@ _EOF_
 		"^certserial = " \
 		"^SWTPM_PKCS11_PIN = mypin 123"; do
 		if [ -n "${regex}" ] && \
-		   [ -z "$(grep -E "${regex}" "${SWTPM_LOCALCA_CONF}")" ]; then
+		   ! grep  -q -E "${regex}" "${SWTPM_LOCALCA_CONF}"; then
 			echo "Error: Could not find regex '${regex}' in CA config file."
 			cat "${SWTPM_LOCALCA_CONF}"
 			exit 1
@@ -249,7 +249,7 @@ _EOF_
 
 	for ((i=0; i < ${#regexs}; i++)); do \
 		if [ -n "${regexs[$i]}" ] && \
-		   [ -z "$(echo "${certinfo}" | grep -E "${regexs[$i]}")" ]; then
+		   ! echo "${certinfo}" | grep -q -E "${regexs[$i]}"; then
 			echo "Error: Could not match regex '${regexs[$i]}' with certificate info:"
 			echo "${certinfo}"
 			exit 1

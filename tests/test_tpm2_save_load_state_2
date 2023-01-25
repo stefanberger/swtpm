@@ -77,7 +77,7 @@ function fillup_nvram()
 			echo "Error: createprimary failed."
 			exit 1
 		fi
-		if [ -z "$(grep 80000000 "$TMPFILE")" ]; then
+		if ! grep -q 80000000 "$TMPFILE"; then
 			echo "Error: createprimary did not result in expected handle 80000000"
 			exit 1
 		fi

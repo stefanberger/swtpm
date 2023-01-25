@@ -221,7 +221,7 @@ function test_primary()
 			echo "Error: createprimary failed."
 			exit 1
 		fi
-		if [ -z "$(grep 80000000 "$TMPFILE")" ]; then
+		if ! grep -q 80000000 "$TMPFILE"; then
 			echo "Error: createprimary did not result in expected handle 80000000"
 			exit 1
 		fi
@@ -244,7 +244,7 @@ function test_primary()
 	if [ "$check" -eq 1 ]; then
 		printf "Checking availability of key with perm. handle 0x81000000\n"
 		"${TOOLSPATH}/${PREFIX}getcapability" -cap 1 -pr 0x81000000 >"$TMPFILE"
-		if [ -z "$(grep 81000000 "$TMPFILE")" ]; then
+		if ! grep -q 81000000 "$TMPFILE"; then
 			echo "Could not find key with permanent handle 0x81000000"
 			exit 1
 		fi
@@ -275,7 +275,7 @@ function test_pcr_allocation()
 
 	local i res rc ha
 
-	if [ -z "$("$TOOLSPATH/${PREFIX}pcrallocate" | grep sha512)" ]; then
+	if ! "$TOOLSPATH/${PREFIX}pcrallocate" | grep -q sha512; then
 		echo " Skipping PCR Allocate test since it does not support sha512"
 		return 0
 	fi
@@ -286,13 +286,13 @@ function test_pcr_allocation()
 
 		for ((ha = 0; ha < 24; ha++)); do
 			"${TOOLSPATH}/${PREFIX}pcrread" -ha "${ha}" -halg sha512 > "$TMPFILE"
-			if [ -z "$(grep "^count 1.*$" "$TMPFILE")" ]; then
+			if ! grep -q "^count 1.*$" "$TMPFILE"; then
 				echo "Error: PCR ${ha} in SHA512 bank should be available for read before reboot"
 				cat "$TMPFILE"
 				exit 1
 			fi
 			"${TOOLSPATH}/${PREFIX}pcrread" -ha "${ha}" -halg sha256 > "$TMPFILE"
-			if [ -z "$(grep "^count 1.*$" "$TMPFILE")" ]; then
+			if ! grep -q "^count 1.*$" "$TMPFILE"; then
 				echo "Error: PCR ${ha} in SHA256 bank should be available for read before reboot"
 				cat "$TMPFILE"
 				exit 1
@@ -305,14 +305,14 @@ function test_pcr_allocation()
 
 		for ((ha = 0; ha < 24; ha++)); do
 			"${TOOLSPATH}/${PREFIX}pcrread" -ha "${ha}" -halg sha512 > "$TMPFILE"
-			if [ -z "$(grep "^count 0.*$" "$TMPFILE")" ]; then
+			if ! grep -q "^count 0.*$" "$TMPFILE"; then
 				echo "Error: PCR ${ha} in SHA512 bank should be unavailable for read after reboot"
 				cat "$TMPFILE"
 				exit 1
 			fi
 
 			"${TOOLSPATH}/${PREFIX}pcrread" -ha "${ha}" -halg sha256 > "$TMPFILE"
-			if [ -z "$(grep "^count 1.*$" "$TMPFILE")" ]; then
+			if ! grep -q "^count 1.*$" "$TMPFILE"; then
 				echo "Error: PCR ${ha} in SHA256 bank should be available for read after reboot"
 				exit 1
 			fi
@@ -498,7 +498,7 @@ function test_session()
 			echo "Error: createprimary for creating storage key failed."
 			exit 1
 		fi
-		if [ -z "$(grep 80000000 "$TMPFILE")" ]; then
+		if ! grep -q 80000000 "$TMPFILE"; then
 			echo "Error: createprimary did not result in expected handle 80000000"
 			cat "$TMPFILE"
 			exit 1
@@ -553,7 +553,7 @@ function test_hmac_context()
 			echo "Error: createprimary failed."
 			exit 1
 		fi
-		if [ -z "$(grep 80000000 "$TMPFILE")" ]; then
+		if ! grep -q 80000000 "$TMPFILE"; then
 			echo "Error: createprimary did not result in expected handle 80000000"
 			exit 1
 		fi
@@ -572,7 +572,7 @@ function test_hmac_context()
 			cat "$TMPFILE"
 			exit 1
 		fi
-		if [ -z "$(grep 80000001 "$TMPFILE")" ]; then
+		if ! grep -q 80000001 "$TMPFILE"; then
 			echo "Error: load did not result in expected handle 80000001"
 			exit 1
 		fi
@@ -582,7 +582,7 @@ function test_hmac_context()
 			echo "Error: could not start HMAC sequence"
 			exit 1
 		fi
-		if [ -z "$(grep 80000002 "$TMPFILE")" ]; then
+		if ! grep -q 80000002 "$TMPFILE"; then
 			echo "Error: load did not result in expected handle 80000002"
 			exit 1
 		fi
@@ -607,7 +607,7 @@ function test_hmac_context()
 			-hs 80000002 \
 			-if "${TMP2FILE}" -v |
 		      tail -n 4 > "${TMPFILE}"
-		if [ -z "$(grep " 6e 40 33 1a " "${TMPFILE}")" ]; then
+		if ! grep -q " 6e 40 33 1a " "${TMPFILE}"; then
 			echo "Error: Did not get expected result from completing HMAC sequence."
 			cat "$TMPFILE"
 			exit 1
@@ -633,7 +633,7 @@ function test_primary_volatile_load()
 			echo "Error: createprimary failed."
 			exit 1
 		fi
-		if [ -z "$(grep 80000000 "$TMPFILE")" ]; then
+		if ! grep -q 80000000 "$TMPFILE"; then
 			echo "Error: createprimary did not result in expected handle 80000000"
 			exit 1
 		fi
@@ -665,7 +665,7 @@ function test_primary_volatile_load()
 
 		printf "Checking availability of key with handle 0x80000000\n"
 		"${TOOLSPATH}/${PREFIX}getcapability" -cap 1 -pr 0x80000000 > "$TMPFILE"
-		if [ -z "$(grep 80000000 "$TMPFILE")" ]; then
+		if ! grep -q 80000000 "$TMPFILE"; then
 			echo "Could not find key with handle 0x80000000"
 			exit 1
 		fi
@@ -712,7 +712,7 @@ function test_external_key()
 			echo "Error: loadexternal failed."
 			exit 1
 		fi
-		if [ -z "$(grep 80000001 "$TMPFILE")" ]; then
+		if ! grep -q 80000001 "$TMPFILE"; then
 			echo "Error: loadexternal did not result in expected handle 80000001"
 			exit 1
 		fi
@@ -730,7 +730,7 @@ function test_external_key()
 			echo "Error: contextload on context of public key failed."
 			exit 1
 		fi
-		if [ -z "$(grep 80000001 "$TMPFILE")" ]; then
+		if ! grep -q 80000001 "$TMPFILE"; then
 			echo "Error: contextload did not result in expected handle 80000001"
 			exit 1
 		fi

@@ -96,7 +96,7 @@ if [ ! -r "${CERTSERIAL}" ]; then
 	exit 1
 fi
 
-if [ -z "$(grep "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem")" ]; then
+if ! grep -q "ENCRYPTED PRIVATE KEY" "${workdir}/swtpm-localca-rootca-privkey.pem"; then
 	echo "Error: Root CA's private key should be encrypted"
 	cat "${workdir}/swtpm-localca-rootca-privkey.pem"
 	exit 1
@@ -109,7 +109,7 @@ if [ ! -f "${certfile}" ]; then
 	exit 1
 fi
 
-if [ -z "$($CERTTOOL --inder --infile "${certfile}" -i | grep "2048 bits")" ]; then
+if ! $CERTTOOL --inder --infile "${certfile}" -i | grep -q "2048 bits"; then
 	echo "Error: EK file '${certfile}' is not an RSA 2048 bit key."
 	$CERTTOOL --inder --infile "${certfile}" -i
 	exit 1
@@ -119,8 +119,8 @@ expiration="$($CERTTOOL --inder --infile "${certfile}" -i | grep "Not After:")"
 expected1="Not After: Fri Dec 31 23:59:59 UTC 9999"
 # 32bit machines
 expected2="Not After: Thu Dec 31 23:23:23 UTC 2037"
-if [ -z "$(echo "${expiration}" | grep "${expected1}")" ] && \
-   [ -z "$(echo "${expiration}" | grep "${expected2}")" ]; then
+if ! echo "${expiration}" | grep -q "${expected1}" && \
+   ! echo "${expiration}" | grep -q "${expected2}"; then
 	echo "Error: EK file '${certfile}' does not expire in 9999 or 2037"
 	echo "actual   : ${expiration}"
 	echo "expected1: ${expected1}"

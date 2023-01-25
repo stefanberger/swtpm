@@ -40,7 +40,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if [ -z "$(grep "${dummydata}" "${statefile}")" ]; then
+if ! grep -q "${dummydata}" "${statefile}"; then
 	echo "Test 1 failed: Error: The state file was unexpectedly overwritten."
 	echo "Setup Logfile:"
 	cat "${workdir}/logfile"
@@ -71,7 +71,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if [ -n "$(grep "${dummydata}" "${statefile}")" ]; then
+if grep -q "${dummydata}" "${statefile}"; then
 	echo "Test 2 failed: Error: The state file was not overwritten."
 	echo "Setup Logfile:"
 	cat "${workdir}/logfile"
@@ -101,7 +101,7 @@ if [ $? -ne 1 ]; then
 	exit 1
 fi
 
-if [ -z "$(grep "${dummydata}" "${statefile}")" ]; then
+if ! grep -q "${dummydata}" "${statefile}"; then
 	echo "Test 3 failed: Error: The state file was unexpectedly overwritten."
 	echo "Setup Logfile:"
 	cat "${workdir}/logfile"

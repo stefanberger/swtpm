@@ -99,7 +99,7 @@ if [ "$revision" -lt 155 ]; then
 	git am < "${PATCHESDIR}/0009-Disable-getcapability-TPM_CAP_ACT.patch"
 fi
 
-if [ -n "$(openssl version | grep -E "^OpenSSL 3")" ]; then
+if openssl version | grep -q -E "^OpenSSL 3"; then
 	git am < "${PATCHESDIR}/0010-Adjust-test-cases-for-OpenSSL-3.patch"
 fi
 
@@ -127,7 +127,7 @@ fi
 
 ret=0
 
-if [ -n "$(grep -E "^ ERROR:" "${REGLOG}")" ]; then
+if grep -q -E "^ ERROR:" "${REGLOG}"; then
 	echo "There were test failures running the IBM TSS 2 tests"
 	grep -E "^ ERROR:" "${REGLOG}" -B2 -A2
 	ret=1

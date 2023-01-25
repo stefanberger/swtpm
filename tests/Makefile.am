@@ -241,10 +241,9 @@ syntax-check:
 # SC2009: Consider using pgrep instead of grepping ps output.
 # Sc2010: Don't use ls | grep. Use a glob or a for loop with a condition to allow non-alphanumeric filenames.
 # SC2115: Use "${var:?}" to ensure this never expands to /*.
-# SC2143: Use grep -q instead of comparing output with [ -n .. ].
 # SC2148: Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.
 # SC2181: Check exit code directly with e.g. if mycmd;, not indirectly with $?.
-	shellcheck -e SC2001,SC2009,SC2010,SC2115,SC2143,SC2148,SC2181 \
+	shellcheck -e SC2001,SC2009,SC2010,SC2115,SC2148,SC2181 \
 		$(TESTS) $(TEST_UTILS) $(filter _test_%,$(EXTRA_DIST))
 
 check: check-am check-display

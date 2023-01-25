@@ -33,7 +33,7 @@ PATH="${TOPBUILD}/src/swtpm_cert:$PATH"
 
 source "${TESTDIR}/common"
 
-if [ -n "$(${CERTTOOL} --help | grep -E "\-\-verify-profile")" ]; then
+if ${CERTTOOL} --help | grep -q -E "\-\-verify-profile"; then
 	verify_profile="--verify-profile=medium"
 fi
 
@@ -195,10 +195,10 @@ do
   IFS=","
 
   for u in $usage; do
-    if [ -z "$(${CERTTOOL} -i \
-                 --inder --infile "${workdir}/ek.cert" | \
-                grep "Key Usage" -A2 | \
-                grep "$u")" ]; then
+    if ! ${CERTTOOL} -i \
+            --inder --infile "${workdir}/ek.cert" | \
+            grep "Key Usage" -A2 | \
+            grep -q "$u"; then
       echo "Error: Could not find key usage $u in key created " \
            "with $params."
     else

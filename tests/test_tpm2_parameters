@@ -81,7 +81,7 @@ function cleanup()
 	fi
 }
 
-if [ -n "$($TPMAUTHORING --tpm2 --print-capabilities | grep tpm2-rsa-keysize-3072 )" ]; then
+if $TPMAUTHORING --tpm2 --print-capabilities | grep -q tpm2-rsa-keysize-3072; then
 	PARAMETERS+=( "${PARAMETERS_3072[@]}" )
 fi
 
