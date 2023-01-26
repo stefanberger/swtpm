@@ -57,21 +57,18 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Initializing the ${SWTPM_INTERFACE} TPM failed."
 	exit 1
 fi
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
@@ -114,8 +111,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state into a file
-run_swtpm_ioctl "${SWTPM_INTERFACE}" --save volatile "$volatilestatefile"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --save volatile "$volatilestatefile"; then
 	echo "Error: Could not save the volatile state to ${volatilestatefile}."
 	exit 1
 fi
@@ -133,8 +129,7 @@ if [ "$size" -ne "$expsize" ]; then
 	exit 1
 fi
 
-tmp=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -g | cut -d":" -f2)
-if [ $? -ne 0 ]; then
+if ! tmp=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -g | cut -d":" -f2); then
 	echo "Error: Could not get the configration flags of the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -156,8 +151,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
@@ -165,15 +159,13 @@ fi
 # Do NOT init the TPM now; first load volatile state
 
 # load the encrypted volatile state into it
-run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$volatilestatefile"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$volatilestatefile"; then
 	echo "Error: Could not load encrypted volatile state into TPM."
 	exit 1
 fi
 
 # Now init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Initializing the ${SWTPM_INTERFACE} TPM failed."
 	exit 1
 fi
@@ -190,8 +182,7 @@ fi
 
 # Shut the TPM down
 exec 100>&-
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -205,8 +196,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
@@ -216,8 +206,7 @@ fi
 # load the encrypted volatile state into it
 # This will not work; the TPM writes the data into the volatile state file
 # and validates it
-ERR=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$volatilestatefile" 2>&1)
-if [ $? -eq 0 ]; then
+if ERR=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$volatilestatefile" 2>&1); then
 	echo "Error: Could load encrypted volatile state into TPM."
 	exit 1
 fi
@@ -229,8 +218,7 @@ if [ "$ERR" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -245,22 +233,19 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # load the encrypted volatile state into it
-run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$VOLATILESTATE"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$VOLATILESTATE"; then
 	echo "Error: Could not load encrypted volatile state into TPM."
 	exit 1
 fi
 
 # Now init the TPM; this must work
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -277,8 +262,7 @@ fi
 
 # Shut the TPM down
 exec 100>&-
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi

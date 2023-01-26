@@ -35,21 +35,18 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
@@ -65,8 +62,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check the TPM Established bit before the hashing
-RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
-if [ $? -ne 0 ]; then
+if ! RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e); then
 	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -79,8 +75,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234; then
 	echo "Error: The hash command failed."
 	exit 1
 fi
@@ -98,8 +93,7 @@ if ! [[ $RES =~ ^${exp}$ ]]; then
 fi
 
 # Check the TPM Established bit after the hashing
-RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
-if [ $? -ne 0 ]; then
+if ! RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e); then
 	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -113,16 +107,14 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Reset the establishment bit; we switch to locality 0 and reset via locality 3
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 0
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 0; then
 	echo "Error: Could not set locality 0"
 	exit 1
 fi
 
 for ((l = 0; l <= 2; l++)); do
 	# Resetting via locality 2 must fail
-	ERR="$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -r "$l" 2>&1)"
-	if [ $? -eq 0 ]; then
+	if ERR="$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -r "$l" 2>&1)"; then
 		echo "Error: Could reset the establishment bit via locality $l"
 		exit 1
 	fi
@@ -136,15 +128,13 @@ for ((l = 0; l <= 2; l++)); do
 done
 
 # Resetting via locality 3 must work
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -r 3
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -r 3; then
 	echo "Error: Could not reset the establishment bit via locality 3"
 	exit 1
 fi
 
 # Check the TPM Established bit after the reset
-RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
-if [ $? -ne 0 ]; then
+if ! RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e); then
 	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -173,16 +163,14 @@ if ! [[ $RES =~ ^${exp}$ ]]; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 sleep 0.5
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -eq 0 ]; then
+if kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi

@@ -58,8 +58,7 @@ if wait_port_open $PORT $PID 4; then
 	exit 1
 fi
 
-kill_quiet -0 $PID
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 $PID; then
 	echo "Test 1 failed: TPM process not running"
 	exit 1
 fi
@@ -71,8 +70,7 @@ fi
 
 validate_pidfile "$PID" "$PID_FILE"
 
-${SWTPM_BIOS} &>/dev/null
-if [ $? -ne 0 ]; then
+if ! ${SWTPM_BIOS} &>/dev/null; then
 	echo "Test 1 failed: ${SWTPM_BIOS} did not work"
 	exit 1
 fi
@@ -132,8 +130,7 @@ if [ $RES -ne 0 ]; then
 	exit 1
 fi
 
-exec 100<>/dev/tcp/localhost/$PORT
-if [ $? -ne 0 ]; then
+if ! exec 100<>/dev/tcp/localhost/$PORT; then
 	echo "Test 2 failed: Could not connect to TPM"
 	exit 1
 fi
@@ -196,8 +193,7 @@ if wait_port_open $PORT $PID 4; then
 	exit 1
 fi
 
-kill_quiet -0 "$PID"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "$PID"; then
 	echo "Test 4 failed: TPM process not running"
 	exit 1
 fi
@@ -209,8 +205,7 @@ fi
 
 validate_pidfile "$PID" "$PID_FILE"
 
-${SWTPM_BIOS} &>/dev/null
-if [ $? -ne 0 ]; then
+if ! ${SWTPM_BIOS} &>/dev/null; then
 	echo "Test 4 failed: ${SWTPM_BIOS} did not work"
 	exit 1
 fi

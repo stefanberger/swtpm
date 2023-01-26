@@ -35,24 +35,21 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--migration release-lock-outgoing \
 	--tpm2
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 check_swtpm_no_storage_lock "${SWTPM_PID}"
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 check_swtpm_storage_locked "${SWTPM_PID}"
 swtpm_lock_storage "re-lock"
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
@@ -69,8 +66,7 @@ fi
 check_swtpm_storage_locked "${SWTPM_PID}"
 swtpm_lock_storage "re-lock"
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234; then
 	echo "Error: Hash command did not work."
 	exit 1
 fi
@@ -86,8 +82,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" --save permanent "$MY_PERMANENT_STATE_FILE"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --save permanent "$MY_PERMANENT_STATE_FILE"; then
 	echo "Error: Could not write permanent state file $MY_PERMANENT_STATE_FILE."
 	exit 1
 fi
@@ -99,8 +94,7 @@ echo "Saved permanent state."
 check_swtpm_storage_locked "${SWTPM_PID}"
 swtpm_lock_storage "re-lock"
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" --save volatile "$MY_VOLATILE_STATE_FILE"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --save volatile "$MY_VOLATILE_STATE_FILE"; then
 	echo "Error: Could not write volatile state file $MY_VOLATILE_STATE_FILE."
 	exit 1
 fi
@@ -112,8 +106,7 @@ echo "Saved volatile state."
 check_swtpm_storage_locked "${SWTPM_PID}"
 swtpm_lock_storage "re-lock"
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" --save savestate "$MY_SAVESTATE_STATE_FILE"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --save savestate "$MY_SAVESTATE_STATE_FILE"; then
 	echo "Error: Could not write savestate state file $MY_SAVESTATE_STATE_FILE."
 	exit 1
 fi
@@ -142,8 +135,7 @@ fi
 check_swtpm_storage_locked "${SWTPM_PID}"
 swtpm_lock_storage "re-lock"
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -159,16 +151,14 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--migration incoming,release-lock-outgoing \
 	--tpm2
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 check_swtpm_no_storage_lock "${SWTPM_PID}"
 
 # load state into the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" --load permanent "$MY_PERMANENT_STATE_FILE"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --load permanent "$MY_PERMANENT_STATE_FILE"; then
 	echo "Could not load permanent state into vTPM"
 	exit 1
 fi
@@ -176,8 +166,7 @@ echo "Loaded permanent state."
 check_swtpm_storage_locked "${SWTPM_PID}"
 swtpm_lock_storage "re-lock"
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$MY_VOLATILE_STATE_FILE"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --load volatile "$MY_VOLATILE_STATE_FILE"; then
 	echo "Could not load volatile state into vTPM"
 	exit 1
 fi
@@ -185,8 +174,7 @@ echo "Loaded volatile state."
 check_swtpm_storage_locked "${SWTPM_PID}"
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "TPM Init failed."
 	exit 1
 fi
@@ -210,8 +198,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state again
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -v; then
 	echo "Error: Could not have the ${SWTPM_INTERFACE} TPM store the volatile state to a file."
 	exit 1
 fi
@@ -222,8 +209,7 @@ if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 fi
 
 # Send a new TPM_Init
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -245,8 +231,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Final shut down
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi

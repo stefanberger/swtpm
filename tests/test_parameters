@@ -89,12 +89,11 @@ for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 	rm -rf "$TPMDIR"/*
 	echo -n "Test $i: "
 	params=${PARAMETERS[$i]}
-	$TPMAUTHORING \
+	if ! $TPMAUTHORING \
 		--tpm-state "$TPMDIR" \
 		--tpm "$SWTPM_EXE socket ${SWTPM_TEST_SECCOMP_OPT}" \
-		${params:+${params}} &>/dev/null
-
-	if [ $? -ne 0 ]; then
+		${params:+${params}} &>/dev/null;
+	then
 		echo "ERROR: Test with parameters '${params}' failed."
 		exit 1
 	elif [ ! -f "$TPMDIR/tpm-00.permall" ]; then

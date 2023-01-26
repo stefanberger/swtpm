@@ -3,8 +3,7 @@
 
 # Some distros may not have the device
 if [ ! -c /dev/vtpmx ]; then
-	modprobe tpm_vtpm_proxy
-	if [ $? -ne 0 ]; then
+	if ! modprobe tpm_vtpm_proxy; then
 		echo "Skipping test using vtpm proxy module: module not available"
 		exit 77
 	fi

@@ -34,15 +34,13 @@ rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Check the buffer size
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -b 0 > "${OUTFILE}"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -b 0 > "${OUTFILE}"; then
 	echo "Error: Could not get the buffersize of the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -54,8 +52,7 @@ if ! grep "TPM buffersize" "${OUTFILE}" | grep -q 4096; then
 fi
 
 # set the buffer size -- it's not going to change but command must not fail
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -b 4000 > "${OUTFILE}"
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -b 4000 > "${OUTFILE}"; then
 	echo "Error: Could not set the buffersize of the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -67,21 +64,18 @@ if ! grep "TPM buffersize" "${OUTFILE}" | grep -q 4000; then
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Set the buffer size -- should fail
-ERR="$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -b 4096 2>&1)"
-if [ $? -eq 0 ]; then
+if ERR="$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -b 4096 2>&1)"; then
 	echo "Error: Could set the buffersize while the ${SWTPM_INTERFACE} TPM is running."
 	exit 1
 fi
@@ -113,8 +107,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi

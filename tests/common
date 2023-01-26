@@ -171,8 +171,9 @@ function wait_for_serversocket()
   local loops=$((timeout * 10)) loop
 
   for ((loop=0; loop<loops; loop++)); do
-    (exec 127<>"/dev/tcp/${host}/${port}") &>/dev/null
-    [ $? -eq 0 ] && return 1
+    if (exec 127<>"/dev/tcp/${host}/${port}") &>/dev/null; then
+      return 1
+    fi
     sleep 0.1
   done
   return 0
@@ -192,8 +193,9 @@ function wait_serversocket_gone()
   local loops=$((timeout * 10)) loop
 
   for ((loop=0; loop<loops; loop++)); do
-    (exec 127<>"/dev/tcp/${host}/${port}") &>/dev/null
-    [ $? -eq 0 ] || return 1
+    if ! (exec 127<>"/dev/tcp/${host}/${port}") &>/dev/null; then
+      return 1
+    fi
     sleep 0.1
   done
   return 0

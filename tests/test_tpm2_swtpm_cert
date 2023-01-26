@@ -35,7 +35,7 @@ function check_cert_size()
 	fi
 }
 
-${SWTPM_CERT} \
+if ! ${SWTPM_CERT} \
 	--tpm2 \
 	--allow-signing \
 	--signkey "${TESTDIR}/data/signkey.pem" \
@@ -45,9 +45,7 @@ ${SWTPM_CERT} \
 	--days 3650 \
 	--pem \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0
-
-if [ $? -ne 0 ]; then
+	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
 	echo "Error: ${SWTPM_CERT} returned error code."
 	exit 1
 fi
@@ -59,7 +57,7 @@ check_cert_size "${cert}" 1224
 echo -n > "${cert}"
 echo "Test 1: OK"
 
-${SWTPM_CERT} \
+if ! ${SWTPM_CERT} \
 	--tpm2 \
 	--signkey "${TESTDIR}/data/signkey.pem" \
 	--issuercert "${TESTDIR}/data/issuercert.pem" \
@@ -69,9 +67,7 @@ ${SWTPM_CERT} \
 	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
 	--pem \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0
-
-if [ $? -ne 0 ]; then
+	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
 	echo "Error: ${SWTPM_CERT} returned error code."
 	exit 1
 fi
@@ -83,7 +79,7 @@ check_cert_size "${cert}" 1302
 echo -n > "${cert}"
 echo "Test 2: OK"
 
-${SWTPM_CERT} \
+if ! ${SWTPM_CERT} \
 	--tpm2 \
 	--signkey "${TESTDIR}/data/signkey.pem" \
 	--issuercert "${TESTDIR}/data/issuercert.pem" \
@@ -93,9 +89,7 @@ ${SWTPM_CERT} \
 	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
 	--pem \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0
-
-if [ $? -ne 0 ]; then
+	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
 	echo "Error: ${SWTPM_CERT} returned error code."
 	exit 1
 fi
@@ -111,7 +105,7 @@ echo "Test 3: OK"
 
 ###################### Platform Certificate #####################
 
-${SWTPM_CERT} \
+if ! ${SWTPM_CERT} \
 	--tpm2 \
         --type platform \
 	--signkey "${TESTDIR}/data/signkey.pem" \
@@ -124,9 +118,7 @@ ${SWTPM_CERT} \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
 	--platform-manufacturer Fedora \
 	--platform-model QEMU \
-	--platform-version 2.1
-
-if [ $? -ne 0 ]; then
+	--platform-version 2.1; then
 	echo "Error: ${SWTPM_CERT} returned error code."
 	exit 1
 fi

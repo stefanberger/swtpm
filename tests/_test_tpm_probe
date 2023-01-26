@@ -35,8 +35,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
 display_processes_by_name "$SWTPM"
 
-kill -0 ${SWTPM_PID}
-if [ $? -ne 0 ]; then
+if ! kill -0 ${SWTPM_PID}; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
@@ -64,13 +63,11 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-check_seccomp_profile "${SWTPM_EXE}" "${SWTPM_PID}" 2
-if [ $? -ne 0 ]; then
+if ! check_seccomp_profile "${SWTPM_EXE}" "${SWTPM_PID}" 2; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi

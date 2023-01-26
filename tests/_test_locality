@@ -35,49 +35,42 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
 
 # Set locality 4 on the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 4
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 4."
 	exit 1
 fi
 
 # Set illegal locality 5 on the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 5
-if [ $? -eq 0 ]; then
+if run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 5; then
 	echo "Error: ${SWTPM_INTERFACE} TPM accepted locality 5."
 	exit 1
 fi
 
 # Set locality 0 on the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 0
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 0; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 0."
 	exit 1
 fi
 
 # In locality 2 we can reset PCR 20
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 2
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -l 2; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not accept locality 2."
 	exit 1
 fi
@@ -104,8 +97,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Shut down TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi

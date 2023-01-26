@@ -26,15 +26,14 @@ statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY"
 echo "$dummydata" > "${statefile}"
 
-$SWTPM_SETUP \
+if ! $SWTPM_SETUP \
 	--tpm2 \
 	--not-overwrite \
 	--tpm-state "${workdir}" \
 	--config "${SWTPM_SETUP_CONF}" \
 	--logfile "${workdir}/logfile" \
-	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
-
-if [ $? -ne 0 ]; then
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+then
 	echo "Test 1 failed: Error: Could not run $SWTPM_SETUP."
 	echo "Setup Logfile:"
 	cat "${workdir}/logfile"
@@ -58,15 +57,14 @@ statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY"
 echo "$dummydata" > "${statefile}"
 
-$SWTPM_SETUP \
+if ! $SWTPM_SETUP \
 	--tpm2 \
 	--overwrite \
 	--tpm-state "${workdir}" \
 	--config "${SWTPM_SETUP_CONF}" \
 	--logfile "${workdir}/logfile" \
-	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
-
-if [ $? -ne 0 ]; then
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+then
 	echo "Test 2 failed: Error: Could not run $SWTPM_SETUP."
 	echo "Setup Logfile:"
 	cat "${workdir}/logfile"
@@ -96,7 +94,6 @@ $SWTPM_SETUP \
 	--config "${SWTPM_SETUP_CONF}" \
 	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
-
 if [ $? -ne 1 ]; then
 	echo "Test 3 failed: Error: $SWTPM_SETUP did not exit with exit code 1."
 	echo "Setup Logfile:"

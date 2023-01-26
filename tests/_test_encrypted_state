@@ -45,8 +45,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -61,16 +60,14 @@ if wait_file_gone "${keyfile}" 4; then
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
 	echo "TPM Logfile:"
 	cat "$logfile"
 	exit 1
 fi
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -87,8 +84,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234; then
 	echo "Error: Hash command did not work."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -106,8 +102,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -v; then
 	echo "Error: Saving the volatile state failed."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -121,8 +116,7 @@ if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 	exit 1
 fi
 
-tmp=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -g | cut -d":" -f2)
-if [ $? -ne 0 ]; then
+if ! tmp=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -g | cut -d":" -f2); then
 	echo "Error: Could not get the configration flags of the ${SWTPM_INTERFACE} TPM."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -137,8 +131,7 @@ if [ "$tmp" != " 0x1" ]; then
 fi
 
 # Shut the TPM down
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -152,8 +145,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error (2): ${SWTPM_INTERFACE} TPM did not start."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -168,8 +160,7 @@ if wait_file_gone "${binkeyfile}" 4; then
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -195,8 +186,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Save the volatile state again
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -v
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -v; then
 	echo "Error: Saving the volatile state failed."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -211,8 +201,7 @@ if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 fi
 
 # Send a new TPM_Init
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
 	echo "TPM Logfile:"
 	cat "$logfile"
@@ -239,8 +228,7 @@ fi
 
 
 # Final shut down
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	echo "TPM Logfile:"
 	cat "$logfile"

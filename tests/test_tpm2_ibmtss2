@@ -50,8 +50,7 @@ git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
 
 pushd ibmtpm20tss-tss &>/dev/null || exit 1
 
-git checkout tags/v1.6.0
-if [ $? -ne 0 ]; then
+if ! git checkout tags/v1.6.0; then
 	echo "'Git checkout' failed."
 	exit 1
 fi
@@ -117,8 +116,7 @@ export TPM_PLATFORM_PORT=${SWTPM_CTRL_PORT}
 
 export SWTPM_IOCTL
 
-./startup
-if [ $? -ne 0 ]; then
+if ! ./startup; then
 	echo "Startup of TPM2 failed"
 	exit 1
 fi
@@ -134,8 +132,7 @@ if grep -q -E "^ ERROR:" "${REGLOG}"; then
 fi
 
 # Shut down
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	ret=1
 fi

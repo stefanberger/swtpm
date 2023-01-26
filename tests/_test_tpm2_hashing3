@@ -35,21 +35,18 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
@@ -57,8 +54,7 @@ fi
 # We do NOT need to startup the TPM; Hashing will affect PCR 0
 
 # Check the TPM Established bit before the hashing
-RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
-if [ $? -ne 0 ]; then
+if ! RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e); then
 	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -72,8 +68,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Hash
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -h 1234; then
 	echo "Error: The hash command failed."
 	exit 1
 fi
@@ -100,8 +95,7 @@ if [ "$RES" != "$exp" ]; then
 fi
 
 # Check the TPM Established bit after the hashing
-RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e)
-if [ $? -ne 0 ]; then
+if ! RES=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -e); then
 	echo "Error: Could not get the TPM Established bit from the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -114,8 +108,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi

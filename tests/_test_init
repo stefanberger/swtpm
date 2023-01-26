@@ -42,8 +42,7 @@ run_swtpm "${SWTPM_INTERFACE}" \
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
@@ -60,16 +59,14 @@ if [ "$PIDF" != "${SWTPM_PID}" ]; then
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 
 sleep 0.5
 
-kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
@@ -78,45 +75,39 @@ fi
 # works if the TPM runs as non-root
 if [ "$(id -u)" != "0" ]; then
 	chmod 000 "${STATE_FILE}"
-	run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-	if [ $? -eq 0 ]; then
+	if run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 		echo "Error: Unexpected initialization success of the ${SWTPM_INTERFACE} TPM."
 		exit 1
 	fi
 
 	sleep 0.5
 
-	kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-	if [ $? -ne 0 ]; then
+	if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 		echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after failed INIT."
 		exit 1
 	fi
 	chmod 644 "${STATE_FILE}"
 
 	# Init the TPM again; now with state file accessible again
-	run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-	if [ $? -ne 0 ]; then
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 		echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 		exit 1
 	fi
 
 	sleep 0.5
 
-	kill_quiet -0 "${SWTPM_PID}" 2>/dev/null
-	if [ $? -ne 0 ]; then
+	if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 		echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 		exit 1
 	fi
 fi
 
-check_seccomp_profile "${SWTPM_EXE}" ${SWTPM_PID} 0
-if [ $? -ne 0 ]; then
+if ! check_seccomp_profile "${SWTPM_EXE}" ${SWTPM_PID} 0; then
 	exit 1
 fi
 
 # Shut down
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi

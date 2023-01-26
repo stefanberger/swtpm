@@ -23,10 +23,9 @@ workdir="$(mktemp -d)" || exit 1
 
 FILES="swtpm-localca.conf swtpm-localca.options swtpm_setup.conf"
 
-XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
-	--create-config-files 1>/dev/null
-
-if [ $? -ne 0 ]; then
+if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files 1>/dev/null;
+then
 	echo "Error: Could not created config files (without parameters)"
 	exit 1
 fi
@@ -41,10 +40,9 @@ if ! [ -d "${workdir}/var/lib/swtpm-localca" ]; then
 	exit 1
 fi
 
-XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
-	--create-config-files skip-if-exist 1>/dev/null
-
-if [ $? -ne 0 ]; then
+if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files skip-if-exist 1>/dev/null;
+then
 	echo "Error: skip-if-exists should have exit'ed with 0."
 	exit 1
 fi
@@ -54,10 +52,9 @@ cleanup
 
 workdir="$(mktemp -d)" || exit 1
 
-XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
-	--create-config-files skip-if-exist 1>/dev/null
-
-if [ $? -ne 0 ]; then
+if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files skip-if-exist 1>/dev/null;
+then
 	echo "Error: skip-if-exists should have exit'ed with 0."
 	exit 1
 fi

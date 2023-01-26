@@ -39,8 +39,7 @@ if [ "$(id -u)" -eq 0 ] && [ "$(uname -s)" != "Darwin" ]; then
 	FOWNER=",uid=nobody,gid=$(id -Gn nobody | cut -d" " -f1)"
 	FILEOWNER="$(id -u nobody) $(id -G nobody | cut -d" " -f1)"
 	RUNAS="--runas nobody"
-	chown nobody "$TPMDIR"
-	if [ $? -ne 0 ]; then
+	if ! chown nobody "$TPMDIR"; then
 		echo "Error: Could not change ownership of $TPMDIR"
 		exit 1
 	fi

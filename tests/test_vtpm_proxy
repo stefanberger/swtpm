@@ -50,8 +50,7 @@ PID=$(ps aux | grep $SWTPM | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
 
 display_processes_by_name "$SWTPM"
 
-kill_quiet -0 "$PID"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "$PID"; then
 	echo "Error: Chardev TPM did not start."
 	exit 1
 fi
@@ -81,8 +80,7 @@ if ! [ -c "${TPM_DEVICE}" ]; then
 fi
 
 # Open access to the TPM
-exec 100<>"$TPM_DEVICE"
-if [ $? -ne 0 ]; then
+if ! exec 100<>"$TPM_DEVICE"; then
 	echo "Error: Could not open $TPM_DEVICE"
 	exit 1
 fi
@@ -101,8 +99,7 @@ fi
 
 exec 100>&-
 
-kill_quiet -0 "$PID"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "$PID"; then
 	echo "Error: Chardev TPM must have crashed."
 	exit 1
 fi
