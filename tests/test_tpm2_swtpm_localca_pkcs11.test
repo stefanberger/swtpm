@@ -9,9 +9,6 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm_localca
 
 workdir="$(mktemp -d)" || exit 1
-if [ $? -ne 0 ]; then
-	exit 1
-fi
 
 # Have softhsm_setup use 'workdir'.
 export SOFTHSM_SETUP_CONFIGDIR="${workdir}"
@@ -51,8 +48,7 @@ unset GNUTLS_PIN
 export PIN="abcdef"
 
 # Generate the PKCS11 token and key; it uses env. variable 'PIN'
-msg=$("${TESTDIR}/softhsm_setup" setup 2>&1)
-if [ $? -ne 0 ]; then
+if ! msg=$("${TESTDIR}/softhsm_setup" setup 2>&1); then
 	echo -e "Could not setup softhsm:\n${msg}"
 	echo "softhsm needs to be v2.3.0 or greater and pkcs11 correctly configured"
 	exit 77
@@ -66,11 +62,10 @@ cakey="${workdir}/swtpm-localca-rootca-privkey.pem"
 cacert="${workdir}/swtpm-localca-rootca-cert.pem"
 
 # first the private key
-msg=$(${CERTTOOL} \
+if ! msg=$(${CERTTOOL} \
 	--generate-privkey \
 	--outfile "${cakey}" \
-	2>&1)
-if [ $? -ne 0 ]; then
+	2>&1); then
 	echo "Could not create root-CA key ${cakey}."
 	echo "${msg}"
 	exit 1
@@ -85,13 +80,12 @@ cert_signing_key
 expiration_days = 3650
 _EOF_
 
-msg=$(${CERTTOOL} \
+if ! msg=$(${CERTTOOL} \
 	--generate-self-signed \
 	--template "${template}" \
 	--outfile "${cacert}" \
 	--load-privkey "${cakey}" \
-	2>&1)
-if [ $? -ne 0 ]; then
+	2>&1); then
 	echo "Could not create root CA."
 	echo "${msg}"
 	exit 1
@@ -101,11 +95,10 @@ fi
 
 pubkey="${workdir}/swtpm-localca-interm-pubkey.pem"
 
-msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
+if ! msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
 	--load-privkey "${pkcs11uri}" \
 	--pubkey-info \
-	--outfile "${pubkey}")
-if [ $? -ne 0 ]; then
+	--outfile "${pubkey}"); then
 	echo "Could not get public key for pkcs11 uri key ($pkcs11uri}."
 	echo "${msg}"
 	exit 1
@@ -118,7 +111,7 @@ cert_signing_key
 expiration_days = 3650
 _EOF_
 
-msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
+if ! msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
 	--generate-certificate \
 	--template "${template}" \
 	--outfile "${ISSUERCERT}" \
@@ -126,8 +119,7 @@ msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
 	--load-ca-certificate "${cacert}" \
 	--load-privkey "${pkcs11uri}" \
 	--load-pubkey "${pubkey}" \
-	2>&1)
-if [ $? -ne 0 ]; then
+	2>&1); then
 	echo "Could not create intermediate CA"
 	echo "${msg}"
 	exit 1
@@ -164,7 +156,7 @@ do
   params=$(echo "${testparams}" | cut -d"|" -f1)
   usage=$(echo "${testparams}" | cut -d"|" -f2)
 
-  msg=$(${SWTPM_LOCALCA} \
+  if ! msg=$(${SWTPM_LOCALCA} \
     --type ek \
     --ek "${ek}" \
     --dir "${workdir}" \
@@ -173,8 +165,7 @@ do
     --configfile "${workdir}/swtpm-localca.conf" \
     --optsfile "${workdir}/swtpm-localca.options" \
     --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
-    ${params:+${params}} 2>&1)
-  if [ $? -ne 0 ]; then
+    ${params:+${params}} 2>&1); then
     echo "Error: Test with parameters '$params' failed."
     echo "${msg}"
     if [[ "${msg}" =~ The\ requested\ PKCS\ #11\ object\ is\ not\ available ]]; then
@@ -213,12 +204,11 @@ do
     --inder --infile "${workdir}/ek.cert" \
     --outfile "${workdir}/ek.pem"
 
-  GNUTLS_PIN=${PIN} ${CERTTOOL} \
+  if ! GNUTLS_PIN=${PIN} ${CERTTOOL} \
     --verify \
     ${verify_profile} \
     --load-ca-certificate "${ISSUERCERT}" \
-    --infile "${workdir}/ek.pem"
-  if [ $? -ne 0 ]; then
+    --infile "${workdir}/ek.pem"; then
     echo "Error: Could not verify certificate chain."
     exit 1
   fi

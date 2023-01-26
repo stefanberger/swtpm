@@ -123,6 +123,7 @@ _EOF_
 
 	ncat -l ${SWTPM_FAKE_CTRL_PORT} \
 		-k -c "xargs --null -n1 printf '\x00\x00\x00\x00' 2>/dev/null" &
+	# shellcheck disable=SC2181
 	if [ $? -ne 0 ]; then
 		echo "Could not start ncat"
 		exit 1

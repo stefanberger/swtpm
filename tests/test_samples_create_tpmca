@@ -109,16 +109,14 @@ _EOF_
 	params="${params} --srkpass ${srk_password}"
 
 	# First setup the TPM and take ownership of it and set SRK password
-	$SWTPM_SETUP \
+	if ! $SWTPM_SETUP \
 		--runas root \
 		--tpm-state "${workdir}" \
 		--logfile "${workdir}/logfile" \
 		--config "${workdir}/swtpm_setup.conf" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--take-ownership \
-		${params:+${params}} >/dev/null
-
-	if [ $? -ne 0 ]; then
+		${params:+${params}} >/dev/null; then
 		echo "Error: Could not run $SWTPM_SETUP."
 		echo "Setup Logfile:"
 		cat "${workdir}/logfile"
@@ -174,8 +172,7 @@ _EOF_
 		# wait for PID to be written
 		sleep 0.5
 		TCSD_PID=$(cat "${TCSD_PIDFILE}")
-		kill_quiet -0 "${TCSD_PID}"
-		if [ $? -ne 0 ]; then
+		if ! kill_quiet -0 "${TCSD_PID}"; then
 			# Try again with root unless we already tried
 			if [ "$TSS_USER" != "root" ]; then
 				TSS_USER="root"
@@ -187,15 +184,13 @@ _EOF_
 		break
 	done
 
-	${SWTPM_CREATE_TPMCA} \
+	if ! ${SWTPM_CREATE_TPMCA} \
 		--dir "${SWTPM_LOCALCA_DIR}" \
 		--srk-password "${srk_password}" \
 		--register \
 		--group "${TSS_GROUP}" \
 		--tss-tcsd-port "${TCSD_LISTEN_PORT}" \
-		--outfile "${SWTPM_LOCALCA_CONF}" &>/dev/null
-
-	if [ $? -ne 0 ]; then
+		--outfile "${SWTPM_LOCALCA_CONF}" &>/dev/null; then
 		echo "Error: Could not create TPM CA"
 		exit 1
 	fi
@@ -241,7 +236,7 @@ _EOF_
 	fi
 
 	# make sure we can actually sign with this new certificate
-	${SWTPM_LOCALCA} \
+	if ! ${SWTPM_LOCALCA} \
 		--type ek \
 		--ek x=739192d8f1004283957a7b1568d610b41c637ccc114aadcac4908c20456468fa,y=59f63ac06f8011f6fdd1460c6bc8e3e0a2d090d4fc188c7e04870e06795ce8ae \
 		--dir "${workdir}" --vmid test \
@@ -249,8 +244,7 @@ _EOF_
 		--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 00 \
 		--tpm-model swtpm --tpm-version 20170101 --tpm-manufacturer IBM \
 		--configfile "${SWTPM_LOCALCA_CONF}" \
-		--optsfile /dev/null
-	if [ $? -ne 0 ]; then
+		--optsfile /dev/null; then
 		echo "Error: The CA could not sign with the new certificate"
 		exit 1
 	fi
@@ -297,8 +291,7 @@ _EOF_
 	kill_quiet -15 "${TCSD_PID}"
 
 	# Shut down TPM
-	run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-	if [ $? -ne 0 ]; then
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 		echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 		exit 1
 	fi

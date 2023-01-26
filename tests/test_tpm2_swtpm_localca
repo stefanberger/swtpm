@@ -62,7 +62,7 @@ do
   params=$(echo "${testparams}" | cut -d"|" -f1)
   usage=$(echo "${testparams}" | cut -d"|" -f2)
 
-  ${SWTPM_LOCALCA} \
+  if ! ${SWTPM_LOCALCA} \
     --type ek \
     --ek "${ek}" \
     --dir "${workdir}" \
@@ -71,8 +71,7 @@ do
     --configfile "${workdir}/swtpm-localca.conf" \
     --optsfile "${workdir}/swtpm-localca.options" \
     --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
-    ${params:+${params}}
-  if [ $? -ne 0 ]; then
+    ${params:+${params}}; then
     echo "Error: Test with parameters '$params' failed."
     exit 1
   fi
@@ -126,12 +125,11 @@ do
     --inder --infile "${workdir}/ek.cert" \
     --outfile "${workdir}/ek.pem"
 
-  ${CERTTOOL} \
+  if ! ${CERTTOOL} \
     --verify \
     ${verify_profile} \
     --load-ca-certificate "${ISSUERCERT}" \
-    --infile "${workdir}/ek.pem"
-  if [ $? -ne 0 ]; then
+    --infile "${workdir}/ek.pem"; then
     echo "Error: Could not verify certificate chain."
     exit 1
   fi
@@ -157,7 +155,7 @@ do
   in=$(echo "$vmid" | cut -d"|" -f1)
   exp=$(echo "$vmid" | cut -d"|" -f2)
 
-  ${SWTPM_LOCALCA} \
+  if ! ${SWTPM_LOCALCA} \
     --type ek \
     --ek "${ek}" \
     --dir "${workdir}" \
@@ -166,8 +164,7 @@ do
     --configfile "${workdir}/swtpm-localca.conf" \
     --optsfile "${workdir}/swtpm-localca.options" \
     --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
-    ${params:+${params}} &>/dev/null
-  if [ $? -ne 0 ]; then
+    ${params:+${params}} &>/dev/null; then
     echo "Error: Test with parameters '$params' failed."
     exit 1
   fi

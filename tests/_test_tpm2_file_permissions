@@ -67,8 +67,7 @@ chmod 0600 "${TPM_PATH}"/tpm2-00* "${PIDFILE}" "${PWDFILE}" "${LOGFILE}" "${SWTP
 chown "${TESTUSER}:${TESTGROUP}" "${TPM_PATH}"/*
 
 # Test-execute the swtpm program as $TESTUSER
-tmp=$(su -m "${TESTUSER}" -c "LD_LIBRARY_PATH=\"${SWTPM_LD_LIBRARY_PATH}\" \"${MY_SWTPM_EXE}\" --help 2>&1")
-if [ $? -ne 0 ]; then
+if ! tmp=$(su -m "${TESTUSER}" -c "LD_LIBRARY_PATH=\"${SWTPM_LD_LIBRARY_PATH}\" \"${MY_SWTPM_EXE}\" --help 2>&1"); then
 	echo "Could not run '${MY_SWTPM_EXE}' as ${TESTUSER}. Skipping swtpm_setup tests."
 	echo "Error: ${tmp}"
 	exit 77
@@ -84,15 +83,13 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
 	--key "pwdfile=${PWDFILE},kdf=sha512"
 
-kill -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
 
 # Init the TPM
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -149,8 +146,7 @@ if [ "$RES" != "$exp" ]; then
 	exit 1
 fi
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -171,29 +167,25 @@ echo "Test 1: OK"
 logsize=$(get_filesize "${LOGFILE}")
 statefilehash=$(get_sha1_file "${STATE_FILE}")
 
-LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
+if LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
 	--tpm2 \
 	--tpmstate "${TPM_PATH}" \
 	--logfile "${LOGFILE}" \
 	--runas "${TESTUSER}" \
 	--config "${SWTPM_SETUP_CONF}" \
-	--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
-
-if [ $? -eq 0 ]; then
+	--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"; then
 	echo "Error: ${SWTPM_SETUP} should have refused to overwrite existing state."
 	exit 1
 fi
 
-LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
+if ! LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
 	--tpm2 \
 	--tpmstate "${TPM_PATH}" \
 	--overwrite \
 	--logfile "${LOGFILE}" \
 	--runas "${TESTUSER}" \
 	--config "${SWTPM_SETUP_CONF}" \
-	--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"
-
-if [ $? -ne 0 ]; then
+	--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}"; then
 	echo "Error: ${SWTPM_SETUP} could not overwrite existing state. (1)"
 	cat "${LOGFILE}"
 	exit 1
@@ -221,7 +213,7 @@ echo "Test 2: OK"
 statefilehash=$(get_sha1_file "${STATE_FILE}")
 logsize=$(get_filesize "${LOGFILE}")
 
-LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
+if ! LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
 	--tpmstate "${TPM_PATH}" \
 	--overwrite \
 	--tpm2 \
@@ -229,9 +221,7 @@ LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
 	--runas "${TESTUSER}" \
 	--config "${SWTPM_SETUP_CONF}" \
 	--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--pwdfile "${PWDFILE}"
-
-if [ $? -ne 0 ]; then
+	--pwdfile "${PWDFILE}"; then
 	echo "Error: ${SWTPM_SETUP} could not overwrite existing state."
 	exit 1
 fi

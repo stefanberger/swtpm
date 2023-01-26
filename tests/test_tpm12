@@ -61,8 +61,7 @@ SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
 pushd "${WORKDIR}" &>/dev/null || exit 1
 
 for ((i = 0; i < 3; i++)); do
-	curl -sJOL https://sourceforge.net/projects/ibmswtpm/files/tpm4769tar.gz/download
-	if [ $? -eq 0 ]; then
+	if curl -sJOL https://sourceforge.net/projects/ibmswtpm/files/tpm4769tar.gz/download; then
 		break
 	fi
 	# wait 3..10 seconds for a retry
@@ -78,8 +77,7 @@ tar -xzf tpm4769tar.gz
 
 pushd libtpm &>/dev/null || exit 1
 
-patch -p0 < "${TESTDIR}/patches/libtpm.patch"
-if [ $? -ne 0 ]; then
+if ! patch -p0 < "${TESTDIR}/patches/libtpm.patch"; then
 	echo "Error: Patching failed."
 	exit 1
 fi

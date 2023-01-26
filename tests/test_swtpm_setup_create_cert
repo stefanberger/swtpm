@@ -59,16 +59,14 @@ export PATH=${ROOT}/src/swtpm_cert:${PATH}
 export SWTPM_ROOTCA_PASSWORD=password
 
 # we need to create at least one cert: --create-ek-cert
-WORKDIR=${workdir} \
-  $SWTPM_SETUP \
+if ! WORKDIR=${workdir} $SWTPM_SETUP \
 	--tpm-state "${workdir}" \
 	--create-ek-cert \
 	--config "${workdir}/swtpm_setup.conf" \
 	--logfile "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--write-ek-cert-files "${workdir}"
-
-if [ $? -ne 0 ]; then
+	--write-ek-cert-files "${workdir}";
+then
 	echo "Error: Could not run $SWTPM_SETUP."
 	echo "Setup Logfile:"
 	cat "${workdir}/logfile"

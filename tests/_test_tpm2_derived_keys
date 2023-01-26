@@ -40,8 +40,7 @@ cp "${TESTDIR}"/data/tpm2state1/* "${TPM_PATH}"
 
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
@@ -63,8 +62,7 @@ function tx_cmd()
 	local RES tmp
 
 	if [ "$reset" != "0" ]; then
-		run_swtpm_ioctl "${SWTPM_INTERFACE}" -i
-		if [ $? -ne 0 ]; then
+		if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 			echo "Error: Could not send TPM_INIT"
 			return 1
 		fi
@@ -270,8 +268,7 @@ esac
 revision=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 1 |
           sed 's/.*,"revision":\([^\}]*\).*/\1/')
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
@@ -298,8 +295,7 @@ cp -f "${TESTDIR}"/data/tpm2state4/* "${TPM_PATH}"
 
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
-kill_quiet -0 "${SWTPM_PID}"
-if [ $? -ne 0 ]; then
+if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
 	exit 1
 fi
@@ -318,8 +314,7 @@ tx_cmd 1 1 "$test4_cmd" "$test4_exp" "" || exit 1 && echo "Test 4: OK"
 tx_cmd 1 1 "$test5_cmd1" "$test5_exp1" "" || exit 1
 tx_cmd 0 0 "$test5_cmd2" "$test5_exp2" "" || exit 1 && echo "Test 5: OK"
 
-run_swtpm_ioctl "${SWTPM_INTERFACE}" -s
-if [ $? -ne 0 ]; then
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi

@@ -11,8 +11,7 @@ PATH=$ROOT/src/swtpm:$PATH
 [ "${SWTPM_IFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
 source "${TESTDIR}/common"
 
-msg="$(${SWTPM_EXE} "${SWTPM_IFACE}" --tpm2 --print-capabilities 2>&1)"
-if [ $? -ne 0 ]; then
+if ! msg="$(${SWTPM_EXE} "${SWTPM_IFACE}" --tpm2 --print-capabilities 2>&1)"; then
 	echo "Error: Could not pass --print-capabilities"
 	echo "${msg}"
 	exit 1
@@ -36,8 +35,7 @@ fi
 
 echo "Test 1: OK"
 
-msg="$(${SWTPM_SETUP} --tpm2 --print-capabilities 2>&1)"
-if [ $? -ne 0 ]; then
+if ! msg="$(${SWTPM_SETUP} --tpm2 --print-capabilities 2>&1)"; then
 	echo "Error: Could not pass --print-capabilities"
 	echo "${msg}"
 	exit 1
@@ -56,8 +54,7 @@ echo "Test 2: OK"
 
 # SWTPM_CERT may be run by valgrind
 if [ -x "$(type -P "$(echo "${SWTPM_CERT}" | cut -d" " -f1)" )" ]; then
-	msg="$(${SWTPM_CERT} --tpm2 --print-capabilities 2>&1)"
-	if [ $? -ne 0 ]; then
+	if ! msg="$(${SWTPM_CERT} --tpm2 --print-capabilities 2>&1)"; then
 		echo "Error: Could not pass --print-capabilities to ${SWTPM_CERT}"
 		echo "${msg}"
 		exit 1

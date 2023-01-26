@@ -8,14 +8,12 @@ if [ "${SWTPM_TEST_IBMTSS2:-0}" -eq 0 ]; then
 	exit 77
 fi
 
-type -p nvdefinespace startup &>/dev/null
-if [ $? -ne 0 ]; then
-    PREFIX=tss
-    type -p ${PREFIX}nvdefinespace ${PREFIX}startup
-fi
-if [ $? -ne 0 ]; then
-	echo "Could not find TPM2 tools (e.g., (tss)startup, (tss)nvdefinespace) in PATH."
-	exit 77
+if ! type -p nvdefinespace startup &>/dev/null; then
+	PREFIX=tss
+	if ! type -p ${PREFIX}nvdefinespace ${PREFIX}startup; then
+		echo "Could not find TPM2 tools (e.g., (tss)startup, (tss)nvdefinespace) in PATH."
+		exit 77
+	fi
 fi
 TOOLSPATH=$(dirname "$(type -P "${PREFIX}startup")")
 
@@ -72,8 +70,7 @@ function fillup_nvram()
 	if [ "$create" -eq 1 ]; then
 		# Fill up the NVRAM space with RSA 2048 keys;
 		# exactly 65 have to fit
-		"${TOOLSPATH}/${PREFIX}createprimary" -hi o -si > "$TMPFILE"
-		if [ $? -ne 0 ]; then
+		if ! "${TOOLSPATH}/${PREFIX}createprimary" -hi o -si > "$TMPFILE"; then
 			echo "Error: createprimary failed."
 			exit 1
 		fi
@@ -90,8 +87,7 @@ function fillup_nvram()
 		"${TOOLSPATH}/${PREFIX}getcapability" -cap 1 -pr 81000000 -pc 80 > "$TMPFILE"
 		# We need know we need to see '65 Handles' for state created with
 		# libtpms-0.6.0 and 128kb NVRAM size
-		grep -i "65 Handles" "$TMPFILE"
-		if [ $? -ne 0 ]; then
+		if ! grep -i "65 Handles" "$TMPFILE"; then
 			echo "Error: Did not find '65 Handles' keyword in output"
 			cat "$TMPFILE"
 			exit 1
@@ -114,11 +110,11 @@ function fillup_nvram()
 		if [ "$sz" -gt 0 ]; then
 			sz=$((sz - 1))
 			echo "Creating final space of size ${sz}"
-			"${TOOLSPATH}/${PREFIX}nvdefinespace" \
+			if ! "${TOOLSPATH}/${PREFIX}nvdefinespace" \
 				-hi o \
 				-ha 01000000 \
-				-sz ${sz} > "${TMPFILE}"
-			if [ $? -ne 0 ]; then
+				-sz ${sz} > "${TMPFILE}";
+			then
 				echo "Error: Could not create final NVRAM space."
 				cat "${TMPFILE}"
 				exit 1
@@ -138,11 +134,11 @@ function fillup_nvram()
 		fi
 
 		echo -n "123" > "$BINFILE"
-		"${TOOLSPATH}/${PREFIX}sign" \
+		if ! "${TOOLSPATH}/${PREFIX}sign" \
 			-hk 81000000 \
 			-if "${BINFILE}" \
-			-os "${SIGFILE}" > "$TMPFILE"
-		if [ $? -ne 0 ]; then
+			-os "${SIGFILE}" > "$TMPFILE";
+		then
 			echo "Error: Could not create signature."
 			cat "$TMPFILE"
 			exit 1
@@ -153,8 +149,7 @@ function fillup_nvram()
 		"${TOOLSPATH}/${PREFIX}getcapability" -cap 1 -pr 81000000 -pc 80 > "$TMPFILE"
 		# We need know we need to see '65 Handles' for state created with
 		# libtpms-0.6.0 and 128kb NVRAM size
-		grep -i "65 Handles" "$TMPFILE"
-		if [ $? -ne 0 ]; then
+		if ! grep -i "65 Handles" "$TMPFILE"; then
 			echo "Error: Did not find '65 Handles' keyword in output"
 			cat "$TMPFILE"
 			exit 1
@@ -163,11 +158,11 @@ function fillup_nvram()
 		printf "Verifying signature with all the persisted keys\n"
 		echo -n "123" > "$BINFILE"
 		for ((i = 0x81000000; i < 0x81000040; i++)); do
-			"${TOOLSPATH}/${PREFIX}verifysignature" \
+			if ! "${TOOLSPATH}/${PREFIX}verifysignature" \
 				-hk "$(printf "%x" "$i")" \
 				-is "${SIGFILE}" \
-				-if "${BINFILE}" > "$TMPFILE"
-			if [ $? -ne 0 ]; then
+				-if "${BINFILE}" > "$TMPFILE";
+			then
 				echo "Verifying signature failed for handle $(printf "%x" "$i")."
 				exit 1
 			fi
@@ -199,14 +194,12 @@ fi
 PID="$(cat "$PID_FILE")"
 
 # Send TPM_Init
-act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -i 2>&1)
-if [ $? -ne 0 ]; then
+if ! act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -i 2>&1); then
 	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
 	exit 1
 fi
 
-"${TOOLSPATH}/${PREFIX}startup" -c
-if [ $? -ne 0 ]; then
+if ! "${TOOLSPATH}/${PREFIX}startup" -c; then
 	echo "Error: tpm_startup clear failed."
 	exit 1
 fi
@@ -214,8 +207,7 @@ fi
 fillup_nvram 1 1
 
 # Send Shutdown
-act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1)
-if [ $? -ne 0 ]; then
+if ! act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1); then
 	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
 	exit 1
 fi
@@ -255,15 +247,13 @@ echo "TPM re-started"
 PID="$(cat "$PID_FILE")"
 
 # Send TPM_Init
-act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -i 2>&1)
-if [ $? -ne 0 ]; then
+if ! act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -i 2>&1); then
 	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
 	cat "$LOGFILE"
 	exit 1
 fi
 
-"${TOOLSPATH}/${PREFIX}startup" -c
-if [ $? -ne 0 ]; then
+if ! "${TOOLSPATH}/${PREFIX}startup" -c; then
 	echo "Error: tpm_startup clear failed."
 	cat "$LOGFILE"
 	exit 1
@@ -271,16 +261,14 @@ fi
 
 fillup_nvram 0 1
 
-"${TOOLSPATH}/${PREFIX}shutdown" -c
-if [ $? -ne 0 ]; then
+if ! "${TOOLSPATH}/${PREFIX}shutdown" -c; then
 	echo "Error: tpm_shutdown clear failed."
 	cat "$LOGFILE"
 	exit 1
 fi
 
 # Send Shutdown
-act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1)
-if [ $? -ne 0 ]; then
+if ! act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1); then
 	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
 	exit 1
 fi
@@ -320,14 +308,12 @@ echo "TPM started with previously generated state"
 PID="$(cat "$PID_FILE")"
 
 # Send TPM_Init
-act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -i 2>&1)
-if [ $? -ne 0 ]; then
+if ! act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -i 2>&1); then
 	echo "Error: $SWTPM_IOCTL CMD_INIT failed: $act"
 	exit 1
 fi
 
-"${TOOLSPATH}/${PREFIX}startup" -c
-if [ $? -ne 0 ]; then
+if ! "${TOOLSPATH}/${PREFIX}startup" -c; then
 	echo "Error: tpm_startup clear failed."
 	cat "$LOGFILE"
 	exit 1
@@ -335,16 +321,14 @@ fi
 
 fillup_nvram 0 1
 
-"${TOOLSPATH}/${PREFIX}shutdown" -c
-if [ $? -ne 0 ]; then
+if ! "${TOOLSPATH}/${PREFIX}shutdown" -c; then
 	echo "Error: tpm_shutdown clear failed."
 	cat "$LOGFILE"
 	exit 1
 fi
 
 # Send Shutdown
-act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1)
-if [ $? -ne 0 ]; then
+if ! act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1); then
 	echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
 	exit 1
 fi
