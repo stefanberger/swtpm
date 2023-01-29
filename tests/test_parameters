@@ -86,7 +86,7 @@ function cleanup()
 PATH=$PATH:$PWD
 
 for (( i=0; i<${#PARAMETERS[*]}; i++)); do
-	rm -rf "$TPMDIR"/*
+	rm -rf "${TPMDIR:?}"/*
 	echo -n "Test $i: "
 	params=${PARAMETERS[$i]}
 	if ! $TPMAUTHORING \
