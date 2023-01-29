@@ -92,7 +92,7 @@ function run_test() {
 
 	local params certinfo regex regexs fil i skip
 
-	rm -rf "${workdir}"/*
+	rm -rf "${workdir:?}"/*
 
 	cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
 create_certs_tool=${SWTPM_LOCALCA}
