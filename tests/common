@@ -954,6 +954,7 @@ function check_swtpm_no_storage_lock()
 	local pid="$1"
 
 	if [ -d "/proc/${pid}/fd" ]; then
+		# shellcheck disable=SC2010
 		if ls -l "/proc/${pid}/fd" | grep -q -E "\.lock\$"; then
 			echo "Error: swtpm must not have storage locked"
 			ls -l "/proc/${pid}/fd"
@@ -977,6 +978,7 @@ function check_swtpm_storage_locked()
 	local pid="$1"
 
 	if [ -d "/proc/${pid}/fd" ]; then
+		# shellcheck disable=SC2010
 		if ! ls -l "/proc/${pid}/fd" | grep -q -E "\.lock\$"; then
 			echo "Error: swtpm must have storage locked"
 			ls -l "/proc/${pid}/fd"
