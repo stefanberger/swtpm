@@ -237,10 +237,9 @@ check-display:
 
 .PHONY: syntax-check
 syntax-check:
-# SC2001: See if you can use ${variable//search/replace} instead.
 # SC2009: Consider using pgrep instead of grepping ps output.
 # SC2148: Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.
-	shellcheck -e SC2001,SC2009,SC2148 \
+	shellcheck -e SC2009,SC2148 \
 		$(TESTS) $(TEST_UTILS) $(filter _test_%,$(EXTRA_DIST))
 
 check: check-am check-display
