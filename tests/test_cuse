@@ -1,4 +1,6 @@
 
+# shellcheck shell=bash
+
 # For the license, see the LICENSE file in the root directory.
 
 if ! [[ "$(uname -s)" =~ Linux ]]; then
