@@ -547,7 +547,7 @@ fi
 vstate=${vstate:48}
 size=$((${#vstate} / 3))
 size=$(printf "%08x" $size | sed 's/\([0-9a-f]\{2\}\)/\\x\1/g')
-vstate=$(echo "${vstate}" | sed 's/ /\\x/g')
+vstate=${vstate// /\\x}
 res="$(swtpm_ctrl_tx "${SWTPM_INTERFACE}" "\x00\x00\x00\x0d\x00\x00\x00\x02\x00\x00\x00\x02${size}${vstate}")"
 exp=" 00 00 00 00"
 if [ "$res" != "$exp" ]; then

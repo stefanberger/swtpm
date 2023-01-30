@@ -130,7 +130,7 @@ echo -n 1 > "${CERTSERIAL}"
 # Now we can create the config files
 cat <<_EOF_ > "${workdir}/swtpm-localca.conf"
 statedir = ${workdir}
-signingkey = $(echo "${pkcs11uri}" | sed 's|;|\\;|g')
+signingkey = ${pkcs11uri//;/\\;}
 issuercert = ${ISSUERCERT}
 certserial = ${CERTSERIAL}
 SWTPM_PKCS11_PIN = ${PIN}
