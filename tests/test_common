@@ -1,5 +1,6 @@
 
 # shellcheck disable=SC2043
+# shellcheck shell=bash
 # For the license, see the LICENSE file in the root directory.
 
 function wait_for_file()
