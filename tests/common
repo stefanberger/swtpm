@@ -1,4 +1,6 @@
 
+# shellcheck shell=bash
+
 SWTPM=swtpm
 SWTPM_EXE=${SWTPM_EXE:-${ROOT}/src/swtpm/${SWTPM}}
 SWTPM_IOCTL=${SWTPM_IOCTL:-${ROOT}/src/swtpm_ioctl/swtpm_ioctl}
