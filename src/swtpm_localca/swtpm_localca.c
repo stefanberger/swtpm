@@ -585,6 +585,7 @@ int main(int argc, char *argv[])
         {"allow-signing", no_argument, NULL, 'i'},
         {"decryption", no_argument, NULL, 'y'},
         {"help", no_argument, NULL, 'h'},
+        {NULL, 0, NULL, 0},
     };
     g_autofree gchar *default_options_file = NULL;
     g_autofree gchar *default_config_file = NULL;
