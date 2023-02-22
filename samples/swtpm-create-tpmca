@@ -45,7 +45,7 @@ function get_filesize()
 # @param 1: The string to escape
 function escape_pkcs11_url()
 {
-	echo "$1" | sed 's/;/\\;/g'
+	echo "${1//;/\\;}"
 }
 
 # Use expect for automating the interaction with the tpmtool
@@ -62,6 +62,7 @@ run_tpmtool() {
 		return 1
 	fi
 
+	# shellcheck disable=SC2124,SC2027
 	prg="spawn tpmtool "$@"
 		expect {
 			\"Enter SRK password:\" {
@@ -105,31 +106,32 @@ create_localca_cert() {
 	local msg output
 
 	if ! [ -r "${cakey}" ] || ! [ -r "${cacert}" ]; then
-		msg=$("${CERTTOOL}" \
+		if ! msg=$("${CERTTOOL}" \
 			--generate-privkey \
 			${SWTPM_ROOTCA_PASSWORD:+--password "${SWTPM_ROOTCA_PASSWORD}"} \
 			--outfile "${cakey}" \
-			2>&1)
-		[ $? -ne 0 ] && {
+			2>&1);
+		then
 			logerr "Could not create root-CA key ${cakey}."
 			logerr "${msg}"
 			return 1
-		}
+		fi
 		chmod 640 "${cakey}"
 
-		echo "cn=swtpm-localca-rootca" > "${template}"
-		echo "ca" >> "${template}"
-		echo "cert_signing_key" >> "${template}"
-		echo "expiration_days = 3650" >> "${template}"
+		{
+			echo "cn=swtpm-localca-rootca"
+			echo "ca"
+			echo "cert_signing_key"
+			echo "expiration_days = 3650"
+		} > "${template}"
 
-		msg=$(GNUTLS_PIN="${SWTPM_ROOTCA_PASSWORD}" ${CERTTOOL} \
+		if ! msg=$(GNUTLS_PIN="${SWTPM_ROOTCA_PASSWORD}" ${CERTTOOL} \
 			--generate-self-signed \
 			--template "${template}" \
 			--outfile "${cacert}" \
 			--load-privkey "${cakey}" \
-			2>&1)
-
-		if [ $? -ne 0 ]; then
+			2>&1);
+		then
 			logerr "Could not create root CA."
 			logerr "${msg}"
 			rm -f "${cakey}" "${template}"
@@ -156,12 +158,12 @@ create_localca_cert() {
 				logerr "The env. variable SWTPM_PKCS11_SO_PIN must be set to create token ${label}."
 				return 1
 			fi
-			msg=$(tpm2_ptool addtoken \
+			if ! msg=$(tpm2_ptool addtoken \
 				--pid "${pid}" \
 				--sopin "${SWTPM_PKCS11_SO_PIN}" \
 				--userpin "${userpin}" \
-				--label "${label}" 2>&1)
-			if [ $? -ne 0 ]; then
+				--label "${label}" 2>&1);
+			then
 				logerr "Error: Could not create pkcs11 token"
 				logerr "${msg}"
 				return 1
@@ -174,11 +176,11 @@ create_localca_cert() {
 				logerr "${msg}"
 				return 1
 			fi
-			msg=$(tpm2_ptool config \
+			if ! msg=$(tpm2_ptool config \
 				--key tcti \
 				--value tabrmd \
-				--label "${label}")
-			if [ $? -ne 0 ]; then
+				--label "${label}");
+			then
 				logerr "Error: Could not set config value for tcti key"
 				logerr "${msg}"
 				return 1
@@ -188,26 +190,24 @@ create_localca_cert() {
 		export GNUTLS_PIN="${userpin}"
 		# GNUTLS_SO_PIN not needed at this point
 
-		msg="$(p11tool --login --list-keys "${tokenurl}" 2>&1)"
-		if [ $? -eq 0 ]; then
+		if msg="$(p11tool --login --list-keys "${tokenurl}" 2>&1)"; then
 			tpmkeyurl=$(echo "${msg}" | \
 				grep ";object=${keylabel}" | \
 				sed -n "s/.*URL: //p")
 		fi
 		if [ -z "${tpmkeyurl}" ]; then
-			msg=$(tpm2_ptool addkey \
+			if ! msg=$(tpm2_ptool addkey \
 				"--label=${label}" \
 				"--userpin=${userpin}" \
 				--algorithm=rsa2048 \
 				"--key-label=${keylabel}" \
-				--id 1 2>&1)
-			if [ $? -ne 0 ]; then
+				--id 1 2>&1);
+			then
 				logerr "Error: Could not create create key under pkcs11 token ${token}"
 				logerr "${msg}"
 				return 1
 			fi
-			msg="$(p11tool --login --list-keys "${tokenurl}" 2>&1)"
-			if [ $? -ne 0 ]; then
+			if ! msg="$(p11tool --login --list-keys "${tokenurl}" 2>&1)"; then
 				logerr "Error: Could not get TPM key URL for ${tokenurl}"
 				logerr "${msg}"
 				return 1
@@ -223,9 +223,8 @@ create_localca_cert() {
 		fi
 		rm -f "${tpmpubkey}"
 
-		msg=$(p11tool --export-pubkey "${tpmkeyurl}" --login --outfile "${tpmpubkey}" 2>&1)
-		if [ $? -ne 0 ] || \
-		   [ ! -r "${tpmpubkey}" ] || [ $(get_filesize "${tpmpubkey}") -eq 0 ]; then
+		if ! msg=$(p11tool --export-pubkey "${tpmkeyurl}" --login --outfile "${tpmpubkey}" 2>&1) || \
+		   [ ! -r "${tpmpubkey}" ] || [ "$(get_filesize "${tpmpubkey}")" -eq 0 ]; then
 			logerr "Error: Could not get TPM public key"
 			logerr "${msg}"
 			rm -f "${tpmkey}" "${tpmpubkey}"
@@ -242,8 +241,7 @@ create_localca_cert() {
 		fi
 
 		if [ $((flags & FLAG_REGISTER_KEY)) -ne 0 ]; then
-			msg="$(run_tpmtool --generate-rsa --signing --register ${params})"
-			if [ $? -ne 0 ]; then
+			if ! msg="$(run_tpmtool --generate-rsa --signing --register ${params})"; then
 				logerr "Could not generate registered signing key with tpmtool"
 				logerr "${msg}"
 				return 1
@@ -256,14 +254,14 @@ create_localca_cert() {
 			fi
 		else
 			rm -f "${tpmkey}"
-			msg="$(run_tpmtool --generate-rsa --signing --outfile \"${tpmkey}\" ${params})"
-			if [ $? -ne 0 ]; then
+			# shellcheck disable=SC2086
+			if ! msg="$(run_tpmtool --generate-rsa --signing --outfile \"${tpmkey}\" ${params})"; then
 				logerr "Could not create signing key with tpmtool"
 				logerr "${msg}"
 				rm -f "${tpmkey}"
 				return 1
 			fi
-			if [ ! -r "${tpmkey}" ] || [ $(get_filesize "${tpmkey}") -eq 0 ]; then
+			if [ ! -r "${tpmkey}" ] || [ "$(get_filesize "${tpmkey}")" -eq 0 ]; then
 				logerr "The TPM key file ${tpmkey} was not written properly"
 				logerr "${msg}"
 				rm -f "${tpmkey}"
@@ -274,9 +272,9 @@ create_localca_cert() {
 		fi
 
 		rm -f "${tpmpubkey}"
-		msg=$(run_tpmtool "--pubkey=${tpmkeyurl}" --outfile \"${tpmpubkey}\" ${params})
-		if [ $? -ne 0 ] || \
-		   [ ! -r "${tpmpubkey}" ] || [ $(get_filesize "${tpmpubkey}") -eq 0 ]; then
+		# shellcheck disable=SC2086
+		if ! msg=$(run_tpmtool "--pubkey=${tpmkeyurl}" --outfile \"${tpmpubkey}\" ${params}) || \
+		   [ ! -r "${tpmpubkey}" ] || [ "$(get_filesize "${tpmpubkey}")" -eq 0 ]; then
 			logerr "Error: Could not get TPM public key"
 			logerr "${msg}"
 			rm -f "${tpmkey}" "${tpmpubkey}"
@@ -284,12 +282,14 @@ create_localca_cert() {
 		fi
 	fi
 
-	echo "cn=swtpm-localca" > "${template}"
-	echo "ca" >> "${template}"
-	echo "cert_signing_key" >> "${template}"
-	echo "expiration_days = 3650" >> "${template}"
+	{
+		echo "cn=swtpm-localca"
+		echo "ca"
+		echo "cert_signing_key"
+		echo "expiration_days = 3650"
+	} > "${template}"
 
-	msg=$(${CERTTOOL} \
+	if ! msg=$(${CERTTOOL} \
 		--generate-certificate \
 		--template "${template}" \
 		--outfile "${tpmca}" \
@@ -297,9 +297,8 @@ create_localca_cert() {
 		--load-ca-certificate "${cacert}" \
 		--load-privkey "${tpmkeyurl}" \
 		--load-pubkey "${tpmpubkey}" \
-		2>&1)
-
-	if [ $? -ne 0 ]; then
+		2>&1);
+	then
 		logerr "Could not create TPM CA"
 		logerr "${msg}"
 		rm -f "${template}"
@@ -307,7 +306,7 @@ create_localca_cert() {
 	fi
 
 	output="statedir = ${dir}
-signingkey = $(escape_pkcs11_url ${tpmkeyurl})
+signingkey = $(escape_pkcs11_url "${tpmkeyurl}")
 issuercert = ${tpmca}
 certserial = ${dir}/certserial"
 
@@ -334,10 +333,9 @@ certserial = ${dir}/certserial"
 	if [ "$(id -u)" -eq 0 ]; then
 		chown "${owner}:${group}" "${dir}"
 
-		pushd "${dir}" &>/dev/null
-		if [ $? -eq 0 ]; then
+		if pushd "${dir}" &>/dev/null; then
 			chown "${owner}:${group}" ./*
-			popd &>/dev/null
+			popd &>/dev/null || return 1
 		fi
 
 		if [ -n "${outfile}" ]; then
@@ -519,8 +517,7 @@ main() {
 
 	if [ "$(id -u)" -eq 0 ]; then
 		if [ -n "${owner}" ]; then
-			msg="$(id -u "${owner}" 2>&1)"
-			if [ $? -ne 0 ]; then
+			if ! msg="$(id -u "${owner}" 2>&1)"; then
 				logerr "User ${owner} cannot be used: ${msg}"
 				return 1
 			fi
@@ -528,8 +525,7 @@ main() {
 			owner="root"
 		fi
 		if [ -n "${group}" ]; then
-			msg="$(id -g "${group}" 2>&1)"
-			if [ $? -ne 0 ]; then
+			if ! msg="$(id -g "${group}" 2>&1)"; then
 				logerr "Group ${group} cannot be used: ${msg}"
 				return 1
 			fi
@@ -538,8 +534,7 @@ main() {
 		fi
 	fi
 
-	mkdir -p "${dir}"
-	if [ $? -ne 0 ]; then
+	if ! mkdir -p "${dir}"; then
 		logerr "Could not create directory ${dir}."
 		return 1
 	fi

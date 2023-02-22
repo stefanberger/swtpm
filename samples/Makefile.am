@@ -33,3 +33,7 @@ EXTRA_DIST= \
 	swtpm-localca.conf \
 	swtpm-localca.options \
 	swtpm_setup.conf
+
+.PHONY: syntax-check
+syntax-check:
+	shellcheck swtpm-create-tpmca

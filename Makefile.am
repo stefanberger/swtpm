@@ -28,6 +28,7 @@ selinux-install selinux-uninstall:
 endif
 
 syntax-check:
+	@cd samples && $(MAKE) syntax-check
 	@cd tests && $(MAKE) syntax-check
 
 .PHONY: selinux-install selinux-uninstall syntax-check
