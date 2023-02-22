@@ -8,10 +8,12 @@ B<swtpm-create-tpmca [OPTIONS]>
 
 =head1 DESCRIPTION
 
-B<swtpm-create-tpmca> is a tool to create a TPM 1.2 based CA that
+B<swtpm-create-tpmca> is a tool to create a TPM 1.2 or TPM 2 based CA that
 can be used by B<swtpm_localca> to sign EK and platform certificates.
-The CA uses a GnuTLS key to sign certificates. To do this,
-GnuTLS talks to the TPM 1.2 using the B<tcsd> (TrouSerS) daemon.
+The CA uses a GnuTLS key to sign certificates. If a TPM 1.2 is used then
+GnuTLS will talk to the TPM 1.2 using the B<tcsd> (TrouSerS) daemon.
+If a TPM 2 is used then the Intel pkcs11 driver and its tools (tpm2_ptool)
+are also required.
 
 Since the TPM CA's certificate must be signed by a CA, a root certificate authority
 will also be created and will sign this certificate. The root CA's
@@ -138,8 +140,8 @@ Alternatively, if the host's TPM is a TPM 2 and Intel's TPM 2 stack is
 installed, we need to start tpm2-abrmd first and can then create the TPM key
 and TPM CA certificate:
 
- #> sudo systemctl start tpm2-abrmd
- #> tpm2_ptool init
+ #> sudo systemctl start tpm2-abrmd     # may not be required with recent Intel TPM 2 tools
+ #> sudo tpm2_ptool init
  action: Created
  id: 1                   # this is the --pid parameter below
  #> sudo SWTPM_PKCS11_PIN="mypin 123" SWTPM_PKCS11_SO_PIN=123 /usr/share/swtpm/swtpm-create-tpmca \
