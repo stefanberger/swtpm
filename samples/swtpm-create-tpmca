@@ -57,6 +57,11 @@ function escape_pkcs11_url()
 run_tpmtool() {
 	local prg out rc
 
+	if [ -z "$(type -P tpmtool)" ]; then
+		echo "Could not find tpmtool in PATH (${PATH})."
+		return 1
+	fi
+
 	prg="spawn tpmtool "$@"
 		expect {
 			\"Enter SRK password:\" {
@@ -403,6 +408,8 @@ _EOF_
 tpmtool_supports_srk_well_known()
 {
 	local tmp
+
+	[ -z "$(type -P tpmtool)" ] && return 1
 
 	tmp=$(tpmtool --help | grep "srk-well-known")
 	[ -z "${tmp}" ] && return 1
