@@ -67,6 +67,7 @@
 
 struct ctrlchannel {
     int fd;
+    int fd_domain;
     int clientfd;
     char *sockpath;
 };
@@ -85,24 +86,35 @@ struct ctrlchannel *ctrlchannel_new(int fd, bool is_client,
         cc->sockpath = strdup(sockpath);
         if (!cc->sockpath) {
             logprintf(STDERR_FILENO, "Out of memory");
-            free(cc);
-            return NULL;
+            goto error;
         }
     }
 
     cc->fd = cc->clientfd = -1;
-    if (is_client)
+    if (is_client) {
         cc->clientfd = fd;
-    else
+    } else {
         cc->fd = fd;
+        cc->fd_domain = get_socket_domain(fd);
+        if (cc->fd_domain < 0) {
+            logprintf(STDERR_FILENO, "File descriptor %d is not a socket!\n", fd);
+            goto error;
+        }
+    }
 
     return cc;
+
+error:
+   free(cc);
+   return NULL;
 }
 
-int ctrlchannel_get_fd(struct ctrlchannel *cc)
+int ctrlchannel_get_fd(struct ctrlchannel *cc, int *fd_domain)
 {
     if (!cc)
         return -1;
+
+    *fd_domain = cc->fd_domain;
 
     return cc->fd;
 }
@@ -468,6 +480,7 @@ static uint64_t get_ptm_caps_supported(TPMLIB_TPMVersion tpmversion)
  * ctrlchannel_process_fd: Read command from control channel and execute it
  *
  * @fd: file descriptor for control channel
+ * @fd_domain: the domain of the file descriptor
  * @terminate: pointer to a boolean that will be set to true by this
  *             function in case the process should shut down; CMD_SHUTDOWN
  *             will set this
@@ -482,7 +495,7 @@ static uint64_t get_ptm_caps_supported(TPMLIB_TPMVersion tpmversion)
  * This function returns the passed file descriptor or -1 in case the
  * file descriptor was closed.
  */
-int ctrlchannel_process_fd(int fd,
+int ctrlchannel_process_fd(int fd, int fd_domain,
                            bool *terminate,
                            TPM_MODIFIER_INDICATOR *locality,
                            bool *tpm_running,
@@ -501,8 +514,6 @@ int ctrlchannel_process_fd(int fd,
     struct msghdr msg = {
         .msg_iov = &iov,
         .msg_iovlen = 1,
-        .msg_control = control,
-        .msg_controllen = sizeof(control),
     };
     struct cmsghdr *cmsg = NULL;
     int *data_fd = NULL;
@@ -535,6 +546,11 @@ int ctrlchannel_process_fd(int fd,
 
     if (fd < 0)
         return -1;
+
+    if (fd_domain == AF_UNIX) {
+        msg.msg_control = control;
+        msg.msg_controllen = sizeof(control);
+    }
 
     n = ctrlchannel_recv_cmd(fd, &msg);
     if (n <= 0) {
@@ -804,7 +820,7 @@ int ctrlchannel_process_fd(int fd,
         if (1)
             goto err_running;
 #endif
-        if (mlp->fd != -1)
+        if (mlp->fd != -1 || fd_domain != AF_UNIX)
             goto err_io;
 
         cmsg = CMSG_FIRSTHDR(&msg);

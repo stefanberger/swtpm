@@ -128,6 +128,7 @@ int mainLoop(struct mainLoopParams *mlp,
     uint32_t            rlength = 0;               /* bytes in response buffer */
     uint32_t            rTotal = 0;                /* total allocated bytes */
     int                 ctrlfd;
+    int                 ctrlfd_domain;
     int                 ctrlclntfd;
     int                 sockfd;
     int                 ready;
@@ -164,7 +165,7 @@ int mainLoop(struct mainLoopParams *mlp,
     iov[2].iov_len = 0;
 
     connection_fd.fd = -1;
-    ctrlfd = ctrlchannel_get_fd(mlp->cc);
+    ctrlfd = ctrlchannel_get_fd(mlp->cc, &ctrlfd_domain);
     ctrlclntfd = ctrlchannel_get_client_fd(mlp->cc);
 
     sockfd = SWTPM_IO_GetSocketFD();
@@ -256,7 +257,7 @@ int mainLoop(struct mainLoopParams *mlp,
                 ctrlclntfd = accept(ctrlfd, NULL, 0);
 
             if (pollfds[CTRL_CLIENT_FD].revents & POLLIN) {
-                ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd,
+                ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd, ctrlfd_domain,
                                                     &mainloop_terminate,
                                                     &locality, &tpm_running,
                                                     mlp);
