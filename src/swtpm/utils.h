@@ -72,4 +72,6 @@ ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt);
 
 ssize_t read_eintr(int fd, void *buffer, size_t buflen);
 
+int get_socket_domain(int fd);
+
 #endif /* _SWTPM_UTILS_H_ */

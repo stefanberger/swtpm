@@ -51,6 +51,8 @@
 #include <sys/param.h>
 #endif
 
+#include <sys/socket.h>
+
 #include "utils.h"
 #include "logging.h"
 #include "tpmlib.h"
@@ -345,4 +347,22 @@ ssize_t read_eintr(int fd, void *buffer, size_t buflen)
         }
         return n;
     }
+}
+
+/*
+ * get_socket_domain: Get the domain of a socket
+ *
+ * @fd: file descriptor of a socket
+ *
+ * Returns -1 in case an error occurred, the socket type otherwise
+ */
+int get_socket_domain(int fd)
+{
+    int optval;
+    socklen_t optlen = sizeof(optval);
+
+    if (getsockopt(fd, SOL_SOCKET, SO_DOMAIN, &optval, &optlen) < 0)
+        return -1;
+
+    return optval;
 }
