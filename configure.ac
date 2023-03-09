@@ -176,16 +176,12 @@ AC_SUBST([LIBTASN1_LIBS])
 
 PKG_CHECK_MODULES(
 	[LIBTPMS],
-	[libtpms],
+	[libtpms >= 0.6],
 	,
-	AC_MSG_ERROR("no libtpms.pc found; please set PKG_CONFIG_PATH to the directory where libtpms.pc is located")
+	AC_MSG_ERROR("libtpms >= 0.6 required or no libtpms.pc found; please set PKG_CONFIG_PATH to the directory where libtpms.pc is located")
 )
 LDFLAGS="$LDFLAGS $LIBTPMS_LIBS"
 CFLAGS="$CFLAGS $LIBTPMS_CFLAGS"
-AC_CHECK_LIB(tpms,
-             TPMLIB_ChooseTPMVersion,[true],
-             AC_MSG_ERROR("libtpms 0.6 or later is required")
-)
 AC_SUBST([LIBTPMS_LIBS])
 
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
