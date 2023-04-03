@@ -24,8 +24,8 @@
 
 #include <glib.h>
 
+#include "swtpm_conf.h"
 #include "swtpm_utils.h"
-#include "swtpm_localca_conf.h"
 #include "swtpm_localca_utils.h"
 
 #define SETUP_TPM2_F    1

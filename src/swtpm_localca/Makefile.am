@@ -16,6 +16,7 @@ noinst_HEADERS = \
 
 swtpm_localca_CFLAGS = \
 	-I$(top_srcdir)/src/utils \
+	-I$(top_builddir)/src/utils \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
 	$(GLIB_CFLAGS) \

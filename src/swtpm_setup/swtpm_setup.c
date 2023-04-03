@@ -33,9 +33,9 @@
 #include <libtpms/tpm_nvfilename.h>
 
 #include "swtpm.h"
-#include "swtpm_setup_conf.h"
-#include "swtpm_setup_utils.h"
+#include "swtpm_conf.h"
 #include "swtpm_utils.h"
+#include "swtpm_setup_utils.h"
 
 #include <openssl/sha.h>
 

@@ -599,10 +599,9 @@ AC_CONFIG_FILES([Makefile                   \
 		src/swtpm_cert/Makefile     \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_localca/Makefile  \
-		src/swtpm_localca/swtpm_localca_conf.h \
 		src/swtpm_setup/Makefile    \
-		src/swtpm_setup/swtpm_setup_conf.h \
 		src/utils/Makefile          \
+		src/utils/swtpm_conf.h      \
 		man/Makefile                \
 		man/man3/Makefile           \
 		man/man5/Makefile           \

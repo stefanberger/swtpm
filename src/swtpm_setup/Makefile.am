@@ -44,6 +44,7 @@ swtpm_setup_CFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/swtpm \
 	-I$(top_srcdir)/src/utils \
+	-I$(top_builddir)/src/utils \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
 	$(HARDENING_CFLAGS) \

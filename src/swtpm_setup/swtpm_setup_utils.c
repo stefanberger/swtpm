@@ -19,9 +19,9 @@
 
 #include <glib.h>
 
-#include "swtpm_setup_conf.h"
-#include "swtpm_setup_utils.h"
+#include "swtpm_conf.h"
 #include "swtpm_utils.h"
+#include "swtpm_setup_utils.h"
 
 /* Get a configuration value given its name */
 gchar *get_config_value(gchar **config_file_lines, const gchar *configname)
