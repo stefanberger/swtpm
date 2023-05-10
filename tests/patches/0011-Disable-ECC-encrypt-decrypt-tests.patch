@@ -1,0 +1,47 @@
+From b5787bd7b31da92a1315596b05ccc73e810ebb15 Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.ibm.com>
+Date: Wed, 10 May 2023 16:10:02 -0400
+Subject: [PATCH 11/12] Disable ECC encrypt/decrypt tests
+
+---
+ utils/regtests/testecc.sh  | 2 +-
+ utils/regtests/testhelp.sh | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/utils/regtests/testecc.sh b/utils/regtests/testecc.sh
+index f787597..1b78214 100755
+--- a/utils/regtests/testecc.sh
++++ b/utils/regtests/testecc.sh
+@@ -48,7 +48,7 @@ echo "Start an HMAC auth session"
+ ${PREFIX}startauthsession -se h > run.out
+ checkSuccess $?
+ 
+-for CURVE in ${CURVE_ALGS}
++for CURVE in
+ do
+ 
+     echo "create an ECC ${CURVE} decryption key"
+diff --git a/utils/regtests/testhelp.sh b/utils/regtests/testhelp.sh
+index 520d422..40dff0f 100755
+--- a/utils/regtests/testhelp.sh
++++ b/utils/regtests/testhelp.sh
+@@ -6967,14 +6967,14 @@ echo ""
+ echo "policycommandcode"
+ echo ""
+ 
+-for CC in 11f 120 121 122 124 125 126 127 128 129 12a 12b 12c 12d 12e 130 131 132 133 134 135 136 137 138 139 13a 13b 13c 13d 13e 13f 140 142 143 144 145 146 147 148 149 14a 14b 14c 14d 14e 14f 150 151 152 153 154 155 156 157 158 159 15b 15c 15d 15e 160 161 162 163 164 165 167 168 169 16a 16b 16c 16d 16e 16f 170 171 172 173 174 176 177 178 17a 17b 17c 17d 17e 17f 180 181 182 183 184 185 186 187 188 189 18a 18b 18c 18d 18e 18f 190 191 192 193 197 199 19A
++for CC in 11f 120 121 122 124 125 126 127 128 129 12a 12b 12c 12d 12e 130 131 132 133 134 135 136 137 138 139 13a 13b 13c 13d 13e 13f 140 142 143 144 145 146 147 148 149 14a 14b 14c 14d 14e 14f 150 151 152 153 154 155 156 157 158 159 15b 15c 15d 15e 160 161 162 163 164 165 167 168 169 16a 16b 16d 16e 16f 170 171 172 173 174 176 177 178 17a 17b 17c 17d 17e 17f 180 181 182 183 184 185 186 187 188 189 18a 18b 18c 18d 18e 18f 191 192 193 197
+ do
+ 
+     echo "startauthsession"
+     ${PREFIX}startauthsession -se p > run.out
+     checkSuccess $?
+ 
+-    echo "policycommandcode"
++    echo "policycommandcode ${CC}"
+     ${PREFIX}policycommandcode -ha 03000000 -v -cc ${CC} > run.out
+     checkSuccess $?
+ 
+-- 
+2.39.1
+

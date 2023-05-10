@@ -1,14 +1,14 @@
-From 19ce952c3a7205585bed8cb063dc2b1f23434ba4 Mon Sep 17 00:00:00 2001
+From 0ada56485cca1b6f9e6c5fa9c79f07682fc86c46 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:33:02 -0500
-Subject: [PATCH 5/9] Disable tests related to 'events'
+Subject: [PATCH 05/12] Disable tests related to 'events'
 
 ---
  utils/regtests/testevent.sh | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/utils/regtests/testevent.sh b/utils/regtests/testevent.sh
-index 6d78ba5..9252161 100755
+index c201cb2..64eb624 100755
 --- a/utils/regtests/testevent.sh
 +++ b/utils/regtests/testevent.sh
 @@ -1,5 +1,6 @@
@@ -19,5 +19,5 @@ index 6d78ba5..9252161 100755
  #################################################################################
  #										#
 -- 
-2.26.2
+2.39.1
 
