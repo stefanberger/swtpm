@@ -1,7 +1,7 @@
-From ca400b52d26bf4f518964faf2b2353d25a057fce Mon Sep 17 00:00:00 2001
+From 9ef419cfb2f0b47a6d4fb989c18f401b06dad1fe Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:35:02 -0500
-Subject: [PATCH 6/9] Disable testing with RSA 3072
+Subject: [PATCH 06/12] Disable testing with RSA 3072
 
 ---
  utils/reg.sh                       |  2 +-
@@ -16,10 +16,10 @@ Subject: [PATCH 6/9] Disable testing with RSA 3072
  9 files changed, 17 insertions(+), 16 deletions(-)
 
 diff --git a/utils/reg.sh b/utils/reg.sh
-index de7e181..9de1eaa 100755
+index 0bba17a..b3228d6 100755
 --- a/utils/reg.sh
 +++ b/utils/reg.sh
-@@ -186,7 +186,7 @@ cleanup()
+@@ -205,7 +205,7 @@ cleanup()
  	rm -f khrpub${HALG}.bin
      done
  
@@ -29,7 +29,7 @@ index de7e181..9de1eaa 100755
  	rm -f signrsa${BITS}priv.bin
  	rm -f signrsa${BITS}pub.bin
 diff --git a/utils/regtests/initkeys.sh b/utils/regtests/initkeys.sh
-index 80c6adb..469b5c9 100755
+index 569ec89..171662a 100755
 --- a/utils/regtests/initkeys.sh
 +++ b/utils/regtests/initkeys.sh
 @@ -64,7 +64,7 @@ BITS=(2048 3072)
@@ -39,10 +39,10 @@ index 80c6adb..469b5c9 100755
 -
 +    [ $i -eq 1 ] && continue # skip 3072 bits
      echo "Create an RSA ${BITS[i]} ${SHALG[i]} storage key under the primary key"
-     ${PREFIX}create -hp 80000000 -rsa ${BITS[i]} -halg ${SHALG[i]} -st -kt f -kt p -pol policies/policycccreate-auth.bin -opr storersa${BITS[i]}priv.bin -opu storersa${BITS[i]}pub.bin -tk storersa${BITS[i]}tk.bin -ch storersa${BITS[i]}ch.bin -pwdp sto -pwdk sto > run.out
+     ${PREFIX}create -hp 80000000 -rsa ${BITS[i]} -halg ${SHALG[i]} -st -kt f -kt p -pol policies/policycccreate-auth.bin -opr storersa${BITS[i]}priv.bin -opu storersa${BITS[i]}pub.bin -tk storersa${BITS[i]}tk.bin -ch storersa${BITS[i]}ch.bin -cd tmpcd.bin -pwdp sto -pwdk sto -v > run.out
      checkSuccess $?
 diff --git a/utils/regtests/testcreateloaded.sh b/utils/regtests/testcreateloaded.sh
-index d3e3eb8..76fb859 100755
+index f4c449e..959f313 100755
 --- a/utils/regtests/testcreateloaded.sh
 +++ b/utils/regtests/testcreateloaded.sh
 @@ -50,7 +50,7 @@ echo ""
@@ -55,11 +55,11 @@ index d3e3eb8..76fb859 100755
  
  	echo "CreateLoaded primary key, parent ${HIER} ${ALG}"
 diff --git a/utils/regtests/testcredential.sh b/utils/regtests/testcredential.sh
-index 16fd66a..a68960d 100755
+index b70cdb2..45a9595 100755
 --- a/utils/regtests/testcredential.sh
 +++ b/utils/regtests/testcredential.sh
-@@ -287,7 +287,7 @@ NVNAME=(
- # interate though high range RSA EK certficates
+@@ -289,7 +289,7 @@ NVNAME=(
+ # are limited.
      for ((i = 0 ; i < 2 ; i++))
      do
 -
@@ -81,7 +81,7 @@ index f51687f..59b1754 100755
  do
  
 diff --git a/utils/regtests/testrsa.sh b/utils/regtests/testrsa.sh
-index 4f76522..e835660 100755
+index 15577b6..44f6357 100755
 --- a/utils/regtests/testrsa.sh
 +++ b/utils/regtests/testrsa.sh
 @@ -55,7 +55,7 @@ echo ""
@@ -93,7 +93,7 @@ index 4f76522..e835660 100755
      do
  
  	echo "Generate the RSA $BITS encryption key with openssl"
-@@ -68,7 +68,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+@@ -73,7 +73,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
  
  elif [ ${CRYPTOLIBRARY} == "mbedtls" ]; then
  
@@ -102,7 +102,7 @@ index 4f76522..e835660 100755
      do
  
  	echo "Generate the RSA $BITS encryption key with openssl"
-@@ -94,7 +94,7 @@ echo ""
+@@ -99,7 +99,7 @@ echo ""
  echo "RSA decryption key"
  echo ""
  
@@ -111,7 +111,7 @@ index 4f76522..e835660 100755
  do
  
      echo "Load the RSA $BITS decryption key under the primary key"
-@@ -124,7 +124,7 @@ echo ""
+@@ -129,7 +129,7 @@ echo ""
  echo "RSA decryption key to sign with OID"
  echo ""
  
@@ -120,25 +120,25 @@ index 4f76522..e835660 100755
  do
  
      echo "Load the RSA $BITS decryption key"
-@@ -166,7 +166,7 @@ echo "Start an HMAC auth session"
- ${PREFIX}startauthsession -se h > run.out
- checkSuccess $?
+@@ -173,7 +173,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+     ${PREFIX}startauthsession -se h > run.out
+     checkSuccess $?
  
--for BITS in 2048 3072
-+for BITS in 2048
- do
+-    for BITS in 2048 3072
++    for BITS in 2048
+     do
  
-     for SESS in "" "-se0 02000000 1"
-@@ -254,7 +254,7 @@ echo ""
- echo "Loadexternal DER encryption key"
- echo ""
+ 	for SESS in "" "-se0 02000000 1"
+@@ -260,7 +260,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+     echo "Loadexternal DER encryption key"
+     echo ""
  
--for BITS in 2048 3072
-+for BITS in 2048
- do
+-    for BITS in 2048 3072
++    for BITS in 2048
+     do
  
-     echo "Start an HMAC auth session"
-@@ -410,7 +410,7 @@ rm -f deepub.bin
+ 	echo "Start an HMAC auth session"
+@@ -418,7 +418,7 @@ rm -f deepub.bin
  rm -f tmpmsg.bin
  rm -f tmpdig.bin
  rm -f tmpsig.bin
@@ -148,7 +148,7 @@ index 4f76522..e835660 100755
      rm -f tmpkeypairrsa${BITS}.der
      rm -f tmpkeypairrsa${BITS}.pem
 diff --git a/utils/regtests/testsalt.sh b/utils/regtests/testsalt.sh
-index 1bdc1a7..57ec69e 100755
+index e0c3376..bf6f2a1 100755
 --- a/utils/regtests/testsalt.sh
 +++ b/utils/regtests/testsalt.sh
 @@ -57,6 +57,7 @@ fi
@@ -160,7 +160,7 @@ index 1bdc1a7..57ec69e 100755
      do
  
 diff --git a/utils/regtests/testsign.sh b/utils/regtests/testsign.sh
-index edfa014..bb76605 100755
+index 58eb426..4e4e64b 100755
 --- a/utils/regtests/testsign.sh
 +++ b/utils/regtests/testsign.sh
 @@ -44,7 +44,7 @@ echo ""
@@ -171,8 +171,8 @@ index edfa014..bb76605 100755
 +for BITS in 2048
  do
  
-     echo "Create an RSA $BITS key pair in PEM format using openssl"
-@@ -410,8 +410,8 @@ done
+     echo "Create an RSA $BITS key pair in DER format using openssl"
+@@ -434,8 +434,8 @@ checkSuccess $?
  
  rm -f tmpkeypairrsa2048.pem
  rm -f tmpkeypairrsa2048.der
@@ -184,7 +184,7 @@ index edfa014..bb76605 100755
  rm -f tmpkeypaireccnistp256.der
  rm -f tmpkeypaireccnistp384.pem
 diff --git a/utils/regtests/testx509.sh b/utils/regtests/testx509.sh
-index 813085f..f5737a8 100755
+index 5640985..17d0288 100755
 --- a/utils/regtests/testx509.sh
 +++ b/utils/regtests/testx509.sh
 @@ -59,7 +59,7 @@ SKEY=(rsa2048 rsa3072 eccnistp256 eccnistp384)
@@ -197,5 +197,5 @@ index 813085f..f5737a8 100755
      ${PREFIX}load -hp 80000000 -ipr sign${SKEY[i]}rpriv.bin -ipu sign${SKEY[i]}rpub.bin -pwdp sto > run.out
      checkSuccess $?
 -- 
-2.26.2
+2.39.1
 

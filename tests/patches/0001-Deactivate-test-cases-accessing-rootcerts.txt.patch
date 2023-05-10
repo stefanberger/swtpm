@@ -1,7 +1,7 @@
-From 498b847b8c0b70c7b92142305a9fddfec9d40ad5 Mon Sep 17 00:00:00 2001
+From 703166812b8090669a0dd6f349eca97dec513fe4 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Fri, 26 Feb 2021 18:45:57 -0500
-Subject: [PATCH 1/6] Deactivate test cases accessing rootcerts.txt
+Subject: [PATCH 01/12] Deactivate test cases accessing rootcerts.txt
 
 rootcerts.txt contains files in a drive we don't have access to
 ---
@@ -10,11 +10,11 @@ rootcerts.txt contains files in a drive we don't have access to
  2 files changed, 15 insertions(+), 12 deletions(-)
 
 diff --git a/utils/regtests/testcredential.sh b/utils/regtests/testcredential.sh
-index cb9fec0..772a8ac 100755
+index 0392fa9..b70cdb2 100755
 --- a/utils/regtests/testcredential.sh
 +++ b/utils/regtests/testcredential.sh
-@@ -300,12 +300,15 @@ NVNAME=(
- 	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -noflush > run.out
+@@ -310,12 +310,15 @@ NVNAME=(
+ 	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -nopub > run.out
  	checkSuccess $?
  
 -	echo "Validate the ${CALG[i]} EK certificate against the root"
@@ -33,8 +33,8 @@ index cb9fec0..772a8ac 100755
  	checkSuccess $?
  
  	echo "Start a ${HALG[i]} policy session"
-@@ -402,9 +405,9 @@ NVNAME=(
- 	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -noflush > run.out
+@@ -424,9 +427,9 @@ NVNAME=(
+ 	${PREFIX}createek -high -pwde eee -pwdk kkk ${CALG[i]} -cp -nopub > run.out
  	checkSuccess $?
  
 -	echo "Validate the ${CALG[i]} EK certificate against the root"
@@ -46,8 +46,8 @@ index cb9fec0..772a8ac 100755
  
  	echo "Create a signing key under the ${CALG[i]} EK using the password"
  	${PREFIX}create -hp 80000001 -si -pwdp kkk > run.out
-@@ -540,9 +543,9 @@ NVNAME=(
- 	${PREFIX}createek ${ALG} -pwde eee -cp -noflush > run.out
+@@ -574,9 +577,9 @@ NVNAME=(
+ 	${PREFIX}createek ${ALG} -pwde eee -cp > run.out
  	checkSuccess $?
  
 -	echo "Validate the ${ALG} EK certificate against the root"
@@ -60,7 +60,7 @@ index cb9fec0..772a8ac 100755
  	echo "Start a policy session"
  	${PREFIX}startauthsession -se p > run.out
 diff --git a/utils/regtests/testunseal.sh b/utils/regtests/testunseal.sh
-index aae3d4e..1755740 100755
+index 5cde8e9..7f100dd 100755
 --- a/utils/regtests/testunseal.sh
 +++ b/utils/regtests/testunseal.sh
 @@ -724,8 +724,8 @@ echo ""
@@ -71,9 +71,9 @@ index aae3d4e..1755740 100755
 -elif [ ${CRYPTOLIBRARY} == "mbedtls" ]; then
 +#${PREFIX}createek -rsa 2048 -cp -noflush -root certificates/rootcerts.txt > run.out
 +#elif [ ${CRYPTOLIBRARY} == "mbedtls" ]; then
- ${PREFIX}createek -rsa 2048 -cp -noflush > run.out
+ ${PREFIX}createek -rsa 2048 -cp -noflush -nopub > run.out
  fi
  checkSuccess $?
 -- 
-2.36.0
+2.39.1
 

@@ -50,7 +50,7 @@ git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
 
 pushd ibmtpm20tss-tss &>/dev/null || exit 1
 
-if ! git checkout tags/v1.6.0; then
+if ! git checkout tags/v2.0.1; then
 	echo "'Git checkout' failed."
 	exit 1
 fi
@@ -60,7 +60,13 @@ fi
 git config --local user.name test
 git config --local user.email test@test.test
 
-# A v1.6.0 bug work-around:
+# ECC encrypt/decrypt is not supported in any version of libtpms
+git am < "${PATCHESDIR}/0011-Disable-ECC-encrypt-decrypt-tests.patch"
+
+# Nuvoton commands are not supported
+git am < "${PATCHESDIR}/0012-Disable-Nuvoton-commands.patch"
+
+# A v2.0.1 bug work-around:
 # We cannot run the EK certificate tests since rootcerts.txt points to
 # files we do not have
 git am < "${PATCHESDIR}/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch"
