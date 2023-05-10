@@ -1,0 +1,25 @@
+From d7ea9b0e0e4be46e367c9116617b33ce399a3601 Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.ibm.com>
+Date: Wed, 10 May 2023 18:17:23 -0400
+Subject: [PATCH 12/12] Disable Nuvoton commands
+
+---
+ utils/regtests/testntc.sh | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/utils/regtests/testntc.sh b/utils/regtests/testntc.sh
+index 065af7f..f7bb67e 100755
+--- a/utils/regtests/testntc.sh
++++ b/utils/regtests/testntc.sh
+@@ -44,6 +44,8 @@ echo ""
+ echo "Nuvoton Commands"
+ echo ""
+ 
++exit 0
++
+ # help
+ 
+ echo "Preconfig Help"
+-- 
+2.39.1
+

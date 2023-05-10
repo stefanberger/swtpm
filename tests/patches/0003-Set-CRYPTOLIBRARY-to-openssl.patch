@@ -1,17 +1,17 @@
-From b233462f3fe53d2209a1e2aad7f196979cea00e5 Mon Sep 17 00:00:00 2001
+From a3feeb63145506e3d77be99e1dd214247ebabe1a Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:35:56 -0500
-Subject: [PATCH 3/9] Set CRYPTOLIBRARY to openssl
+Subject: [PATCH 03/12] Set CRYPTOLIBRARY to openssl
 
 ---
  utils/reg.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/utils/reg.sh b/utils/reg.sh
-index 61f23d9..33e3299 100755
+index 24ea1df..c9d49b9 100755
 --- a/utils/reg.sh
 +++ b/utils/reg.sh
-@@ -264,7 +264,7 @@ export WARN
+@@ -281,7 +281,7 @@ export WARN
  export PREFIX
  export -f initprimary
  # hack because the mbedtls port is incomplete
@@ -21,5 +21,5 @@ index 61f23d9..33e3299 100755
  # example for running scripts with encrypted sessions, see TPM_SESSION_ENCKEY=getrandom below
  export TPM_SESSION_ENCKEY
 -- 
-2.26.2
+2.39.1
 

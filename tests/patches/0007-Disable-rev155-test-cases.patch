@@ -1,14 +1,14 @@
-From 7a6fe0d006ef5f2c6c960aa324b3e0ca4e0afcc9 Mon Sep 17 00:00:00 2001
+From 8c5314c6de0853d0b1e29d08ddbd998e4e4f3a60 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:36:53 -0500
-Subject: [PATCH 7/9] Disable rev155 test cases
+Subject: [PATCH 07/12] Disable rev155 test cases
 
 ---
  utils/regtests/testattest155.sh | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/utils/regtests/testattest155.sh b/utils/regtests/testattest155.sh
-index 0bf88aa..554a40e 100755
+index 824bab7..0187652 100755
 --- a/utils/regtests/testattest155.sh
 +++ b/utils/regtests/testattest155.sh
 @@ -1,5 +1,6 @@
@@ -19,5 +19,5 @@ index 0bf88aa..554a40e 100755
  #################################################################################
  #										#
 -- 
-2.26.2
+2.39.1
 
