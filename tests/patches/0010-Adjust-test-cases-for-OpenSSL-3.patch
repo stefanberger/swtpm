@@ -1,7 +1,7 @@
-From c351a11bfb60d9cf5caa3e267f5ce935655401f2 Mon Sep 17 00:00:00 2001
+From e50f9f4a05a6a255dd94808792ff33f3ccc9894d Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.ibm.com>
 Date: Tue, 3 May 2022 10:26:06 -0400
-Subject: [PATCH 6/6] Adjust test cases for OpenSSL 3
+Subject: [PATCH 10/12] Adjust test cases for OpenSSL 3
 
 1) Some openssl command lines need -traditional when converting a key
    from PEM to DER format.
@@ -17,56 +17,14 @@ ERROR: convertX509ToDer: Error in certificate serialization i2d_X509()
 certifyx509: failed, rc 000b007e
 TSS_RC_X509_ERROR - X509 parse error
 ---
- utils/regtests/testrsa.sh  |   2 +-
- utils/regtests/testsalt.sh |   2 +-
- utils/regtests/testsign.sh |   2 +-
  utils/regtests/testx509.sh | 109 +++++++++++++++++++------------------
- 4 files changed, 59 insertions(+), 56 deletions(-)
+ 1 file changed, 56 insertions(+), 53 deletions(-)
 
-diff --git a/utils/regtests/testrsa.sh b/utils/regtests/testrsa.sh
-index 4f76522..c78566c 100755
---- a/utils/regtests/testrsa.sh
-+++ b/utils/regtests/testrsa.sh
-@@ -62,7 +62,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
- 	openssl genrsa -out tmpkeypairrsa${BITS}.pem -aes256 -passout pass:rrrr ${BITS} > run.out 2>&1
- 
- 	echo "Convert key pair to plaintext DER format"
--	openssl rsa -inform pem -outform der -in tmpkeypairrsa${BITS}.pem -out tmpkeypairrsa${BITS}.der -passin pass:rrrr > run.out 2>&1
-+	openssl rsa -traditional -inform pem -outform der -in tmpkeypairrsa${BITS}.pem -out tmpkeypairrsa${BITS}.der -passin pass:rrrr > run.out 2>&1
- 
-     done
- 
-diff --git a/utils/regtests/testsalt.sh b/utils/regtests/testsalt.sh
-index 1bdc1a7..34fe97b 100755
---- a/utils/regtests/testsalt.sh
-+++ b/utils/regtests/testsalt.sh
-@@ -98,7 +98,7 @@ openssl ecparam -name prime256v1 -genkey -noout -out tmpkeypairecc.pem > run.out
- 
- echo "Convert key pair to plaintext DER format"
- 
--openssl rsa -inform pem -outform der -in tmpkeypairrsa.pem -out tmpkeypairrsa.der -passin pass:rrrr > run.out 2>&1
-+openssl rsa -traditional -inform pem -outform der -in tmpkeypairrsa.pem -out tmpkeypairrsa.der -passin pass:rrrr > run.out 2>&1
- openssl ec -inform pem -outform der -in tmpkeypairecc.pem -out tmpkeypairecc.der -passin pass:rrrr > run.out 2>&1
- 
- for HALG in ${ITERATE_ALGS}
-diff --git a/utils/regtests/testsign.sh b/utils/regtests/testsign.sh
-index edfa014..1730e85 100755
---- a/utils/regtests/testsign.sh
-+++ b/utils/regtests/testsign.sh
-@@ -51,7 +51,7 @@ do
-     openssl genrsa -out tmpkeypairrsa${BITS}.pem -aes256 -passout pass:rrrr 2048 > run.out 2>&1
- 
-     echo "Convert RSA $BITS key pair to plaintext DER format"
--    openssl rsa -inform pem -outform der -in tmpkeypairrsa${BITS}.pem -out tmpkeypairrsa${BITS}.der -passin pass:rrrr > run.out 2>&1
-+    openssl rsa -traditional -inform pem -outform der -in tmpkeypairrsa${BITS}.pem -out tmpkeypairrsa${BITS}.der -passin pass:rrrr > run.out 2>&1
- 
-     echo "Load the RSA $BITS signing key under the primary key"
-     ${PREFIX}load -hp 80000000 -ipr signrsa${BITS}priv.bin -ipu signrsa${BITS}pub.bin -pwdp sto > run.out
 diff --git a/utils/regtests/testx509.sh b/utils/regtests/testx509.sh
-index 813085f..06e7cce 100755
+index 03650fe..54b0b56 100755
 --- a/utils/regtests/testx509.sh
 +++ b/utils/regtests/testx509.sh
-@@ -68,9 +68,9 @@ do
+@@ -69,9 +69,9 @@ do
      ${PREFIX}load -hp 80000000 -ipr sign${SKEY[i]}priv.bin -ipu sign${SKEY[i]}pub.bin -pwdp sto > run.out
      checkSuccess $?
  
@@ -78,17 +36,17 @@ index 813085f..06e7cce 100755
 +    #checkSuccess $?
  
  
-     # dumpasn1 -a -l -d     tmpx509i.bin > tmpx509i1.dump
-@@ -87,14 +87,14 @@ do
+     # dumpasn1 -a -l -d     tmppart1.bin > tmppart1.dump
+@@ -86,14 +86,14 @@ do
      openssl x509 -inform der -in tmpx5091.bin -out tmpx5091.pem > run.out 2>&1
      echo " INFO:"
  
 -    echo "Verify ${SALG[i]} self signed issuer root" 
--    openssl verify -CAfile tmpx5091.pem tmpx5091.pem > run.out 2>&1
+-    openssl verify -check_ss_sig -CAfile tmpx5091.pem tmpx5091.pem > run.out 2>&1
 -    grep -q OK run.out
 -    checkSuccess $?
 +    #echo "Verify ${SALG[i]} self signed issuer root"
-+    #openssl verify -CAfile tmpx5091.pem tmpx5091.pem > run.out 2>&1
++    #openssl verify -check_ss_sig -CAfile tmpx5091.pem tmpx5091.pem > run.out 2>&1
 +    #grep -q OK run.out
 +    #checkSuccess $?
  
@@ -99,24 +57,24 @@ index 813085f..06e7cce 100755
 +    #${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sig -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -iob 00040472 > run.out
 +    #checkSuccess $?
  
-     # dumpasn1 -a -l -d     tmpx509i.bin > tmpx509i2.dump
-     # dumpasn1 -a -l -d -hh tmpx509i.bin > tmpx509i2.dumphh
-@@ -110,10 +110,10 @@ do
+     # dumpasn1 -a -l -d     tmppart2.bin > tmppart2.dump
+     # dumpasn1 -a -l -d -hh tmppart2.bin > tmppart2.dumphhe 
+@@ -107,10 +107,10 @@ do
      openssl x509 -inform der -in tmpx5092.bin -out tmpx5092.pem > run.out 2>&1
      echo " INFO:"
  
 -    echo "Verify ${SALG[i]} subject against issuer" 
--    openssl verify -CAfile tmpx5091.pem tmpx5092.pem > run.out 2>&1
+-    openssl verify -check_ss_sig -CAfile tmpx5091.pem tmpx5092.pem > run.out 2>&1
 -    grep -q OK run.out
 -    checkSuccess $?
 +    #echo "Verify ${SALG[i]} subject against issuer"
-+    #openssl verify -CAfile tmpx5091.pem tmpx5092.pem > run.out 2>&1
++    #openssl verify -check_ss_sig -CAfile tmpx5091.pem tmpx5092.pem > run.out 2>&1
 +    #grep -q OK run.out
 +    #checkSuccess $?
  
      echo "Signing Key Certify ${SALG[i]} with bad OID"
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sig -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -iob ffffffff > run.out
-@@ -156,13 +156,13 @@ do
+@@ -153,13 +153,13 @@ do
      ${PREFIX}load -hp 80000000 -ipr sign${SKEY[i]}priv.bin -ipu sign${SKEY[i]}pub.bin -pwdp sto > run.out
      checkSuccess $?
  
@@ -136,7 +94,7 @@ index 813085f..06e7cce 100755
  
      echo "Signing Key Certify ${SALG[i]} keyEncipherment"
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sig -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,keyEncipherment > run.out
-@@ -176,13 +176,13 @@ do
+@@ -173,13 +173,13 @@ do
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sig -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,keyAgreement > run.out
      checkFailure $?
  
@@ -156,7 +114,7 @@ index 813085f..06e7cce 100755
  
      echo "Signing Key Certify ${SALG[i]} encipherOnly"
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sig -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,encipherOnly > run.out
-@@ -217,9 +217,9 @@ do
+@@ -214,9 +214,9 @@ do
      ${PREFIX}load -hp 80000000 -ipr sign${SKEY[i]}nfpriv.bin -ipu sign${SKEY[i]}nfpub.bin -pwdp sto > run.out
      checkSuccess $?
  
@@ -169,7 +127,7 @@ index 813085f..06e7cce 100755
  
      echo "Signing Key Certify ${SALG[i]} nonRepudiation"
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sig -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,nonRepudiation > run.out
-@@ -237,13 +237,13 @@ do
+@@ -234,13 +234,13 @@ do
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sig -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,keyAgreement > run.out
      checkFailure $?
  
@@ -189,7 +147,7 @@ index 813085f..06e7cce 100755
  
      echo "Signing Key Certify ${SALG[i]} encipherOnly"
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sig -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,encipherOnly > run.out
-@@ -282,21 +282,21 @@ do
+@@ -279,21 +279,21 @@ do
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sto -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,digitalSignature > run.out
      checkFailure $?
  
@@ -223,7 +181,7 @@ index 813085f..06e7cce 100755
  
      echo "Signing Key Certify ${SALG[i]} keyCertSign"
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sto -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,keyCertSign > run.out
-@@ -306,13 +306,13 @@ do
+@@ -303,13 +303,13 @@ do
      ${PREFIX}certifyx509 -hk 80000001 -ho 80000002 -halg ${HALG[i]} -pwdk sig -pwdo sto -opc tmppart2.bin -os tmpsig2.bin -oa tmpadd2.bin -otbs tmptbs2.bin -ocert tmpx5092.bin ${SALG[i]} -ku critical,cRLSign > run.out
      checkFailure $?
  
@@ -243,7 +201,7 @@ index 813085f..06e7cce 100755
  
      echo "Flush the root CA issuer signing key"
      ${PREFIX}flushcontext -ha 80000001 > run.out
-@@ -340,5 +340,8 @@ rm -r tmptbs2.bin
+@@ -336,5 +336,8 @@ rm -r tmptbs2.bin
  rm -r tmpsig2.bin
  rm -r tmpx5092.bin
  
@@ -253,5 +211,5 @@ index 813085f..06e7cce 100755
  # openssl only
  fi
 -- 
-2.36.0
+2.39.1
 
