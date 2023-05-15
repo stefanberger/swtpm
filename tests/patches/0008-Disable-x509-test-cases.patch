@@ -1,7 +1,7 @@
-From 0f1f04cef51f4e72807980e21c17d06b3a9995a7 Mon Sep 17 00:00:00 2001
+From 737f062890fff5b97e0e704da76886738339422c Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:37:27 -0500
-Subject: [PATCH 08/12] Disable x509 test cases
+Subject: [PATCH 08/13] Disable x509 test cases
 
 ---
  utils/regtests/testx509.sh | 1 +

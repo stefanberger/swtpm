@@ -102,6 +102,7 @@ if [ "$revision" -lt 155 ]; then
 	git am < "${PATCHESDIR}/0007-Disable-rev155-test-cases.patch"
 	git am < "${PATCHESDIR}/0008-Disable-x509-test-cases.patch"
 	git am < "${PATCHESDIR}/0009-Disable-getcapability-TPM_CAP_ACT.patch"
+	git am < "${PATCHESDIR}/0013-Disable-x509-test-cases-part2.patch"
 fi
 
 if openssl version | grep -q -E "^OpenSSL 3"; then

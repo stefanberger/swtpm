@@ -1,7 +1,7 @@
-From c8c3ea92b9797d743f993bade0196150e26b4c28 Mon Sep 17 00:00:00 2001
+From bcfe5f203d7a5c1e298ea5674268b3174fa67f31 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:38:10 -0500
-Subject: [PATCH 09/12] Disable getcapability TPM_CAP_ACT
+Subject: [PATCH 09/13] Disable getcapability TPM_CAP_ACT
 
 ---
  utils/regtests/testgetcap.sh | 6 +++---

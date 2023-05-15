@@ -1,7 +1,7 @@
-From 6dd4bd7247a6ab0f02c69f5f495cf299c5c8702f Mon Sep 17 00:00:00 2001
+From 8162afd2316d2a374447a0e620d18cf5021d4fdb Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:39:51 -0500
-Subject: [PATCH 02/12] Implement powerup for swtpm
+Subject: [PATCH 02/13] Implement powerup for swtpm
 
 ---
  utils/reg.sh                   | 12 ++++++++++++

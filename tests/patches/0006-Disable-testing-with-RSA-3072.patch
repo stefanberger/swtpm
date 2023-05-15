@@ -1,7 +1,7 @@
-From 9ef419cfb2f0b47a6d4fb989c18f401b06dad1fe Mon Sep 17 00:00:00 2001
+From d49c9dbdeb62a1e04cc427d559a5c5bb66dba3d3 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:35:02 -0500
-Subject: [PATCH 06/12] Disable testing with RSA 3072
+Subject: [PATCH 06/13] Disable testing with RSA 3072
 
 ---
  utils/reg.sh                       |  2 +-
