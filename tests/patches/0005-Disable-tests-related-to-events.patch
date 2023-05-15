@@ -1,7 +1,7 @@
-From 0ada56485cca1b6f9e6c5fa9c79f07682fc86c46 Mon Sep 17 00:00:00 2001
+From 0c129c17aad8114f5b03ee5b9cd03b0e2a5e9dc6 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:33:02 -0500
-Subject: [PATCH 05/12] Disable tests related to 'events'
+Subject: [PATCH 05/13] Disable tests related to 'events'
 
 ---
  utils/regtests/testevent.sh | 1 +

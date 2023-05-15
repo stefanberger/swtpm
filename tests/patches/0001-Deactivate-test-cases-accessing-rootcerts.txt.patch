@@ -1,7 +1,7 @@
-From 703166812b8090669a0dd6f349eca97dec513fe4 Mon Sep 17 00:00:00 2001
+From 8c8ee0c35ca58afb74a11cf6e8753b3711bfc4b2 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Fri, 26 Feb 2021 18:45:57 -0500
-Subject: [PATCH 01/12] Deactivate test cases accessing rootcerts.txt
+Subject: [PATCH 01/13] Deactivate test cases accessing rootcerts.txt
 
 rootcerts.txt contains files in a drive we don't have access to
 ---

@@ -1,7 +1,7 @@
-From a3feeb63145506e3d77be99e1dd214247ebabe1a Mon Sep 17 00:00:00 2001
+From 5c20ae7439608644d66ead780c76aa2890f9fcd1 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:35:56 -0500
-Subject: [PATCH 03/12] Set CRYPTOLIBRARY to openssl
+Subject: [PATCH 03/13] Set CRYPTOLIBRARY to openssl
 
 ---
  utils/reg.sh | 2 +-

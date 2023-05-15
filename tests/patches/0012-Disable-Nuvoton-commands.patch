@@ -1,7 +1,7 @@
-From d7ea9b0e0e4be46e367c9116617b33ce399a3601 Mon Sep 17 00:00:00 2001
+From 2902b8dffe585361362d3beee0771cd6bb571bc2 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.ibm.com>
 Date: Wed, 10 May 2023 18:17:23 -0400
-Subject: [PATCH 12/12] Disable Nuvoton commands
+Subject: [PATCH 12/13] Disable Nuvoton commands
 
 ---
  utils/regtests/testntc.sh | 2 ++

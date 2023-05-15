@@ -1,7 +1,7 @@
-From fe645b76d6eee78c4e7bce3a422be10f42abb757 Mon Sep 17 00:00:00 2001
+From 85c5c7576c9e10f5b7c37573311aaf96353eee07 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:42:11 -0500
-Subject: [PATCH 04/12] Store and restore volatile state at every step
+Subject: [PATCH 04/13] Store and restore volatile state at every step
 
 ---
  utils/reg.sh | 14 +++++++++++++-

@@ -1,7 +1,7 @@
-From e50f9f4a05a6a255dd94808792ff33f3ccc9894d Mon Sep 17 00:00:00 2001
+From 2214b96d5110f955b89434d7add749fc3fb8a6e7 Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.ibm.com>
 Date: Tue, 3 May 2022 10:26:06 -0400
-Subject: [PATCH 10/12] Adjust test cases for OpenSSL 3
+Subject: [PATCH 10/13] Adjust test cases for OpenSSL 3
 
 1) Some openssl command lines need -traditional when converting a key
    from PEM to DER format.
@@ -21,7 +21,7 @@ TSS_RC_X509_ERROR - X509 parse error
  1 file changed, 56 insertions(+), 53 deletions(-)
 
 diff --git a/utils/regtests/testx509.sh b/utils/regtests/testx509.sh
-index 03650fe..54b0b56 100755
+index 03650fe..80fc946 100755
 --- a/utils/regtests/testx509.sh
 +++ b/utils/regtests/testx509.sh
 @@ -69,9 +69,9 @@ do
