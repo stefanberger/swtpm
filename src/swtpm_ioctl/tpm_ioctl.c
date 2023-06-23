@@ -1302,24 +1302,43 @@ int main(int argc, char *argv[])
                devtoh32(is_chardev, psbs.u.resp.minsize),
                devtoh32(is_chardev, psbs.u.resp.maxsize));
     } else if (!strcmp(command, "--info")) {
+        char buffer[sizeof(pgi.u.resp.buffer) + 1];
+        uint32_t bytes_read = 0;
+        uint32_t len;
+
         memset(&pgi, 0, sizeof(pgi));
-        pgi.u.req.flags = htodev64(is_chardev, info_flags);
-        pgi.u.req.offset = htodev64(is_chardev, 0);
-        n = ctrlcmd(fd, PTM_GET_INFO, &pgi,
-                    sizeof(pgi.u.req), sizeof(pgi.u.resp));
-        if (n < 0) {
-            fprintf(stderr,
-                    "Could not execute PTM_GET_INFO: %s\n",
-                    strerror(errno));
-            goto exit;
-        }
-        res = devtoh32(is_chardev, pgi.u.resp.tpm_result);
-        if (res != 0) {
-            fprintf(stderr,
-                    "TPM result from PTM_GET_INFO: 0x%x\n", res);
-            goto exit;
-        }
-        printf("%s\n", pgi.u.resp.buffer);
+        do {
+            pgi.u.req.flags = htodev64(is_chardev, info_flags);
+            pgi.u.req.offset = htodev32(is_chardev, bytes_read);
+            n = ctrlcmd(fd, PTM_GET_INFO, &pgi,
+                        sizeof(pgi.u.req), sizeof(pgi.u.resp));
+            if (n < 0) {
+                fprintf(stderr,
+                        "Could not execute PTM_GET_INFO: %s\n",
+                        strerror(errno));
+                goto exit;
+            }
+            res = devtoh32(is_chardev, pgi.u.resp.tpm_result);
+            if (res != 0) {
+                fprintf(stderr,
+                        "TPM result from PTM_GET_INFO: 0x%x\n", res);
+                goto exit;
+            }
+
+            len = devtoh32(is_chardev, pgi.u.resp.length);
+            if (len > sizeof(pgi.u.resp.buffer)) {
+                fprintf(stderr,
+                        "TPM returned an invalid length of %u, expected maximum %zu\n",
+                        len, sizeof(pgi.u.resp.buffer));
+                goto exit;
+            }
+            bytes_read += len;
+
+            memcpy(buffer, pgi.u.resp.buffer, len);
+            buffer[len] = 0;
+            printf("%s", buffer);
+        } while (bytes_read < devtoh32(is_chardev, pgi.u.resp.totlength));
+        printf("\n");
     } else if (!strcmp(command, "--lock-storage")) {
         memset(&pls, 0, sizeof(pls));
         pls.u.req.retries = htodev32(is_chardev, 0);
