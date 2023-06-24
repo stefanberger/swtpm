@@ -10,6 +10,7 @@
 #include "config.h"
 
 #include <errno.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -41,6 +42,8 @@
 #define AS2BE(VAL) (((VAL) >> 8) & 0xff), ((VAL) & 0xff)
 #define AS4BE(VAL) AS2BE((VAL) >> 16), AS2BE(VAL)
 #define AS8BE(VAL) AS4BE((VAL) >> 32), AS4BE(VAL)
+
+#define CMD_DURATION_SHORT  2000 /* ms */
 
 struct tpm_req_header {
     uint16_t tag;
@@ -215,7 +218,7 @@ static void swtpm_destroy(struct swtpm *self)
 /* Send a command to swtpm and receive the response either via control or data channel */
 static int transfer(struct swtpm *self, void *buffer, size_t buffer_len,
                     const char *cmdname, gboolean use_ctrl,
-                    void *respbuffer, size_t *respbuffer_len)
+                    void *respbuffer, size_t *respbuffer_len, int timeout_ms)
 {
     size_t offset;
     int sockfd;
@@ -223,6 +226,9 @@ static int transfer(struct swtpm *self, void *buffer, size_t buffer_len,
     unsigned char resp[4096];
     ssize_t resplen;
     uint32_t returncode;
+    struct pollfd fds = {
+        .events = POLLIN | POLLERR | POLLHUP,
+    };
 
     if (use_ctrl) {
         sockfd = self->ctrl_fds[0];
@@ -241,6 +247,14 @@ static int transfer(struct swtpm *self, void *buffer, size_t buffer_len,
     if ((size_t)n != buffer_len) {
         logerr(self->logfile, "Could not send all bytes to swtpm: %zu < %zu\n",
                (size_t)n, buffer_len);
+        return 1;
+    }
+
+    fds.fd = sockfd;
+    n = poll(&fds, 1, timeout_ms);
+    if (n != 1 || (fds.revents & POLLIN) == 0) {
+        logerr(self->logfile, "Could not receive response to %s from swtpm: %s\n",
+               cmdname, strerror(errno));
         return 1;
     }
 
@@ -284,7 +298,8 @@ static int swtpm_ctrl_shutdown(struct swtpm *self)
 {
     uint32_t cmd = htobe32(CMD_SHUTDOWN);
 
-    return transfer(self, &cmd, sizeof(cmd), "CMD_SHUTDOWN", TRUE, NULL, 0);
+    return transfer(self, &cmd, sizeof(cmd), "CMD_SHUTDOWN", TRUE,
+                    NULL, NULL, CMD_DURATION_SHORT);
 }
 
 /* Get the TPM specification parameters over the control channel */
@@ -298,7 +313,8 @@ static int swtpm_ctrl_get_tpm_specs_and_attrs(struct swtpm *self, gchar **result
     int ret;
     uint32_t length;
 
-    ret = transfer(self, req, sizeof(req), "CMD_GET_INFO", TRUE, tpmresp, &tpmresp_len);
+    ret = transfer(self, req, sizeof(req), "CMD_GET_INFO", TRUE,
+                   tpmresp, &tpmresp_len, CMD_DURATION_SHORT);
     if (ret != 0)
         return 1;
 
@@ -395,6 +411,10 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_SPK_HANDLE              0x81000001
 
+#define TPM2_DURATION_SHORT     2000 /* ms */
+#define TPM2_DURATION_MEDIUM    7500 /* ms */
+#define TPM2_DURATION_LONG     15000 /* ms */
+
 #define TPM_REQ_HEADER_INITIALIZER(TAG, SIZE, ORD) \
     { \
         .tag = htobe16(TAG), \
@@ -483,7 +503,8 @@ static int swtpm_tpm2_shutdown(struct swtpm *self)
         .shutdownType = htobe16(TPM2_SU_CLEAR)
     };
 
-    return transfer(self, &req, sizeof(req), "TPM2_Shutdown", FALSE, NULL, NULL);
+    return transfer(self, &req, sizeof(req), "TPM2_Shutdown", FALSE,
+                    NULL, NULL, TPM2_DURATION_SHORT);
 }
 
 /* Get all available PCR banks */
@@ -511,7 +532,8 @@ static int swtpm_tpm2_get_all_pcr_banks(struct swtpm *self, gchar ***all_pcr_ban
     }
     ((struct tpm_req_header *)req)->size = htobe32(req_len);
 
-    ret = transfer(self, req, req_len, "TPM2_GetCapability", FALSE, tpmresp, &tpmresp_len);
+    ret = transfer(self, req, req_len, "TPM2_GetCapability", FALSE,
+                   tpmresp, &tpmresp_len, TPM2_DURATION_MEDIUM);
     if (ret != 0)
         return 1;
 
@@ -660,7 +682,8 @@ static int swtpm_tpm2_set_active_pcr_banks(struct swtpm *self, gchar **pcr_banks
     }
     ((struct tpm_req_header *)req)->size = htobe32(req_len);
 
-    ret = transfer(self, req, req_len, "TPM2_PCR_Allocate", FALSE, NULL, 0);
+    ret = transfer(self, req, req_len, "TPM2_PCR_Allocate", FALSE,
+                   NULL, NULL, TPM2_DURATION_SHORT);
     if (ret != 0)
         goto error;
 
@@ -692,7 +715,8 @@ static int swtpm_tpm2_evictcontrol(struct swtpm *self, uint32_t curr_handle, uin
         .persistentHandle = htobe32(perm_handle),
     };
 
-    return transfer(self, &req, sizeof(req), "TPM2_EvictControl", FALSE, NULL, 0);
+    return transfer(self, &req, sizeof(req), "TPM2_EvictControl", FALSE,
+                    NULL, NULL, TPM2_DURATION_SHORT);
 }
 
 /* Create an RSA EK */
@@ -864,7 +888,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
     ((struct tpm_req_header *)createprimary)->size = htobe32(createprimary_len);
 
     ret = transfer(self, createprimary, createprimary_len, "TPM2_CreatePrimary(RSA)", FALSE,
-                   tpmresp, &tpmresp_len);
+                   tpmresp, &tpmresp_len, TPM2_DURATION_LONG);
     if (ret != 0)
         return 1;
 
@@ -961,7 +985,7 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     ((struct tpm_req_header *)createprimary)->size = htobe32(createprimary_len);
 
     ret = transfer(self, createprimary, createprimary_len, "TPM2_CreatePrimary(ECC)", FALSE,
-                   tpmresp, &tpmresp_len);
+                   tpmresp, &tpmresp_len, TPM2_DURATION_LONG);
     if (ret != 0)
         return 1;
     if (curr_handle) {
@@ -1237,7 +1261,8 @@ static int swtpm_tpm2_nvdefinespace(struct swtpm *self, uint32_t nvindex, uint32
 
     ((struct tpm_req_header *)req)->size = htobe32(req_len);
 
-    return transfer(self, req, req_len, "TPM2_NV_DefineSpace", FALSE, NULL, 0);
+    return transfer(self, req, req_len, "TPM2_NV_DefineSpace", FALSE,
+                    NULL, NULL, TPM2_DURATION_SHORT);
 }
 
 /* Write the data into the given NVIndex */
@@ -1271,7 +1296,8 @@ static int swtpm_tpm2_nv_write(struct swtpm *self, uint32_t nvindex,
         }
         ((struct tpm_req_header *)req)->size = htobe32(req_len);
 
-        ret = transfer(self, req, req_len, "TPM2_NV_Write", FALSE, NULL, 0);
+        ret = transfer(self, req, req_len, "TPM2_NV_Write", FALSE,
+                       NULL, NULL, TPM2_DURATION_SHORT);
         if (ret != 0)
             return 1;
 
@@ -1301,7 +1327,8 @@ static int swtpm_tpm2_nv_writelock(struct swtpm *self, uint32_t nvindex)
 
     ((struct tpm_req_header *)req)->size = htobe32(req_len);
 
-    return transfer(self, req, req_len, "TPM2_NV_WriteLock", FALSE, NULL, 0);
+    return transfer(self, req, req_len, "TPM2_NV_WriteLock", FALSE,
+                    NULL, NULL, TPM2_DURATION_SHORT);
 }
 
 static int swtpm_tpm2_write_nvram(struct swtpm *self, uint32_t nvindex, uint32_t nvindexattrs,
@@ -1459,6 +1486,9 @@ static const struct swtpm2_ops swtpm_tpm2_ops = {
 
 #define TPM_KH_EK    0x40000006
 
+#define TPM_DURATION_SHORT     2000  /* ms */
+#define TPM_DURATION_MEDIUM    7500  /* ms */
+#define TPM_DURATION_LONG     15000  /* ms */
 
 static int swtpm_tpm12_tsc_physicalpresence(struct swtpm *self, uint16_t physicalpresence)
 {
@@ -1470,14 +1500,16 @@ static int swtpm_tpm12_tsc_physicalpresence(struct swtpm *self, uint16_t physica
         .pp = htobe16(physicalpresence),
     };
 
-    return transfer(self, &req, sizeof(req), "TSC_PhysicalPresence", FALSE, NULL, NULL);
+    return transfer(self, &req, sizeof(req), "TSC_PhysicalPresence", FALSE,
+                    NULL, NULL, TPM_DURATION_SHORT);
 }
 
 static int swtpm_tpm12_physical_enable(struct swtpm *self)
 {
     struct tpm_req_header req = TPM_REQ_HEADER_INITIALIZER(TPM_TAG_RQU_COMMAND, sizeof(req), TPM_ORD_PHYSICAL_ENABLE);
 
-    return transfer(self, &req, sizeof(req), "TPM_PhysicalEnable", FALSE, NULL, NULL);
+    return transfer(self, &req, sizeof(req), "TPM_PhysicalEnable", FALSE,
+                    NULL, NULL, TPM_DURATION_SHORT);
 }
 
 static int swtpm_tpm12_physical_set_deactivated(struct swtpm *self, uint8_t state)
@@ -1490,7 +1522,8 @@ static int swtpm_tpm12_physical_set_deactivated(struct swtpm *self, uint8_t stat
         .state = state,
     };
 
-    return transfer(self, &req, sizeof(req), "TSC_PhysicalSetDeactivated", FALSE, NULL, NULL);
+    return transfer(self, &req, sizeof(req), "TSC_PhysicalSetDeactivated", FALSE,
+                    NULL, NULL, TPM_DURATION_SHORT);
 }
 
 /* Initialize the TPM1.2 */
@@ -1519,7 +1552,8 @@ static int swptm_tpm12_create_endorsement_keypair(struct swtpm *self,
     uint32_t length;
     int ret;
 
-    ret = transfer(self, &req, sizeof(req), "TPM_CreateEndorsementKeyPair", FALSE, &tpmresp, &tpmresp_len);
+    ret = transfer(self, &req, sizeof(req), "TPM_CreateEndorsementKeyPair", FALSE,
+                   &tpmresp, &tpmresp_len, TPM_DURATION_LONG);
     if (ret != 0)
         return 1;
 
@@ -1553,7 +1587,8 @@ static int swtpm_tpm12_oiap(struct swtpm *self, uint32_t *authhandle, unsigned c
     size_t tpmresp_len = sizeof(tpmresp);
     int ret;
 
-    ret = transfer(self, &req, sizeof(req), "TPM_OIAP", FALSE, &tpmresp, &tpmresp_len);
+    ret = transfer(self, &req, sizeof(req), "TPM_OIAP", FALSE,
+                   &tpmresp, &tpmresp_len, TPM_DURATION_SHORT);
     if (ret != 0)
         return ret;
 
@@ -1776,7 +1811,8 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
     trh = (struct tpm_req_header *)req; /* old gcc type-punned pointer */
     trh->size = htobe32(req_len);
 
-    ret = transfer(self, req, req_len, "TPM_TakeOwnership", FALSE, NULL, 0);
+    ret = transfer(self, req, req_len, "TPM_TakeOwnership", FALSE,
+                   NULL, NULL, TPM_DURATION_LONG);
 
 error:
     EVP_PKEY_free(pkey);
@@ -1852,7 +1888,8 @@ static int swtpm_tpm12_nv_define_space(struct swtpm *self, uint32_t nvindex,
 
     ((struct tpm_req_header *)req)->size = htobe32(req_len);
 
-    return transfer(self, req, req_len, "TPM_NV_DefineSpace", FALSE, NULL, 0);
+    return transfer(self, req, req_len, "TPM_NV_DefineSpace", FALSE,
+                    NULL, NULL, TPM_DURATION_SHORT);
 }
 
 static int swtpm_tpm12_nv_write_value(struct swtpm *self, uint32_t nvindex,
@@ -1874,7 +1911,8 @@ static int swtpm_tpm12_nv_write_value(struct swtpm *self, uint32_t nvindex,
 
     ((struct tpm_req_header *)req)->size = htobe32(req_len);
 
-    return transfer(self, req, req_len, "TPM_NV_DefineSpace", FALSE, NULL, 0);
+    return transfer(self, req, req_len, "TPM_NV_DefineSpace", FALSE,
+                    NULL, NULL, TPM_DURATION_SHORT);
 }
 
 /* Write the EK Certificate into NVRAM */
