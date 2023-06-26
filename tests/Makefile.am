@@ -241,7 +241,8 @@ check-display:
 .PHONY: syntax-check
 syntax-check:
 # SC2009: Consider using pgrep instead of grepping ps output.
-	shellcheck -e SC2009 \
+# SC2317: (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+	shellcheck -e SC2009,SC2317 \
 		$(TESTS) $(TEST_UTILS) $(filter _test_%,$(EXTRA_DIST))
 
 check: check-am check-display
