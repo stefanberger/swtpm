@@ -24,7 +24,7 @@ LOGFILE=$TPM_PATH/logfile
 
 function cleanup()
 {
-	pid=$(ps aux | grep $SWTPM | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
+	pid=$(ps aux | grep "$SWTPM" | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
 	if [ -n "$pid" ]; then
 		kill_quiet -9 "$pid"
 	fi
