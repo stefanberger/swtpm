@@ -1500,8 +1500,9 @@ static int swtpm_tpm12_tsc_physicalpresence(struct swtpm *self, uint16_t physica
         .pp = htobe16(physicalpresence),
     };
 
+    /* use medium duration to avoid t/o on busy system */
     return transfer(self, &req, sizeof(req), "TSC_PhysicalPresence", FALSE,
-                    NULL, NULL, TPM_DURATION_SHORT);
+                    NULL, NULL, TPM_DURATION_MEDIUM);
 }
 
 static int swtpm_tpm12_physical_enable(struct swtpm *self)
