@@ -15,7 +15,7 @@ if ! type -p nvdefinespace startup &>/dev/null; then
 		exit 77
 	fi
 fi
-TOOLSPATH=$(dirname "$(type -P ${PREFIX}startup)")
+TOOLSPATH=$(dirname "$(type -P "${PREFIX}startup")")
 
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}

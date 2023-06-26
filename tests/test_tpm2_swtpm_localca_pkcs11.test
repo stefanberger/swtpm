@@ -206,7 +206,7 @@ do
 
   if ! GNUTLS_PIN=${PIN} ${CERTTOOL} \
     --verify \
-    ${verify_profile} \
+    ${verify_profile:+${verify_profile}} \
     --load-ca-certificate "${ISSUERCERT}" \
     --infile "${workdir}/ek.pem"; then
     echo "Error: Could not verify certificate chain."
