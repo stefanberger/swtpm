@@ -790,7 +790,7 @@ function has_seccomp_support()
 
 	local tmp
 
-	tmp=$(${swtpm_exe} socket --help | grep -E "\-\-seccomp")
+	tmp=$(${swtpm_exe} socket --help | grep -E "\--seccomp")
 	[ -n "${tmp}" ] && return 0
 	return 1
 }
