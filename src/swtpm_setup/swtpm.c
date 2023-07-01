@@ -11,6 +11,7 @@
 
 #include <errno.h>
 #include <poll.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -56,6 +57,20 @@ struct tpm_resp_header {
     uint32_t size;
     uint32_t errcode;
 } __attribute__((packed));
+
+/* Close the ctrl and data file descriptors that were passed to the swtpm process.
+ * If 'all' is true then also close the ones not passed to the process.
+ */
+static void swtpm_close_comm(struct swtpm *self, bool all)
+{
+    if (all)
+        SWTPM_CLOSE(self->data_fds[0]);
+    SWTPM_CLOSE(self->data_fds[1]);
+
+    if (all)
+        SWTPM_CLOSE(self->ctrl_fds[0]);
+    SWTPM_CLOSE(self->ctrl_fds[1]);
+}
 
 static int swtpm_start(struct swtpm *self)
 {
@@ -167,6 +182,8 @@ static int swtpm_start(struct swtpm *self)
     }
 
 error:
+    swtpm_close_comm(self, ret != 0);
+
     close(pidfile_fd);
     unlink(pidfile);
 
@@ -196,17 +213,7 @@ static void swtpm_stop(struct swtpm *self)
         self->pid = 0;
     }
 
-    if (self->ctrl_fds[0] >= 0) {
-        close(self->ctrl_fds[0]);
-        close(self->ctrl_fds[1]);
-        self->ctrl_fds[0] = self->ctrl_fds[1] = -1;
-    }
-
-    if (self->data_fds[0] >= 0) {
-        close(self->data_fds[0]);
-        close(self->data_fds[1]);
-        self->data_fds[0] = self->data_fds[1] = -1;
-    }
+    swtpm_close_comm(self, true);
 }
 
 /* Destroy a running swtpm instance */

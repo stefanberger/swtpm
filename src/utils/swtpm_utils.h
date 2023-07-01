@@ -17,6 +17,12 @@
 #define min(X,Y) ((X) < (Y) ? (X) : (Y))
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
+#define SWTPM_CLOSE(FD)	\
+    if ((FD) >= 0) {	\
+        close((FD));	\
+        (FD) = -1;	\
+    }
+
 extern gchar *gl_LOGFILE;
 
 void append_to_file(const char *pathname, const char *str);
