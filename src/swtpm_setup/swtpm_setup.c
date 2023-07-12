@@ -1387,7 +1387,7 @@ int main(int argc, char *argv[])
         case '1': /* --version */
             versioninfo();
             ret = 0;
-            goto error;
+            goto out;
         case 'y': /* --print-capabilities */
             printcapabilities = TRUE;
             break;
