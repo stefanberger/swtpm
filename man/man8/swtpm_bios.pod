@@ -22,7 +22,7 @@ to. By default I<localhost> is assumed. The default TCP port is 6545 unless
 the environment variable I<TCSD_TCP_DEVICE_PORT> indicates another port. 
 
 In case of success 0 will be returned. In case a TPM error was
-encountered the return code will be 128. In case of communcation
+encountered the return code will be 128. In case of communication
 failure 255 is returned. In case the TPM needs to be reset to become
 activated, 129 will be returned.
 
