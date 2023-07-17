@@ -289,7 +289,7 @@ fi
 echo "Testing new CryptAdjustPrimeCandidate implementation"
 
 # copy all the state files; the files need libtpms (0.8.0) with
-# TPM 2.0 revsion 155; there the seeds are setup so that the fixed
+# TPM 2.0 revision 155; there the seeds are setup so that the fixed
 # RSA key generation algorithm is used
 cp -f "${TESTDIR}"/data/tpm2state4/* "${TPM_PATH}"
 
