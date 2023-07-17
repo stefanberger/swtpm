@@ -143,7 +143,7 @@ EK can only be used for key encipherment. This option requires --tpm2.
 
 =item B<--decryption>
 
-If --allow-signing is passed and the EK should also be useable for key
+If --allow-signing is passed and the EK should also be usable for key
 encipherment, this option must be passed. Otherwise key encipherment is the
 default. This option requires --tpm2.
 

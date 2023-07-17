@@ -76,7 +76,7 @@ Set the locality for the subsequent TPM commands.
 
 Have the TPM write the volatile state to a file. Upon a TPM_Init (-i) the
 TPM state will be read and the TPM can then resume operation without further
-intialization.
+initialization.
 
 =item B<-C>
 

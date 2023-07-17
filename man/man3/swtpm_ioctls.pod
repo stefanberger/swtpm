@@ -3,7 +3,7 @@
 swtpm_ioctls - Description of the ioctl's of the CUSE TPM (swtpm_cuse)
 and control commands used by the control channel over socket interface.
 
-=head1 SYNOPSYS
+=head1 SYNOPSIS
 
 B<#include E<lt>tpm_ioctl.hE<gt>>
 
@@ -418,7 +418,7 @@ The ptm_lockstorage data structure looks as follows:
          } req; /* request */
          struct {
              ptm_res tpm_result;
-         } resp; /* reponse */
+         } resp; /* response */
      } u;
  };
 
