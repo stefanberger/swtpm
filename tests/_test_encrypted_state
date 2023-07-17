@@ -117,7 +117,7 @@ if [ ! -r "$VOLATILE_STATE_FILE" ]; then
 fi
 
 if ! tmp=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -g | cut -d":" -f2); then
-	echo "Error: Could not get the configration flags of the ${SWTPM_INTERFACE} TPM."
+	echo "Error: Could not get the configuration flags of the ${SWTPM_INTERFACE} TPM."
 	echo "TPM Logfile:"
 	cat "$logfile"
 	exit 1

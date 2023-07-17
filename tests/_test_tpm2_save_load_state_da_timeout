@@ -108,7 +108,7 @@ done
 RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x02\x00\x00\x00\x27\x00\x00\x01\x3a\x40\x00\x00\x0a\x00\x00\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x06\x00\x00\x00\x06')
 exp=' 80 02 00 00 00 13 00 00 00 00 00 00 00 00 00 00 01 00 00'
 if [ "$RES" != "$exp" ]; then
-	echo "Error: Did not get expected result fron TPM2_DictionaryAttackParameters()"
+	echo "Error: Did not get expected result from TPM2_DictionaryAttackParameters()"
 	echo "expected: $exp"
 	echo "received: $RES"
 	exit 1

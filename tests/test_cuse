@@ -21,7 +21,7 @@ fi
 
 if [ ! -c /dev/cuse ]; then
 	if ! modprobe cuse; then
-		echo "Skipping test using CUSE module: module not availabe"
+		echo "Skipping test using CUSE module: module not available"
 		exit 77
 	fi
 fi

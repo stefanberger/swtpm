@@ -54,7 +54,7 @@ else
 	SWTPM_LD_LIBRARY_PATH=""
 fi
 
-# Mininum permissions on directory
+# Minimum permissions on directory
 chmod 0700 "${TPM_PATH}"
 chown "${TESTUSER}:${TESTGROUP}" "${TPM_PATH}"
 # empty pid file that swtpm must be able to overwrite

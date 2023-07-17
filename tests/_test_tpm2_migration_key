@@ -104,7 +104,7 @@ if ! [[ $size =~ $expsize ]]; then
 fi
 
 if ! tmp=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" -g | cut -d":" -f2); then
-	echo "Error: Could not get the configration flags of the ${SWTPM_INTERFACE} TPM."
+	echo "Error: Could not get the configuration flags of the ${SWTPM_INTERFACE} TPM."
 	exit 1
 fi
 

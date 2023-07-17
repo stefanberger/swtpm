@@ -211,7 +211,7 @@ function test_primary()
 	local i res rc
 
 	if [ "$create" -eq 1 ]; then
-		# Create a permanent primary key that we expecte
+		# Create a permanent primary key that we expect
 		# to again see after the TPM has been restarted
 		if ! "${TOOLSPATH}/${PREFIX}createprimary" -hi o -si > "$TMPFILE"; then
 			echo "Error: createprimary failed."
@@ -484,7 +484,7 @@ function test_session()
 	local i res rc
 
 	if [ "$create" -eq 1 ]; then
-		# Create a permanent primary key that we expecte
+		# Create a permanent primary key that we expect
 		# to again see after the TPM has been restarted
 		if ! "${TOOLSPATH}/${PREFIX}createprimary" -hi o -st > "$TMPFILE"; then
 			echo "Error: createprimary for creating storage key failed."
@@ -613,7 +613,7 @@ function test_primary_volatile_load()
 	local i res rc
 
 	if [ "$create" -eq 1 ]; then
-		# Create a permanent primary key that we expecte
+		# Create a permanent primary key that we expect
 		# to again see after the TPM has been restarted
 		if ! "${TOOLSPATH}/${PREFIX}createprimary" -hi o -si > "$TMPFILE"; then
 			echo "Error: createprimary failed."
