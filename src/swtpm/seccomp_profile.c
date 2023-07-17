@@ -221,7 +221,7 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(removexattr),
         SCMP_SYS(lremovexattr),
         SCMP_SYS(fremovexattr),
-        /* processs forking */
+        /* process forking */
         SCMP_SYS(execve),
         /* io */
         SCMP_SYS(iopl),

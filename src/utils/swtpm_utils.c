@@ -378,7 +378,7 @@ error:
     return -1;
 }
 
-/* replace occurences of 'torep' with 'rep' in a string 'in' */
+/* replace occurrences of 'torep' with 'rep' in a string 'in' */
 gchar *str_replace(const char *in, const char *torep, const char *rep)
 {
     char *res;

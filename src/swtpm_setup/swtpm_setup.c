@@ -906,7 +906,7 @@ static void usage(const char *prgname, const char *default_config_file)
         "                 : This option is deprecated and has no effect.\n"
         "\n"
         "--print-capabilities\n"
-        "                 : Print JSON formatted capabilites added after v0.1 and exit.\n"
+        "                 : Print JSON formatted capabilities added after v0.1 and exit.\n"
         "\n"
         "--create-config-files [[overwrite][,root]]\n"
         "                 : Create swtpm_setup and swtpm-localca config files for a\n"
@@ -1039,7 +1039,7 @@ static int get_rsa_keysize_caps(unsigned long flags, gchar **swtpm_prg_l,
     return 0;
 }
 
-/* Print teh JSON object of swtpm_setup's capabilities */
+/* Print the JSON object of swtpm_setup's capabilities */
 static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
                               gboolean swtpm_has_tpm2)
 {

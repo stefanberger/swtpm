@@ -1,5 +1,5 @@
 /*
- * seccomp_profile.h -- seccomp profile suppport
+ * seccomp_profile.h -- seccomp profile support
  *
  * (c) Copyright IBM Corporation 2019.
  *

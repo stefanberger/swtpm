@@ -198,7 +198,7 @@ hex_str_to_bin(const char *hexstr, int *modulus_len)
 
     result = malloc(len / 2);
     if (result == NULL) {
-        fprintf(stderr, "Out of memory tring to allocated %d bytes.", len / 2);
+        fprintf(stderr, "Out of memory trying to allocated %d bytes.", len / 2);
         return NULL;
     }
     i = 0;
@@ -927,7 +927,7 @@ static int mypinfunc(void *userdata SWTPM_ATTR_UNUSED,
  * file:<filename>
  * env:<environment variable>
  * Any password read from files must not exceed 256 bytes including
- * teminating 0 byte.
+ * terminating 0 byte.
  */
 static char *get_password(const char *password)
 {

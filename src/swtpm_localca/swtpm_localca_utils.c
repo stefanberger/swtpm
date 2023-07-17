@@ -78,7 +78,7 @@ error:
 }
 
 /* Extract all environment variables from the config file and add them to
- * the given environent.
+ * the given environment.
  * Environment variable lines must start with 'env:' and must not contain
  * trailing spaces or a comment starting with '#'
  */

@@ -488,7 +488,7 @@ static const char *get_name_for_bank(uint16_t hashAlg) {
     return NULL;
 }
 
-/* Give the name of a hash bank, return its algo identifer */
+/* Give the name of a hash bank, return its algo identifier */
 static uint16_t get_hashalg_by_bankname(const char *name) {
     size_t i;
 

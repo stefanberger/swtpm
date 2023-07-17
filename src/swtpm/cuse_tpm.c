@@ -122,7 +122,7 @@ static bool g_incoming_migration;
 /* whether NVRAM storage is currently locked */
 static bool g_storage_locked;
 
-/* whether to relase the lock on outgoing migration */
+/* whether to release the lock on outgoing migration */
 static bool g_release_lock_outgoing;
 
 /* how many times to retry locking; use for fallback after releasing
@@ -144,7 +144,7 @@ static GMutex *file_ops_lock;
 # endif
 #else
 
-#error Unsupport glib version
+#error Unsupported glib version
 
 #endif
 
@@ -488,7 +488,7 @@ static void worker_thread(gpointer data, gpointer user_data SWTPM_ATTR_UNUSED)
  * tpm_start: Start the TPM
  *
  * Check whether the TPM's state directory exists and if it does
- * not exists, try to creat it. Start the thread pool, initilize
+ * not exists, try to create it. Start the thread pool, initialize
  * libtpms and allocate a global TPM request buffer.
  *
  * @flags: libtpms init flags
@@ -1008,7 +1008,7 @@ cleanup:
 }
 
 /*
- * ptm_write: low-level write() interface; calls approriate function depending
+ * ptm_write: low-level write() interface; calls appropriate function depending
  *            on what is being transferred using the write()
  */
 static void ptm_write(fuse_req_t req, const char *buf, size_t size,
