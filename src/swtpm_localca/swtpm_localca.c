@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * swtpm_localca.c: A tool for creating TPM 1.2 and TPM 2 certificates localy or using pkcs11
+ * swtpm_localca.c: A tool for creating TPM 1.2 and TPM 2 certificates locally or using pkcs11
  *
  * Author: Stefan Berger, stefanb@linux.ibm.com
  *

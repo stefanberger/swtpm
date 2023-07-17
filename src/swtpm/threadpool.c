@@ -65,7 +65,7 @@ GMutex *thread_busy_lock;
 # endif
 #else
 
-#error Unsupport glib version
+#error Unsupported glib version
 
 #endif
 

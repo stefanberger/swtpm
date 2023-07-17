@@ -794,7 +794,7 @@ static int unixio_open_socket(const char *path, mode_t perm,
 
     if (chmod(su.sun_path, perm) < 0) {
         logprintf(STDERR_FILENO,
-                  "Could not change permssions on UnixIO socket: %s\n",
+                  "Could not change permissions on UnixIO socket: %s\n",
                   strerror(errno));
         goto error;
     }
@@ -1027,7 +1027,7 @@ static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc,
             goto error;
         }
     } else {
-        logprintf(STDERR_FILENO, "Unsupport control channel type: %s\n", type);
+        logprintf(STDERR_FILENO, "Unsupported control channel type: %s\n", type);
         goto error;
     }
 
@@ -1171,7 +1171,7 @@ static int parse_server_options(char *options, struct server **c)
             *c = server_new(fd, flags, NULL);
         }
     } else {
-        logprintf(STDERR_FILENO, "Unsupport socket type: %s\n", type);
+        logprintf(STDERR_FILENO, "Unsupported socket type: %s\n", type);
         goto error;
     }
 

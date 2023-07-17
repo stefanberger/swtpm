@@ -301,12 +301,12 @@ struct input {
  * ctrlchannel_recv_cmd: Receive a command on the control channel
  *
  * @fd: file descriptor for control channel
- * @msg: prepared msghdr struct for receiveing data with single
+ * @msg: prepared msghdr struct for receiving data with single
  *       msg_iov.
  *
  * This function returns 0 or a negative number if an error receiving
  * the command occurred, including a timeout. In case of success,
- * the nunber of bytes received is returned.
+ * the number of bytes received is returned.
  */
 static ssize_t ctrlchannel_recv_cmd(int fd,
                                     struct msghdr *msg)
@@ -476,7 +476,7 @@ static uint64_t get_ptm_caps_supported(TPMLIB_TPMVersion tpmversion)
  *            number when set via CMD_SET_LOCALITY
  * @tpm_running: indicates whether the TPM is running; may be changed by
  *               this function in case TPM is stopped or started
- * @mlp: mainloop parameters used; may be altered by this function incase of
+ * @mlp: mainloop parameters used; may be altered by this function in case of
  *       CMD_SET_DATAFD
  *
  * This function returns the passed file descriptor or -1 in case the
