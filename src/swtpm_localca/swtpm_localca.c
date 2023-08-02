@@ -611,6 +611,8 @@ int main(int argc, char *argv[])
     struct stat statbuf;
     int ret = 1;
 
+    setvbuf(stdout, 0, _IONBF, 0);
+
     if (init(&default_options_file, &default_config_file) < 0)
         goto error;
     optsfile = g_strdup(default_options_file);

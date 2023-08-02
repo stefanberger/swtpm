@@ -1230,6 +1230,8 @@ int main(int argc, char *argv[])
     int ret = 1;
     g_autoptr(GError) error = NULL;
 
+    setvbuf(stdout, 0, _IONBF, 0);
+
     if (init(&config_file) < 0)
         goto error;
 
