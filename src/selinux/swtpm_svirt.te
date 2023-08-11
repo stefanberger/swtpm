@@ -29,5 +29,6 @@ allow svirt_tcg_t virt_var_run_t:sock_file { create setattr };
 allow svirt_tcg_t virt_var_run_t:file { create getattr open read unlink write };
 allow svirt_tcg_t virt_var_run_t:dir { write add_name remove_name };
 allow svirt_tcg_t swtpm_exec_t:file { entrypoint map };
+allow svirt_tcg_t user_tmp_t:sock_file { create setattr };
 # libvirt specific rules needed on F28
 allow svirt_tcg_t virtd_t:unix_stream_socket { read write getopt getattr accept };
