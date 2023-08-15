@@ -10,7 +10,7 @@ Summary: TPM Emulator
 Name:           swtpm
 Version:        @VERSION@
 Release:        1%{?dist}
-License:        BSD
+License:        BSD-3-Clause
 Url:            https://github.com/stefanberger/swtpm
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
@@ -42,7 +42,7 @@ BuildRequires:  tpm2-pkcs11 tpm2-pkcs11-tools tpm2-tools tpm2-abrmd
 
 Requires:       %{name}-libs = %{version}-%{release}
 Requires:       libtpms >= 0.6.0
-%{?selinux_requires}
+Requires:       (%{name}-selinux if selinux-policy-targeted)
 
 %description
 TPM emulator built on libtpms providing TPM functionality for QEMU VMs
@@ -81,6 +81,17 @@ Requires:      expect gnutls-utils trousers >= 0.3.9
 %description   tools-pkcs11
 Tools for creating a local CA based on a pkcs11 device
 
+%package        selinux
+Summary:        SELinux security policy for swtpm
+Requires(post): swtpm = %{version}-%{release}
+BuildArch:      noarch
+%if ! 0%{?flatpak}
+%{?selinux_requires}
+%endif
+
+%description    selinux
+SELinux security policy for swtpm.
+
 %prep
 %autosetup
 
@@ -103,20 +114,20 @@ make %{?_smp_mflags} check
 %make_install
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la,so}
 
-%post
+%post selinux
 for pp in /usr/share/selinux/packages/swtpm.pp \
           /usr/share/selinux/packages/swtpm_svirt.pp; do
   %selinux_modules_install -s %{selinuxtype} ${pp}
 done
 
-%postun
+%postun selinux
 if [ $1 -eq  0 ]; then
   for p in swtpm swtpm_svirt; do
     %selinux_modules_uninstall -s %{selinuxtype} $p
   done
 fi
 
-%posttrans
+%posttrans selinux
 %selinux_relabel_post -s %{selinuxtype}
 
 %ldconfig_post libs
@@ -127,6 +138,8 @@ fi
 %doc README
 %{_bindir}/swtpm
 %{_mandir}/man8/swtpm.8*
+
+%files selinux
 %{_datadir}/selinux/packages/swtpm.pp
 %{_datadir}/selinux/packages/swtpm_svirt.pp
 
