@@ -1,5 +1,18 @@
 CHANGES - changes for swtpm
 
+version 0.7.4:
+  - swtpm:
+    - Restore logging to stderr on log open failure
+    - Disable OpenSSL FIPS mode to avoid libtpms failures
+    - Avoid locking directory multiple times
+  - swtpm_setup:
+    - Exit with '0' upon --version rather than '1'.
+  - swtpm_localca:
+    - Add missing NULL option to end of array
+  - SELinux:
+    - Add rules for user_tpm_t:sockfile to allow unlink
+    - Add rules for sock_file on user_tmp_t
+
 version 0.7.3:
   - swtpm:
     - Use uint64_t in tlv_data_append() to avoid integer overflows
