@@ -1,5 +1,18 @@
 CHANGES - changes for swtpm
 
+version 0.8.1:
+  - swtpm:
+    - Restore logging to stderr on log open failure
+  - swtpm_setup:
+    - Exit with '0' upon --version rather than '1'.
+    - Initialized @argv in get_swtpm_capabilities()
+  - swtpm_localca:
+    - Add missing NULL option to end of array
+  - SELinux:
+    - Add rules for user_tpm_t:sockfile to allow unlink
+    - Add rules for sock_file on user_tmp_t
+  - debian: Allow apparmor access to qemu session bus swtpm files
+
 version 0.8.0:
   - swtpm:
     - Implement release-lock-outgoing parameter for --migration option
