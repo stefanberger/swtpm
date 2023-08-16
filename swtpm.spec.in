@@ -49,14 +49,14 @@ TPM emulator built on libtpms providing TPM functionality for QEMU VMs
 
 %package        libs
 Summary:        Private libraries for swtpm TPM emulators
-License:        BSD
+License:        BSD-3-Clause
 
 %description    libs
 A private library with callback functions for libtpms based swtpm TPM emulator
 
 %package        devel
 Summary:        Include files for the TPM emulator's CUSE interface for usage by clients
-License:        BSD
+License:        BSD-3-Clause
 Requires:       %{name}-libs%{?_isa} = %{version}-%{release}
 
 %description    devel
@@ -64,7 +64,7 @@ Include files for the TPM emulator's CUSE interface.
 
 %package        tools
 Summary:        Tools for the TPM emulator
-License:        BSD
+License:        BSD-3-Clause
 Requires:       swtpm = %{version}-%{release}
 Requires:       trousers >= 0.3.9 bash gnutls-utils
 
@@ -73,7 +73,7 @@ Tools for the TPM emulator from the swtpm package
 
 %package       tools-pkcs11
 Summary:       Tools for creating a local CA based on a pkcs11 device
-License:       BSD
+License:       BSD-3-Clause
 Requires:      swtpm-tools = %{version}-%{release}
 Requires:      tpm2-pkcs11 tpm2-pkcs11-tools tpm2-tools tpm2-abrmd
 Requires:      expect gnutls-utils trousers >= 0.3.9
