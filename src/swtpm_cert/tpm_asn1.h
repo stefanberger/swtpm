@@ -92,7 +92,17 @@ const asn1_static_node tpm_asn1_tab[] = {
   { "version", 34, NULL },
   { "PlatformCertificateSAN", 1610612747, NULL },
   { NULL, 13, NULL },
-  { "TPMEKCertExtendedKeyUsage", 536870917, NULL },
+  { "TPMEKCertExtendedKeyUsage", 1610612741, NULL },
   { "id", 12, NULL },
+  { "TPMIAKSanInfo", 1610612741, NULL },
+  { "tpmIAKSanInfoSeq", 536879106, "TPMIAKSanInfoSeq"},
+  { NULL, 4104, "0"},
+  { "TPMIAKSanInfoSeq", 1610612741, NULL },
+  { "id", 1073741836, NULL },
+  { "iakSanInfoSet", 536879106, "IAKHardwareModuleName"},
+  { NULL, 2056, "0"},
+  { "IAKHardwareModuleName", 536870917, NULL },
+  { "hwType", 1073741836, NULL },
+  { "hwSerialNum", 7, NULL },
   { NULL, 0, NULL }
 };
