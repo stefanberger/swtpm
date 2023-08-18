@@ -41,7 +41,7 @@ The following options are supported:
 =item B<--type type>
 
 This parameter indicates the type of certificate to create. The type parameter may
-be one of the following: I<ek>, or I<platform>
+be one of the following: I<ek>, I<platform>, I<iak>, I<idevid>
 
 =item B<--dir dir>
 
