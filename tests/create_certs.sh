@@ -37,6 +37,12 @@ main() {
 	platform)
 		echo -n "platform" > ${dir}/platform.cert
 		;;
+	iak)
+		echo -n "iak" > ${dir}/iak.cert
+		;;
+	idevid)
+		echo -n "idevid" > ${dir}/idevid.cert
+		;;
 	esac
 }
 

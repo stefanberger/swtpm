@@ -53,7 +53,7 @@ exp='\{ "type": "swtpm_setup", '\
 '"tpm12-not-need-root", "cmdarg-write-ek-cert-files", "cmdarg-create-config-files", '\
 '"cmdarg-reconfigure-pcr-banks"'\
 '(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")?, "cmdarg-profile", '\
-'"cmdarg-profile-remove-disabled" \], '\
+'"cmdarg-profile-remove-disabled", "cmdarg-no-iak" \], '\
 '"profiles": \[ [^]]*\], '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
