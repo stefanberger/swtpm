@@ -292,9 +292,11 @@ error:
     return ret;
 }
 
-static char *create_ek_certfile_name(const gchar *user_certsdir, const gchar *key_description)
+static char *create_certfile_name(const gchar *user_certsdir,
+                                  const gchar *key_type,
+                                  const gchar *key_description)
 {
-    g_autofree gchar *filename = g_strdup_printf("ek-%s.crt", key_description);
+    g_autofree gchar *filename = g_strdup_printf("%s-%s.crt", key_type, key_description);
 
     return g_strjoin(G_DIR_SEPARATOR_S, user_certsdir, filename, NULL);
 }
@@ -303,7 +305,8 @@ static char *create_ek_certfile_name(const gchar *user_certsdir, const gchar *ke
  * Remove the cert file unless the user wants a copy of it.
  */
 static int certfile_move_or_delete(unsigned long flags, gboolean preserve, const gchar *certfile,
-                                   const gchar *user_certsdir, const gchar *key_description)
+                                   const gchar *user_certsdir, const gchar *key_type,
+                                   const gchar *key_description)
 {
     g_autofree gchar *content = NULL;
     g_autofree gchar *cf = NULL;
@@ -315,7 +318,7 @@ static int certfile_move_or_delete(unsigned long flags, gboolean preserve, const
         if (!g_file_get_contents(certfile, &content, &content_length, &error))
             goto error;
 
-        cf = create_ek_certfile_name(user_certsdir, key_description);
+        cf = create_certfile_name(user_certsdir, key_type, key_description);
         if (!(flags & SETUP_TPM2_F)) {
             /* A TPM 1.2 certificate has a 7 byte header at the beginning
              * that we now remove */
@@ -365,6 +368,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
     g_autofree gchar *ekparam = NULL;
     const char *key_description;
     unsigned long cert_flags;
+    const gchar *key_type;
     size_t idx;
     int ret;
 
@@ -412,8 +416,10 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                     return 1;
                 }
 
+                key_type = flags_to_certfiles[idx].flag & SETUP_EK_CERT_F ? "ek" : "";
+
                 if (certfile_move_or_delete(flags, !!(flags_to_certfiles[idx].flag & SETUP_EK_CERT_F),
-                                            certfile, user_certsdir, key_description) != 0)
+                                            certfile, user_certsdir, key_type, key_description) != 0)
                     return 1;
             }
         }
@@ -618,6 +624,7 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
     g_autofree gchar *filecontent = NULL;
     g_autofree gchar *certfile = NULL;
     unsigned int cert_flags;
+    const gchar *key_type;
     gsize filecontent_len;
     size_t idx;
     int ret;
@@ -657,8 +664,10 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
                 return 1;
             }
 
+            key_type = flags_to_certfiles[idx].flag & SETUP_EK_CERT_F ? "ek" : "";
+
             if (certfile_move_or_delete(flags, !!(flags_to_certfiles[idx].flag & SETUP_EK_CERT_F),
-                                        certfile, user_certsdir, "rsa2048") != 0)
+                                        certfile, user_certsdir, key_type, "rsa2048") != 0)
                 return 1;
         }
     }
