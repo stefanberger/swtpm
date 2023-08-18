@@ -1353,18 +1353,18 @@ static int swtpm_tpm2_nv_writelock(struct swtpm *self, uint32_t nvindex)
 
 static int swtpm_tpm2_write_nvram(struct swtpm *self, uint32_t nvindex, uint32_t nvindexattrs,
                                   const unsigned char *data, size_t data_len, gboolean lock_nvram,
-                                  const char *purpose)
+                                  const char *certtype)
 {
     int ret = swtpm_tpm2_nvdefinespace(self, nvindex, nvindexattrs, data_len);
     if (ret != 0) {
-        logerr(self->logfile, "Could not create NVRAM area 0x%x for %s.\n", nvindex, purpose);
+        logerr(self->logfile, "Could not create NVRAM area 0x%x for %s.\n", nvindex, certtype);
         return 1;
     }
 
     ret = swtpm_tpm2_nv_write(self, nvindex, data, data_len);
     if (ret != 0) {
         logerr(self->logfile,
-               "Could not write %s into NVRAM area 0x%x.\n", purpose, nvindex);
+               "Could not write %s into NVRAM area 0x%x.\n", certtype, nvindex);
         return 1;
     }
 
@@ -1377,6 +1377,24 @@ static int swtpm_tpm2_write_nvram(struct swtpm *self, uint32_t nvindex, uint32_t
     }
 
     return 0;
+}
+
+static int swtpm_tpm2_write_cert_nvram(struct swtpm *self, uint32_t nvindex,
+                                       uint32_t nvindexattrs,
+                                       const unsigned char *data, size_t data_len,
+                                       gboolean lock_nvram, const char *keytype,
+                                       const char *certtype)
+{
+    int ret;
+
+    ret = swtpm_tpm2_write_nvram(self, nvindex, nvindexattrs, data, data_len, lock_nvram,
+                                 certtype);
+    if (ret == 0)
+        logit(self->logfile,
+              "Successfully created NVRAM area 0x%x for %s%s.\n",
+              nvindex, keytype, certtype);
+
+    return ret;
 }
 
 /* Write the platform certificate into an NVRAM area */
@@ -1393,30 +1411,20 @@ static int swtpm_tpm2_write_ek_cert_nvram(struct swtpm *self, gboolean isecc,
             TPMA_NV_PPWRITE |
             TPMA_NV_NO_DA |
             TPMA_NV_WRITEDEFINE;
-    int ret;
 
     if (!isecc) {
         if (rsa_keysize == 2048)
             nvindex = TPM2_NV_INDEX_RSA2048_EKCERT;
         else if (rsa_keysize == 3072)
             nvindex = TPM2_NV_INDEX_RSA3072_HI_EKCERT;
-        keytype = g_strdup_printf("RSA %d", rsa_keysize);
+        keytype = g_strdup_printf("RSA %d ", rsa_keysize);
     } else {
         nvindex = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT;
-        keytype = g_strdup("ECC");
+        keytype = g_strdup("ECC ");
     }
 
-    ret = swtpm_tpm2_write_nvram(self, nvindex, nvindexattrs, data, data_len, lock_nvram,
-                                 "EK Certificate");
-    if (ret == 0)
-        logit(self->logfile,
-              "Successfully created NVRAM area 0x%x for %s EK certificate.\n",
-              nvindex, keytype);
-    else
-        logerr(self->logfile,
-               "Could not create NVRAM area 0x%x for %s EK certificate.\n",
-               nvindex, keytype);
-    return ret;
+    return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
+                                       lock_nvram, keytype, "EK certificate");
 }
 
 static int swtpm_tpm2_write_platform_cert_nvram(struct swtpm *self, gboolean lock_nvram,
@@ -1430,18 +1438,9 @@ static int swtpm_tpm2_write_platform_cert_nvram(struct swtpm *self, gboolean loc
             TPMA_NV_PPWRITE |
             TPMA_NV_NO_DA |
             TPMA_NV_WRITEDEFINE;
-    int ret;
 
-    ret = swtpm_tpm2_write_nvram(self, nvindex, nvindexattrs, data, data_len, lock_nvram,
-                                 "Platform Certificate");
-    if (ret == 0)
-        logit(self->logfile,
-              "Successfully created NVRAM area 0x%x for platform certificate.\n", nvindex);
-    else
-        logerr(self->logfile,
-               "Could not create NVRAM area 0x%x for platform certificate.\n", nvindex);
-
-    return ret;
+    return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
+                                       lock_nvram, "", "platform certificate");
 }
 
 static const struct swtpm2_ops swtpm_tpm2_ops = {
