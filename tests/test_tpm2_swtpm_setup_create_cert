@@ -220,18 +220,22 @@ for pwdfile in "" "${PWDFILE}"; do
 		exit 1
 	fi
 
-	certfile="${workdir}/ek-secp384r1.crt"
-	if [ ! -f "${certfile}" ]; then
-		echo "Error: EK file '${certfile}' was not written."
-		ls -l "${workdir}"
-		exit 1
-	fi
+	for certfile in \
+		"${workdir}/ek-secp384r1.crt" \
+		"${workdir}/iak-secp384r1.crt" \
+		"${workdir}/idevid-secp384r1.crt"; do
+		if [ ! -f "${certfile}" ]; then
+			echo "Error: Certificate file '${certfile}' was not written."
+			ls -l "${workdir}"
+			exit 1
+		fi
 
-	if ! $CERTTOOL --inder --infile "${certfile}" -i | grep -q "384 bits"; then
-		echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
-		$CERTTOOL --inder --infile "${certfile}" -i
-		exit 1
-	fi
+		if ! $CERTTOOL --inder --infile "${certfile}" -i | grep -q "384 bits"; then
+			echo "Error: Certificate file '${certfile}' is not an ECC 384 bit key."
+			$CERTTOOL --inder --infile "${certfile}" -i
+			exit 1
+		fi
+	done
 
 	swtpm_setup_reconfigure "${workdir}" "${pwdfile}"
 done
