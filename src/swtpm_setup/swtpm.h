@@ -43,6 +43,7 @@ struct swtpm12_ops {
 };
 
 enum keyalgo {
+    KEYALGO_NONE = 0,
     KEYALGO_RSA = 1,
     KEYALGO_ECC = 2,
 };
@@ -59,6 +60,10 @@ struct swtpm2_ops {
     int (*create_ek)(struct swtpm *self, enum keyalgo keyalgo, unsigned int keyalgo_param,
                      gboolean allowsigning, gboolean decryption, gboolean lock_nvram,
                      gchar **ekparam, const gchar **key_description);
+    int (*create_iak)(struct swtpm *self, enum keyalgo keyalgo, unsigned int keyalgo_param,
+                      gchar **keyparam, const gchar **key_description);
+    int (*create_idevid)(struct swtpm *self, enum keyalgo keyalgo, unsigned int keyalgo_param,
+                         gchar **keyparam, const gchar **key_description);
     int (*get_all_pcr_banks)(struct swtpm *self, gchar ***all_pcr_banks);
     int (*set_active_pcr_banks)(struct swtpm *self, gchar **pcr_banks_l, gchar **all_pcr_banks,
                                 gchar ***active);
@@ -68,6 +73,10 @@ struct swtpm2_ops {
     int (*write_platform_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
                                      const unsigned char *data, size_t data_len);
     char *(*get_active_profile)(struct swtpm *self);
+    int (*write_iak_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
+                                const unsigned char *data, size_t data_len);
+    int (*write_idevid_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
+                                   const unsigned char *data, size_t data_len);
 };
 
 /* common structure for swtpm object */

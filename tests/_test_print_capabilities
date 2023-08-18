@@ -55,7 +55,7 @@ exp='\{ "type": "swtpm_setup", '\
 '"cmdarg-reconfigure-pcr-banks"'\
 '(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")?(, "tpm2-rsa-keysize-4096")?, '\
 '"cmdarg-profile", "cmdarg-profile-remove-disabled", "cmdarg-ek1keyalgo", '\
-'"cmdarg-ek2keyalgo" \], '\
+'"cmdarg-ek2keyalgo", "cmdarg-iakkeyalgo", "cmdarg-idevidkeyalgo" \], '\
 '"profiles": \[ [^]]*\], '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
