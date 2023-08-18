@@ -932,6 +932,7 @@ err_too_short:
 static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
                                         const unsigned char *symkeydata, size_t symkeydata_len,
                                         const unsigned char *authpolicy, size_t authpolicy_len,
+                                        const unsigned char *schemedata, size_t schemedata_len,
                                         unsigned short curveid, unsigned short hashalg,
                                         const unsigned char *nonce, size_t nonce_len,
                                         size_t off, uint32_t *curr_handle,
@@ -958,7 +959,7 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                   }, (size_t)10,
                   authpolicy, authpolicy_len,
                   symkeydata, symkeydata_len,
-                  (unsigned char[]) {AS2BE(TPM2_ALG_NULL), AS2BE(curveid), AS2BE(TPM2_ALG_NULL)}, (size_t)6,
+                  schemedata, schemedata_len,
                   nonce, nonce_len,
                   nonce, nonce_len,
                   NULL);
@@ -1054,10 +1055,15 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
     size_t authpolicy_len = sizeof(authpolicy);
     const unsigned char symkeydata[] = {AS2BE(TPM2_ALG_AES), AS2BE(256), AS2BE(TPM2_ALG_CFB)};
     size_t symkeydata_len = sizeof(symkeydata);
+    const unsigned char schemedata[] = {
+        AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
+    };
+    size_t schemedata_len = sizeof(schemedata);
     size_t off = 42;
 
     return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags, symkeydata, symkeydata_len,
-                                        authpolicy, authpolicy_len, TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
+                                        authpolicy, authpolicy_len, schemedata, schemedata_len,
+                                        TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
                                         NONCE_ECC_384, sizeof(NONCE_ECC_384), off, curr_handle,
                                         NULL, 0, NULL, NULL);
 }
@@ -1123,6 +1129,10 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         0xCB, 0x1C, 0x0A, 0xD9, 0xBD, 0xE4, 0x19, 0xCA, 0xCB, 0x47, 0xBA, 0x09,
         0x69, 0x96, 0x46, 0x15, 0x0F, 0x9F, 0xC0, 0x00, 0xF3, 0xF8, 0x0E, 0x12
     };
+    const unsigned char schemedata[] = {
+        AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
+    };
+    size_t schemedata_len = sizeof(schemedata);
     size_t authpolicy_len = 48;
     unsigned char symkeydata[6];
     size_t symkeydata_len;
@@ -1158,8 +1168,11 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         off = 90;
     }
 
-    ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags, symkeydata, symkeydata_len,
-                                       authpolicy, authpolicy_len, TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
+    ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags,
+                                       symkeydata, symkeydata_len,
+                                       authpolicy, authpolicy_len,
+                                       schemedata, schemedata_len,
+                                       TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
                                        NONCE_EMPTY, sizeof(NONCE_EMPTY), off, curr_handle,
                                        ektemplate, ektemplate_len, ekparam, key_description);
     if (ret != 0)
