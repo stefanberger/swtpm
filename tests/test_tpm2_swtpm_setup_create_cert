@@ -220,6 +220,8 @@ for pwdfile in "" "${PWDFILE}"; do
 		--logfile "${workdir}/logfile" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--overwrite \
+		--iakkeyalgo secp384r1 \
+		--idevidkeyalgo secp384r1 \
 		--write-ek-cert-files "${workdir}" \
 		${pwdfile:+--pwdfile "${pwdfile}"}; then
 		echo "Error: Could not run $SWTPM_SETUP."
@@ -243,18 +245,22 @@ for pwdfile in "" "${PWDFILE}"; do
 		exit 1
 	fi
 
-	certfile="${workdir}/ek-secp384r1.crt"
-	if [ ! -f "${certfile}" ]; then
-		echo "Error: EK file '${certfile}' was not written."
-		ls -l "${workdir}"
-		exit 1
-	fi
+	for certfile in \
+		"${workdir}/ek-secp384r1.crt" \
+		"${workdir}/iak-secp384r1.crt" \
+		"${workdir}/idevid-secp384r1.crt"; do
+		if [ ! -f "${certfile}" ]; then
+			echo "Error: Certificate file '${certfile}' was not written."
+			ls -l "${workdir}"
+			exit 1
+		fi
 
-	if ! openssl x509 -inform der -in "${certfile}" -noout -text | grep -q "384 bit"; then
-		echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
-		openssl x509 -inform der -in "${certfile}" -noout -text
-		exit 1
-	fi
+		if ! openssl x509 -inform der -in "${certfile}" -noout -text | grep -q "384 bit"; then
+			echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
+			openssl x509 -inform der -in "${certfile}" -noout -text
+			exit 1
+		fi
+	done
 
 	swtpm_setup_reconfigure "${workdir}" "${pwdfile}"
 done

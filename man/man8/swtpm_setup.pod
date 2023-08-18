@@ -110,6 +110,29 @@ For valid values see the description of the B<--ek1keyalgo> option.
 It is possible to choose a default 2nd endorsement key algorithm with an
 I<ek2keyalgo> entry in the I<swtpm_setup.conf> configuration file.
 
+=item B<--iakkeyalgo <key algorithm>> (since v0.11)
+
+Choose the key algorithm for the IAK key that can be used for signing.
+
+Valid values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
+ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096.
+
+It is possible to choose a default IAK key algorithm with an I<iakkeyalgo>
+entry in the I<swtpm_setup.conf> configuration file.
+
+The IAK key will be persisted at 0x81020001.
+
+=item B<--idevidkeyalgo <key algorithm>> (since v0.11)
+
+Choose the key algorithm for the IDevID key that can be used for signing.
+
+For valid values see the description of the B<--iakkeyalgo> option.
+
+It is possible to choose a default IDevID key algorithm with an I<idevidkeyalgo>
+entry in the I<swtpm_setup.conf> configuration file.
+
+The IDevID key will be persisted at 0x81020000.
+
 =item B<--take-ownership>
 
 Take ownership; this option implies --createek. This option is only available for TPM 1.2.
@@ -336,7 +359,9 @@ The output may contain the following:
         "cmdarg-profile",
         "cmdarg-profile-remove-disabled",
         "cmdarg-ek1keyalgo",
-        "cmdarg-ek2keyalgo"
+        "cmdarg-ek2keyalgo,"
+        "cmdarg-iakkeyalgo,"
+        "cmdarg-idevidkeyalgo"
       ],
       "version": "0.7.0"
     }
@@ -403,6 +428,14 @@ The I<--ek1keyalgo> option is supported.
 =item B<cmdarg-ek2keyalgo> (since v0.11)
 
 The I<--ek2keyalgo> option is supported.
+
+=item B<cmdarg-iakkeyalgo> (since v0.11)
+
+The I<--iakkeyalgo> option is supported.
+
+=item B<cmdarg-idevidkeyalgo> (since v0.11)
+
+The I<--idevidkeyalgo> option is supported.
 
 =back
 
