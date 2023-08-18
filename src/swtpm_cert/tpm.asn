@@ -113,4 +113,20 @@ TPMEKCertExtendedKeyUsage ::= SEQUENCE {
   id OBJECT IDENTIFIER
 }
 
+-- IAK --
+
+TPMIAKSanInfo ::= SEQUENCE {
+  tpmIAKSanInfoSeq [0] IMPLICIT TPMIAKSanInfoSeq
+}
+
+TPMIAKSanInfoSeq ::= SEQUENCE {
+  id OBJECT IDENTIFIER,
+  iakSanInfoSet [0] EXPLICIT IAKHardwareModuleName
+}
+
+IAKHardwareModuleName ::= SEQUENCE {
+  hwType OBJECT IDENTIFIER,
+  hwSerialNum OCTET STRING
+}
+
 END

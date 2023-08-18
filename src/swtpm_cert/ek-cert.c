@@ -98,6 +98,8 @@ enum cert_type_t {
     CERT_TYPE_EK = 1,
     CERT_TYPE_PLATFORM,
     CERT_TYPE_AIK,
+    CERT_TYPE_IAK,
+    CERT_TYPE_IDEVID,
 };
 
 /* some flags */
@@ -205,10 +207,12 @@ static void usage(const char *prg)
         "--days <number>           : Number of days the cert is valid;\n"
         "                            -1 for no expiration\n"
         "--pem                     : Write certificate in PEM format; default is DER\n"
-        "--type <platform|ek>      : The type of certificate to create; default is ek\n"
+        "--type <cert_type>        : The type of certificate to create; default is ek\n"
+        "                            Other options are platform, iak, idevid\n"
         "--tpm-manufacturer <name> : The name of the TPM manufacturer\n"
         "--tpm-model <model>       : The TPM model (part number)\n"
         "--tpm-version <version>   : The TPM version (firmware version)\n"
+        "--tpm-serial-num <s>      : The TPM serial number; required for IAK and IDevID\n"
         "--platform-manufacturer <name> : The name of the Platform manufacturer\n"
         "--platform-model <model>       : The Platform model (part number)\n"
         "--platform-version <version>   : The Platform version (firmware version)\n"
@@ -774,6 +778,41 @@ cleanup:
 }
 
 static int
+create_iak_info(datum_t *asn1, const char *hwSerialNum)
+{
+    unsigned int err_line = 0;
+    const char *err_msg;
+    asn1_node at = NULL;
+    int err;
+
+    err = asn_init();
+    if (err != ASN1_SUCCESS)
+        goto cleanup;
+
+    err = asn1_create_element(_tpm_asn, "TPM.TPMIAKSanInfo", &at);
+    ASN1_CHECK_ERROR(err, "asn1_create_element");
+
+    err = asn1_write_value(at, "tpmIAKSanInfoSeq.id", "1.3.6.1.5.5.7.8.4", 0);
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
+
+    err = asn1_write_value(at, "tpmIAKSanInfoSeq.iakSanInfoSet.hwType", "2.23.133.1.2", 0);
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
+
+    err = asn1_write_value(at, "tpmIAKSanInfoSeq.iakSanInfoSet.hwSerialNum", hwSerialNum, 0);
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
+
+    err = encode_asn1(asn1, at);
+
+ cleanup:
+    if (err && err_line)
+        fprintf(stderr, "%s @ %u: Error: %s : %s\n",
+                __func__, err_line, err_msg, asn1_strerror(err));
+
+    asn1_delete_structure(&at);
+    return err;
+}
+
+static int
 create_cert_extended_key_usage(const char *oid, datum_t *asn1)
 {
     unsigned int err_line = 0;
@@ -1029,6 +1068,8 @@ static void capabilities_print_json(void)
             "\"type\": \"swtpm_cert\", "
             "\"features\": [ "
              "\"cmdarg-signkey-pwd\""
+             ", \"cmdarg-tpm-serial-num\""
+             ", \"supports-iak-idevid\""
             " ], "
             "\"version\": \"" VERSION "\" "
             "}\n");
@@ -1094,6 +1135,7 @@ int main(int argc, char *argv[])
     const char *tpm_manufacturer = NULL;
     const char *tpm_version = NULL;
     const char *tpm_model = NULL;
+    const char *tpm_serial_num = NULL;
     const char *platf_manufacturer = NULL;
     const char *platf_version = NULL;
     const char *platf_model = NULL;
@@ -1105,6 +1147,7 @@ int main(int argc, char *argv[])
     bool is_ecc = false;
     char *endptr;
     const char *keychoice = NULL;
+    int critical = 0;
     static struct option long_options[] = {
         {"pubkey", required_argument, NULL, 'p'},
         {"modulus", required_argument, NULL, 'm'},
@@ -1124,6 +1167,7 @@ int main(int argc, char *argv[])
         {"tpm-manufacturer", required_argument, NULL, '1'},
         {"tpm-model", required_argument, NULL, '2'},
         {"tpm-version", required_argument, NULL, '3'},
+        {"tpm-serial-num", required_argument, NULL, '0'},
         {"platform-manufacturer", required_argument, NULL, '4'},
         {"platform-model", required_argument, NULL, '5'},
         {"platform-version", required_argument, NULL, '6'},
@@ -1255,6 +1299,10 @@ int main(int argc, char *argv[])
                 certtype = CERT_TYPE_EK;
             } else if (!strcasecmp(optarg, "platform")) {
                 certtype = CERT_TYPE_PLATFORM;
+            } else if (!strcasecmp(optarg, "iak")) {
+                certtype = CERT_TYPE_IAK;
+            } else if (!strcasecmp(optarg, "idevid")) {
+                certtype = CERT_TYPE_IDEVID;
             } else {
                 fprintf(stderr, "Unknown certificate type '%s'.\n",
                         optarg);
@@ -1269,6 +1317,9 @@ int main(int argc, char *argv[])
             break;
         case '3': /* --tpm-version */
             tpm_version = optarg;
+            break;
+        case '0': /* --tpm-serial-num */
+            tpm_serial_num = optarg;
             break;
         case '4': /* --platform-manufacturer */
             platf_manufacturer = optarg;
@@ -1387,6 +1438,13 @@ int main(int argc, char *argv[])
         break;
     case CERT_TYPE_AIK:
         break;
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
+        if (tpm_serial_num == NULL) {
+            fprintf(stderr, "--tpm-serial-num must be provided\n");
+            goto cleanup;
+        }
+        break;
     }
 
     switch (certtype) {
@@ -1409,6 +1467,8 @@ int main(int argc, char *argv[])
         }
         break;
     case CERT_TYPE_AIK:
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
         break;
     }
 
@@ -1536,39 +1596,65 @@ int main(int argc, char *argv[])
                        "Could not set expiration time on CRT.\n");
 
     /* Subject -- must be empty for TPM 1.2 */
-    if (subject && (flags & CERT_TYPE_TPM2_F)) {
-        g_autofree char *s = g_strdup(subject);
-        X509_NAME *name = X509_NAME_new();
+    if ((flags & CERT_TYPE_TPM2_F)) {
+        g_autofree char *s = NULL;
+        X509_NAME *name = NULL;
         char *token, *equal;
 
-        token = strtok(s, ",");
-        do {
-            while (isspace((int)*token))
-                token++;
-            equal = strchr(token, '=');
-            if (equal) {
-                g_autofree char *attr = g_strndup(token, equal - token);
-                g_autofree char *val = g_strdup(&equal[1]);
+        switch (certtype) {
+        case CERT_TYPE_PLATFORM:
+        case CERT_TYPE_EK:
+            if (!subject)
+                break;
 
-                g_strchomp(attr);
-                g_strstrip(val);
-                CHECK_OSSL_RETURN1(
-                    X509_NAME_add_entry_by_txt(name, attr, MBSTRING_ASC,
-                                               (unsigned char *)val, -1, -1, 0) != 1,
-                    "X509_NAME_add_entry_by_txt failed.\n");
-            }
-            token = strtok(NULL, ",");
-        } while (token);
+            s = g_strdup(subject);
+            name = X509_NAME_new();
+            CHECK_OSSL_NULLPTR1(name, "Out of memory");
+            token = strtok(s, ",");
+            do {
+                while (isspace((int)*token))
+                    token++;
+                equal = strchr(token, '=');
+                if (equal) {
+                    g_autofree char *attr = g_strndup(token, equal - token);
+                    g_autofree char *val = g_strdup(&equal[1]);
 
-        CHECK_OSSL_RETURN1(X509_set_subject_name(crt, name) != 1,
-                           "Could not set subject name.\n");
-        X509_NAME_free(name);
+                    g_strchomp(attr);
+                    g_strstrip(val);
+                    CHECK_OSSL_RETURN1(
+                        X509_NAME_add_entry_by_txt(name, attr, MBSTRING_ASC,
+                                                  (unsigned char *)val,
+                                                  -1, -1, 0) != 1,
+                        "X509_NAME_add_entry_by_txt failed.\n");
+                }
+                token = strtok(NULL, ",");
+            } while (token);
+            break;
+        case CERT_TYPE_IAK:
+        case CERT_TYPE_IDEVID:
+            name = X509_NAME_new();
+            CHECK_OSSL_NULLPTR1(name, "Out of memory");
+            CHECK_OSSL_RETURN1(
+                X509_NAME_add_entry_by_txt(name, "serialNumber", MBSTRING_ASC,
+                                           (unsigned char *)tpm_serial_num,
+                                           -1, -1, 0) != 1,
+                "X509_NAME_add_entry_by_txt failed.\n");
+            break;
+        case CERT_TYPE_AIK:
+            break;
+        }
+        if (name) {
+            CHECK_OSSL_RETURN1(X509_set_subject_name(crt, name) != 1,
+                               "Could not set subject name.\n");
+            X509_NAME_free(name);
+        }
     }
 
     /* Subject Public Key Info */
 
     /* Certificate Policies -- skip since not mandated */
     /* Subject Alternative Names */
+    critical = 1;
     switch (certtype) {
     case CERT_TYPE_EK:
         err = create_tpm_manufacturer_info(tpm_manufacturer, tpm_model,
@@ -1604,6 +1690,15 @@ int main(int argc, char *argv[])
         break;
     case CERT_TYPE_AIK:
         break;
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
+        err = create_iak_info(&datum, tpm_serial_num);
+        if (err) {
+            fprintf(stderr, "Could not create IAK info");
+            goto cleanup;
+        }
+        critical = 0;
+        break;
     default:
         fprintf(stderr, "Internal error: unhandled case in line %d\n",
                 __LINE__);
@@ -1611,19 +1706,28 @@ int main(int argc, char *argv[])
     }
 
     if (datum.size > 0) {
-        if (!prepend_san_asn1_header(&datum)) {
-            fprintf(stderr, "Could not prepend SAN ASN.1 header.\n");
-            goto cleanup;
-        }
-        ASN1_OCTET_STRING_set(oct, datum.data, datum.size);
+        switch (certtype) {
+        case CERT_TYPE_EK:
+        case CERT_TYPE_PLATFORM:
+        case CERT_TYPE_IAK:
+        case CERT_TYPE_IDEVID:
+            if (!prepend_san_asn1_header(&datum)) {
+                fprintf(stderr, "Could not prepend SAN ASN.1 header.\n");
+                goto cleanup;
+            }
+            ASN1_OCTET_STRING_set(oct, datum.data, datum.size);
 
-        ext = X509_EXTENSION_create_by_NID(NULL, NID_subject_alt_name, 1, oct);
-        CHECK_OSSL_NULLPTR1(ext,
-                            "Could not create subject alternative name extension.\n");
-        CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
-                           "Could not add extension to CRT.\n");
-        X509_EXTENSION_free(ext);
-        ext = NULL;
+            ext = X509_EXTENSION_create_by_NID(NULL, NID_subject_alt_name, critical, oct);
+            CHECK_OSSL_NULLPTR1(ext,
+                                "Could not create subject alternative name extension.\n");
+            CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
+                               "Could not add extension to CRT.\n");
+            X509_EXTENSION_free(ext);
+            ext = NULL;
+            break;
+        case CERT_TYPE_AIK:
+            break;
+        }
     }
     free_datum(&datum);
 
@@ -1648,6 +1752,8 @@ int main(int argc, char *argv[])
         break;
     case CERT_TYPE_PLATFORM:
     case CERT_TYPE_AIK:
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
         break;
     default:
         fprintf(stderr, "Internal error: unhandled case in line %d\n",
@@ -1705,6 +1811,8 @@ int main(int argc, char *argv[])
         }
         break;
     case CERT_TYPE_AIK:
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
         g_string_append(key_usage, ", digitalSignature");
         break;
     default:
@@ -1732,6 +1840,8 @@ int main(int argc, char *argv[])
         oid = "2.23.133.8.2";
         break;
     case CERT_TYPE_AIK:
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
         break;
     default:
         fprintf(stderr, "Internal error: unhandled case in line %d\n",

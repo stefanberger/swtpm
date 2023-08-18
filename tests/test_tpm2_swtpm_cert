@@ -125,6 +125,87 @@ check_cert_size "${cert}" 1484
 echo -n > "${cert}"
 echo "Test 4: OK"
 
+###################### IAK Certificate #####################
+
+serial=1234:5678
+if ! ${SWTPM_CERT} \
+	--tpm2 \
+        --type iak \
+	--signkey "${TESTDIR}/data/signkey.pem" \
+	--issuercert "${TESTDIR}/data/issuercert.pem" \
+	--pubkey "${TESTDIR}/data/pubek.pem" \
+	--out-cert "${cert}" \
+	--days 3650 \
+	--pem \
+	--tpm-serial-num "${serial}" \
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 2; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+ac=$(openssl x509 -in "${cert}" -noout -text |
+     sed -n "s/.*Subject: serialNumber[[:space:]]*=[[:space:]]*\(.*\)$/\1/p")
+if [ "${ac}" != "${serial}" ]; then
+	echo "Error: Could not find serial number in Subject line"
+	echo "expected: ${serial}"
+	echo "actual  : ${ac}"
+	exit 1
+fi
+
+if ! openssl x509 -in "${cert}" -noout -text |
+     grep -A1 "Key Usage:" |
+     grep -q "Digital Signature"; then
+	echo "Error: IAK certificate must indicate Digital Signature"
+	exit 1
+fi
+
+#expecting size to be constant
+check_cert_size "${cert}" 1375
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test 5: OK"
+
+###################### IDevID Certificate #####################
+
+serial=1234:5678
+if ! ${SWTPM_CERT} \
+	--tpm2 \
+        --type idevid \
+	--signkey "${TESTDIR}/data/signkey.pem" \
+	--issuercert "${TESTDIR}/data/issuercert.pem" \
+	--pubkey "${TESTDIR}/data/pubek.pem" \
+	--out-cert "${cert}" \
+	--days 3650 \
+	--pem \
+	--tpm-serial-num "${serial}" \
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 2; then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+ac=$(openssl x509 -in "${cert}" -noout -text |
+     sed -n "s/.*Subject: serialNumber[[:space:]]*=[[:space:]]*\(.*\)$/\1/p")
+if [ "${ac}" != "${serial}" ]; then
+	echo "Error: Could not find serial number in Subject line"
+	echo "expected: ${serial}"
+	echo "actual  : ${ac}"
+	exit 1
+fi
+
+if ! openssl x509 -in "${cert}" -noout -text |
+     grep -A1 "Key Usage:" |
+     grep -q "Digital Signature"; then
+	echo "Error: IDevID certificate must indicate Digital Signature"
+	exit 1
+fi
+
+#expecting size to be constant
+check_cert_size "${cert}" 1375
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test 6: OK"
 
 ####################### max. serial number #####################
 
@@ -175,4 +256,4 @@ fi
 
 # truncate result file
 echo -n > "${cert}"
-echo "Test 5: OK"
+echo "Test 7: OK"
