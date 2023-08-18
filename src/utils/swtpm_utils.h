@@ -23,6 +23,12 @@
         (FD) = -1;	\
     }
 
+#define SWTPM_G_FREE(var)	\
+    do {		\
+        g_free(var);	\
+        var = NULL;	\
+    } while(0)
+
 extern gchar *gl_LOGFILE;
 
 void append_to_file(const char *pathname, const char *str);

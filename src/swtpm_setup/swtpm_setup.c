@@ -278,10 +278,8 @@ static int call_create_certs(unsigned long flags, const gchar *configfile, const
                 }
                 g_strfreev(lines);
 
-                g_free(standard_output);
-                standard_output = NULL;
-                g_free(standard_error);
-                standard_error = NULL;
+                SWTPM_G_FREE(standard_output);
+                SWTPM_G_FREE(standard_error);
             }
         }
     }
@@ -379,8 +377,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                 g_free(certfile);
                 certfile = g_strjoin(G_DIR_SEPARATOR_S, certsdir, flags_to_certfiles[idx].filename, NULL);
 
-                g_free(filecontent);
-                filecontent = NULL;
+                SWTPM_G_FREE(filecontent);
                 ret = read_file(certfile, &filecontent, &filecontent_len);
                 if (ret != 0)
                     return 1;
@@ -620,8 +617,7 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
             certfile = g_strjoin(G_DIR_SEPARATOR_S, certsdir,
                                  flags_to_certfiles[idx].filename, NULL);
 
-            g_free(filecontent);
-            filecontent = NULL;
+            SWTPM_G_FREE(filecontent);
             ret = read_file(certfile, &filecontent, &filecontent_len);
             if (ret != 0)
                 return 1;
