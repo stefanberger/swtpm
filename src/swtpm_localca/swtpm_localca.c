@@ -501,11 +501,13 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
 
     cmd = concat_arrays(cmd, tpm_attr_params, TRUE);
 
-    if (strcmp(typ, "platform") == 0) {
-        certfile = g_strjoin(G_DIR_SEPARATOR_S, directory, "platform.cert", NULL);
+    if (strcmp(typ, "platform") == 0 || strcmp(typ, "iak") == 0 || strcmp(typ, "idevid") == 0) {
+        g_autofree gchar *certfn = g_strconcat(typ, ".cert", NULL);
+
+        certfile = g_strjoin(G_DIR_SEPARATOR_S, directory, certfn, NULL);
         cmd = concat_arrays(cmd,
                             (const gchar *[]){
-                                "--type", "platform",
+                                "--type", typ,
                                 "--out-cert", certfile,
                                 NULL},
                             TRUE);
@@ -530,7 +532,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     if (strcmp(typ, "ek") == 0)
         certtype = "EK";
     else
-        certtype = "platform";
+        certtype = typ;
 #if 0
     {
         g_autofree gchar *join = g_strjoinv(" ", cmd);
