@@ -356,15 +356,56 @@ static int read_certificate_file(const gchar *certsdir, const gchar *filename,
     return read_file(*certfile, filecontent, filecontent_len);
 }
 
+/*
+ * Read the certificate from the file where swtpm_cert left it.
+ * Write the file into the TPM's NVRAM and, if the user wants it,
+ * copy it into a user-provided directory.
+ */
+static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
+                                    const struct flag_to_certfile *ftc,
+                                    unsigned int rsa_keysize, struct swtpm2 *swtpm2,
+                                    const gchar *user_certsdir, const gchar *key_type,
+                                    const gchar *key_description)
+{
+    g_autofree gchar *filecontent = NULL;
+    g_autofree gchar *certfile = NULL;
+    size_t filecontent_len;
+    int ret;
+
+    ret = read_certificate_file(certsdir, ftc->filename,
+                                &filecontent, &filecontent_len, &certfile);
+    if (ret != 0)
+        goto error_unlink;
+
+    if (ftc->flag == SETUP_EK_CERT_F) {
+        ret = swtpm2->ops->write_ek_cert_nvram(&swtpm2->swtpm,
+                                     !!(flags & SETUP_TPM2_ECC_F), rsa_keysize,
+                                     !!(flags & SETUP_LOCK_NVRAM_F),
+                                     (const unsigned char*)filecontent, filecontent_len);
+    } else {
+        ret = swtpm2->ops->write_platform_cert_nvram(&swtpm2->swtpm,
+                                     !!(flags & SETUP_LOCK_NVRAM_F),
+                                     (const unsigned char *)filecontent, filecontent_len);
+    }
+
+    if (ret != 0)
+        goto error_unlink;
+
+    return certfile_move_or_delete(flags, !!(ftc->flag & SETUP_EK_CERT_F),
+                                   certfile, user_certsdir,
+                                   key_type, key_description);
+
+error_unlink:
+    unlink(certfile);
+    return 1;
+}
+
 /* Create EK and certificate for a TPM 2 */
 static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file,
                                    const gchar *certsdir, const gchar *vmid,
                                    unsigned int rsa_keysize, struct swtpm2 *swtpm2,
                                    const gchar *user_certsdir)
 {
-    g_autofree gchar *filecontent = NULL;
-    size_t filecontent_len;
-    g_autofree gchar *certfile = NULL;
     g_autofree gchar *ekparam = NULL;
     const char *key_description;
     unsigned long cert_flags;
@@ -392,34 +433,12 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
 
         for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
             if (cert_flags & flags_to_certfiles[idx].flag) {
-                SWTPM_G_FREE(filecontent);
-                SWTPM_G_FREE(certfile);
-
-                ret = read_certificate_file(certsdir, flags_to_certfiles[idx].filename,
-                                            &filecontent, &filecontent_len, &certfile);
-                if (ret != 0)
-                    return 1;
-
-                if (flags_to_certfiles[idx].flag == SETUP_EK_CERT_F) {
-                    ret = swtpm2->ops->write_ek_cert_nvram(&swtpm2->swtpm,
-                                                   !!(flags & SETUP_TPM2_ECC_F), rsa_keysize,
-                                                   !!(flags & SETUP_LOCK_NVRAM_F),
-                                                   (const unsigned char*)filecontent, filecontent_len);
-                } else {
-                    ret = swtpm2->ops->write_platform_cert_nvram(&swtpm2->swtpm,
-                                                     !!(flags & SETUP_LOCK_NVRAM_F),
-                                                     (const unsigned char *)filecontent, filecontent_len);
-                }
-
-                if (ret != 0) {
-                    unlink(certfile);
-                    return 1;
-                }
-
                 key_type = flags_to_certfiles[idx].flag & SETUP_EK_CERT_F ? "ek" : "";
 
-                if (certfile_move_or_delete(flags, !!(flags_to_certfiles[idx].flag & SETUP_EK_CERT_F),
-                                            certfile, user_certsdir, key_type, key_description) != 0)
+                ret = tpm2_persist_certificate(flags, certsdir, &flags_to_certfiles[idx],
+                                               rsa_keysize, swtpm2, user_certsdir,
+                                               key_type, key_description);
+                if (ret)
                     return 1;
             }
         }
