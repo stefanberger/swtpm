@@ -424,6 +424,8 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_ALG_SHA512   0x000d
 #define TPM2_ALG_NULL     0x0010
 #define TPM2_ALG_SM3      0x0012
+#define TPM2_ALG_RSAPSS   0x0016
+#define TPM2_ALG_ECDSA    0x0018
 #define TPM2_ALG_ECC      0x0023
 #define TPM2_ALG_SHA3_256 0x0027
 #define TPM2_ALG_SHA3_384 0x0028
@@ -460,13 +462,19 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_NV_INDEX_ECC_SECP521R1_HI_EKCERT     0x01c00018
 #define TPM2_NV_INDEX_ECC_SECP521R1_HI_EKTEMPLATE 0x01c00019
 
+#define TPM2_NV_INDEX_IAK_CERT       0x01c90100
+#define TPM2_NV_INDEX_IDEVID_CERT    0x01c90200
+
 #define TPM2_EK_RSA_HANDLE           0x81010001
 #define TPM2_EK_RSA3072_HANDLE       0x8101001c
 #define TPM2_EK_RSA4096_HANDLE       0x8101001e
 #define TPM2_EK_ECC_SECP256R1_HANDLE 0x8101000a
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_EK_ECC_SECP521R1_HANDLE 0x81010018
+
 #define TPM2_SPK_HANDLE              0x81000001
+#define TPM2_IDEVID_HANDLE           0x81020000
+#define TPM2_IAK_HANDLE              0x81020001
 
 #define TPM2_DURATION_SHORT      ( 2000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
 #define TPM2_DURATION_MEDIUM     ( 7500 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
@@ -502,6 +510,9 @@ static const unsigned char NONCE_RSA4096[2+0x200] = {AS2BE(0x200), 0, };
 static const unsigned char NONCE_ECC_256[2+0x20] = {AS2BE(0x20), 0, };
 static const unsigned char NONCE_ECC_384[2+0x30] = {AS2BE(0x30), 0, };
 static const unsigned char NONCE_ECC_521[2+0x42] = {AS2BE(0x42), 0, };
+static const unsigned char NONCE_IDEVID[2+6] = {AS2BE(6),
+                                                0x49, 0x44, 0x45, 0x56, 0x49, 0x44 };
+static const unsigned char NONCE_IAK[2+3] = {AS2BE(3), 0x49, 0x41, 0x4b };
 
 static const unsigned char PolicyA_SHA256[32] = {
     0x83, 0x71, 0x97, 0x67, 0x44, 0x84, 0xb3, 0xf8, 0x1a, 0x90, 0xcc, 0x8d,
@@ -538,6 +549,23 @@ static const unsigned char PolicyB_SHA512[64] = {
                     | (1<<16) /* restricted */ \
                     | (1<<17)) /* decrypt */
 
+/* IAK: fixedTPM, fixedParent, sensitiveDataOrigin, adminWithPolicy, restricted, sign */
+#define KEYFLAGS_IAK ((1<<1) /* fixedTPM */ \
+                    | (1<<4) /* fixedParent */ \
+                    | (1<<5) /* sensitiveDataOrigin */ \
+                    | (1<<6) /* userWithAuth */ \
+                    | (1<<7) /* adminWithPolicy */ \
+                    | (1<<16) /* restricted */ \
+                    | (1<<18)) /* sign */
+
+/* IDevID: fixedTPM, fixedParent, sensitiveDataOrigin, adminWithPolicy, sign */
+#define KEYFLAGS_IDEVID ((1<<1) /* fixedTPM */ \
+                       | (1<<4) /* fixedParent */ \
+                       | (1<<5) /* sensitiveDataOrigin */ \
+                       | (1<<6) /* userWithAuth */ \
+                       | (1<<7) /* adminWithPolicy */ \
+                       | (1<<18)) /* sign */
+
 static const struct bank_to_name {
     uint16_t hashAlg;
     const char *name;
@@ -565,7 +593,7 @@ struct pk_params {
     uint16_t hashalg;
     const unsigned char *authpolicy;
     size_t authpolicy_len;
-#define SCHEMEDATA_SIZE 8
+#define SCHEMEDATA_SIZE 10
     unsigned char schemedata[SCHEMEDATA_SIZE];
     size_t schemedata_len;
     unsigned int symkey_len;
@@ -843,6 +871,348 @@ static const struct spk_params {
     }
 };
 
+
+static const unsigned char Attestation_PolicyIDevIDKey_SHA256[32] = {
+    0x54, 0x37, 0x18, 0x23, 0x26, 0xe4, 0x14, 0xfc,
+    0xa7, 0x97, 0xd5, 0xf1, 0x74, 0x61, 0x5a, 0x16,
+    0x41, 0xf6, 0x12, 0x55, 0x79, 0x7c, 0x3a, 0x2b,
+    0x22, 0xc2, 0x1d, 0x12, 0x0b, 0x2d, 0x1e, 0x07,
+};
+
+static const unsigned char Attestation_PolicyIDevIDKey_SHA384[48] = {
+    0x12, 0x9d, 0x94, 0xeb, 0xf8, 0x45, 0x56, 0x65,
+    0x2c, 0x6e, 0xef, 0x43, 0xbb, 0xb7, 0x57, 0x51,
+    0x2a, 0xc8, 0x7e, 0x52, 0xbe, 0x7b, 0x34, 0x9c,
+    0xa6, 0xce, 0x4d, 0x82, 0x6f, 0x74, 0x9f, 0xcf,
+    0x67, 0x2f, 0x51, 0x71, 0x6c, 0x5c, 0xbb, 0x60,
+    0x5f, 0x31, 0x3b, 0xf3, 0x45, 0xaa, 0xb3, 0x12,
+};
+
+static const unsigned char Attestation_PolicyIDevIDKey_SHA512[64] = {
+    0x80, 0x60, 0xd1, 0xfb, 0x31, 0x71, 0x6a, 0x29,
+    0xe4, 0x8a, 0x6e, 0x5f, 0xec, 0xe0, 0x88, 0xbc,
+    0xfc, 0x1b, 0x27, 0x8f, 0xc1, 0x62, 0x25, 0x5e,
+    0x81, 0xc3, 0xec, 0xa3, 0x54, 0x4c, 0xd4, 0x4a,
+    0xf9, 0x44, 0x10, 0xc3, 0x71, 0x5d, 0x56, 0x1c,
+    0xcc, 0xd9, 0xe3, 0x9a, 0x6c, 0xb2, 0x64, 0x6d,
+    0x43, 0x53, 0x5b, 0xb5, 0x4e, 0xa8, 0x87, 0x10,
+    0xde, 0xb5, 0xf7, 0x83, 0x6b, 0xd9, 0xb5, 0x86
+};
+
+static const struct iak_params {
+    struct pk_params pk;
+    const char *keytype;
+} iak_params[] = {
+    {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P256,
+            .keydescription = "secp256r1",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .nonce2 = NONCE_EMPTY,
+            .nonce2_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA256,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA256),
+                AS2BE(TPM2_ECC_NIST_P256), AS2BE(TPM2_ALG_NULL),
+            },
+            .schemedata_len = 8,
+            .keysize = 32,
+            .symkey_len = 0,
+            .off = 0x48,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "secp256r1",
+   }, {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P384,
+            .keydescription = "secp384r1",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .nonce2 = NONCE_EMPTY,
+            .nonce2_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA384,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA384),
+                AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL),
+            },
+            .schemedata_len = 8,
+            .keysize = 48,
+            .symkey_len = 0,
+            .off = 0x58,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "secp384r1",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P521,
+            .keydescription = "secp521r1",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .nonce2 = NONCE_EMPTY,
+            .nonce2_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA512,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA512),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA512),
+                AS2BE(TPM2_ECC_NIST_P521), AS2BE(TPM2_ALG_NULL),
+            },
+            .schemedata_len = 8,
+            .keysize = 66,
+            .symkey_len = 0,
+            .off = 0x68,
+            .duration = TPM2_DURATION_LONG,
+       },
+        .keytype = "secp521r1",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 2048,
+            .keydescription = "rsa2048",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA256,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_RSAPSS), AS2BE(TPM2_ALG_SHA256),
+                AS2BE(2048), AS4BE(0),
+            },
+            .schemedata_len = 10,
+            .keysize = 2048/8,
+            .symkey_len = 0,
+            .off = 0x4a,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "RSA 2048",
+   }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 3072,
+            .keydescription = "rsa3072",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA384,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_RSAPSS), AS2BE(TPM2_ALG_SHA384),
+                AS2BE(3072), AS4BE(0),
+            },
+            .schemedata_len = 10,
+            .keysize = 3072/8,
+            .symkey_len = 0,
+            .off = 0x5a,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "RSA 3072",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 4096,
+            .keydescription = "rsa4096",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA384,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_RSAPSS), AS2BE(TPM2_ALG_SHA384),
+                AS2BE(4096), AS4BE(0),
+            },
+            .schemedata_len = 10,
+            .keysize = 4096/8,
+            .symkey_len = 0,
+            .off = 0x5a,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "RSA 4096",
+    }
+};
+
+static const unsigned char Signing_PolicyIDevIDKey_SHA256[32] = {
+    0xad, 0x6b, 0x3a, 0x22, 0x84, 0xfd, 0x69, 0x8a,
+    0x07, 0x10, 0xbf, 0x5c, 0xc1, 0xb9, 0xbd, 0xf1,
+    0x5e, 0x25, 0x32, 0xe3, 0xf6, 0x01, 0xfa, 0x4b,
+    0x93, 0xa6, 0xa8, 0xfa, 0x8d, 0xe5, 0x79, 0xea
+};
+
+static const unsigned char Signing_PolicyIDevIDKey_SHA384[48] = {
+    0x4d, 0xb1, 0xaa, 0x83, 0x6d, 0x0b, 0x56, 0x15,
+    0xdf, 0x6e, 0xe5, 0x3a, 0x40, 0xef, 0x70, 0xc6,
+    0x1c, 0x21, 0x7f, 0x43, 0x03, 0xd4, 0x46, 0x95,
+    0x92, 0x59, 0x72, 0xbc, 0x92, 0x70, 0x06, 0xcf,
+    0xa5, 0xcb, 0xdf, 0x6d, 0xc1, 0x8c, 0x4d, 0xbe,
+    0x32, 0x9b, 0x2f, 0x15, 0x42, 0xc3, 0xdd, 0x33
+};
+
+static const unsigned char Signing_PolicyIDevIDKey_SHA512[64] = {
+    0x7d, 0xd7, 0x50, 0x0f, 0xd6, 0xc1, 0xb9, 0x4f,
+    0x97, 0xa6, 0xaf, 0x91, 0x0d, 0xa1, 0x47, 0x30,
+    0x1e, 0xf2, 0x8f, 0x66, 0x2f, 0xee, 0x06, 0xf2,
+    0x25, 0xa4, 0xcc, 0xad, 0xda, 0x3b, 0x4e, 0x6b,
+    0x38, 0xe6, 0x6b, 0x2f, 0x3a, 0xd5, 0xde, 0xe1,
+    0xa0, 0x50, 0x3c, 0xd2, 0xda, 0xed, 0xb1, 0xe6,
+    0x8c, 0xfe, 0x4f, 0x84, 0xb0, 0x3a, 0x8c, 0xd2,
+    0x2b, 0xb6, 0xa9, 0x76, 0xf0, 0x71, 0xa7, 0x2f
+};
+
+static const struct idevid_params {
+    struct pk_params pk;
+    const char *keytype;
+} idevid_params[] = {
+    {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P256,
+            .keydescription = "secp256r1",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .nonce2 = NONCE_EMPTY,
+            .nonce2_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = Signing_PolicyIDevIDKey_SHA256,
+            .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA256),
+                AS2BE(TPM2_ECC_NIST_P256), AS2BE(TPM2_ALG_NULL),
+            },
+            .schemedata_len = 8,
+            .keysize = 32,
+            .symkey_len = 0,
+            .off = 0x48,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "secp256r1",
+   }, {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P384,
+            .keydescription = "secp384r1",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .nonce2 = NONCE_EMPTY,
+            .nonce2_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = Signing_PolicyIDevIDKey_SHA384,
+            .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA384),
+                AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL),
+            },
+            .schemedata_len = 8,
+            .keysize = 48,
+            .symkey_len = 0,
+            .off = 0x58,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "secp384r1",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P521,
+            .keydescription = "secp521r1",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .nonce2 = NONCE_EMPTY,
+            .nonce2_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = Signing_PolicyIDevIDKey_SHA512,
+            .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA512),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA512),
+                AS2BE(TPM2_ECC_NIST_P521), AS2BE(TPM2_ALG_NULL),
+            },
+            .schemedata_len = 8,
+            .keysize = 66,
+            .symkey_len = 0,
+            .off = 0x68,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "secp521r1",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 2048,
+            .keydescription = "rsa2048",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = Signing_PolicyIDevIDKey_SHA256,
+            .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(2048), AS4BE(0)
+             },
+            .schemedata_len = 8,
+            .keysize = 2048/8,
+            .symkey_len = 0,
+            .off = 0x48,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "RSA 2048",
+   }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 3072,
+            .keydescription = "rsa3072",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = Signing_PolicyIDevIDKey_SHA384,
+            .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(3072), AS4BE(0)
+             },
+            .schemedata_len = 8,
+            .keysize = 3072/8,
+            .symkey_len = 0,
+            .off = 0x58,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "RSA 3072",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 4096,
+            .keydescription = "rsa4096",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = Signing_PolicyIDevIDKey_SHA384,
+            .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(4096), AS4BE(0)
+             },
+            .schemedata_len = 8,
+            .keysize = 4096/8,
+            .symkey_len = 0,
+            .off = 0x68,
+            .duration = TPM2_DURATION_LONG,
+        },
+        .keytype = "RSA 4096",
+    }
+};
+
 static const struct ek_params *get_ek_params(struct swtpm *self,
                                              enum keyalgo keyalgo,
                                              unsigned int keyalgo_param)
@@ -873,6 +1243,40 @@ static const struct spk_params *get_spk_params(struct swtpm *self,
         }
     }
     logerr(self->logfile, "Internal error: Unsupported SRK keyalgo and keyalgo_param: %u/%u\n",
+           keyalgo, keyalgo_param);
+    return NULL;
+}
+
+static const struct iak_params *get_iak_params(struct swtpm *self,
+                                               enum keyalgo keyalgo,
+                                               unsigned int keyalgo_param)
+{
+    size_t i;
+
+    for (i = 0; i < ARRAY_LEN(iak_params); i++) {
+        if (iak_params[i].pk.keyalgo == keyalgo &&
+            iak_params[i].pk.keyalgo_param == keyalgo_param) {
+            return &iak_params[i];
+        }
+    }
+    logerr(self->logfile, "Internal error: Unsupported IAK keyalgo and keyalgo_param: %u/%u\n",
+           keyalgo, keyalgo_param);
+    return NULL;
+}
+
+static const struct idevid_params *get_idevid_params(struct swtpm *self,
+                                                     enum keyalgo keyalgo,
+                                                     unsigned int keyalgo_param)
+{
+    size_t i;
+
+    for (i = 0; i < ARRAY_LEN(idevid_params); i++) {
+        if (idevid_params[i].pk.keyalgo == keyalgo &&
+            idevid_params[i].pk.keyalgo_param == keyalgo_param) {
+            return &idevid_params[i];
+        }
+    }
+    logerr(self->logfile, "Internal error: Unsupported IDevID keyalgo and keyalgo_param: %u/%u\n",
            keyalgo, keyalgo_param);
     return NULL;
 }
@@ -1504,6 +1908,7 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
     case KEYALGO_RSA:
         ret = swtpm_tpm2_createprimary_spk_rsa(self, keyalgo_param, &curr_handle);
         break;
+    case KEYALGO_NONE:
     default:
         ret = 1;
     }
@@ -1524,6 +1929,87 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
 
     return ret;
 }
+
+static int swtpm_tpm2_create_iak(struct swtpm *self,
+                                 enum keyalgo keyalgo, unsigned int keyalgo_param,
+                                 gchar **keyparam, const gchar **key_description)
+{
+    const struct iak_params *iaks;
+    uint32_t curr_handle = 0;
+    int ret;
+
+    iaks = get_iak_params(self, keyalgo, keyalgo_param);
+    if (!iaks)
+        return 1;
+
+    switch (keyalgo) {
+    case KEYALGO_RSA:
+        ret = swtpm_tpm2_createprimary_rsa(self, TPM2_RH_ENDORSEMENT, iaks->pk.keyflags,
+                                           &iaks->pk, iaks->pk.off, &curr_handle,
+                                           NULL, 0, keyparam, key_description);
+        break;
+    case KEYALGO_ECC:
+        ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, iaks->pk.keyflags,
+                                           &iaks->pk, iaks->pk.off, &curr_handle,
+                                           NULL, 0, keyparam, key_description);
+        break;
+    case KEYALGO_NONE:
+    default:
+        return 1;
+    }
+
+    if (ret != 0)
+        return 1;
+
+    ret = swtpm_tpm2_evictcontrol(self, curr_handle, TPM2_IAK_HANDLE);
+    if (ret == 0)
+        logit(self->logfile,
+              "Successfully created %s IAK primary key with handle 0x%x.\n",
+              iaks->keytype, TPM2_IAK_HANDLE);
+
+    return swtpm_tpm2_flushcontext(self, curr_handle);
+}
+
+static int swtpm_tpm2_create_idevid(struct swtpm *self,
+                                    enum keyalgo keyalgo, unsigned int keyalgo_param,
+                                    gchar **keyparam, const gchar **key_description)
+{
+    const struct idevid_params *idps;
+    uint32_t curr_handle = 0;
+    int ret;
+
+    idps = get_idevid_params(self, keyalgo, keyalgo_param);
+    if (!idps)
+        return 1;
+
+    switch (keyalgo) {
+    case KEYALGO_RSA:
+        ret = swtpm_tpm2_createprimary_rsa(self, TPM2_RH_ENDORSEMENT, idps->pk.keyflags,
+                                           &idps->pk, idps->pk.off, &curr_handle,
+                                           NULL, 0, keyparam, key_description);
+        break;
+    case KEYALGO_ECC:
+        ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, idps->pk.keyflags,
+                                           &idps->pk, idps->pk.off, &curr_handle,
+                                           NULL, 0, keyparam, key_description);
+        break;
+    case KEYALGO_NONE:
+    default:
+        return 1;
+    }
+
+    if (ret != 0)
+        return 1;
+
+    ret = swtpm_tpm2_evictcontrol(self, curr_handle, TPM2_IDEVID_HANDLE);
+    if (ret == 0)
+        logit(self->logfile,
+              "Successfully created %s IDevID primary key with handle 0x%x.\n",
+              idps->keytype, TPM2_IDEVID_HANDLE);
+
+    return swtpm_tpm2_flushcontext(self, curr_handle);
+}
+
 
 /* Create an ECC EK key that may be allowed to sign and/or decrypt */
 static int swtpm_tpm2_createprimary_ek_ecc(struct swtpm *self, const struct ek_params *ekps,
@@ -1616,6 +2102,7 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsign
                                               ektemplate, &ektemplate_len, ekparam,
                                               key_description);
         break;
+    case KEYALGO_NONE:
     default:
         ret = 1;
     }
@@ -1851,14 +2338,50 @@ static char *swtpm_tpm2_get_active_profile(struct swtpm *self)
     return result;
 }
 
+static int swtpm_tpm2_write_iak_cert_nvram(struct swtpm *self, gboolean lock_nvram,
+                                           const unsigned char *data, size_t data_len)
+{
+    uint32_t nvindexattrs = TPMA_NV_PLATFORMCREATE |
+            TPMA_NV_AUTHREAD |
+            TPMA_NV_OWNERREAD |
+            TPMA_NV_PPREAD |
+            TPMA_NV_PPWRITE |
+            TPMA_NV_NO_DA |
+            TPMA_NV_WRITEDEFINE;
+    uint32_t nvindex = TPM2_NV_INDEX_IAK_CERT;
+
+    return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
+                                       lock_nvram, "", "IAK certificate");
+}
+
+static int swtpm_tpm2_write_idevid_cert_nvram(struct swtpm *self, gboolean lock_nvram,
+                                              const unsigned char *data, size_t data_len)
+{
+    uint32_t nvindexattrs = TPMA_NV_PLATFORMCREATE |
+            TPMA_NV_AUTHREAD |
+            TPMA_NV_OWNERREAD |
+            TPMA_NV_PPREAD |
+            TPMA_NV_PPWRITE |
+            TPMA_NV_NO_DA |
+            TPMA_NV_WRITEDEFINE;
+    uint32_t nvindex = TPM2_NV_INDEX_IDEVID_CERT;
+
+    return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
+                                       lock_nvram, "", "IDevID certificate");
+}
+
 static const struct swtpm2_ops swtpm_tpm2_ops = {
     .shutdown = swtpm_tpm2_shutdown,
     .create_spk = swtpm_tpm2_create_spk,
     .create_ek = swtpm_tpm2_create_ek,
+    .create_iak = swtpm_tpm2_create_iak,
+    .create_idevid = swtpm_tpm2_create_idevid,
     .get_all_pcr_banks = swtpm_tpm2_get_all_pcr_banks,
     .set_active_pcr_banks = swtpm_tpm2_set_active_pcr_banks,
     .write_ek_cert_nvram = swtpm_tpm2_write_ek_cert_nvram,
     .write_platform_cert_nvram = swtpm_tpm2_write_platform_cert_nvram,
+    .write_iak_cert_nvram = swtpm_tpm2_write_iak_cert_nvram,
+    .write_idevid_cert_nvram = swtpm_tpm2_write_idevid_cert_nvram,
     .get_active_profile = swtpm_tpm2_get_active_profile,
 };
 

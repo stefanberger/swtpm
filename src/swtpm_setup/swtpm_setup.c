@@ -63,6 +63,8 @@
 #define SETUP_WRITE_EK_CERT_FILES_F (1 << 15)
 #define SETUP_RECONFIGURE_F         (1 << 16)
 #define SETUP_RSA_KEYSIZE_BY_USER_F (1 << 17)
+#define SETUP_IAK_F                 (1 << 18)
+#define SETUP_IDEVID_F              (1 << 19)
 
 /* default configuration file */
 #define SWTPM_SETUP_CONF "swtpm_setup.conf"
@@ -82,6 +84,8 @@ static const struct flag_to_certfile {
 } flags_to_certfiles[] = {
     {.flag = SETUP_EK_CERT_F      , .filename = "ek.cert",       .type = "ek" },
     {.flag = SETUP_PLATFORM_CERT_F, .filename = "platform.cert", .type = "platform" },
+    {.flag = SETUP_IAK_F,           .filename = "iak.cert",      .type = "iak" },
+    {.flag = SETUP_IDEVID_F,        .filename = "idevid.cert",   .type = "idevid" },
     {.flag = 0,                     .filename = NULL,            .type = NULL},
 };
 
@@ -198,7 +202,8 @@ error:
 /* Call an external tool to create the certificates */
 static int call_create_certs(unsigned long flags, unsigned int cert_flags,
                              const gchar *configfile, const gchar *certsdir,
-                             const gchar *ekparam, const gchar *vmid, struct swtpm *swtpm)
+                             const gchar *key_params, const gchar *vmid,
+                             const gchar *tpm_serial_num, struct swtpm *swtpm)
 {
     gchar **config_file_lines = NULL; /* must free */
     g_autofree gchar *create_certs_tool = NULL;
@@ -207,6 +212,7 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
     g_autofree const gchar **cmd = NULL;
     gchar **params = NULL; /* must free */
     g_autofree gchar *prgname = NULL;
+    const char *key_opt = "--key";
     gboolean success;
     gint exit_status;
     size_t idx, j;
@@ -242,10 +248,15 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
                                     NULL
                                 }, TRUE);
         }
+
+        /* use the old --ek option when the ek is passed */
+        if (cert_flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F))
+            key_opt = "--ek";
+
         cmd = concat_arrays((const gchar*[]) {
                                 create_certs_tool_path,
                                 "--type", "_",  /* '_' must be at index '2' ! */
-                                "--ek", ekparam,
+                                key_opt, key_params,
                                 "--dir", certsdir,
                                 NULL
                             }, NULL, FALSE);
@@ -265,6 +276,8 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
             cmd = concat_arrays(cmd, (const gchar*[]){"--configfile", create_certs_tool_config, NULL}, TRUE);
         if (create_certs_tool_options != NULL)
             cmd = concat_arrays(cmd, (const gchar*[]){"--optsfile", create_certs_tool_options, NULL}, TRUE);
+        if (tpm_serial_num) /* required for IAK & IDevID */
+            cmd = concat_arrays(cmd, (const gchar*[]){"--tpm-serial-num", tpm_serial_num, NULL}, TRUE);
 
         s = g_strrstr(create_certs_tool, G_DIR_SEPARATOR_S);
         if (s)
@@ -398,6 +411,7 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
     g_autofree gchar *filecontent = NULL;
     g_autofree gchar *certfile = NULL;
     gsize filecontent_len;
+    gboolean preserve;
     int ret;
 
     ret = read_certificate_file(certsdir, ftc->filename,
@@ -405,7 +419,15 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
     if (ret != 0)
         goto error_unlink;
 
-    if (ftc->flag == SETUP_EK_CERT_F) {
+    if (ftc->flag == SETUP_IAK_F) {
+        ret = swtpm2->ops->write_iak_cert_nvram(&swtpm2->swtpm,
+                                     !!(flags & SETUP_LOCK_NVRAM_F),
+                                     (const unsigned char*)filecontent, filecontent_len);
+    } else if (ftc->flag == SETUP_IDEVID_F) {
+        ret = swtpm2->ops->write_idevid_cert_nvram(&swtpm2->swtpm,
+                                     !!(flags & SETUP_LOCK_NVRAM_F),
+                                     (const unsigned char *)filecontent, filecontent_len);
+    } else if (ftc->flag == SETUP_EK_CERT_F) {
         ret = swtpm2->ops->write_ek_cert_nvram(&swtpm2->swtpm,
                                      keyalgo, keyalgo_param,
                                      !!(flags & SETUP_LOCK_NVRAM_F),
@@ -419,7 +441,9 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
     if (ret != 0)
         goto error_unlink;
 
-    return certfile_move_or_delete(flags, !!(ftc->flag & SETUP_EK_CERT_F),
+    preserve = !!(ftc->flag & (SETUP_EK_CERT_F | SETUP_IAK_F | SETUP_IDEVID_F));
+
+    return certfile_move_or_delete(flags, preserve,
                                    certfile, user_certsdir,
                                    key_type, key_description);
 
@@ -434,8 +458,8 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                                    enum keyalgo keyalgo, unsigned int keyalgo_param,
                                    struct swtpm2 *swtpm2, const gchar *user_certsdir)
 {
+    g_autofree gchar *key_params = NULL;
     const char *key_description = "";
-    g_autofree gchar *ekparam = NULL;
     unsigned long cert_flags;
     const gchar *key_type;
     size_t idx;
@@ -446,7 +470,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                                      !!(flags & SETUP_ALLOW_SIGNING_F),
                                      !!(flags & SETUP_DECRYPTION_F),
                                      !!(flags & SETUP_LOCK_NVRAM_F),
-                                     &ekparam, &key_description);
+                                     &key_params, &key_description);
         if (ret != 0)
             return 1;
     }
@@ -454,8 +478,8 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
     /* Only look at ek and platform certs here */
     cert_flags = flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F);
     if (cert_flags) {
-        ret = call_create_certs(flags, cert_flags, config_file, certsdir, ekparam,
-                                vmid, &swtpm2->swtpm);
+        ret = call_create_certs(flags, cert_flags, config_file, certsdir, key_params,
+                                vmid, NULL, &swtpm2->swtpm);
         if (ret != 0)
             return 1;
 
@@ -497,6 +521,72 @@ static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_fi
      flags &= ~SETUP_PLATFORM_CERT_F;
      return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, ek2keyalgo,
                                     ek2keyalgo_param, swtpm2, user_certsdir);
+}
+
+/* Create the IAK and cert */
+static int tpm2_create_iak_idevid_and_certs(unsigned long flags, const gchar *config_file,
+                                            const gchar *certsdir, const char *vmid,
+                                            enum keyalgo iakkeyalgo, unsigned int iakkeyalgo_param,
+                                            enum keyalgo idevidkeyalgo, unsigned int idevidkeyalgo_param,
+                                            struct swtpm2 *swtpm2, const gchar *user_certsdir)
+{
+    g_autofree gchar *key_params = NULL;
+    const char *key_description;
+    const char *key_type = NULL;
+    unsigned long cert_flags = 0;
+    unsigned int keyalgo_param;
+    enum keyalgo keyalgo;
+    size_t idx;
+    int ret;
+
+    /* Only look at IAK and IDevID certs here */
+    if (iakkeyalgo != KEYALGO_NONE)
+        cert_flags |= SETUP_IAK_F;
+    if (idevidkeyalgo != KEYALGO_NONE)
+        cert_flags |= SETUP_IDEVID_F;
+
+    if (!cert_flags)
+        return 0;
+
+    for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
+        if (cert_flags & flags_to_certfiles[idx].flag) {
+
+            SWTPM_G_FREE(key_params);
+
+            if (flags_to_certfiles[idx].flag == SETUP_IAK_F) {
+                key_type = "iak";
+                keyalgo = iakkeyalgo;
+                keyalgo_param = iakkeyalgo_param;
+                ret = swtpm2->ops->create_iak(&swtpm2->swtpm,
+                                              keyalgo, keyalgo_param,
+                                              &key_params, &key_description);
+            } else if (flags_to_certfiles[idx].flag == SETUP_IDEVID_F) {
+                key_type = "idevid";
+                keyalgo = idevidkeyalgo;
+                keyalgo_param = idevidkeyalgo_param;
+                ret = swtpm2->ops->create_idevid(&swtpm2->swtpm,
+                                                 keyalgo, keyalgo_param,
+                                                 &key_params, &key_description);
+            } else {
+                continue;
+            }
+            if (ret != 0)
+                return 1;
+
+            ret = call_create_certs(flags, flags_to_certfiles[idx].flag, config_file,
+                                    certsdir, key_params, vmid, "test", &swtpm2->swtpm);
+            if (ret != 0)
+                return 1;
+
+            ret = tpm2_persist_certificate(flags, certsdir, &flags_to_certfiles[idx],
+                                           keyalgo, keyalgo_param, swtpm2,
+                                           user_certsdir, key_type, key_description);
+            if (ret)
+                return 1;
+        }
+    }
+
+    return 0;
 }
 
 /* Get the default PCR banks from the config file and if nothing can
@@ -630,6 +720,8 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
                      const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
                      enum keyalgo ek1keyalgo, unsigned int ek1keyalgo_param,
                      enum keyalgo ek2keyalgo, unsigned int ek2keyalgo_param,
+                     enum keyalgo iakkeyalgo, unsigned int iakkeyalgo_param,
+                     enum keyalgo idevidkeyalgo, unsigned int idevidkeyalgo_param,
                      const gchar *certsdir, const gchar *user_certsdir,
                      const gchar *json_profile,
                      int json_profile_fd, const gchar *profile_remove_disabled_param)
@@ -675,6 +767,13 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
                                         ek1keyalgo, ek1keyalgo_param,
                                         ek2keyalgo, ek2keyalgo_param,
                                         swtpm2, user_certsdir);
+        if (ret != 0)
+            goto destroy;
+
+        ret = tpm2_create_iak_idevid_and_certs(flags, config_file, certsdir, vmid,
+                                               iakkeyalgo, iakkeyalgo_param,
+                                               idevidkeyalgo, idevidkeyalgo_param,
+                                               swtpm2, user_certsdir);
         if (ret != 0)
             goto destroy;
     }
@@ -769,7 +868,7 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
     cert_flags = flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F);
 
     ret = call_create_certs(flags, cert_flags, config_file, certsdir, ekparam,
-                            vmid, &swtpm12->swtpm);
+                            vmid, NULL, &swtpm12->swtpm);
     if (ret != 0)
         return 1;
 
@@ -989,11 +1088,21 @@ static void usage(const char *prgname, const char *default_config_file)
         "--ecc            : This option allows to create a TPM 2's ECC key as storage\n"
         "                   primary key; a TPM 2 always gets an RSA and an ECC EK key.\n"
         "\n"
-        "--ek1keyalgo     : Choice of the 1st EK's key algorithm; default is %s\n"
+        "--ek1keyalgo <alg>\n"
+        "                 : Choice of the 1st EK's key algorithm; default is %s\n"
         "                   choices: rsa2048, rsa3072, rsa4096, ecc_nist_p384\n"
         "\n"
-        "--ek2keyalgo     : Choice of the 2nd EK's key algorithm; default is %s\n"
+        "--ek2keyalgo <alg>\n"
+        "                 : Choice of the 2nd EK's key algorithm; default is %s\n"
         "                   choices: same as for --ek1keyalgo\n"
+        "\n"
+        "--iakkeyalgo <alg>\n"
+        "                 : Choice of the IAK algorithm; default is 'none'\n"
+        "                   choices: rsa2048, rsa3072, rsa4096, ecc_nist_p384\n"
+        "\n"
+        "--idevidkeyalgo <alg>\n"
+        "                 : Choice of the IDevID key algorithm; default is 'none'\n"
+        "                   choices: same as for --iakkeyalgo\n"
         "\n"
         "--take-ownership : Take ownership; this option implies --createek\n"
         "  --ownerpass  <password>\n"
@@ -1352,6 +1461,7 @@ static int print_capabilities(const char **swtpm_prg_l, gboolean swtpm_has_tpm12
            "%s"
            ", \"cmdarg-profile\", \"cmdarg-profile-remove-disabled\""
            ", \"cmdarg-ek1keyalgo\", \"cmdarg-ek2keyalgo\""
+           ", \"cmdarg-iakkeyalgo\", \"cmdarg-idevidkeyalgo\""
            " ], "
            "\"profiles\": [%s], "
            "\"version\": \"" VERSION "\" "
@@ -1486,6 +1596,8 @@ int main(int argc, char *argv[])
         {"create-spk", no_argument, NULL, 'C'},
         {"ek1keyalgo", required_argument, NULL, '4'},
         {"ek2keyalgo", required_argument, NULL, '5'},
+        {"iakkeyalgo", required_argument, NULL, '6'},
+        {"idevidkeyalgo", required_argument, NULL, '7'},
         {"take-ownership", no_argument, NULL, 'o'},
         {"ownerpass", required_argument, NULL, 'O'},
         {"owner-well-known", no_argument, NULL, 'w'},
@@ -1522,6 +1634,7 @@ int main(int argc, char *argv[])
         {"profile-file-fd", required_argument, NULL, 'G'},
         {"profile-remove-disabled", required_argument, NULL, 'j'},
         {"print-profiles", no_argument, NULL, 'M'},
+        {"no-iak", no_argument, NULL, 'n'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -1557,6 +1670,8 @@ int main(int argc, char *argv[])
     g_autofree gchar *profile_remove_disabled_param = NULL;
     g_autofree gchar *ek1keyalgo_str = NULL;
     g_autofree gchar *ek2keyalgo_str = NULL;
+    g_autofree gchar *iakkeyalgo_str = NULL;
+    g_autofree gchar *idevidkeyalgo_str = NULL;
     int json_profile_fd = -1;
     gchar *tmp;
     gchar **swtpm_prg_l = NULL;
@@ -1571,14 +1686,19 @@ int main(int argc, char *argv[])
     int fds_to_pass[2] = { -1, -1 };
     unsigned n_fds_to_pass = 0;
     char tmpbuffer[200];
+    gboolean no_iak = FALSE;
     time_t now;
     struct tm *tm;
     int ret = 1;
     g_autoptr(GError) error = NULL;
     enum keyalgo ek1keyalgo = KEYALGO_RSA;
     enum keyalgo ek2keyalgo = KEYALGO_ECC;
+    enum keyalgo iakkeyalgo = KEYALGO_NONE;
+    enum keyalgo idevidkeyalgo = KEYALGO_NONE;
     unsigned int ek1keyalgo_param = 0;
     unsigned int ek2keyalgo_param = 0;
+    unsigned int iakkeyalgo_param = 0;
+    unsigned int idevidkeyalgo_param = 0;
 
     setvbuf(stdout, 0, _IONBF, 0);
 
@@ -1627,6 +1747,14 @@ int main(int argc, char *argv[])
         case '5': /* --ek2keyalgo */
             g_free(ek2keyalgo_str);
             ek2keyalgo_str = g_strdup(optarg);
+            break;
+        case '6': /* --iakkeyalgo */
+            g_free(iakkeyalgo_str);
+            iakkeyalgo_str = g_strdup(optarg);
+            break;
+        case '7': /* --idevidkeyalgo */
+            g_free(idevidkeyalgo_str);
+            idevidkeyalgo_str = g_strdup(optarg);
             break;
         case 'c': /* --createek */
             flags |= SETUP_CREATE_EK_F;
@@ -1787,6 +1915,9 @@ int main(int argc, char *argv[])
             break;
         case 'M': /* --print-profiles */
             printprofiles = TRUE;
+            break;
+        case 'n': /* --no-iak */
+            no_iak = TRUE;
             break;
         case '?':
         case 'h': /* --help */
@@ -2083,6 +2214,17 @@ int main(int argc, char *argv[])
                 !is_rsa_keysize_supported(flags, ek2keyalgo_param, swtpm_prg_l))
                 goto error;
         }
+
+        if (!iakkeyalgo_str)
+            iakkeyalgo_str = get_config_value(config_file_lines, "iakkeyalgo");
+        if (iakkeyalgo_str &&
+            !parse_keyalgo(iakkeyalgo_str, &iakkeyalgo, &iakkeyalgo_param, &flags))
+            goto error;
+        if (!idevidkeyalgo_str)
+            idevidkeyalgo_str = get_config_value(config_file_lines, "idevidkeyalgo");
+        if (idevidkeyalgo_str &&
+            !parse_keyalgo(idevidkeyalgo_str, &idevidkeyalgo, &idevidkeyalgo_param, &flags))
+            goto error;
     }
 
     if (flags & SETUP_RECONFIGURE_F) {
@@ -2112,6 +2254,8 @@ int main(int argc, char *argv[])
                    error->message);
             goto error;
         }
+        if (!no_iak)
+            flags |= SETUP_IAK_F | SETUP_IDEVID_F;
     }
 
     if ((flags & SETUP_TPM2_F) == 0) {
@@ -2127,6 +2271,8 @@ int main(int argc, char *argv[])
                        swtpm_keyopt, fds_to_pass, n_fds_to_pass,
                        ek1keyalgo, ek1keyalgo_param,
                        ek2keyalgo, ek2keyalgo_param,
+                       iakkeyalgo, iakkeyalgo_param,
+                       idevidkeyalgo, idevidkeyalgo_param,
                        certsdir, user_certsdir, json_profile, json_profile_fd,
                        profile_remove_disabled_param);
     }
