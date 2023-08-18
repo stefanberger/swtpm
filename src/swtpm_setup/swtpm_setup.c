@@ -175,7 +175,8 @@ error:
 }
 
 /* Call an external tool to create the certificates */
-static int call_create_certs(unsigned long flags, const gchar *configfile, const gchar *certsdir,
+static int call_create_certs(unsigned long flags, unsigned int cert_flags,
+                             const gchar *configfile, const gchar *certsdir,
                              const gchar *ekparam, const gchar *vmid, struct swtpm *swtpm)
 {
     gchar **config_file_lines = NULL; /* must free */
@@ -244,7 +245,7 @@ static int call_create_certs(unsigned long flags, const gchar *configfile, const
             prgname = strdup(create_certs_tool);
 
         for (idx = 0; flags_to_certfiles[idx].filename != NULL; idx++) {
-            if (flags & flags_to_certfiles[idx].flag) {
+            if (cert_flags & flags_to_certfiles[idx].flag) {
                 g_autofree gchar *standard_output = NULL;
                 g_autofree gchar *standard_error = NULL;
                 GError *error = NULL;
@@ -363,6 +364,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
     g_autofree gchar *certfile = NULL;
     g_autofree gchar *ekparam = NULL;
     const char *key_description;
+    unsigned long cert_flags;
     size_t idx;
     int ret;
 
@@ -376,13 +378,16 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
             return 1;
     }
 
-    if (flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F)) {
-        ret = call_create_certs(flags, config_file, certsdir, ekparam, vmid, &swtpm2->swtpm);
+    /* Only look at ek and platform certs here */
+    cert_flags = flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F);
+    if (cert_flags) {
+        ret = call_create_certs(flags, cert_flags, config_file, certsdir, ekparam,
+                                vmid, &swtpm2->swtpm);
         if (ret != 0)
             return 1;
 
         for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
-            if (flags & flags_to_certfiles[idx].flag) {
+            if (cert_flags & flags_to_certfiles[idx].flag) {
                 SWTPM_G_FREE(filecontent);
                 SWTPM_G_FREE(certfile);
 
@@ -612,16 +617,21 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
 {
     g_autofree gchar *filecontent = NULL;
     g_autofree gchar *certfile = NULL;
+    unsigned int cert_flags;
     gsize filecontent_len;
     size_t idx;
     int ret;
 
-    ret = call_create_certs(flags, config_file, certsdir, ekparam, vmid, &swtpm12->swtpm);
+    /* TPM 1.2 only has ek and platform certs */
+    cert_flags = flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F);
+
+    ret = call_create_certs(flags, cert_flags, config_file, certsdir, ekparam,
+                            vmid, &swtpm12->swtpm);
     if (ret != 0)
         return 1;
 
     for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
-        if (flags & flags_to_certfiles[idx].flag) {
+        if (cert_flags & flags_to_certfiles[idx].flag) {
             SWTPM_G_FREE(filecontent);
             SWTPM_G_FREE(certfile);
 
