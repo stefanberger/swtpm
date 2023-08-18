@@ -49,10 +49,13 @@ This parameter indicates the directory into which the certificate is to be store
 The EK certificate is stored in this directory under the name
 ek.cert and the platform certificate under the name platform.cert.
 
-=item B<--ek ek>
+=item B<--ek ek> or B<--key key>
 
 This parameter indicates the modulus of the public key of the endorsement key
 (EK). The public key is provided as a sequence of ASCII hex digits.
+
+The --key option is an alias for --ek and should be used if key parameters
+for another key than an endorsement key are passed.
 
 In case ECC (elliptic curve crypography) keys are used, the parameter must
 have the format --ek x=<hex digits>,y=<hex digits>,id=<curve id>. The
