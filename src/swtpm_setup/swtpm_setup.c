@@ -343,6 +343,15 @@ error_unlink:
     return 1;
 }
 
+static int read_certificate_file(const gchar *certsdir, const gchar *filename,
+                                 gchar **filecontent, size_t *filecontent_len,
+                                 gchar **certfile)
+{
+    *certfile = g_strjoin(G_DIR_SEPARATOR_S, certsdir, filename, NULL);
+
+    return read_file(*certfile, filecontent, filecontent_len);
+}
+
 /* Create EK and certificate for a TPM 2 */
 static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file,
                                    const gchar *certsdir, const gchar *vmid,
@@ -374,11 +383,11 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
 
         for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
             if (flags & flags_to_certfiles[idx].flag) {
-                g_free(certfile);
-                certfile = g_strjoin(G_DIR_SEPARATOR_S, certsdir, flags_to_certfiles[idx].filename, NULL);
-
                 SWTPM_G_FREE(filecontent);
-                ret = read_file(certfile, &filecontent, &filecontent_len);
+                SWTPM_G_FREE(certfile);
+
+                ret = read_certificate_file(certsdir, flags_to_certfiles[idx].filename,
+                                            &filecontent, &filecontent_len, &certfile);
                 if (ret != 0)
                     return 1;
 
@@ -613,12 +622,11 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
 
     for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
         if (flags & flags_to_certfiles[idx].flag) {
-            g_free(certfile);
-            certfile = g_strjoin(G_DIR_SEPARATOR_S, certsdir,
-                                 flags_to_certfiles[idx].filename, NULL);
-
             SWTPM_G_FREE(filecontent);
-            ret = read_file(certfile, &filecontent, &filecontent_len);
+            SWTPM_G_FREE(certfile);
+
+            ret = read_certificate_file(certsdir, flags_to_certfiles[idx].filename,
+                                        &filecontent, &filecontent_len, &certfile);
             if (ret != 0)
                 return 1;
 
