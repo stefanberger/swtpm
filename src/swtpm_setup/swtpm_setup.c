@@ -300,9 +300,9 @@ static char *create_ek_certfile_name(const gchar *user_certsdir, const gchar *ke
 }
 
 /*
- * Remove the cert file unless the user wants a copy of it (EK only).
+ * Remove the cert file unless the user wants a copy of it.
  */
-static int certfile_move_or_delete(unsigned long flags, gboolean is_ek, const gchar *certfile,
+static int certfile_move_or_delete(unsigned long flags, gboolean preserve, const gchar *certfile,
                                    const gchar *user_certsdir, const gchar *key_description)
 {
     g_autofree gchar *content = NULL;
@@ -311,7 +311,7 @@ static int certfile_move_or_delete(unsigned long flags, gboolean is_ek, const gc
     GError *error = NULL;
     size_t offset = 0;
 
-    if (is_ek && (flags & SETUP_WRITE_EK_CERT_FILES_F) && user_certsdir != NULL) {
+    if (preserve && (flags & SETUP_WRITE_EK_CERT_FILES_F) && user_certsdir != NULL) {
         if (!g_file_get_contents(certfile, &content, &content_length, &error))
             goto error;
 
