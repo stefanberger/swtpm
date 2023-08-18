@@ -253,7 +253,7 @@ error:
  * This function returns 1  on error, 2 if the ECC parameters could be extracted
  * and 0 if no parameters could be extracted (likely a modulus).
  */
-static gboolean extract_ecc_params(const gchar *ekparams, gchar **ecc_x, gchar **ecc_y, gchar **ecc_curveid)
+static gboolean extract_ecc_params(const gchar *key_params, gchar **ecc_x, gchar **ecc_y, gchar **ecc_curveid)
 {
     regmatch_t pmatch[5];
     regex_t preg;
@@ -266,13 +266,13 @@ static gboolean extract_ecc_params(const gchar *ekparams, gchar **ecc_x, gchar *
     }
 
     ret = 0;
-    if (regexec(&preg, ekparams, 5, pmatch, 0) == 0) {
-        *ecc_x = g_strndup(&ekparams[pmatch[1].rm_so],
+    if (regexec(&preg, key_params, 5, pmatch, 0) == 0) {
+        *ecc_x = g_strndup(&key_params[pmatch[1].rm_so],
                            pmatch[1].rm_eo - pmatch[1].rm_so);
-        *ecc_y = g_strndup(&ekparams[pmatch[2].rm_so],
+        *ecc_y = g_strndup(&key_params[pmatch[2].rm_so],
                            pmatch[2].rm_eo - pmatch[2].rm_so);
         if (pmatch[4].rm_so > 0 && pmatch[4].rm_eo > 0)
-            *ecc_curveid = g_strndup(&ekparams[pmatch[4].rm_so],
+            *ecc_curveid = g_strndup(&key_params[pmatch[4].rm_so],
                                      pmatch[4].rm_eo - pmatch[4].rm_so);
         ret = 2;
     }
@@ -326,7 +326,7 @@ error:
 
 /* Create a TPM 1.2 or TPM 2 EK or platform cert */
 static int create_cert(unsigned long flags, const gchar *typ, const gchar *directory,
-                       gchar *ekparams, const gchar *vmid, gchar **tpm_spec_params,
+                       gchar *key_params, const gchar *vmid, gchar **tpm_spec_params,
                        gchar **tpm_attr_params, const gchar *signkey,
                        const gchar *signkey_password, const gchar *issuercert,
                        const gchar *parentkey_password, gchar **swtpm_cert_env,
@@ -409,7 +409,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
             options = concat_arrays(options, (gchar *[]){"--decryption", NULL}, TRUE);
     }
 
-    switch (extract_ecc_params(ekparams, &ecc_x, &ecc_y, &ecc_curveid)) {
+    switch (extract_ecc_params(key_params, &ecc_x, &ecc_y, &ecc_curveid)) {
     case 1:
         goto error;
     case 2:
@@ -428,7 +428,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
         break;
     case 0:
         keyparams = concat_arrays((gchar *[]){
-                                      "--modulus", ekparams,
+                                      "--modulus", key_params,
                                       NULL},
                                    NULL, FALSE);
         break;
@@ -540,6 +540,7 @@ static void usage(const char *prgname)
         "\n"
         "--type type           The type of certificate to create: 'ek' or 'platform'\n"
         "--ek key-param        The modulus of an RSA key or x=...,y=,... for an EC key\n"
+        "--key key-param       Alias for --ek\n"
         "--dir directory       The directory to write the resulting certificate into\n"
         "--vmid vmid           The ID of the virtual machine\n"
         "--optsfile file       A file containing options to pass to swtpm_cert\n"
@@ -570,6 +571,7 @@ int main(int argc, char *argv[])
     static const struct option long_options[] = {
         {"type", required_argument, NULL, 't'},
         {"ek", required_argument, NULL, 'e'},
+        {"key", required_argument, NULL, 'e'}, /* alias for --ek */
         {"dir", required_argument, NULL, 'd'},
         {"vmid", required_argument, NULL, 'v'},
         {"optsfile", required_argument, NULL, 'o'},
@@ -593,7 +595,7 @@ int main(int argc, char *argv[])
     g_autofree gchar *configfile = NULL;
     unsigned long flags = 0;
     g_autofree gchar *typ =g_strdup("");
-    g_autofree gchar *ekparams = g_strdup("");
+    g_autofree gchar *key_params = g_strdup("");
     g_autofree gchar *directory = g_strdup("."); /* default to current directory */
     g_autofree gchar *vmid = NULL;
     g_autofree gchar *lockfile = NULL;
@@ -625,9 +627,9 @@ int main(int argc, char *argv[])
             g_free(typ);
             typ = g_strdup(optarg);
             break;
-        case 'e': /* --ek */
-            g_free(ekparams);
-            ekparams = g_strdup(optarg);
+        case 'e': /* --ek or --key */
+            g_free(key_params);
+            key_params = g_strdup(optarg);
             break;
         case 'd': /* --dir */
             g_free(directory);
@@ -864,7 +866,7 @@ int main(int argc, char *argv[])
             goto error;
     }
 
-    ret = create_cert(flags, typ, directory, ekparams, vmid, tpm_spec_params, tpm_attr_params,
+    ret = create_cert(flags, typ, directory, key_params, vmid, tpm_spec_params, tpm_attr_params,
                       signkey, signkey_password, issuercert, parentkey_password, swtpm_cert_env,
                       certserial, lockfile, optsfile);
 
