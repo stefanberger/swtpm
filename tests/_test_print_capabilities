@@ -24,7 +24,12 @@ if [ "${SWTPM_IFACE}" != "cuse" ]; then
 	noncuse='"tpm-send-command-header", '
 fi
 
-exp='\{ "type": "swtpm", "features": \[ "tpm-1.2",( "tpm-2.0",)? '${noncuse}'"flags-opt-startup", "flags-opt-disable-auto-shutdown", "ctrl-opt-terminate", '${seccomp}'"cmdarg-key-fd", "cmdarg-pwd-fd", "cmdarg-print-states", "cmdarg-chroot", "cmdarg-migration", "nvram-backend-dir", "nvram-backend-file" \], "version": "[^"]*" \}'
+exp='\{ "type": "swtpm", '\
+'"features": \[ "tpm-1.2",( "tpm-2.0",)? '${noncuse}'"flags-opt-startup", '\
+'"flags-opt-disable-auto-shutdown", "ctrl-opt-terminate", '${seccomp}'"cmdarg-key-fd", '\
+'"cmdarg-pwd-fd", "cmdarg-print-states", "cmdarg-chroot", "cmdarg-migration", '\
+'"nvram-backend-dir", "nvram-backend-file" \], '\
+'"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-capabilities:"
 	echo "Actual   : ${msg}"
@@ -41,7 +46,12 @@ if ! msg="$(${SWTPM_SETUP} --print-capabilities 2>&1)"; then
 fi
 
 # The are some variable parameters at the end, use regex
-exp='\{ "type": "swtpm_setup", "features": \[ "tpm-1.2",( "tpm-2.0",)? "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd", "tpm12-not-need-root", "cmdarg-write-ek-cert-files", "cmdarg-create-config-files", "cmdarg-reconfigure-pcr-banks"(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")? \], "version": "[^"]*" \}'
+exp='\{ "type": "swtpm_setup", '\
+'"features": \[ "tpm-1.2",( "tpm-2.0",)? "cmdarg-keyfile-fd", "cmdarg-pwdfile-fd", '\
+'"tpm12-not-need-root", "cmdarg-write-ek-cert-files", "cmdarg-create-config-files", '\
+'"cmdarg-reconfigure-pcr-banks"'\
+'(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")? \], '\
+'"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_SETUP} to --print-capabilities:"
 	echo "Actual   : ${msg}"
