@@ -364,6 +364,7 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_CC_NV_WRITE       0x00000137
 #define TPM2_CC_NV_WRITELOCK   0x00000138
 #define TPM2_CC_SHUTDOWN       0x00000145
+#define TPM2_CC_FLUSHCONTEXT   0x00000165
 #define TPM2_CC_GETCAPABILITY  0x0000017a
 
 #define TPM2_SU_CLEAR        0x0000
@@ -701,6 +702,20 @@ error:
     *active = NULL;
 
     return 1;
+}
+
+static int swtpm_tpm2_flushcontext(struct swtpm *self, uint32_t handle)
+{
+    struct tpm2_flushcontext_req {
+        struct tpm_req_header hdr;
+        uint32_t flushHandle;
+    } __attribute__((packed)) req = {
+        .hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_NO_SESSIONS, sizeof(req), TPM2_CC_FLUSHCONTEXT),
+        .flushHandle = htobe32(handle),
+    };
+
+    return transfer(self, &req, sizeof(req), "TPM2_FlushContext", FALSE,
+                    NULL, NULL, TPM2_DURATION_SHORT);
 }
 
 /* Make object at the curr_handler permanent with the perm_handle */
@@ -1113,6 +1128,12 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, gboolean isecc, unsigned in
     if (ret == 0)
         logit(self->logfile,
               "Successfully created storage primary key with handle 0x%x.\n", TPM2_SPK_HANDLE);
+
+    ret = swtpm_tpm2_flushcontext(self, curr_handle);
+    if (ret != 0) {
+        logerr(self->logfile, "Could not flush storage primary key.\n");
+        ret = 1;
+    }
 
     return ret;
 }
