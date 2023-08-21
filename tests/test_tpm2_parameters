@@ -40,7 +40,9 @@ PARAMETERS=(
 	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p384 --ek2keyalgo ecc_nist_p384"
 	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p521 --ek2keyalgo secp256r1"
 	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p256 --ek2keyalgo secp256r1"
-	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo rsa3072       --ecc"
+	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo secp521r1 --ecc"
+	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p256 --ek2keyalgo secp256r1 --iakkeyalgo ecc_nist_p256 --idevidkeyalgo rsa2048"
+	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo rsa3072   --iakkeyalgo rsa3072       --idevidkeyalgo secp521r1 --ecc"
 	"--profile-name default-v1 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo ecc_nist_p384"
 )
 
@@ -57,6 +59,7 @@ PARAMETERS_3072=(
 	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc --rsa-keysize 3072"
 	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc --rsa-keysize 3072"
 	"--createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram --rsa-keysize 3072"
+	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048 --ek2keyalgo rsa3072 --iakkeyalgo rsa3072 --idevidkeyalgo secp521r1 --ecc"
 	"--profile-name default-v1 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048 --ek2keyalgo rsa3072"
 )
 
@@ -68,7 +71,9 @@ PARAMETERS_4096=(
 	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --rsa-keysize 4096 --profile-name default-v2"
 	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc --rsa-keysize 4096 --profile-name default-v2"
 	"--createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram --rsa-keysize 4096 --profile-name default-v2"
+	"--profile-name default-v2 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048 --ek2keyalgo rsa3072 --iakkeyalgo rsa3072 --idevidkeyalgo secp521r1 --ecc"
 	"--profile-name default-v2 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048 --ek2keyalgo rsa4096"
+	"--profile-name default-v2 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa4096 --ek2keyalgo rsa4096 --iakkeyalgo rsa4096 --idevidkeyalgo secp384r1 --ecc"
 )
 
 # Open read-only file descriptors referenced in test cases
@@ -109,12 +114,13 @@ for (( i=0; i<${#PARAMETERS[*]}; i++)); do
 	rm -rf "${TPMDIR:?}"/*
 	echo -n "Test $i: "
 	params=${PARAMETERS[$i]}
-	if ! $TPMAUTHORING \
+	if ! msg=$($TPMAUTHORING \
 		--tpm-state "$TPMDIR" \
 		--tpm "$SWTPM_EXE socket ${SWTPM_TEST_SECCOMP_OPT}" \
-		${params:+${params}} &>/dev/null;
+		${params:+${params}} 2>&1);
 	then
 		echo "ERROR: Test with parameters '${params}' failed."
+		echo "${msg}"
 		exit 1
 	elif [ ! -f "$TPMDIR/tpm2-00.permall" ]; then
 		echo "ERROR: Test with parameters '${params}' did not

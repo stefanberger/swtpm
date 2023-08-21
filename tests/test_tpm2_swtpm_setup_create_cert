@@ -17,6 +17,8 @@ CERTSERIAL=${workdir}/certserial
 USER_CERTSDIR=${workdir}/mycerts
 mkdir -p "${USER_CERTSDIR}"
 
+vmid="test"
+
 PATH=${TOPBUILD}/src/swtpm_bios:$PATH
 
 trap "cleanup" SIGTERM EXIT
@@ -222,6 +224,7 @@ for pwdfile in "" "${PWDFILE}"; do
 		--overwrite \
 		--iakkeyalgo secp384r1 \
 		--idevidkeyalgo secp384r1 \
+		--vmid "${vmid}" \
 		--write-ek-cert-files "${workdir}" \
 		${pwdfile:+--pwdfile "${pwdfile}"}; then
 		echo "Error: Could not run $SWTPM_SETUP."
@@ -259,6 +262,33 @@ for pwdfile in "" "${PWDFILE}"; do
 			echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
 			openssl x509 -inform der -in "${certfile}" -noout -text
 			exit 1
+		fi
+		# IAK and IDevID need serialNumber to match <company>:<ek cert akid>:<ek cert serial num>
+		if [[ ${certfile} =~ (iak|idevid) ]]; then
+			cert_vmid=$(openssl x509 -inform der --in "${certfile}" -noout -text \
+				| sed -n 's/.*Subject:.*serialNumber[[:space:]]*=[[:space:]]*//p')
+			if [ "${cert_vmid}" != "${vmid}" ]; then
+				echo "Error: The subject serialNumber in the cert is wrong"
+				echo "expected: ${vmid}"
+				echo "actual  : ${cert_vmid}"
+				exit 1
+			fi
+			# The serial number in the SAN is not display 'nicely'...
+			serial=$(openssl x509 -inform der --in "${certfile}" -noout -text \
+			          | grep "Subject Alternative Name:" -A1 \
+			          | tail -n1 \
+				  | sed -n "s/.*\(IBM[[:print:]]*\)/\1/p")
+			if [ -z "$serial" ] || \
+			   [ "${serial}" != \
+			     "$(echo "${serial}" | \
+			        sed -n 's/\([[:print:]^:]*\):\([[:xdigit:]^:]*\):\([[:xdigit:]^:]*\)/\1:\2:\3/p')" ];
+			then
+				echo "Error: serial Number does not seem to be properly formatted"
+				echo "  serial: ${serial}"
+				openssl x509 -inform der --in "${certfile}" -noout -text \
+				    | grep "Subject Alternative Name:" -A1
+				exit 1
+			fi
 		fi
 	done
 
