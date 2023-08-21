@@ -31,6 +31,10 @@
 #include <glib-object.h>
 #include <json-glib/json-glib.h>
 
+#include <openssl/pem.h>
+#include <openssl/sha.h>
+#include <openssl/x509v3.h>
+
 #include <libtpms/tpm_nvfilename.h>
 
 #include "profile.h"
@@ -38,8 +42,6 @@
 #include "swtpm_conf.h"
 #include "swtpm_utils.h"
 #include "swtpm_setup_utils.h"
-
-#include <openssl/sha.h>
 
 /* default values for passwords */
 #define DEFAULT_OWNER_PASSWORD "ooo"
@@ -76,6 +78,15 @@ gchar *gl_LOGFILE = NULL;
 
 #define DEFAULT_EK1KEYALGO "rsa2048"
 #define DEFAULT_EK2KEYALGO "ecc_nist_p384"
+
+/* data extracted from EK certificate; */
+struct ek_certificate_data {
+    bool needed;  /* data are only needed if IAK and/or IDevID are created */
+    unsigned char id[32];
+    size_t id_len;
+    unsigned char serial[20];
+    size_t serial_len;
+};
 
 static const struct flag_to_certfile {
     unsigned long flag;
@@ -397,6 +408,60 @@ static int read_certificate_file(const gchar *certsdir, const gchar *filename,
     return read_file(*certfile, filecontent, filecontent_len);
 }
 
+static int tpm2_extract_certificate_data(const gchar *certdata, size_t certdata_len,
+                                         struct ek_certificate_data *ecd)
+{
+    const ASN1_OCTET_STRING *os;
+    const ASN1_INTEGER *serial;
+    X509 *cert = NULL;
+    BIGNUM *bn = NULL;
+    BIO *bio = NULL;
+    int ret = 1;
+
+    if (!ecd->needed)
+        return 0;
+
+    cert = d2i_X509(NULL, (const unsigned char **)&certdata, certdata_len);
+    if (!cert) {
+        fprintf(stderr, "Could not convert byte array to certificate.\n");
+        goto cleanup;
+    }
+
+    os = X509_get0_authority_key_id(cert);
+    if (os == NULL) {
+        fprintf(stderr, "The certificate does not have an AKID.\n");
+        goto cleanup;
+    }
+
+    ecd->id_len = min((size_t)ASN1_STRING_length(os), sizeof(ecd->id));
+    memcpy(ecd->id, ASN1_STRING_get0_data(os), ecd->id_len);
+
+    serial = X509_get0_serialNumber(cert);
+    if (!serial) {
+        fprintf(stderr, "Could not get serial number from certificate.\n");
+        goto cleanup;
+    }
+    bn = ASN1_INTEGER_to_BN(serial, NULL);
+    if (!bn) {
+        fprintf(stderr, "Out of memory.\n");
+        goto cleanup;
+    }
+    if ((size_t)BN_num_bytes(bn) > sizeof(ecd->serial)) {
+        fprintf(stderr, "The serial number is too large for the buffer.\n");
+        goto cleanup;
+    }
+    ecd->serial_len = BN_bn2bin(bn, ecd->serial);
+
+    ret = 0;
+
+cleanup:
+    BN_free(bn);
+    X509_free(cert);
+    BIO_free(bio);
+
+    return ret;
+}
+
 /*
  * Read the certificate from the file where swtpm_cert left it.
  * Write the file into the TPM's NVRAM and, if the user wants it,
@@ -406,7 +471,8 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
                                     const struct flag_to_certfile *ftc,
                                     enum keyalgo keyalgo, unsigned int keyalgo_param,
                                     struct swtpm2 *swtpm2, const gchar *user_certsdir,
-                                    const gchar *key_type, const gchar *key_description)
+                                    const gchar *key_type, const gchar *key_description,
+                                    struct ek_certificate_data *ecd)
 {
     g_autofree gchar *filecontent = NULL;
     g_autofree gchar *certfile = NULL;
@@ -418,6 +484,12 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
                                 &filecontent, &filecontent_len, &certfile);
     if (ret != 0)
         goto error_unlink;
+
+    if (ecd) {
+        ret = tpm2_extract_certificate_data(filecontent, filecontent_len, ecd);
+        if (ret != 0)
+            goto error_unlink;
+    }
 
     if (ftc->flag == SETUP_IAK_F) {
         ret = swtpm2->ops->write_iak_cert_nvram(&swtpm2->swtpm,
@@ -456,9 +528,11 @@ error_unlink:
 static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file,
                                    const gchar *certsdir, const gchar *vmid,
                                    enum keyalgo keyalgo, unsigned int keyalgo_param,
-                                   struct swtpm2 *swtpm2, const gchar *user_certsdir)
+                                   struct swtpm2 *swtpm2, const gchar *user_certsdir,
+                                   struct ek_certificate_data *ecd)
 {
     g_autofree gchar *key_params = NULL;
+    struct ek_certificate_data *ecd_dup;
     const char *key_description = "";
     unsigned long cert_flags;
     const gchar *key_type;
@@ -485,11 +559,19 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
 
         for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
             if (cert_flags & flags_to_certfiles[idx].flag) {
-                key_type = flags_to_certfiles[idx].flag & SETUP_EK_CERT_F ? "ek" : "";
+
+                ecd_dup = NULL;
+                if (flags_to_certfiles[idx].flag & SETUP_EK_CERT_F) {
+                    key_type = "ek";
+                    ecd_dup = ecd;
+                } else {
+                    key_type = "";
+                }
 
                 ret = tpm2_persist_certificate(flags, certsdir, &flags_to_certfiles[idx],
                                                keyalgo, keyalgo_param, swtpm2,
-                                               user_certsdir, key_type, key_description);
+                                               user_certsdir, key_type, key_description,
+                                               ecd_dup);
                 if (ret)
                     return 1;
             }
@@ -504,12 +586,13 @@ static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_fi
                                      const gchar *certsdir, const gchar *vmid,
                                      enum keyalgo ek1keyalgo, unsigned int ek1keyalgo_param,
                                      enum keyalgo ek2keyalgo, unsigned int ek2keyalgo_param,
-                                     struct swtpm2 *swtpm2, const gchar *user_certsdir)
+                                     struct swtpm2 *swtpm2, const gchar *user_certsdir,
+                                     struct ek_certificate_data *ecd)
 {
      int ret;
 
      ret = tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, ek1keyalgo,
-                                   ek1keyalgo_param, swtpm2, user_certsdir);
+                                   ek1keyalgo_param, swtpm2, user_certsdir, ecd);
      if (ret != 0)
          return 1;
 
@@ -520,7 +603,33 @@ static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_fi
      /* platform cert only with EK1 */
      flags &= ~SETUP_PLATFORM_CERT_F;
      return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, ek2keyalgo,
-                                    ek2keyalgo_param, swtpm2, user_certsdir);
+                                    ek2keyalgo_param, swtpm2, user_certsdir, NULL);
+}
+
+static gchar *tpm2_create_tpm_serial_num(struct swtpm2 *swtpm2, const struct ek_certificate_data *ecd)
+{
+    struct swtpm *swtpm = &swtpm2->swtpm;
+    g_autofree gchar *cert_ser = NULL;
+    g_autofree gchar *ca_akid = NULL;
+    uint32_t res;
+    char code[sizeof(res) + 1];
+    size_t i;
+    int ret;
+
+    ret = swtpm2->ops->get_capability(swtpm, TPM2_CAP_TPM_PROPERTIES,
+                                      TPM2_PT_MANUFACTURER, &res);
+    if (ret != 0) {
+        logerr(gl_LOGFILE, "TPM_GetCapability failed\n");
+        return NULL;
+    }
+
+    ca_akid = print_as_hex(ecd->id, ecd->id_len);
+    cert_ser = print_as_hex(ecd->serial, ecd->serial_len);
+    for (i = 0; i < sizeof(res); i++)
+        code[i] = res >> (8 * (3 - i));
+    code[4] = 0;
+
+    return g_strdup_printf("%s:%s:%s", code, ca_akid, cert_ser);
 }
 
 /* Create the IAK and cert */
@@ -528,8 +637,10 @@ static int tpm2_create_iak_idevid_and_certs(unsigned long flags, const gchar *co
                                             const gchar *certsdir, const char *vmid,
                                             enum keyalgo iakkeyalgo, unsigned int iakkeyalgo_param,
                                             enum keyalgo idevidkeyalgo, unsigned int idevidkeyalgo_param,
-                                            struct swtpm2 *swtpm2, const gchar *user_certsdir)
+                                            struct swtpm2 *swtpm2, const gchar *user_certsdir,
+                                            const struct ek_certificate_data *ecd)
 {
+    g_autofree gchar *tpm_serial_num = NULL;
     g_autofree gchar *key_params = NULL;
     const char *key_description;
     const char *key_type = NULL;
@@ -547,6 +658,8 @@ static int tpm2_create_iak_idevid_and_certs(unsigned long flags, const gchar *co
 
     if (!cert_flags)
         return 0;
+
+    tpm_serial_num = tpm2_create_tpm_serial_num(swtpm2, ecd);
 
     for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
         if (cert_flags & flags_to_certfiles[idx].flag) {
@@ -574,13 +687,14 @@ static int tpm2_create_iak_idevid_and_certs(unsigned long flags, const gchar *co
                 return 1;
 
             ret = call_create_certs(flags, flags_to_certfiles[idx].flag, config_file,
-                                    certsdir, key_params, vmid, "test", &swtpm2->swtpm);
+                                    certsdir, key_params, vmid, tpm_serial_num,
+                                    &swtpm2->swtpm);
             if (ret != 0)
                 return 1;
 
             ret = tpm2_persist_certificate(flags, certsdir, &flags_to_certfiles[idx],
                                            keyalgo, keyalgo_param, swtpm2,
-                                           user_certsdir, key_type, key_description);
+                                           user_certsdir, key_type, key_description, NULL);
             if (ret)
                 return 1;
         }
@@ -726,6 +840,9 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
                      const gchar *json_profile,
                      int json_profile_fd, const gchar *profile_remove_disabled_param)
 {
+    struct ek_certificate_data ecd = {
+        .needed = iakkeyalgo != KEYALGO_NONE || idevidkeyalgo != KEYALGO_NONE,
+    };
     unsigned int keyalgo_param;
     struct swtpm2 *swtpm2;
     enum keyalgo keyalgo;
@@ -766,14 +883,14 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
         ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid,
                                         ek1keyalgo, ek1keyalgo_param,
                                         ek2keyalgo, ek2keyalgo_param,
-                                        swtpm2, user_certsdir);
+                                        swtpm2, user_certsdir, &ecd);
         if (ret != 0)
             goto destroy;
 
         ret = tpm2_create_iak_idevid_and_certs(flags, config_file, certsdir, vmid,
                                                iakkeyalgo, iakkeyalgo_param,
                                                idevidkeyalgo, idevidkeyalgo_param,
-                                               swtpm2, user_certsdir);
+                                               swtpm2, user_certsdir, &ecd);
         if (ret != 0)
             goto destroy;
     }
@@ -2225,6 +2342,12 @@ int main(int argc, char *argv[])
         if (idevidkeyalgo_str &&
             !parse_keyalgo(idevidkeyalgo_str, &idevidkeyalgo, &idevidkeyalgo_param, &flags))
             goto error;
+
+        if ((iakkeyalgo != KEYALGO_NONE || idevidkeyalgo != KEYALGO_NONE) &&
+            (flags & SETUP_CREATE_EK_F)== 0 ) {
+            fprintf(stderr, "When creaing IAK and/or IDevID keys, then an EK certificate must be created as well.\n");
+            goto error;
+        }
     }
 
     if (flags & SETUP_RECONFIGURE_F) {
