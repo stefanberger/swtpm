@@ -87,6 +87,11 @@ TPM specification parameters that describe the specification that was
 followed for the TPM implementation. The parameters will be passed
 to swtpm_cert for the creation of the EK certificate.
 
+=item B<--tpm-serial-num>
+
+The TPM's serial number that will become part of the certificate. This parameter
+is necessary for IAK and IDevID certificates.
+
 =item B<--tpm2>
 
 Create TPM 2 compliant certificates.
