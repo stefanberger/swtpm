@@ -1674,6 +1674,36 @@ static int swtpm_tpm2_write_idevid_cert_nvram(struct swtpm *self, gboolean lock_
                                        lock_nvram, "", "IDevID certificate");
 }
 
+static int swtpm_tpm2_get_capability(struct swtpm *self, uint32_t cap, uint32_t prop,
+                                     uint32_t *res)
+{
+    struct tpm2_get_capability_req {
+        struct tpm_req_header hdr;
+        uint32_t cap;
+        uint32_t prop;
+        uint32_t count;
+    } __attribute__((packed)) req = {
+        .hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_NO_SESSIONS, sizeof(req), TPM2_CC_GETCAPABILITY),
+        .cap = htobe32(cap),
+        .prop = htobe32(prop),
+        .count = htobe32(1),
+    };
+    unsigned char tpmresp[27];
+    size_t tpmresp_len = sizeof(tpmresp);
+    uint32_t val;
+    int ret;
+
+    ret = transfer(self, &req, sizeof(req), "TPM2_GetCapability", FALSE,
+                   tpmresp, &tpmresp_len, TPM2_DURATION_SHORT);
+    if (ret != 0)
+        return 1;
+
+    memcpy(&val, &tpmresp[23], sizeof(val));
+    *res = be32toh(val);
+
+    return 0;
+}
+
 static const struct swtpm2_ops swtpm_tpm2_ops = {
     .shutdown = swtpm_tpm2_shutdown,
     .create_iak = swtpm_tpm2_create_iak,
@@ -1687,6 +1717,7 @@ static const struct swtpm2_ops swtpm_tpm2_ops = {
     .get_active_profile = swtpm_tpm2_get_active_profile,
     .write_iak_cert_nvram = swtpm_tpm2_write_iak_cert_nvram,
     .write_idevid_cert_nvram = swtpm_tpm2_write_idevid_cert_nvram,
+    .get_capability = swtpm_tpm2_get_capability,
 };
 
 /*

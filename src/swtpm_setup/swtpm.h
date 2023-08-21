@@ -63,6 +63,7 @@ struct swtpm2_ops {
                                 const unsigned char *data, size_t data_len);
     int (*write_idevid_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
                                    const unsigned char *data, size_t data_len);
+    int (*get_capability)(struct swtpm *self, uint32_t cap, uint32_t prop, uint32_t *res);
 };
 
 /* common structure for swtpm object */

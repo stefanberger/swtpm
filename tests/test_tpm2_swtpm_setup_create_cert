@@ -17,6 +17,8 @@ CERTSERIAL=${workdir}/certserial
 USER_CERTSDIR=${workdir}/mycerts
 mkdir -p "${USER_CERTSDIR}"
 
+vmid="test"
+
 PATH=${TOPBUILD}/src/swtpm_bios:$PATH
 
 trap "cleanup" SIGTERM EXIT
@@ -197,6 +199,7 @@ for pwdfile in "" "${PWDFILE}"; do
 		--logfile "${workdir}/logfile" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--overwrite \
+		--vmid "${vmid}" \
 		--write-ek-cert-files "${workdir}" \
 		${pwdfile:+--pwdfile "${pwdfile}"}; then
 		echo "Error: Could not run $SWTPM_SETUP."
@@ -234,6 +237,29 @@ for pwdfile in "" "${PWDFILE}"; do
 			echo "Error: Certificate file '${certfile}' is not an ECC 384 bit key."
 			$CERTTOOL --inder --infile "${certfile}" -i
 			exit 1
+		fi
+		# IAK and IDevID need serialNumber to match <company>:<ek cert akid>:<ek cert serial num>
+		if [[ ${certfile} =~ (iak|idevid) ]]; then
+			cert_vmid=$($CERTTOOL --inder --infile "${certfile}" -i \
+				| sed -n 's/.*Subject:.*serialNumber=//p')
+			if [ "${cert_vmid}" != "${vmid}" ]; then
+				echo "Error: The serialNumber in the cert is wrong"
+				echo "expected: ${vmid}"
+				echo "actual  : ${cert_vmid}"
+				exit 1
+			fi
+			# The serial number starts at the 12th ASCII char
+			serial=$($CERTTOOL --inder --infile "${certfile}" -i \
+				  | sed -n "s/.*otherName ASCII: [[:print:]]\{11\}//p")
+			if [ -z "$serial" ] || \
+			   [ "${serial}" != \
+			     "$(echo "${serial}" | \
+			        sed -n 's/\([[:print:]^:]*\):\([[:xdigit:]^:]*\):\([[:xdigit:]^:]*\)/\1:\2:\3/p')" ];
+			then
+				echo "Error: serial Number does not seem to be properly formatted"
+				echo "  serial: ${serial}"
+				exit 1
+			fi
 		fi
 	done
 
