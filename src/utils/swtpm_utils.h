@@ -42,7 +42,7 @@ ssize_t concat(unsigned char *buf, size_t buflen, ...);
 ssize_t memconcat(unsigned char **buffer, ...);
 
 gchar *resolve_string(const gchar *inp);
-gchar *print_as_hex(unsigned char *input, size_t input_len);
+gchar *print_as_hex(const unsigned char *input, size_t input_len);
 gchar **split_cmdline(const gchar *cmdline);
 
 int read_file(const gchar *filename, gchar **buffer, gsize *buffer_len);

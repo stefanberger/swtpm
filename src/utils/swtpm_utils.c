@@ -189,7 +189,7 @@ ssize_t memconcat(unsigned char **buffer, ...)
 }
 
 /* Print an input buffer as hex number */
-gchar *print_as_hex(unsigned char *input, size_t input_len)
+gchar *print_as_hex(const unsigned char *input, size_t input_len)
 {
     gchar *out = g_malloc(input_len * 2 + 1);
     size_t i;
