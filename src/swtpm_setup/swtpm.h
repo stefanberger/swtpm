@@ -53,6 +53,10 @@ enum keyalgo {
 #define TPM2_ECC_NIST_P384 0x0004
 #define TPM2_ECC_NIST_P521 0x0005
 
+/* for get_capability */
+#define TPM2_CAP_TPM_PROPERTIES  6
+#define TPM2_PT_MANUFACTURER     0x105
+
 /* TPM 2 specific ops */
 struct swtpm2_ops {
     int (*shutdown)(struct swtpm *);
@@ -77,6 +81,7 @@ struct swtpm2_ops {
                                 const unsigned char *data, size_t data_len);
     int (*write_idevid_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
                                    const unsigned char *data, size_t data_len);
+    int (*get_capability)(struct swtpm *self, uint32_t cap, uint32_t prop, uint32_t *res);
 };
 
 /* common structure for swtpm object */

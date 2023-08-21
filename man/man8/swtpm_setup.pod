@@ -113,6 +113,8 @@ I<ek2keyalgo> entry in the I<swtpm_setup.conf> configuration file.
 =item B<--iakkeyalgo <key algorithm>> (since v0.11)
 
 Choose the key algorithm for the IAK key that can be used for signing.
+An IAK requires an EK certificate to be created to refer to in its own
+certificate.
 
 Valid values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
 ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096.
@@ -125,6 +127,8 @@ The IAK key will be persisted at 0x81020001.
 =item B<--idevidkeyalgo <key algorithm>> (since v0.11)
 
 Choose the key algorithm for the IDevID key that can be used for signing.
+An IDevID requires an EK certificate to be created to refer to in its own
+certificate.
 
 For valid values see the description of the B<--iakkeyalgo> option.
 
