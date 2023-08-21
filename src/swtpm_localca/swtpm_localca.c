@@ -370,8 +370,8 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
                        const gchar **tpm_attr_params, const gchar *signkey,
                        const gchar *signkey_password, const gchar *issuercert,
                        const gchar **swtpm_cert_env,
-                       const gchar *certserial, const gchar *lockfile,
-                       const gchar *optsfile)
+                       const gchar *certserial, const gchar *tpm_serial_num,
+                       const gchar *lockfile, const gchar *optsfile)
 {
     gchar ** optsfile_lines = NULL;
     g_autofree const gchar **options = NULL;
@@ -429,10 +429,21 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
         g_strfreev(split);
     }
 
-    if (vmid != NULL)
-        subject = g_strdup_printf("CN=%s", vmid);
-    else
-        subject = g_strdup("CN=unknown");
+    if (strcmp(typ, "ek") == 0 || strcmp(typ, "platform") == 0) {
+        subject = g_strdup_printf("CN=%s",
+                                  vmid ? vmid : "unknown");
+    } else if (strcmp(typ, "iak") == 0 || strcmp(typ, "idevid") == 0) {
+        subject = g_strdup_printf("serialNumber=%s",
+                                  vmid ? vmid : "unknown");
+    }
+
+    if ((flags & SETUP_TPM2_F) && tpm_serial_num)
+        options = concat_arrays(options,
+                                (const gchar *[]){
+                                    "--tpm-serial-num",
+                                    tpm_serial_num,
+                                    NULL
+                                }, TRUE);
 
     if (flags & SETUP_TPM2_F)
         options = concat_arrays(options, (const gchar *[]){"--tpm2", NULL}, TRUE);
@@ -576,6 +587,7 @@ static void usage(const char *prgname)
         "--tpm-manufacturer s  The manufacturer of the TPM; e.g., id:00001014\n"
         "--tpm-model s         The model of the TPM; e.g., 'swtpm'\n"
         "--tpm-version i       The (firmware) version of the TPM; e.g., id:20160511\n"
+        "--tpm-serial-num s    The string representing the serial number of the TPM\n"
         "--tpm2                Generate a certificate for a TPM 2\n"
         "--allow-signing       The TPM 2's EK can be used for signing\n"
         "--decryption          The TPM 2's EK can be used for decryption\n"
@@ -606,6 +618,7 @@ int main(int argc, char *argv[])
         {"tpm-manufacturer", required_argument, NULL, 'a'},
         {"tpm-model", required_argument, NULL, 'm'},
         {"tpm-version", required_argument, NULL, 's'},
+        {"tpm-serial-num", required_argument, NULL, 'S'},
         {"tpm2", no_argument, NULL, '2'},
         {"allow-signing", no_argument, NULL, 'i'},
         {"decryption", no_argument, NULL, 'y'},
@@ -627,6 +640,7 @@ int main(int argc, char *argv[])
     g_autofree gchar *signkey_password = NULL;
     g_autofree gchar *issuercert = NULL;
     g_autofree gchar *certserial = NULL;
+    g_autofree gchar *tpm_serial_num = NULL;
     gchar **tpm_spec_params = NULL;
     gchar **tpm_attr_params = NULL;
     gchar **config_file_lines = NULL;
@@ -694,6 +708,10 @@ int main(int argc, char *argv[])
                               g_strdup(optarg),
                               NULL
                           }, TRUE);
+            break;
+        case 'S': /* --tpm-serial-num */
+            g_free(tpm_serial_num);
+            tpm_serial_num = g_strdup(optarg);
             break;
         case '2': /* --tpm2 */
             flags |= SETUP_TPM2_F;
@@ -870,7 +888,8 @@ int main(int argc, char *argv[])
     ret = create_cert(flags, typ, directory, key_params, vmid,
                       (const char **)tpm_spec_params, (const char **)tpm_attr_params,
                       signkey, signkey_password, issuercert,
-                      (const char **)swtpm_cert_env, certserial, lockfile, optsfile);
+                      (const char **)swtpm_cert_env, certserial, tpm_serial_num,
+                      lockfile, optsfile);
 
 out:
 error:
