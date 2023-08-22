@@ -39,6 +39,7 @@ BuildRequires:  selinux-policy-devel
 BuildRequires:  gcc
 BuildRequires:  libseccomp-devel
 BuildRequires:  tpm2-pkcs11 tpm2-pkcs11-tools tpm2-tools tpm2-abrmd
+BuildRequires:  gmp-devel
 
 Requires:       %{name}-libs = %{version}-%{release}
 Requires:       libtpms >= 0.6.0

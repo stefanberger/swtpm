@@ -269,6 +269,18 @@ if test $? -ne 0; then
 fi
 AC_SUBST([GLIB_LIBS])
 
+GMP_CFLAGS=$(pkg-config --cflags gmp)
+if test $? -ne 0; then
+   AC_MSG_ERROR("Is libgmp-dev/gmp-devel installed? -- could not get cflags")
+fi
+AC_SUBST([GMP_CFLAGS])
+
+GMP_LIBS=$(pkg-config --libs gmp)
+if test $? -ne 0; then
+   AC_MSG_ERROR("Is libgmp-dev/gmp-devel installed? -- could not get libs")
+fi
+AC_SUBST([GMP_LIBS])
+
 AC_MSG_CHECKING([for whether to build with chardev interface])
 case $host_os in
 linux-*)
