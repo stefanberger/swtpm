@@ -58,6 +58,8 @@
 #include <gnutls/abstract.h>
 #include <gnutls/gnutls.h>
 
+#include <gmp.h>
+
 #include "sys_dependencies.h"
 #include "tpm_asn1.h"
 #include "swtpm.h"
@@ -1017,7 +1019,7 @@ main(int argc, char *argv[])
     const char *ecc_curveid = NULL;
     gnutls_datum_t datum = { NULL, 0},  out = { NULL, 0};
     gnutls_digest_algorithm_t hashAlgo = GNUTLS_DIG_SHA1;
-    unsigned long long serial = 1;
+    mpz_t serial;
     time_t now;
     int err;
     int cert_file_fd;
@@ -1027,7 +1029,8 @@ main(int argc, char *argv[])
     time_t exp_time;
     char *sigkeypass = NULL;
     char *parentkeypass = NULL;
-    uint64_t ser_number;
+    unsigned char ser_number[21];
+    size_t ser_number_len;
     long int exponent = 0x10001;
     bool write_pem = false;
     uint8_t id[512];
@@ -1085,7 +1088,9 @@ main(int argc, char *argv[])
         {NULL, 0, NULL, 0},
     };
     int opt, option_index = 0;
-    char *endptr;
+
+    mpz_init(serial);
+    mpz_set_ui(serial, 1);
 
 #ifdef __NetBSD__
     while ((opt = getopt_long(argc, argv,
@@ -1175,9 +1180,7 @@ main(int argc, char *argv[])
             days = atoi(optarg);
             break;
         case 'r': /* --serial */
-            errno = 0;
-            serial = strtoull(optarg, &endptr, 10);
-            if (errno != 0 || optarg == endptr || *endptr != 0) {
+            if (gmp_sscanf(optarg, "%Zd", serial) != 1) {
                 fprintf(stderr, "Serial number is invalid.\n");
                 goto cleanup;
             }
@@ -1261,7 +1264,21 @@ main(int argc, char *argv[])
     if (flags & CERT_TYPE_TPM2_F)
         hashAlgo = GNUTLS_DIG_SHA256;
 
-    ser_number = htobe64(serial);
+    if ((mpz_sizeinbase(serial, 2) + 7) / 8 > sizeof(ser_number) - 1) {
+        fprintf(stderr, "Serial number is too large.\n");
+        goto cleanup;
+    }
+    mpz_export(ser_number, &ser_number_len, 1, 1, 1, 0, serial);
+    if (ser_number_len > sizeof(ser_number) - 1) {
+        fprintf(stderr, "Serial number is too large.\n");
+        goto cleanup;
+    }
+    /* serial number's highest bit must not indicate negative number */
+    if (ser_number[0] & 0x7f) {
+        memmove(&ser_number[1], &ser_number[0], ser_number_len);
+        ser_number[0] = 0;
+        ser_number_len++;
+    }
 
     if (modulus_bin && (ecc_x_bin || ecc_y_bin)) {
         fprintf(stderr, "RSA modulus and ECC parameters cannot both be "
@@ -1448,7 +1465,7 @@ if (_err != GNUTLS_E_SUCCESS) {             \
                        gnutls_strerror(err))
 
     /* 3.5.2 Serial Number */
-    err = gnutls_x509_crt_set_serial(crt, &ser_number, sizeof(ser_number));
+    err = gnutls_x509_crt_set_serial(crt, ser_number, ser_number_len);
     CHECK_GNUTLS_ERROR(err, "Could not set serial on CRT: %s\n",
                        gnutls_strerror(err))
 
@@ -1745,6 +1762,8 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     ret = 0;
 
 cleanup:
+    mpz_clear(serial);
+
     gnutls_free(out.data);
 
     gnutls_x509_crt_deinit(crt);
