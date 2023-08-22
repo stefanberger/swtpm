@@ -20,6 +20,7 @@ swtpm_localca_CFLAGS = \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
 	$(GLIB_CFLAGS) \
+	$(GMP_CFLAGS) \
 	$(HARDENING_CFLAGS)
 
 swtpm_localca_DEPENDENCIES = \
@@ -32,6 +33,7 @@ swtpm_localca_LDFLAGS = \
 	-L$(top_builddir)/src/utils -lswtpm_utils \
 	$(MY_LDFLAGS) \
 	$(GLIB_LIBS) \
+	$(GMP_LIBS) \
 	$(HARDENING_LDFLAGS)
 
 swtpm_localca_SOURCES = \

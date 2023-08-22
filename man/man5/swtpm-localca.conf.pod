@@ -41,6 +41,10 @@ in PEM format.
 
 The name of file containing the serial number for the next certificate.
 
+The serial number must be a decimal number and must be representable
+with 20 bytes or less. Once 21 bytes are used a new random serial
+number with 20 decimal digits will be created.
+
 =item B<TSS_TCSD_HOSTNAME>
 
 This variable can be set to the host where B<tcsd> is running on in case
