@@ -24,6 +24,8 @@
 
 #include <glib.h>
 
+#include <gmp.h>
+
 #include "swtpm_conf.h"
 #include "swtpm_utils.h"
 #include "swtpm_localca_utils.h"
@@ -282,16 +284,36 @@ static gboolean extract_ecc_params(const gchar *key_params, gchar **ecc_x, gchar
     return ret;
 }
 
+/* Create a random ASCII decimal number of given length.
+ * The buffer is not NUL terminated.
+ */
+static void get_random_serial(char *buffer, size_t length)
+{
+    GRand *grand = g_rand_new();
+    size_t i;
+
+    buffer[0] = '0' + g_rand_int_range(grand, 1, 9);
+    for (i = 1; i < length; i++)
+        buffer[i] = '0' + g_rand_int_range(grand, 0, 9);
+
+    g_rand_free(grand);
+}
+
 /* Get the next serial number from the certserial file; if it contains
- * a non-numeric content start over with serial number '1'.
+ * a non-numeric content start over with a random 20 digit serial number.
+ * Up to 20 bytes of serial number are supported. The max.
+ * serial number is decimal: 1461501637330902918203684832716283019655932542975
+ * This decimal number is 49 digits long.
+ * This function will write back the used serial number that the next
+ * caller must increase by '1' to be allowed to use it.
  */
 static int get_next_serial(const gchar *certserial, const gchar *lockfile,
                            gchar **serial_str)
 {
     g_autofree gchar *buffer = NULL;
+    char serialbuffer[50];
     size_t buffer_len;
-    unsigned long long serial, serial_n;
-    char *endptr = NULL;
+    mpz_t serial;
     int lockfd;
     int ret = 1;
 
@@ -299,24 +321,42 @@ static int get_next_serial(const gchar *certserial, const gchar *lockfile,
     if (lockfd < 0)
         return 1;
 
-    if (access(certserial, R_OK) != 0)
-        write_file(certserial, (unsigned char *)"1", 1);
+    if (access(certserial, R_OK) != 0) {
+        get_random_serial(serialbuffer, 20);
+        write_file(certserial, (unsigned char *)serialbuffer, 20);
+    }
     if (read_file(certserial, &buffer, &buffer_len) != 0)
         goto error;
 
-    if (buffer_len > 0) {
-        serial = strtoull(buffer, &endptr, 10);
-        if (*endptr == '\0') {
-            serial_n = serial + 1;
-        } else {
-            serial_n = 1;
-        }
+    mpz_init(serial);
+
+    if (buffer_len > 0 && buffer_len <= 49) {
+        memcpy(serialbuffer, buffer, buffer_len);
+        serialbuffer[buffer_len] = 0;
+
+        if (gmp_sscanf(serialbuffer, "%Zu", serial) != 1)
+            goto new_serial;
+        mpz_add_ui(serial, serial, 1);
+
+        if ((mpz_sizeinbase(serial, 2) + 7) / 8 > 20)
+            goto new_serial;
+
+        if (gmp_snprintf(serialbuffer,
+                         sizeof(serialbuffer),
+                         "%Zu", serial) >= (int)sizeof(serialbuffer))
+            goto new_serial;
     } else {
-        serial_n = 1;
+new_serial:
+        /* start with random serial number */
+        buffer_len = 20;
+        get_random_serial(serialbuffer, buffer_len);
+        serialbuffer[buffer_len] = 0;
     }
-    *serial_str = g_strdup_printf("%llu", serial_n);
+    *serial_str = g_strdup(serialbuffer);
     write_file(certserial, (unsigned char *)*serial_str, strlen(*serial_str));
     ret = 0;
+
+    mpz_clear(serial);
 
 error:
     unlock_file(lockfd);
