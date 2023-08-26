@@ -176,6 +176,7 @@ function swtpm_setup_reconfigure() {
 			echo "Error: The size of the permanent state file changed."
 			echo "Actual  : ${newsize}"
 			echo "Expected: ${permall_size}"
+			exit 1
 		fi
 		echo "Filesize: ${newsize}; hash: ${newhash}; pwdfile: ${pwdfile}"
 	done
