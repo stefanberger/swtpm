@@ -39,6 +39,9 @@ issuercert = ${ISSUERCERT}
 certserial = ${CERTSERIAL}
 _EOF_
 
+#max. serial number must immediately be replace with 20 digits one
+echo -n 1461501637330902918203684832716283019655932542975 > "${CERTSERIAL}"
+
 cat <<_EOF_ > "${workdir}/swtpm-localca.options"
 --tpm-manufacturer IBM
 --tpm-model swtpm-libtpms
@@ -102,6 +105,12 @@ for keysize in ${keysizes}; do
 
 	if [ ! -r "${CERTSERIAL}" ]; then
 		echo "Error: Cert serial number file ${CERTSERIAL} was not created."
+		exit 1
+	fi
+
+	tmp=$(cat "${CERTSERIAL}")
+	if [ "${#tmp}" -ne 20 ]; then
+		echo "Error: Cert serial number in file should now be 20 digits long."
 		exit 1
 	fi
 

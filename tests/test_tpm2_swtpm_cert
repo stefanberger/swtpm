@@ -130,3 +130,54 @@ check_cert_size "${cert}" 1411
 #certtool --certificate-info --infile ${cert}
 echo -n > "${cert}"
 echo "Test 4: OK"
+
+
+####################### max. serial number #####################
+
+# max. serial number -- must pass
+if ! ${SWTPM_CERT} \
+	--tpm2 \
+	--signkey "${TESTDIR}/data/signkey.pem" \
+	--issuercert "${TESTDIR}/data/issuercert.pem" \
+	--out-cert "${cert}" \
+	--pubkey "${TESTDIR}/data/pubek.pem" \
+	--days 3650 \
+	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
+	--pem \
+	--serial 1461501637330902918203684832716283019655932542975 \
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
+	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
+	echo "Error: ${SWTPM_CERT} failed with max. serial number."
+	exit 1
+fi
+tmp=$(certtool --certificate-info --infile "${cert}" |
+      sed -n 's/.*Serial Number.*: \([[:xdigit:]*]\)/\1/p')
+exp="00ffffffffffffffffffffffffffffffffffffffff"
+if [ "${tmp}" != "${exp}" ]; then
+	echo "Error: unexpected serial number in cert"
+	echo "expected: ${exp}"
+	echo "actual  : ${tmp}"
+	exit 1
+fi
+
+# max. serial number + 1 -- must fail
+if ${SWTPM_CERT} \
+	--tpm2 \
+	--signkey "${TESTDIR}/data/signkey.pem" \
+	--issuercert "${TESTDIR}/data/issuercert.pem" \
+	--out-cert "${cert}" \
+	--pubkey "${TESTDIR}/data/pubek.pem" \
+	--days 3650 \
+	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
+	--pem \
+	--serial 1461501637330902918203684832716283019655932542976 \
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
+	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
+	echo "Error: ${SWTPM_CERT} should have failed with max. serial number + 1."
+	exit 1
+fi
+
+# truncate result file
+#certtool --certificate-info --infile ${cert}
+echo -n > "${cert}"
+echo "Test 5: OK"
