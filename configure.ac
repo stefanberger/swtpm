@@ -271,13 +271,15 @@ AC_SUBST([GLIB_LIBS])
 
 GMP_CFLAGS=$(pkg-config --cflags gmp)
 if test $? -ne 0; then
-   AC_MSG_ERROR("Is libgmp-dev/gmp-devel installed? -- could not get cflags")
+   dnl Older gmp development packages did not provide pkg-config file
+   AC_MSG_WARN("Is libgmp-dev/gmp-devel installed? -- could not get cflags; assuming it is installed")
 fi
 AC_SUBST([GMP_CFLAGS])
 
 GMP_LIBS=$(pkg-config --libs gmp)
 if test $? -ne 0; then
-   AC_MSG_ERROR("Is libgmp-dev/gmp-devel installed? -- could not get libs")
+   AC_MSG_WARN("Is libgmp-dev/gmp-devel installed? -- could not get libs; assuming -lgmp")
+   GMP_LIBS="-lgmp"
 fi
 AC_SUBST([GMP_LIBS])
 
