@@ -650,6 +650,8 @@ echo "   JSON_GLIB_LIBS = $JSON_GLIB_LIBS"
 echo "      GLIB_CFLAGS = $GLIB_CFLAGS"
 echo "        GLIB_LIBS = $GLIB_LIBS"
 echo "      GNUTLS_LIBS = $GNUTLS_LIBS"
+echo "         GMP_LIBS = $GMP_LIBS"
+echo "       GMP_CFLAGS = $GMP_CFLAGS"
 echo
 echo "TSS_USER=$TSS_USER"
 echo "TSS_GROUP=$TSS_GROUP"
