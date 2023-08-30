@@ -279,6 +279,8 @@ static const char *usage =
 "--print-states      : print existing TPM states and terminate\n"
 "--profile name=<name>|profile=<json-profile>\n"
 "                    : Set a profile on the TPM 2\n"
+"--print-profiles\n"
+"                    : print all profiles supported by libtpms\n"
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
 
@@ -1611,6 +1613,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
                          ,       no_argument, 0, 'a'},
         {"print-states"  ,       no_argument, 0, 'e'},
         {"profile"       , required_argument, 0, 'I'},
+        {"print-profiles",       no_argument, 0, 'N'},
         {NULL            , 0                , 0, 0  },
     };
     struct cuse_info cinfo;
@@ -1627,6 +1630,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     int ret = 0;
     bool printcapabilities = false;
     bool printstates = false;
+    bool printprofiles = false;
     bool need_init_cmd = true;
     TPM_RESULT res;
 
@@ -1742,6 +1746,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case 'e':
             printstates = true;
             break;
+        case 'N': /* --print-profiles */
+            printprofiles = true;
+            break;
         case 'v': /* version */
             fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
                     "Copyright (c) 2014-2015 IBM Corp.\n",
@@ -1816,6 +1823,11 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         }
         ret = SWTPM_NVRAM_PrintJson();
         ret = ret ? EXIT_FAILURE : EXIT_SUCCESS;
+        goto exit;
+    }
+
+    if (printprofiles) {
+        print_profiles();
         goto exit;
     }
 
