@@ -401,7 +401,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     int ret = 1;
     size_t i, j;
 
-    swtpm_cert_path = find_program("swtpm_cert");
+    swtpm_cert_path = g_find_program_in_path("swtpm_cert");
     if (swtpm_cert_path == NULL) {
         logerr(gl_LOGFILE, "Could not find swtpm_cert in PATH.\n");
         return 1;

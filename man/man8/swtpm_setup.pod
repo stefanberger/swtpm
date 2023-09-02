@@ -39,9 +39,8 @@ Prefix with dir:// to use directory backend, or file:// to use linear file.
 
 =item B<--tpm <path to executable>>
 
-Path to the TPM executable; this is an optional argument and by default the
-swtpm executable found in the installation directory (BINDIR) will be used
-before swtpm is tried to be found in the PATH.
+Path to the TPM executable; this is an optional argument and
+by default the swtpm executable found in the PATH will be used.
 
 =item B<--tpm2>
 

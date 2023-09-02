@@ -22,7 +22,6 @@
 
 #include <glib.h>
 
-#include "swtpm_conf.h"
 #include "swtpm_utils.h"
 
 void append_to_file(const char *pathname, const char *str)
@@ -440,23 +439,4 @@ int check_directory_access(const gchar *directory, int mode, const struct passwd
         return 1;
     }
     return 0;
-}
-
-/* A program that is only described by the name of the executable is searched
- * for in the BINDIR path and only then in $PATH
- */
-gchar *find_program(const gchar *program)
-{
-    g_autofree gchar *dirname = g_path_get_dirname(program);
-    gchar *path;
-
-    if (g_strcmp0(".", dirname) == 0) {
-        path = g_strdup_printf(BINDIR "/%s", program);
-        if (g_file_test(path, G_FILE_TEST_IS_EXECUTABLE))
-            return path;
-
-        g_free(path);
-    }
-
-    return g_find_program_in_path(program);
 }
