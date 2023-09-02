@@ -55,6 +55,4 @@ gchar *str_replace(const char *in, const char *torep, const char *rep);
 
 int check_directory_access(const gchar *directory, int mode, const struct passwd *curr_user);
 
-gchar *find_program(const gchar *program);
-
 #endif /* SWTPM_UTILS_H */

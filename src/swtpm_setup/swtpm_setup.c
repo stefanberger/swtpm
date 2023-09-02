@@ -1277,7 +1277,7 @@ int main(int argc, char *argv[])
     if (init(&config_file) < 0)
         goto error;
 
-    swtpm_prg = find_program("swtpm");
+    swtpm_prg = g_find_program_in_path("swtpm");
     if (swtpm_prg) {
         tmp = g_strconcat(swtpm_prg, " socket", NULL);
         g_free(swtpm_prg);
