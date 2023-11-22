@@ -24,8 +24,7 @@ UNAME_S="$(uname -s)"
 
 case "${UNAME_S}" in
 Darwin)
-	msg=$(sudo -v -n)
-	if [ $? -ne 0 ]; then
+	if ! msg=$(sudo -v -n); then
 		echo "Need password-less sudo rights on OS X to change /etc/gnutls/pkcs11.conf"
 		exit 1
 	fi
@@ -77,7 +76,7 @@ setup_softhsm() {
 		fi
 		sudo mv /etc/gnutls/pkcs11.conf \
 			/etc/gnutls/pkcs11.conf.bak &>/dev/null
-		if [ $(id -u) -eq 0 ]; then
+		if [ "$(id -u)" -eq 0 ]; then
 			SONAME="$(sudo -u nobody brew ls --verbose softhsm | \
 				  grep -E "\.so$")"
 		else
@@ -85,21 +84,21 @@ setup_softhsm() {
 				  grep -E "\.so$")"
 		fi
 		sudo mkdir -p /etc/gnutls &>/dev/null
-		sudo bash -c "echo "load=${SONAME}" > /etc/gnutls/pkcs11.conf"
+		sudo bash -c "echo 'load=${SONAME}' > /etc/gnutls/pkcs11.conf"
 		;;
 	esac
 
-	if ! [ -d $configdir ]; then
-		mkdir -p $configdir
+	if ! [ -d "$configdir" ]; then
+		mkdir -p "$configdir"
 	fi
-	mkdir -p ${tokendir}
+	mkdir -p "${tokendir}"
 
-	if [ -f $configfile ]; then
+	if [ -f "$configfile" ]; then
 		mv "$configfile" "$bakconfigfile"
 	fi
 
-	if ! [ -f $configfile ]; then
-		cat <<_EOF_ > $configfile
+	if ! [ -f "$configfile" ]; then
+		cat <<_EOF_ > "$configfile"
 directories.tokendir = ${tokendir}
 objectstore.backend = file
 log.level = DEBUG
@@ -107,18 +106,16 @@ slots.removable = false
 _EOF_
 	fi
 
-	msg=$(p11tool --list-tokens 2>&1 | grep "token=${NAME}" | tail -n1)
-	if [ $? -ne 0 ]; then
+	if ! msg=$(p11tool --list-tokens 2>&1 | grep "token=${NAME}" | tail -n1); then
 		echo "Could not list existing tokens"
 		echo "$msg"
 	fi
 	tokenuri=$(echo "$msg" | sed -n 's/.*URL: \([[:print:]*]\)/\1/p')
 
 	if [ -z "$tokenuri" ]; then
-		msg=$(softhsm2-util \
-			--init-token --pin ${PIN} --so-pin ${SO_PIN} \
-			--free --label ${NAME} 2>&1)
-		if [ $? -ne 0 ]; then
+		if ! msg=$(softhsm2-util \
+			   --init-token --pin "${PIN}" --so-pin "${SO_PIN}" \
+			   --free --label "${NAME}" 2>&1); then
 			echo "Could not initialize token"
 			echo "$msg"
 			return 2
@@ -137,9 +134,8 @@ _EOF_
 			fi
 		fi
 
-		msg=$(p11tool --list-tokens 2>&1 | \
-			grep "token=${NAME}" | tail -n1)
-		if [ $? -ne 0 ]; then
+		if ! msg=$(p11tool --list-tokens 2>&1 | \
+			   grep "token=${NAME}" | tail -n1); then
 			echo "Could not list existing tokens"
 			echo "$msg"
 		fi
@@ -150,15 +146,13 @@ _EOF_
 		fi
 
 		# more recent versions of p11tool have --generate-privkey ...
-		msg=$(GNUTLS_PIN=$PIN p11tool \
-			--generate-privkey=rsa --label mykey --login \
-			"${tokenuri}" 2>&1)
-		if [ $? -ne 0 ]; then
+		if ! msg=$(GNUTLS_PIN=$PIN p11tool \
+			   --generate-privkey=rsa --bits 2048 --label mykey --login \
+			"${tokenuri}" 2>&1); then
 			# ... older versions have --generate-rsa
-			msg=$(GNUTLS_PIN=$PIN p11tool \
-				--generate-rsa --label mykey --login \
-				"${tokenuri}" 2>&1)
-			if [ $? -ne 0 ]; then
+			if ! msg=$(GNUTLS_PIN=$PIN p11tool \
+				   --generate-rsa --bits 2048 --label mykey --login \
+				   "${tokenuri}" 2>&1); then
 				echo "Could not create RSA key!"
 				echo "$msg"
 				return 5
@@ -166,7 +160,7 @@ _EOF_
 		fi
 	fi
 
-	getkeyuri_softhsm $slot
+	getkeyuri_softhsm "$slot"
 	rc=$?
 	if [ $rc -ne 0 ]; then
 		teardown_softhsm
@@ -178,8 +172,7 @@ _EOF_
 _getkeyuri_softhsm() {
 	local msg tokenuri keyuri
 
-	msg=$(p11tool --list-tokens 2>&1 | grep "token=${NAME}")
-	if [ $? -ne 0 ]; then
+	if ! msg=$(p11tool --list-tokens 2>&1 | grep "token=${NAME}"); then
 		echo "Could not list existing tokens"
 		echo "$msg"
 		return 5
@@ -190,8 +183,7 @@ _getkeyuri_softhsm() {
 		echo "$msg"
 		return 6
 	fi
-	msg=$(p11tool --list-all ${tokenuri} 2>&1)
-	if [ $? -ne 0 ]; then
+	if ! msg=$(p11tool --list-all "${tokenuri}" 2>&1); then
 		echo "Could not list object under token $tokenuri"
 		echo "$msg"
 		softhsm2-util --show-slots
@@ -241,7 +233,7 @@ Supported commands are:
 setup      : Setup the user's account for softhsm and create a
              token and key with a test configuration
 
-getkeyuri  : Get the key's URL; may only be called after setup
+getkeyuri  : Get the key's URI; may only be called after setup
 
 getpubkey  : Get the public key in PEM format; may only be called after setup
 
@@ -254,7 +246,7 @@ main() {
 	local ret
 
 	if [ $# -lt 1 ]; then
-		usage $0
+		usage "$0"
 		echo -e "Missing command.\n\n"
 		return 1
 	fi
@@ -277,7 +269,7 @@ main() {
 		;;
 	*)
 		echo -e "Unsupported command: $1\n\n"
-		usage $0
+		usage "$0"
 		ret=1
 	esac
 	return $ret
