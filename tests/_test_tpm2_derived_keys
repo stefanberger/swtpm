@@ -247,7 +247,7 @@ test5_exp2+=' 00 00 01 00 00'
 case "$(uname -s)" in
 Linux)
 	# Only 64bit apps will link with libs in /lib64/ dirs
-	if grep -q -E "\/lib64\/" "/proc/${SWTPM_PID}/maps" && \
+	if grep -q -E "/lib64/" "/proc/${SWTPM_PID}/maps" && \
 	   lscpu | grep -q "Little Endian"; then
 		tx_cmd 1 0 "$test1_cmd" "$test1_exp" "" || exit 1 && echo "Test 1: OK"
 		tx_cmd 1 1 "$test2_cmd" "$test2_exp" "" || exit 1 && echo "Test 2: OK"
