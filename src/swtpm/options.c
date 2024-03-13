@@ -89,7 +89,6 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
 
     tmp = realloc(ovs->options, (idx + 1) * sizeof(*ovs->options));
     if (!tmp) {
-        free(ovs->options);
         option_error_set(error, "Out of memory");
         return -1;
     }
