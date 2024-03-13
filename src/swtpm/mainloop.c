@@ -385,6 +385,9 @@ skip_process:
         close(ctrlclntfd);
     ctrlchannel_set_client_fd(mlp->cc, -1);
 
+    if (connection_fd.fd >= 0 && !(mlp->flags & MAIN_LOOP_FLAG_USE_FD))
+        close(connection_fd.fd);
+
     if (mlp->fd >= 0) {
         close(mlp->fd);
         mlp->fd = -1;
