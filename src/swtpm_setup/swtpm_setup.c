@@ -1547,6 +1547,14 @@ int main(int argc, char *argv[])
             logerr(gl_LOGFILE, "--reconfigure requires --tpm2.\n");
             goto error;
         }
+        if (flags & SETUP_ALLOW_SIGNING_F) {
+            logerr(gl_LOGFILE, "--allow-signing requires --tpm2.\n");
+            goto error;
+        }
+        if (flags & SETUP_DECRYPTION_F) {
+            logerr(gl_LOGFILE, "--decryption requires --tpm2.\n");
+            goto error;
+        }
     }
 
     if (!(flags & SETUP_RECONFIGURE_F)) {
