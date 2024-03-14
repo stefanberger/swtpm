@@ -1555,6 +1555,10 @@ int main(int argc, char *argv[])
             logerr(gl_LOGFILE, "--decryption requires --tpm2.\n");
             goto error;
         }
+        if (pcr_banks) {
+            logerr(gl_LOGFILE, "--pcr-banks requires --tpm2.\n");
+            goto error;
+        }
     }
 
     if (!(flags & SETUP_RECONFIGURE_F)) {
