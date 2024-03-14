@@ -72,4 +72,57 @@ fi
 echo "Test 2: Ok"
 cleanup
 
+if ! ${SWTPM_SETUP} --help &>/dev/null; then
+	echo "Error: Displaying help screen failed"
+	exit 1
+fi
+
+if ! ${SWTPM_SETUP} --version &>/dev/null; then
+	echo "Error: Displaying version info failed"
+	exit 1
+fi
+
+workdir="$(mktemp -d)" || exit 1
+
+# Omit --tpm-state
+if ${SWTPM_SETUP} --overwrite 2>/dev/null; then
+	echo "Error: Should have failed without --tpmstate option"
+	exit 1
+fi
+
+# Options that require --tpm2
+for opt in --ecc --create-spk --reconfigure --allow-signing --decryption '--pcr-banks -'; do
+	if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite ${opt:+${opt}} 2>/dev/null; then
+		echo "Error: Option ${opt} should have required --tpm2"
+		exit 1
+	fi
+done
+
+# Unreasonble RSA key size
+if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --tpm2 --rsa-keysize 2222 &>/dev/null; then
+	echo "Error: Should have failed with unreasonable key size"
+	exit 1
+fi
+
+# Unsupported option with --tpm2
+if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --tpm2 --take-ownership 2>/dev/null; then
+	echo "Error: Option ${opt} should have failed with --tpm2"
+	exit 1
+fi
+
+# Unsupported cipher
+if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --cipher aes-192-cbc &>/dev/null; then
+	echo "Error: Should have failed on unsupported cipher aes-192-cbc"
+	exit 1
+fi
+
+# Unsupported option combination
+if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --tpm2 --create-ek-cert --reconfigure 2>/dev/null; then
+	echo "Error: Should have failed on unsupported option combination"
+	exit 1
+fi
+
+echo "Test 3: Ok"
+cleanup
+
 exit 0
