@@ -660,7 +660,8 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
     return 0;
 }
 
-static int change_fd_flags(int fd, int flags_to_clear, int flags_to_set) {
+static int change_fd_flags(int fd, int flags_to_clear, int flags_to_set,
+                           int *o_flags) {
     int n;
     int orig_flags = fcntl(fd, F_GETFL, 0);
 
@@ -675,7 +676,15 @@ static int change_fd_flags(int fd, int flags_to_clear, int flags_to_set) {
             return -1;
         }
     }
-    return orig_flags;
+    if (o_flags)
+        *o_flags = orig_flags;
+
+    return 0;
+}
+
+static int set_fd_flags(int fd, int flags_to_set)
+{
+    return change_fd_flags(fd, ~0, flags_to_set, NULL);
 }
 
 /* Create a connection by setting the given file descriptor to non-blocking.
@@ -688,11 +697,14 @@ static int connect_nonblock(int fd, const struct sockaddr *addr,
 {
     int n, sockerr;
     socklen_t optlen = sizeof(sockerr);
+    int orig_flags = 0;
+
 #if !defined(__CYGWIN__)
-    int orig_flags = change_fd_flags(fd, 0, O_NONBLOCK);
+    if (change_fd_flags(fd, 0, O_NONBLOCK, &orig_flags) < 0)
 #else
-    int orig_flags = change_fd_flags(fd, 0, 0);
+    if (change_fd_flags(fd, 0, 0, &orig_flags) < 0)
 #endif
+        return -1;
 
     n = connect(fd, addr, addrlen);
     /* n < 0: it must fail with EAGAIN (Unix socket) and then we have to poll
@@ -726,7 +738,7 @@ static int connect_nonblock(int fd, const struct sockaddr *addr,
             return -1;
         }
     }
-    return change_fd_flags(fd, ~0, orig_flags);
+    return set_fd_flags(fd, orig_flags);
 }
 
 static int open_connection(const char *devname, char *tcp_hostname,
