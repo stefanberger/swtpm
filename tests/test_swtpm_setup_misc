@@ -2,11 +2,6 @@
 
 # For the license, see the LICENSE file in the root directory.
 
-if [ "$(id -u)" -eq 0 ]; then
-	echo "Not running this test as root."
-	exit 77
-fi
-
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
@@ -21,56 +16,7 @@ function cleanup()
 
 workdir="$(mktemp -d)" || exit 1
 
-FILES="swtpm-localca.conf swtpm-localca.options swtpm_setup.conf"
-
-if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
-	--create-config-files 1>/dev/null;
-then
-	echo "Error: Could not created config files (without parameters)"
-	exit 1
-fi
-for f in ${FILES}; do
-	if ! [ -f "${workdir}/${f}" ]; then
-		echo "Error: File ${workdir}/${f} was not created"
-		exit 1
-	fi
-done
-if ! [ -d "${workdir}/var/lib/swtpm-localca" ]; then
-	echo "Error: Directory var/lib/swtpm-localca was not created"
-	exit 1
-fi
-
-if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
-	--create-config-files skip-if-exist 1>/dev/null;
-then
-	echo "Error: skip-if-exists should have exit'ed with 0."
-	exit 1
-fi
-
-echo "Test 1: Ok"
-cleanup
-
-workdir="$(mktemp -d)" || exit 1
-
-if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
-	--create-config-files skip-if-exist 1>/dev/null;
-then
-	echo "Error: skip-if-exists should have exit'ed with 0."
-	exit 1
-fi
-for f in ${FILES}; do
-	if ! [ -f "${workdir}/${f}" ]; then
-		echo "Error: File ${workdir}/${f} was not created"
-		exit 1
-	fi
-done
-if ! [ -d "${workdir}/var/lib/swtpm-localca" ]; then
-	echo "Error: Directory var/lib/swtpm-localca was not created"
-	exit 1
-fi
-
-echo "Test 2: Ok"
-cleanup
+# Simple tests with options and combination of options
 
 if ! ${SWTPM_SETUP} --help &>/dev/null; then
 	echo "Error: Displaying help screen failed"
@@ -81,8 +27,6 @@ if ! ${SWTPM_SETUP} --version &>/dev/null; then
 	echo "Error: Displaying version info failed"
 	exit 1
 fi
-
-workdir="$(mktemp -d)" || exit 1
 
 # Omit --tpm-state
 if ${SWTPM_SETUP} --overwrite 2>/dev/null; then
@@ -119,6 +63,60 @@ fi
 # Unsupported option combination
 if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --tpm2 --create-ek-cert --reconfigure 2>/dev/null; then
 	echo "Error: Should have failed on unsupported option combination"
+	exit 1
+fi
+
+echo "Test 1: Ok"
+cleanup
+
+if [ "$(id -u)" -eq 0 ]; then
+	echo "Skipping fruther tests: Not running tests as root."
+	exit 0
+fi
+
+FILES="swtpm-localca.conf swtpm-localca.options swtpm_setup.conf"
+
+if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files 1>/dev/null;
+then
+	echo "Error: Could not created config files (without parameters)"
+	exit 1
+fi
+for f in ${FILES}; do
+	if ! [ -f "${workdir}/${f}" ]; then
+		echo "Error: File ${workdir}/${f} was not created"
+		exit 1
+	fi
+done
+if ! [ -d "${workdir}/var/lib/swtpm-localca" ]; then
+	echo "Error: Directory var/lib/swtpm-localca was not created"
+	exit 1
+fi
+
+if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files skip-if-exist 1>/dev/null;
+then
+	echo "Error: skip-if-exists should have exit'ed with 0."
+	exit 1
+fi
+
+echo "Test 2: Ok"
+cleanup
+
+if ! XDG_CONFIG_HOME="${workdir}" ${SWTPM_SETUP} \
+	--create-config-files skip-if-exist 1>/dev/null;
+then
+	echo "Error: skip-if-exists should have exit'ed with 0."
+	exit 1
+fi
+for f in ${FILES}; do
+	if ! [ -f "${workdir}/${f}" ]; then
+		echo "Error: File ${workdir}/${f} was not created"
+		exit 1
+	fi
+done
+if ! [ -d "${workdir}/var/lib/swtpm-localca" ]; then
+	echo "Error: Directory var/lib/swtpm-localca was not created"
 	exit 1
 fi
 
