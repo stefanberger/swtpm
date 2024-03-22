@@ -1,5 +1,11 @@
 CHANGES - changes for swtpm
 
+version 0.8.2:
+  - swtpm:
+    - cuse: Lock file_ops_lock before reading tpm_running
+  - build-sys:
+    - Add support for --disable-tests to disable tests
+
 version 0.8.1:
   - swtpm:
     - Restore logging to stderr on log open failure
