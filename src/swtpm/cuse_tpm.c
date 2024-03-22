@@ -1081,6 +1081,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
     ptm_init *init_p;
     TPM_MODIFIER_INDICATOR orig_locality;
 
+    /* prevent other threads from writing or doing ioctls */
+    g_mutex_lock(FILE_OPS_LOCK);
+
     /* some commands have to wait until the worker thread is done */
     switch(cmd) {
     case PTM_GET_CAPABILITY:
@@ -1105,9 +1108,6 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             worker_thread_wait_done();
         break;
     }
-
-    /* prevent other threads from writing or doing ioctls */
-    g_mutex_lock(FILE_OPS_LOCK);
 
     switch (cmd) {
     case PTM_GET_CAPABILITY:
