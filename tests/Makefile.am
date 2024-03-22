@@ -11,6 +11,8 @@ TESTS_ENVIRONMENT = \
   abs_top_builddir=`cd '$(top_builddir)'; pwd` \
   abs_top_srcdir=`cd '$(top_srcdir)'; pwd`
 
+if ENABLE_TESTS
+
 TESTS = \
 	test_vtpm_proxy \
 	test_tpm2_vtpm_proxy
@@ -103,9 +105,9 @@ TESTS += \
 
 # Prevent concurrency between these two
 test_tpm2_samples_create_tpmca.log: test_tpm2_swtpm_localca_pkcs11.log
-endif
-
-endif
+endif # HAVE_TCSD
+endif # WITH_GNUTLS
+endif # ENABLE_TESTS
 
 EXTRA_DIST=$(TESTS) \
 	swtpm_setup.conf \
