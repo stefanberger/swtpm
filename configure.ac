@@ -191,24 +191,6 @@ AC_SUBST([LIBTPMS_LIBS])
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
 AC_SUBST([LIBRT_LIBS])
 
-AC_PATH_PROG([TCSD], tcsd)
-if test "x$TCSD" = "x"; then
-    have_tcsd=no
-    AC_MSG_WARN([tcsd could not be found; typically need it for tss user account and tests])
-else
-    have_tcsd=yes
-fi
-AM_CONDITIONAL([HAVE_TCSD], test "$have_tcsd" != "no")
-
-dnl We either need netstat (more common across systems) or 'ss' for test cases
-AC_PATH_PROG([NETSTAT], [netstat])
-if test "x$NETSTAT" = "x"; then
-	AC_PATH_PROG([SS], [ss])
-	if test "x$SS" = "x"; then
-		AC_MSG_ERROR(['netstat' and 'ss' tools are missing for tests: net-tools OR iproute/iproute2 package])
-	fi
-fi
-
 AC_MSG_CHECKING([for whether to build with CUSE interface])
 AC_ARG_WITH([cuse],
             AS_HELP_STRING([--with-cuse],[build with CUSE interface]),
@@ -384,30 +366,64 @@ AS_IF([test "x$enable_default_pcr_banks" != "x"],[
 pcr_bank_checks
 AC_SUBST([DEFAULT_PCR_BANKS])
 
-AC_PATH_PROG([EXPECT], expect)
-if test "x$EXPECT" = "x"; then
-	AC_MSG_ERROR([expect is required: expect package])
-fi
+dnl tests and tools needed for tests
+AC_ARG_ENABLE([tests],
+	AS_HELP_STRING([--disable-tests], [Disable test; tools only needed for tests need not be installed]),
+	[case "${enableval}" in
+	yes) enable_tests=yes;;
+	no)  enable_tests=no;;
+	*) AC_MSG_ERROR([bad value ${enableval} for --disable-tests])
+	esac], [
+		enable_tests=yes
+	]
+)
+AM_CONDITIONAL(ENABLE_TESTS, [test x$enable_tests = xyes])
 
-AC_PATH_PROG([GAWK], gawk)
-if test "x$GAWK" = "x"; then
-	AC_MSG_ERROR([gawk is required: gawk package])
-fi
+have_tcsd=no
+AS_IF([test "$enable_tests" = "yes"],[
+	dnl We either need netstat (more common across systems) or 'ss' for test cases
+	AC_PATH_PROG([NETSTAT], [netstat])
+	if test "x$NETSTAT" = "x"; then
+		AC_PATH_PROG([SS], [ss])
+		if test "x$SS" = "x"; then
+			AC_MSG_ERROR(['netstat' and 'ss' tools are missing for tests: net-tools OR iproute/iproute2 package])
+		fi
+	fi
 
-AC_PATH_PROG([SOCAT], socat)
-if test "x$SOCAT" = "x"; then
-	AC_MSG_ERROR([socat is required: socat package])
-fi
+	AC_PATH_PROG([TCSD], tcsd)
+	if test "x$TCSD" = "x"; then
+		have_tcsd=no
+		AC_MSG_WARN([tcsd could not be found; typically need it for tss user account and tests])
+	else
+		have_tcsd=yes
+	fi
 
-AC_PATH_PROG([BASE64], base64)
-if test "x$BASE64" = "x"; then
-	AC_MSG_ERROR([base64 is required: base64 package])
-fi
+	AC_PATH_PROG([EXPECT], expect)
+	if test "x$EXPECT" = "x"; then
+		AC_MSG_ERROR([expect is required: expect package])
+	fi
 
-AC_PATH_PROG([CP], cp)
-if test "x$CP" = "x"; then
-	AC_MSG_ERROR([cp is required])
-fi
+	AC_PATH_PROG([GAWK], gawk)
+	if test "x$GAWK" = "x"; then
+		AC_MSG_ERROR([gawk is required: gawk package])
+	fi
+
+	AC_PATH_PROG([SOCAT], socat)
+	if test "x$SOCAT" = "x"; then
+		AC_MSG_ERROR([socat is required: socat package])
+	fi
+
+	AC_PATH_PROG([BASE64], base64)
+	if test "x$BASE64" = "x"; then
+		AC_MSG_ERROR([base64 is required: base64 package])
+	fi
+
+	AC_PATH_PROG([CP], cp)
+	if test "x$CP" = "x"; then
+		AC_MSG_ERROR([cp is required])
+	fi
+])
+AM_CONDITIONAL([HAVE_TCSD], test "$have_tcsd" != "no")
 
 AM_PATH_PYTHON([3.3])
 
@@ -625,6 +641,7 @@ printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
 printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
 printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
 printf "with_seccomp    : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
+printf "enable_tests    : %5s  (no = no tests will run)\n" $enable_tests
 printf "\n"
 printf "active PCR banks  : %s\n" $DEFAULT_PCR_BANKS
 echo
