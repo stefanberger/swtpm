@@ -278,6 +278,17 @@ static const OptionDesc migration_opt_desc[] = {
     END_OPTION_DESC
 };
 
+static const OptionDesc profile_opt_desc[] = {
+    {
+        .name = "name",
+        .type = OPT_TYPE_STRING,
+    }, {
+        .name = "profile",
+        .type = OPT_TYPE_STRING,
+    },
+    END_OPTION_DESC
+};
+
 /*
  * handle_log_options:
  * Parse and act upon the parsed log options. Initialize the logging.
@@ -1410,6 +1421,51 @@ error:
     return -1;
 }
 
+static int parse_profile_options(char *options, char **json_profile)
+{
+    OptionValues *ovs = NULL;
+    char *error = NULL;
+    const char *profile;
+    const char *name;
+
+    ovs = options_parse(options, profile_opt_desc, &error);
+    if (!ovs) {
+        logprintf(STDERR_FILENO, "Error parsing profile options: %s\n", error);
+        goto error;
+    }
+
+    profile = option_get_string(ovs, "profile", NULL);
+    name = option_get_string(ovs, "name", NULL);
+    if (profile && name) {
+        logprintf(STDERR_FILENO, "Profile and name cannot be provided at the same time\n");
+        goto error;
+    }
+    if (profile) {
+        *json_profile = strdup(profile);
+        if (!*json_profile)
+            goto oom_error;
+    } else if (name) {
+        if (asprintf(json_profile, "{\"name\":\"%s\"}", name) < 0) {
+            logprintf(STDERR_FILENO, "Out of memory.\n");
+            goto oom_error;
+        }
+    }
+
+    option_values_free(ovs);
+
+    return 0;
+
+oom_error:
+    logprintf(STDERR_FILENO,
+              "Out of memory to create JSON profile\n");
+
+error:
+    option_values_free(ovs);
+    free(error);
+
+    return -1;
+}
+
 /*
  * handle_migration_options:
  * Parse the 'migration' options.
@@ -1430,6 +1486,28 @@ int handle_migration_options(char *options, bool *incoming_migration,
 
     if (parse_migration_options(options, incoming_migration,
                                 release_lock_outgoing) < 0)
+        return -1;
+
+    return 0l;
+}
+
+/*
+ * handle_profile_options:
+ * Parse the 'profile' options.
+ *
+ * @options: the porfile options to parse
+ * @json_profile: pointer to a buffer for the profile rules to pass to libtpms
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int handle_profile_options(char *options, char **json_profile)
+{
+    *json_profile = NULL;
+
+    if (!options)
+        return 0;
+
+    if (parse_profile_options(options, json_profile) < 0)
         return -1;
 
     return 0;

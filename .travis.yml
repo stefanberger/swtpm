@@ -78,6 +78,7 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX}"
            CHECK="distcheck"
            RUN_TEST="1"
+           LIBTPMS_GIT_CHECKOUT="origin/stefanberger/runtime_disable_algorithms.v3"
     - dist: jammy
       env: PREFIX="/usr"
            CONFIG="--with-openssl --prefix=/usr --enable-test-coverage"
@@ -85,6 +86,7 @@ matrix:
            CHECK="check"
            SWTPM_TEST_IBMTSS2="1"
            SWTPM_TEST_STORE_VOLATILE="1"
+           LIBTPMS_GIT_CHECKOUT="origin/stefanberger/runtime_disable_algorithms.v3"
       before_script:
       - sudo apt-get -y install libtpm2-pkcs11-tools
       - sudo pip install cpp-coveralls
@@ -103,6 +105,7 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
            CHECK="check"
+           LIBTPMS_GIT_CHECKOUT="origin/stefanberger/runtime_disable_algorithms.v3"
     - env: CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=address -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CONFIG="--disable-use-openssl-functions"
@@ -112,6 +115,7 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX} --without-seccomp"
            SUDO="sudo"
            CHECK="check"
+           LIBTPMS_GIT_CHECKOUT="origin/stefanberger/runtime_disable_algorithms.v3"
     - env: CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBTPMS_CFLAGS="-fsanitize=undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
            LIBS="-lubsan"
@@ -120,3 +124,4 @@ matrix:
            CONFIG="--with-openssl --prefix=${PREFIX}"
            SUDO="sudo"
            CHECK="check"
+           LIBTPMS_GIT_CHECKOUT="origin/stefanberger/runtime_disable_algorithms.v3"

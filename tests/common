@@ -890,6 +890,20 @@ function skip_test_no_tpm20()
 	fi
 }
 
+# Check whether swtpm has support for the --profile option
+function skip_test_no_cmdarg_profile()
+{
+	local swtpm_exe="$1"
+
+	local res
+
+	res=$(${swtpm_exe} socket --print-capabilities | grep '"cmdarg-profile"')
+	if [ -z "${res}" ]; then
+		echo "${swtpm_exe} does not support the --profile option"
+		exit 77
+	fi
+}
+
 # Test whether swtpm has a chardev interface; Returns 0 if true, 1 otherwise
 function test_swtpm_has_chardev()
 {

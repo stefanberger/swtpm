@@ -218,15 +218,22 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : print capabilities and terminate\n"
     "--print-states\n"
     "                 : print existing TPM states and terminate\n"
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+    "--profile name=<name>|profile=<json-profile>\n"
+    "                 : Set a profile on the TPM 2\n"
+    "--print-profiles\n"
+    "                 : print full profiles supported by libtpms\n"
+#endif
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
 }
 
-static void swtpm_cleanup(struct ctrlchannel *cc)
+static void swtpm_cleanup(struct mainLoopParams *mlp)
 {
+    free(mlp->json_profile);
     pidfile_remove();
-    ctrlchannel_free(cc);
+    ctrlchannel_free(mlp->cc);
     log_global_free();
     tpmstate_global_free();
     SWTPM_NVRAM_Shutdown();
@@ -302,6 +309,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *migrationdata = NULL;
     char *runas = NULL;
     char *chroot = NULL;
+    char *profiledata = NULL;
 #ifdef WITH_VTPM_PROXY
     bool use_vtpm_proxy = false;
 #endif
@@ -312,6 +320,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     unsigned int seccomp_action;
     bool printcapabilities = false;
     bool printstates = false;
+    bool printprofiles = false;
     static struct option longopts[] = {
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
@@ -338,6 +347,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"print-capabilities"
                      ,       no_argument, 0, 'a'},
         {"print-states",     no_argument, 0, 'e'},
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+        {"profile"   , required_argument, 0, 'I'},
+        {"print-profiles",   no_argument, 0, 'N'},
+#endif
         {NULL        , 0                , 0, 0  },
     };
 
@@ -475,6 +488,14 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             migrationdata = optarg;
             break;
 
+        case 'I':
+            profiledata = optarg;
+            break;
+
+        case 'N': /* --print-profiles */
+            printprofiles = true;
+            break;
+
         default:
             usage(stderr, prgname, iface);
             exit(EXIT_FAILURE);
@@ -540,6 +561,11 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             goto exit_success;
     }
 
+    if (printprofiles) {
+        print_profiles();
+        goto exit_success;
+    }
+
     if (mlp.fd < 0) {
         logprintf(STDERR_FILENO,
                   "Error: Missing character device or file descriptor\n");
@@ -563,7 +589,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         handle_flags_options(flagsdata, &need_init_cmd,
                              &mlp.startupType, &mlp.disable_auto_shutdown) < 0 ||
         handle_migration_options(migrationdata, &mlp.incoming_migration,
-                                 &mlp.release_lock_outgoing) < 0) {
+                                 &mlp.release_lock_outgoing) < 0 ||
+        handle_profile_options(profiledata, &mlp.json_profile) < 0) {
         goto exit_failure;
     }
 
@@ -588,7 +615,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if (!need_init_cmd) {
         mlp.storage_locked = !mlp.incoming_migration;
 
-        if ((rc = tpmlib_start(0, mlp.tpmversion, mlp.storage_locked)))
+        if ((rc = tpmlib_start(0, mlp.tpmversion, mlp.storage_locked,
+                               mlp.json_profile)))
             goto error_no_tpm;
         tpm_running = true;
     }
@@ -620,7 +648,7 @@ error_no_tpm:
     close(notify_fd[1]);
     notify_fd[1] = -1;
 
-    swtpm_cleanup(mlp.cc);
+    swtpm_cleanup(&mlp);
 
     /* Fatal initialization errors cause the program to abort */
     if (rc == 0) {
@@ -632,12 +660,12 @@ error_no_tpm:
     }
 
 exit_failure:
-    swtpm_cleanup(mlp.cc);
+    swtpm_cleanup(&mlp);
 
     exit(EXIT_FAILURE);
 
 exit_success:
-    swtpm_cleanup(mlp.cc);
+    swtpm_cleanup(&mlp);
 
     exit(EXIT_SUCCESS);
 }

@@ -44,4 +44,6 @@
 
 int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion);
 
+int print_profiles(void);
+
 #endif /* SWTPM_CAPABILITIES_H */

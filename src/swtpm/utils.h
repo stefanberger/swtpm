@@ -43,6 +43,8 @@
 #include <signal.h>
 #include <sys/uio.h>
 
+#include <glib.h>
+
 #include <libtpms/tpm_library.h>
 
 #define ROUND_TO_NEXT_POWER_OF_2_32(a) \
@@ -71,5 +73,10 @@ ssize_t write_full(int fd, const void *buffer, size_t buflen);
 ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt);
 
 ssize_t read_eintr(int fd, void *buffer, size_t buflen);
+
+int json_get_submap_value(const char *json_input, const char *field_name,
+                          const char *field_name2, char **value);
+
+int strv_strncmp(gchar *const*str_array, const gchar *s, size_t n);
 
 #endif /* _SWTPM_UTILS_H_ */
