@@ -128,7 +128,13 @@ void worker_thread_mark_done(void)
  */
 int worker_thread_is_busy(void)
 {
-    return thread_busy;
+    int ret;
+
+    g_mutex_lock(THREAD_BUSY_LOCK);
+    ret = thread_busy;
+    g_mutex_unlock(THREAD_BUSY_LOCK);
+
+    return ret;
 }
 
 /*
