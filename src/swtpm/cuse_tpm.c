@@ -1622,6 +1622,11 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 
     memset(&cinfo, 0, sizeof(cinfo));
     memset(&param, 0, sizeof(param));
+#if GLIB_MINOR_VERSION >= 32
+    g_mutex_init(FILE_OPS_LOCK);
+#else
+    FILE_OPS_LOCK = g_mutex_new();
+#endif
 
     log_set_prefix("swtpm: ");
 
@@ -1861,10 +1866,12 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 
     worker_thread_init();
 
+    g_mutex_lock(FILE_OPS_LOCK);
+
     if (!need_init_cmd) {
         if (tpm_start(0, tpmversion, &res) < 0) {
             ret = -1;
-            goto exit;
+            goto err_unlock;
         }
         tpm_running = true;
     }
@@ -1872,21 +1879,25 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     if (param.startupType != _TPM_ST_NONE) {
         if (ptm_send_startup(param.startupType, tpmversion) < 0) {
             ret = -1;
-            goto exit;
+            goto err_unlock;
         }
     }
 
-#if GLIB_MINOR_VERSION >= 32
-    g_mutex_init(FILE_OPS_LOCK);
-#else
-    FILE_OPS_LOCK = g_mutex_new();
-#endif
+    g_mutex_unlock(FILE_OPS_LOCK);
 
     ret = ptm_cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
 
 exit:
     ptm_cleanup();
     free(cinfo_argv[0]);
+#if GLIB_MINOR_VERSION < 32
+    g_mutex_free(FILE_OPS_LOCK);
+#endif
 
     return ret;
+
+err_unlock:
+    g_mutex_unlock(FILE_OPS_LOCK);
+
+    goto exit;
 }
