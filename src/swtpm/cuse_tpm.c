@@ -89,7 +89,7 @@ static TPMLIB_TPMVersion tpmversion;
 /* buffer containing the TPM request */
 static unsigned char *ptm_request;
 
-/* buffer containing the TPM response */
+/* buffer containing the TPM response; protected by file_ops_lock and thread_busy_lock */
 static unsigned char *ptm_response;
 
 /* offset from where to read from; reset when ptm_response is set */
@@ -101,7 +101,7 @@ static uint32_t ptm_req_len, ptm_res_len, ptm_res_tot;
 /* locality applied to TPM commands */
 static TPM_MODIFIER_INDICATOR locality;
 
-/* whether the TPM is running (TPM_Init was received) */
+/* whether the TPM is running (TPM_Init was received); protected by file_ops_lock */
 static bool tpm_running;
 
 /* flags on how to handle locality */
@@ -467,6 +467,8 @@ static int cached_stateblob_copy(void *dest, size_t destlen,
 static void worker_thread(gpointer data, gpointer user_data SWTPM_ATTR_UNUSED)
 {
     struct thread_message *msg = (struct thread_message *)data;
+
+    /* file_ops_lock not needed since thread_busy is set */
 
     switch (msg->type) {
     case MESSAGE_TPM_CMD:
