@@ -1,0 +1,57 @@
+policy_module(swtpm_libvirt, 1.0.0)
+
+########################################
+#
+# Rules for enabling interactions due to swtpm usage by libvirt
+# Requires Fedora 40
+#
+
+require {
+	type admin_home_t;
+	type device_t;
+	type fs_t;
+	type hugetlbfs_t;
+	type qemu_var_run_t;
+	type svirt_t;
+	type svirt_image_t;
+	type svirt_tcg_t;
+	type svirt_tcg_devpts_t;
+	type swtpm_t;
+	type urandom_device_t;
+	type var_lib_t;
+	type var_log_t;
+	type virt_log_t;
+	type virt_var_lib_t;
+	type virtqemud_t;
+}
+
+allow virtqemud_t admin_home_t:file { relabelfrom relabelto setattr write };
+allow virtqemud_t device_t:filesystem unmount;
+allow virtqemud_t fs_t:filesystem getattr;
+allow virtqemud_t hugetlbfs_t:dir relabelfrom;
+allow virtqemud_t qemu_var_run_t:file { relabelfrom relabelto };
+allow virtqemud_t qemu_var_run_t:sock_file relabelfrom;
+allow virtqemud_t self:capability { sys_nice sys_module };
+allow virtqemud_t self:fifo_file relabelfrom;
+allow virtqemud_t svirt_t:process { noatsecure rlimitinh siginh };
+allow virtqemud_t svirt_image_t:chr_file setattr;
+allow virtqemud_t svirt_tcg_t:dir search;
+allow virtqemud_t svirt_tcg_t:file { open read };
+allow virtqemud_t svirt_tcg_t:process { noatsecure rlimitinh setsched siginh signal signull transition };
+allow virtqemud_t svirt_tcg_t:unix_stream_socket { bind connectto create listen };
+allow virtqemud_t svirt_tcg_devpts_t:chr_file { ioctl open read write };
+allow virtqemud_t swtpm_t:process { noatsecure rlimitinh siginh signull };
+allow virtqemud_t urandom_device_t:chr_file setattr;
+
+# Some rules are due to swtpm-localca ( https://bugzilla.redhat.com/show_bug.cgi?id=2278905#c34 )
+allow virtqemud_t var_lib_t:dir add_name;
+allow virtqemud_t var_lib_t:file { create setattr write };
+
+allow virtqemud_t var_log_t:dir { add_name remove_name };
+allow virtqemud_t var_log_t:file { create relabelfrom relabelto setattr unlink write };
+
+allow virtqemud_t virt_log_t:dir remove_name;
+allow virtqemud_t virt_log_t:file unlink;
+
+allow virtqemud_t virt_var_lib_t:dir { relabelfrom relabelto };
+allow virtqemud_t virt_var_lib_t:file { relabelfrom relabelto };

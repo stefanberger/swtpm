@@ -1,5 +1,9 @@
 CHANGES - changes for swtpm
 
+version 0.9.0:
+  - selinux:
+    - New SELinux policy that requires Fedora 40 or later
+
 version 0.8.0:
   - swtpm:
     - Implement release-lock-outgoing parameter for --migration option

@@ -2,8 +2,16 @@ policy_module(swtpm, 1.0.0)
 
 ########################################
 #
-# Declarations
+# Requires Fedora 40
 #
+
+require {
+	type qemu_var_run_t;
+	type var_log_t;
+	type virt_var_lib_t;
+	type virtqemud_t;
+	type virtqemud_tmp_t;
+}
 
 attribute_role swtpm_roles;
 roleattribute system_r swtpm_roles;
@@ -17,10 +25,15 @@ role swtpm_roles types swtpm_t;
 #
 # swtpm local policy
 #
-allow swtpm_t self:capability { setgid setuid dac_override dac_read_search };
+allow swtpm_t qemu_var_run_t:file { create getattr open read unlink write };
+allow swtpm_t qemu_var_run_t:dir { add_name remove_name write };
+allow swtpm_t qemu_var_run_t:sock_file { create setattr unlink };
+allow swtpm_t var_log_t:file open;
+allow swtpm_t virt_var_lib_t:dir { add_name remove_name write };
+allow swtpm_t virt_var_lib_t:file { create rename setattr unlink write };
+allow swtpm_t virtqemud_t:unix_stream_socket { read write getattr };
+allow swtpm_t virtqemud_tmp_t:file { open write };
 
-allow swtpm_t self:fifo_file manage_fifo_file_perms;
-allow swtpm_t self:unix_stream_socket create_stream_socket_perms;
 
 domain_use_interactive_fds(swtpm_t)
 

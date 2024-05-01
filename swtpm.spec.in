@@ -117,13 +117,14 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la,so}
 
 %post selinux
 for pp in /usr/share/selinux/packages/swtpm.pp \
+          /usr/share/selinux/packages/swtpm_libvirt.pp \
           /usr/share/selinux/packages/swtpm_svirt.pp; do
   %selinux_modules_install -s %{selinuxtype} ${pp}
 done
 
 %postun selinux
 if [ $1 -eq  0 ]; then
-  for p in swtpm swtpm_svirt; do
+  for p in swtpm swtpm_libvirt swtpm_svirt; do
     %selinux_modules_uninstall -s %{selinuxtype} $p
   done
 fi
@@ -142,6 +143,7 @@ fi
 
 %files selinux
 %{_datadir}/selinux/packages/swtpm.pp
+%{_datadir}/selinux/packages/swtpm_libvirt.pp
 %{_datadir}/selinux/packages/swtpm_svirt.pp
 
 %files libs
