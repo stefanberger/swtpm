@@ -47,6 +47,9 @@ Makefile
 /src/selinux/*.pp.bz2
 /src/selinux/swtpm.pp
 /src/selinux/swtpm.fc
+/src/selinux/swtpm_libvirt.fc
+/src/selinux/swtpm_libvirt.if
+/src/selinux/swtpm_libvirt.pp
 /src/selinux/swtpm_svirt.fc
 /src/selinux/swtpm_svirt.if
 /src/selinux/swtpm_svirt.pp

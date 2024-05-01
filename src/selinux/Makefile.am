@@ -8,6 +8,7 @@ policiesconfdir = $(datadir)/selinux/packages
 
 POLICIES = \
 	swtpm.pp \
+	swtpm_libvirt.pp \
 	swtpm_svirt.pp
 
 if WITH_CUSE
@@ -30,6 +31,10 @@ swtpm_svirt.pp_FILES = \
 	$(addprefix $(top_srcdir)/src/selinux/,\
 	  swtpm_svirt.te swtpm.if swtpm.te) \
 	$(top_builddir)/src/selinux/swtpm.fc
+
+swtpm_libvirt.pp_FILES = \
+	$(addprefix $(top_srcdir)/src/selinux/,\
+	  swtpm_libvirt.te)
 
 if WITH_CUSE
 swtpmcuse.pp_FILES = \
@@ -80,6 +85,7 @@ EXTRA_DIST = \
 	swtpm.if \
 	swtpm.te \
 	swtpm_svirt.te \
+	swtpm_libvirt.te \
 	swtpmcuse.fc.in \
 	swtpmcuse.if \
 	swtpmcuse.te
