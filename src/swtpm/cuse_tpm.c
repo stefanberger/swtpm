@@ -271,7 +271,7 @@ static const char *usage =
 "                    : Incoming migration defers locking of storage backend\n"
 "                      until the TPM state is received; release-lock-outgoing\n"
 "                      releases the storage lock on outgoing migration\n"
-"--print-capabilites : print capabilities and terminate\n"
+"--print-capabilities : print capabilities and terminate\n"
 "--print-states      : print existing TPM states and terminate\n"
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
