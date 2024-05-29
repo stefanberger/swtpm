@@ -214,7 +214,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : Incoming migration defers locking of storage backend\n"
     "                   until the TPM state is received; release-lock-outgoing\n"
     "                   releases the storage lock on outgoing migration\n"
-    "--print-capabilites\n"
+    "--print-capabilities\n"
     "                 : print capabilities and terminate\n"
     "--print-states\n"
     "                 : print existing TPM states and terminate\n"
