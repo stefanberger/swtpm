@@ -28,6 +28,9 @@ allow svirt_t virtd_t:dir search;
 allow svirt_t virtd_t:fifo_file write;
 allow svirt_t virtqemud_t:fifo_file write;
 
+# For virt-install (see https://bugzilla.redhat.com/show_bug.cgi?id=2283878 )
+allow svirt_tcg_t user_tmp_t:sock_file { create setattr unlink };
+
 allow svirt_tcg_t swtpm_exec_t:file entrypoint;
 allow svirt_tcg_t svirt_image_t:file { map read write };  # also: domain_can_mmap_files
 allow svirt_tcg_t virtqemud_t:fifo_file write;
