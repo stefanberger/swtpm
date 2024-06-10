@@ -30,7 +30,7 @@ PATH="${TOPBUILD}/src/swtpm_cert:$PATH"
 
 source "${TESTDIR}/common"
 
-if ${CERTTOOL} --help | grep -q -E "\-\-verify-profile"; then
+if ${CERTTOOL} --help | grep -q -E "\--verify-profile"; then
 	verify_profile="--verify-profile=medium"
 fi
 
