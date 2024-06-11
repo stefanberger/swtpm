@@ -50,6 +50,8 @@
 
 static char *g_backend_uri;
 static mode_t g_tpmstate_mode = 0640;
+/* false if provided user via command line mode=..., true if using default */
+static bool g_tpmstate_mode_is_default = true;
 static TPMLIB_TPMVersion g_tpmstate_version = TPMLIB_TPM_VERSION_1_2;
 
 void tpmstate_global_free(void)
@@ -86,15 +88,17 @@ const char *tpmstate_get_backend_uri(void)
     return NULL;
 }
 
-int tpmstate_set_mode(mode_t mode)
+int tpmstate_set_mode(mode_t mode, bool mode_is_default)
 {
     g_tpmstate_mode = mode;
+    g_tpmstate_mode_is_default = mode_is_default;
 
     return 0;
 }
 
-mode_t tpmstate_get_mode(void)
+mode_t tpmstate_get_mode(bool *mode_is_default)
 {
+    *mode_is_default = g_tpmstate_mode_is_default;
     return g_tpmstate_mode;
 }
 
