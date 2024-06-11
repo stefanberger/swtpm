@@ -1,8 +1,74 @@
 CHANGES - changes for swtpm
 
 version 0.9.0:
+  Note: The SElinux policy for swtpm was completely redone. For systems
+        with an SELinux policy the same policy (>= 40.17) as used in
+        Fedora >= 40 is required due to changes in labels related to libvirt
+        that made the re-development of the SELinux policy necessary.
+  - swtpm:
+    - Use umask() to create/truncated state file rather than fchmod()
+    - Use fchmod to set mode bits provided by user
+    - Replace mkstemp with g_mkstemp_full (Coverity)
+    - fix typo in help message
+    - cuse: Fix Coverity complaints regarding locks
+    - Fix double free in error path
+    - Close fd after main loop
+    - Restore logging to stderr on log open failure
+  - swtpm_setup:
+    - Fail --pcr-banks without --tpm2
+    - Fail --decryption or --allow-signing without --tpm2
+    - Initialized @argv in get_swtpm_capabilities()
+    - Flush spk after persisting to create room for another key
+    - Refactor duplicate code into swtpm_tpm2_write_cert_nvram
+    - Move persisting of certificate into tpm2_persist_certificate
+    - Pass key_type to function creating filename for key
+    - Add scheme parameter before curveid to createprimary_ecc
+    - Rename is_ek to preserve for future extension
+    - Mask-out EK and plaform certificate flags and set cert_flags
+    - Move common code into new function read_certificate_file()
+    - Exit with '0' upon --version rather than '1'
+    - Close file descriptors passed to swtpm process on parent side
+    - Make stdout unbuffered
+    - Use medium duration on TSC_PhysicalPresence to avoid timeouts
+    - Add poll() after write() and before read() to detect errors
+  - swtpm_localca:
+    - Add support for up to 20 bytes serial numbers
+    - Introduce --key as more generic alias for --ek
+    - Add missing NULL option to end of array
+    - Make stdout unbuffered
+  - swtpm_cert:
+    - Add support for serial numbers up to 20 bytes long
+  - swtpm_ioctl:
+    - Separate return code from flags
+    - Repeatedly call PTM_GET_INFO for long responses
   - selinux:
+    - Re-add rule for svirt_tcg_t and user_tmp_t:sock_file (virt-install)
     - New SELinux policy that requires Fedora 40 or later
+  - tests:
+    - Fixed occurrences of stray '\' before '-'
+    - Rearrange order of test cases to run some also as 'root'
+    - Add tests for command line options and combinations of options
+    - Add softhsm_setup to shellcheck'ed files and fix issues
+    - Add missing 'exit 1' on unexpected file size on --reconfigure
+    - Add test cases for swtpm_cert with max serial number
+    - Fix spelling mistakes
+    - reformat regexs for easier readability and extension
+    - ibmtss2: Add patch to disable x509 test with older libtpms
+    - Upgrade to ibmtss2 v2.0.1
+    - Fixed several issues detected by shellcheck
+  - build-sys:
+    - Add support for --disable-tests to disable tests
+    - Display GMP_LIBS and GMP_CFLAGS
+    - Only display warning if pkg-config for gmp fails
+    - Add gmp library and devel package as dependency
+    - use PKG_CHECK_MODULES to check libtpms version
+  - rpm:
+    - Add gmp library and devel package as dependency
+    - Split off SELinux files to build an selinux package
+  - debian:
+    - Sync AppArmor profile with what is used by Ubuntu
+    - Add gmp library and devel package as dependency
+    - Allow apparmor access to qemu session bus swtpm files
 
 version 0.8.0:
   - swtpm:
