@@ -25,16 +25,17 @@ profile swtpm /usr/bin/swtpm {
 
   /usr/bin/swtpm rm,
 
-  /tmp/** rwk,
-  owner @{HOME}/** rwk,
-  owner /var/lib/libvirt/swtpm/** rwk,
+  /run/libvirt/qemu/swtpm/*.pid rwk,
   /run/libvirt/qemu/swtpm/*.sock rwk,
-  owner /run/user/[0-9]*/libvirt/qemu/run/swtpm/*.sock rwk,
-  owner /var/log/swtpm/libvirt/qemu/*.log rwk,
-  owner /run/libvirt/qemu/swtpm/*.pid rwk,
-  owner /run/user/[0-9]*/libvirt/qemu/run/swtpm/*.pid rwk,
+  /tmp/** rwk,
+
   owner /dev/vtpmx rw,
   owner /etc/nsswitch.conf r,
-  owner /var/lib/swtpm/** rwk,
   owner /run/swtpm/sock rw,
+  owner /run/user/[0-9]*/libvirt/qemu/run/swtpm/*.pid rwk,
+  owner /run/user/[0-9]*/libvirt/qemu/run/swtpm/*.sock rwk,
+  owner /var/lib/libvirt/swtpm/** rwk,
+  owner /var/lib/swtpm/** rwk,
+  owner /var/log/swtpm/libvirt/qemu/*.log rwk,
+  owner @{HOME}/** rwk,
 }
