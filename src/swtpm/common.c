@@ -633,13 +633,14 @@ handle_pid_options(char *options)
  * @options: the 'pid' options to parse
  * @tpmstatedir: Point to pointer for tpmstatedir
  * @mode: the mode of the TPM's state files
+ * @mode_is_default: true if user did not provide mode bits but using default
  * @tpmbackend_uri: Point to pointer for backend URI
  *
  * Returns 0 on success, -1 on failure.
  */
 static int
 parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode,
-                       char **tpmbackend_uri)
+                       bool *mode_is_default, char **tpmbackend_uri)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -654,8 +655,13 @@ parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode,
     }
 
     directory = option_get_string(ovs, "dir", NULL);
-    *mode = option_get_mode_t(ovs, "mode", 0640);
     backend_uri = option_get_string(ovs, "backend-uri", NULL);
+
+    /* Did user provide mode bits? User can only provide <= 0777 */
+    *mode = option_get_mode_t(ovs, "mode", 01000);
+    *mode_is_default = (*mode == 01000);
+    if (*mode_is_default)
+        *mode = 0640;
 
     if (directory) {
         *tpmstatedir = strdup(directory);
@@ -703,12 +709,13 @@ handle_tpmstate_options(char *options)
     char *temp_uri = NULL;
     int ret = 0;
     mode_t mode;
+    bool mode_is_default = true;
 
     if (!options)
         return 0;
 
     if (parse_tpmstate_options(options, &tpmstatedir, &mode,
-                               &tpmbackend_uri) < 0) {
+                               &mode_is_default, &tpmbackend_uri) < 0) {
         ret = -1;
         goto error;
     }
@@ -724,7 +731,7 @@ handle_tpmstate_options(char *options)
         }
 
         if (tpmstate_set_backend_uri(temp_uri) < 0 ||
-            tpmstate_set_mode(mode) < 0) {
+            tpmstate_set_mode(mode, mode_is_default) < 0) {
             ret = -1;
             goto error;
         }
@@ -735,7 +742,7 @@ handle_tpmstate_options(char *options)
         }
         if ((strncmp(tpmbackend_uri, "dir://", 6) == 0 ||
             strncmp(tpmbackend_uri, "file://", 7)) &&
-            tpmstate_set_mode(mode) < 0) {
+            tpmstate_set_mode(mode, mode_is_default) < 0) {
             ret = -1;
             goto error;
         }

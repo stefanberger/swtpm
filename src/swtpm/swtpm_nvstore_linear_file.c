@@ -157,6 +157,7 @@ SWTPM_NVRAM_LinearFile_Open(const char* uri,
 {
     TPM_RESULT rc = 0;
     const char *path = SWTPM_NVRAM_LinearFile_UriToPath(uri);
+    bool mode_is_default = false;
 
     if (mmap_state.mapped) {
         logprintf(STDERR_FILENO,
@@ -164,10 +165,19 @@ SWTPM_NVRAM_LinearFile_Open(const char* uri,
         return TPM_FAIL;
     }
 
-    mmap_state.fd = open(path, O_RDWR|O_CREAT, tpmstate_get_mode());
+    mmap_state.fd = open(path, O_RDWR|O_CREAT,
+                         tpmstate_get_mode(&mode_is_default));
     if (mmap_state.fd < 0) {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_LinearFile_Open: Could not open file: %s\n",
+                  strerror(errno));
+        return TPM_FAIL;
+    }
+    /* Set non-default (user-provided) mode bits not masked by umask */
+    if (!mode_is_default &&
+        fchmod(mmap_state.fd, tpmstate_get_mode(&mode_is_default)) < 0) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_LinearFile_Open: Could not change mode bits: %s\n",
                   strerror(errno));
         return TPM_FAIL;
     }

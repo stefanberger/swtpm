@@ -257,6 +257,9 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
     struct stat   statbuf;
     const char    *tpm_state_path = NULL;
+    bool          mode_is_default = false;
+    bool          do_chmod;
+    mode_t        mode;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
@@ -283,15 +286,6 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
                           "%s for read, %s\n", filepath, strerror(errno));
                 rc = TPM_FAIL;
             }
-        }
-    }
-
-    if (rc == 0) {
-        if (fchmod(fd, tpmstate_get_mode()) < 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_LoadData: Could not fchmod %s : %s\n",
-                      filepath, strerror(errno));
-            rc = TPM_FAIL;
         }
     }
 
@@ -329,6 +323,26 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
             rc = TPM_FAIL;
         }
     }
+
+    if (rc == 0) {
+        mode = tpmstate_get_mode(&mode_is_default);
+        /*
+         * Make sure the file can be written to when state needs to be written.
+         * Do not touch user-provided flags.
+         */
+        do_chmod = !mode_is_default;
+        if (mode_is_default && (statbuf.st_mode & 0200) == 0) {
+           mode |= 0200;
+           do_chmod = true;
+        }
+        if (do_chmod && fchmod(fd, mode) < 0) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LoadData: Could not fchmod %s : %s\n",
+                      filepath, strerror(errno));
+            rc = TPM_FAIL;
+        }
+    }
+
     /* close the file */
     if (fd >= 0) {
         TPM_DEBUG(" SWTPM_NVRAM_LoadData: Closing file %s\n", filepath);
@@ -362,6 +376,7 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     char          tmpfile[FILENAME_MAX];  /* rooted temporary file path */
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
     const char    *tpm_state_path = NULL;
+    bool          mode_is_default = true;
 
 #if 0
     static bool   do_dir_fsync = true; /* turn off fsync on dir if it fails,
@@ -390,11 +405,20 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
         /* open the file */
         TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening file %s\n", tmpfile);
         fd = open(tmpfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,
-                  tpmstate_get_mode());                        /* closed @1 */
+                  tpmstate_get_mode(&mode_is_default));        /* closed @1 */
         if (fd < 0) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_StoreData: Error (fatal) opening %s for "
                       "write failed, %s\n", tmpfile, strerror(errno));
+            rc = TPM_FAIL;
+        }
+    }
+
+    if (rc == 0  && !mode_is_default) {
+        if (fchmod(fd, tpmstate_get_mode(&mode_is_default)) < 0) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData: Error (fatal) changing mode bits "
+                      "on %s failed: %s\n", tmpfile, strerror(errno));
             rc = TPM_FAIL;
         }
     }
