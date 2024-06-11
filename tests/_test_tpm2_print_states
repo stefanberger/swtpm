@@ -15,6 +15,9 @@ trap "cleanup" SIGTERM EXIT
 
 function cleanup()
 {
+	if [ -n "${SWTPM_PID}" ]; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
 	rm -rf "${workdir}"
 }
 
@@ -61,6 +64,55 @@ if ! [[ ${msg} =~ ${exp} ]]; then
 fi
 
 echo "Test 2: OK"
+
+if [ "${SWTPM_IFACE}" = socket ]; then
+	# Test 3: Running swtpm that holds lock on .lock; swtpm --print-states not locked out
+	rm -f "${workdir}/"*
+	run_swtpm "${SWTPM_INTERFACE}" --tpmstate "dir=${workdir}" --tpm2
+
+	if ! kill_quiet -0 "${SWTPM_PID}"; then
+		echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+		exit 1
+	fi
+
+	if ! msg="$(${SWTPM_EXE} "${SWTPM_IFACE}" --print-states --tpmstate "dir=${workdir}" --tpm2 2>&1)"; then
+		echo "Error: Could not pass --print-states"
+		echo "${msg}"
+		exit 1
+	fi
+
+	exp='\{ "type": "swtpm", "states": \[\] \}'
+	if ! [[ ${msg} =~ ${exp} ]]; then
+		echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-states:"
+		echo "Actual   : ${msg}"
+		echo "Expected : ${exp}"
+		exit 1
+	fi
+
+	# Init the TPM
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+		echo "Error: ${SWTPM_INTERFACE} TPM initialization failed."
+		exit 1
+	fi
+
+	if ! msg="$(${SWTPM_EXE} "${SWTPM_IFACE}" --print-states --tpmstate "dir=${workdir}" --tpm2 2>&1)"; then
+		echo "Error: Could not pass --print-states"
+		echo "${msg}"
+		exit 1
+	fi
+
+	exp='\{ "type": "swtpm", "states": \[ \{"name": "permall", "size": 1315\} \] \}'
+	if ! [[ ${msg} =~ ${exp} ]]; then
+		echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-states:"
+		echo "Actual   : ${msg}"
+		echo "Expected : ${exp}"
+		exit 1
+	fi
+
+	echo "Test 3: OK"
+else
+	echo "Test 3: Skipped"
+fi
 cleanup
 
 exit 0
