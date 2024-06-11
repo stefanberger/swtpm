@@ -13,6 +13,10 @@ ret=$?
 [ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
 
 export SWTPM_IFACE=socket
+export SWTPM_INTERFACE=socket+socket
+export SWTPM_SERVER_NAME=localhost
+export SWTPM_SERVER_PORT=65470
+export SWTPM_CTRL_PORT=65471
 bash _test_tpm2_print_states
 ret=$?
 [ $ret -ne 0 ] && [ $ret -ne 77 ] && exit $ret
