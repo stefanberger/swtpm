@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <glib.h>
 
@@ -90,7 +91,7 @@ static int swtpm_start(struct swtpm *self)
     int ret = 1;
     char pidfile[] = "/tmp/.swtpm_setup.pidfile.XXXXXX";
 
-    pidfile_fd = mkstemp(pidfile);
+    pidfile_fd = g_mkstemp_full(pidfile, O_EXCL|O_CREAT, 0600);
     if (pidfile_fd < 0) {
         logerr(self->logfile, "Could not create pidfile: %s\n", strerror(errno));
         goto error_no_pidfile;
