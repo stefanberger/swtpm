@@ -377,6 +377,8 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
     const char    *tpm_state_path = NULL;
     bool          mode_is_default = true;
+    mode_t        mode;
+    mode_t        orig_umask = 0;
 
 #if 0
     static bool   do_dir_fsync = true; /* turn off fsync on dir if it fails,
@@ -404,21 +406,27 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     if (rc == 0) {
         /* open the file */
         TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening file %s\n", tmpfile);
+
+        /*
+         * If a new file is created at this point with user-requested mode bits
+         * then use a temporary umask of 0 to have these mode bits set.
+         * In the more frequent file truncation case the mode bits will also be
+         * changed to what the user requested.
+         */
+        mode = tpmstate_get_mode(&mode_is_default);
+        if (!mode_is_default)
+            orig_umask = umask(0);
+
         fd = open(tmpfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,
-                  tpmstate_get_mode(&mode_is_default));        /* closed @1 */
+                  mode);                                       /* closed @1 */
+
+        if (!mode_is_default)
+            umask(orig_umask);
+
         if (fd < 0) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_StoreData: Error (fatal) opening %s for "
                       "write failed, %s\n", tmpfile, strerror(errno));
-            rc = TPM_FAIL;
-        }
-    }
-
-    if (rc == 0  && !mode_is_default) {
-        if (fchmod(fd, tpmstate_get_mode(&mode_is_default)) < 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) changing mode bits "
-                      "on %s failed: %s\n", tmpfile, strerror(errno));
             rc = TPM_FAIL;
         }
     }
