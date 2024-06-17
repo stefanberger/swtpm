@@ -101,7 +101,8 @@ if [ "${SWTPM_IFACE}" = socket ]; then
 		exit 1
 	fi
 
-	exp='\{ "type": "swtpm", "states": \[ \{"name": "permall", "size": 1315\} \] \}'
+	# sizes: libtpms v0.7: 1181 ; >= v0.8: 1315
+	exp='^\{ "type": "swtpm", "states": \[ \{"name": "permall", "size": 1[0-9]{3}\} \] \}$'
 	if ! [[ ${msg} =~ ${exp} ]]; then
 		echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-states:"
 		echo "Actual   : ${msg}"
