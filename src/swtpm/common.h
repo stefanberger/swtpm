@@ -68,5 +68,7 @@ static inline int handle_seccomp_options(char *options SWTPM_ATTR_UNUSED,
 int handle_migration_options(char *options, bool *incoming_migration,
                              bool *release_lock_outgoing);
 
+int handle_profile_options(char *options, char **json_profile);
+
 #endif /* _SWTPM_COMMON_H_ */
 

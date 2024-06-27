@@ -75,6 +75,7 @@ libswtpm_libtpms_la_CFLAGS = \
 	$(CFLAGS) \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
+	$(JSON_GLIB_CFLAGS) \
 	$(LIBSECCOMP_CFLAGS)
 
 libswtpm_libtpms_la_LDFLAGS = \
@@ -84,6 +85,7 @@ libswtpm_libtpms_la_LDFLAGS = \
 libswtpm_libtpms_la_LIBADD = \
 	$(LIBTPMS_LIBS) \
 	$(GLIB_LIBS) \
+	$(JSON_GLIB_LIBS) \
 	$(LIBRT_LIBS) \
 	$(LIBSECCOMP_LIBS) \
 	$(LIBCRYPTO_LIBS)

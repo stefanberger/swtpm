@@ -573,7 +573,8 @@ int ctrlchannel_process_fd(int fd,
         mlp->storage_locked = !mlp->incoming_migration;
 
         res = tpmlib_start(be32toh(init_p->u.req.init_flags),
-                           mlp->tpmversion, mlp->storage_locked);
+                           mlp->tpmversion, mlp->storage_locked,
+                           mlp->json_profile);
         if (res) {
             logprintf(STDERR_FILENO,
                       "Error: Could not initialize the TPM\n");

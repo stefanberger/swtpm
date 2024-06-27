@@ -130,6 +130,9 @@ static bool g_release_lock_outgoing;
 static unsigned int g_locking_retries;
 #define DEFAULT_LOCKING_RETRIES  300 /* 300 * 10ms */
 
+/* the JSON profile for the TPM 2 */
+static char *g_json_profile;
+
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
@@ -159,6 +162,7 @@ struct cuse_param {
     char *localitydata;
     char *seccompdata;
     char *migrationdata;
+    char *profiledata;
     unsigned int seccomp_action;
     char *flagsdata;
     uint16_t startupType;
@@ -273,6 +277,12 @@ static const char *usage =
 "                      releases the storage lock on outgoing migration\n"
 "--print-capabilities : print capabilities and terminate\n"
 "--print-states      : print existing TPM states and terminate\n"
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+"--profile name=<name>|profile=<json-profile>\n"
+"                    : Set a profile on the TPM 2\n"
+"--print-profiles\n"
+"                    : print full profiles supported by libtpms\n"
+#endif
 "-h|--help           :  display this help screen and terminate\n"
 "\n";
 
@@ -498,7 +508,7 @@ static void worker_thread(gpointer data, gpointer user_data SWTPM_ATTR_UNUSED)
  * @res: the result from starting the TPM
  */
 static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
-                     TPM_RESULT *res)
+                     const char *json_profile, TPM_RESULT *res)
 {
     DIR *dir;
     const char *uri = tpmstate_get_backend_uri();
@@ -539,7 +549,7 @@ static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
 
     g_storage_locked = !g_incoming_migration;
 
-    *res = tpmlib_start(flags, l_tpmversion, g_storage_locked);
+    *res = tpmlib_start(flags, l_tpmversion, g_storage_locked, json_profile);
     if (*res != TPM_SUCCESS)
         goto error_del_pool;
 
@@ -1172,7 +1182,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
             TPMLIB_Terminate();
 
             tpm_running = false;
-            if (tpm_start(init_p->u.req.init_flags, tpmversion, &res) < 0) {
+            if (tpm_start(init_p->u.req.init_flags, tpmversion,
+                          g_json_profile, &res) < 0) {
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM.\n");
             } else {
@@ -1603,6 +1614,10 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {"print-capabilities"
                          ,       no_argument, 0, 'a'},
         {"print-states"  ,       no_argument, 0, 'e'},
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+        {"profile"       , required_argument, 0, 'I'},
+#endif
+        {"print-profiles",       no_argument, 0, 'N'},
         {NULL            , 0                , 0, 0  },
     };
     struct cuse_info cinfo;
@@ -1619,6 +1634,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     int ret = 0;
     bool printcapabilities = false;
     bool printstates = false;
+    bool printprofiles = false;
     bool need_init_cmd = true;
     TPM_RESULT res;
 
@@ -1722,6 +1738,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case 'i': /* --migration */
             param.migrationdata = optarg;
             break;
+        case 'I': /* --profile */
+            param.profiledata = optarg;
+            break;
         case 'h': /* help */
             fprintf(stdout, usage, prgname, iface);
             goto exit;
@@ -1730,6 +1749,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
             break;
         case 'e':
             printstates = true;
+            break;
+        case 'N': /* --print-profiles */
+            printprofiles = true;
             break;
         case 'v': /* version */
             fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
@@ -1808,6 +1830,11 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
+    if (printprofiles) {
+        print_profiles();
+        goto exit;
+    }
+
     if (!cinfo.dev_info_argv) {
         logprintf(STDERR_FILENO, "Error: device name missing\n");
         ret = -2;
@@ -1823,7 +1850,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_flags_options(param.flagsdata, &need_init_cmd,
                              &param.startupType, &g_disable_auto_shutdown) < 0 ||
         handle_migration_options(param.migrationdata, &g_incoming_migration,
-                                 &g_release_lock_outgoing) < 0) {
+                                 &g_release_lock_outgoing) < 0 ||
+        handle_profile_options(param.profiledata, &g_json_profile) < 0) {
         ret = -3;
         goto exit;
     }
@@ -1871,7 +1899,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     g_mutex_lock(FILE_OPS_LOCK);
 
     if (!need_init_cmd) {
-        if (tpm_start(0, tpmversion, &res) < 0) {
+        if (tpm_start(0, tpmversion, g_json_profile, &res) < 0) {
             ret = -1;
             goto err_unlock;
         }
@@ -1890,6 +1918,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     ret = ptm_cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
 
 exit:
+    free(g_json_profile);
     ptm_cleanup();
     free(cinfo_argv[0]);
 #if GLIB_MINOR_VERSION < 32

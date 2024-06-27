@@ -32,6 +32,7 @@
 
 #include <libtpms/tpm_nvfilename.h>
 
+#include "profile.h"
 #include "swtpm.h"
 #include "swtpm_conf.h"
 #include "swtpm_utils.h"
@@ -531,14 +532,14 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
                      const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
                      const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
                      unsigned int rsa_keysize, const gchar *certsdir,
-                     const gchar *user_certsdir)
+                     const gchar *user_certsdir, const gchar *json_profile)
 {
     struct swtpm2 *swtpm2;
     struct swtpm *swtpm;
     int ret;
 
     swtpm2 = swtpm2_new(swtpm_prg_l, tpm2_state_path, swtpm_keyopt, gl_LOGFILE,
-                        fds_to_pass, n_fds_to_pass);
+                        fds_to_pass, n_fds_to_pass, json_profile);
     if (swtpm2 == NULL)
         return 1;
     swtpm = &swtpm2->swtpm;
@@ -961,6 +962,11 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   The active PCR banks can be changed but no new keys will\n"
         "                   be created.\n"
         "\n"
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+        "--profile <json-profile>\n"
+        "                 : Configure swtpm with the given profile.\n"
+#endif
+        "\n"
         "--version        : Display version and exit\n"
         "\n"
         "--help,-h        : Display this help screen\n\n",
@@ -1081,11 +1087,26 @@ static int get_rsa_keysize_caps(unsigned long flags, gchar **swtpm_prg_l,
     return 0;
 }
 
+static int validate_json_profile(gchar **swtpm_prg_l, const char *json_profile)
+{
+    g_autofree gchar *standard_output = NULL;
+    int ret;
+
+    ret = get_swtpm_capabilities(swtpm_prg_l, TRUE, &standard_output);
+    if (ret)
+        return ret;
+
+    return check_json_profile(standard_output, json_profile);
+}
+
 /* Print the JSON object of swtpm_setup's capabilities */
 static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
                               gboolean swtpm_has_tpm2)
 {
+    g_autofree gchar *standard_output = NULL;
     g_autofree gchar *param = g_strdup("");
+    g_autofree gchar *profile_list = NULL;
+    gchar **profile_names = NULL;
     gchar **keysize_strs = NULL;
     gchar *tmp;
     size_t i;
@@ -1101,20 +1122,49 @@ static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
         param = tmp;
     }
 
+    if (swtpm_has_tpm2) {
+        ret = get_swtpm_capabilities(swtpm_prg_l, TRUE, &standard_output);
+        if (ret)
+            goto error;
+        ret = get_profile_names(standard_output, &profile_names);
+        if (ret)
+            goto error;
+
+        if (g_strv_length(profile_names) > 0) {
+            tmp = g_strjoinv("\", \"", profile_names);
+            profile_list = g_strdup_printf(" \"%s\" ", tmp);
+            g_free(tmp);
+        }
+    }
+
     printf("{ \"type\": \"swtpm_setup\", "
            "\"features\": [ %s%s\"cmdarg-keyfile-fd\", \"cmdarg-pwdfile-fd\", \"tpm12-not-need-root\""
            ", \"cmdarg-write-ek-cert-files\", \"cmdarg-create-config-files\""
            ", \"cmdarg-reconfigure-pcr-banks\""
-           "%s ], "
+           "%s"
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+           ", \"cmdarg-profile\""
+#endif
+           ""
+           " ], "
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+           "\"profiles\": [%s], "
+#endif
            "\"version\": \"" VERSION "\" "
            "}\n",
            swtpm_has_tpm12 ? "\"tpm-1.2\", " : "",
            swtpm_has_tpm2  ? "\"tpm-2.0\", " : "",
-           param);
+           param
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+           , profile_list ? profile_list : ""
+#endif
+           );
 
+error:
     g_strfreev(keysize_strs);
+    g_strfreev(profile_names);
 
-    return 0;
+    return ret;
 }
 
 static int change_process_owner(const char *user)
@@ -1227,6 +1277,9 @@ int main(int argc, char *argv[])
         {"version", no_argument, NULL, '1'},
         {"print-capabilities", no_argument, NULL, 'y'},
         {"reconfigure", no_argument, NULL, 'R'},
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+        {"profile", required_argument, NULL, 'I'},
+#endif
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -1254,6 +1307,7 @@ int main(int argc, char *argv[])
     g_autofree gchar *runas = NULL;
     g_autofree gchar *certsdir = NULL;
     g_autofree gchar *user_certsdir = NULL;
+    g_autofree gchar *json_profile = NULL;
     gchar *tmp;
     gchar **swtpm_prg_l = NULL;
     gchar **tmp_l = NULL;
@@ -1438,6 +1492,10 @@ int main(int argc, char *argv[])
         case 'R': /* --reconfigure */
             flags |= SETUP_RECONFIGURE_F;
             break;
+        case 'I': /* --profile */
+            g_free(json_profile);
+            json_profile = g_strdup(optarg);
+            break;
         case '?':
         case 'h': /* --help */
             usage(argv[0], config_file);
@@ -1465,7 +1523,6 @@ int main(int argc, char *argv[])
     }
     g_free(tmp);
 
-
     ret = get_supported_tpm_versions(swtpm_prg_l, &swtpm_has_tpm12, &swtpm_has_tpm2);
     if (ret != 0)
         goto error;
@@ -1480,6 +1537,14 @@ int main(int argc, char *argv[])
         goto error;
     } else if ((flags & SETUP_TPM2_F) == 0 && !swtpm_has_tpm12){
         logerr(gl_LOGFILE, "swtpm at %s does not support TPM 1.2\n", swtpm_prg_l[0]);
+        goto error;
+    }
+
+    if ((flags & SETUP_TPM2_F) != 0 && json_profile) {
+        if (validate_json_profile(swtpm_prg_l, json_profile) != 0)
+            goto error;
+    } else if (json_profile) {
+        logerr(gl_LOGFILE, "There's no --profile support for TPM 1.2\n");
         goto error;
     }
 
@@ -1704,7 +1769,7 @@ int main(int argc, char *argv[])
     } else {
         ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
                        swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize, certsdir,
-                       user_certsdir);
+                       user_certsdir, json_profile);
     }
 
     if (ret == 0) {

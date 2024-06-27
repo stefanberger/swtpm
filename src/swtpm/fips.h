@@ -40,7 +40,12 @@
 
 #include <stdbool.h>
 
+#include <glib.h>
+
 bool fips_mode_enabled(void);
 int fips_mode_disable(void);
+bool fips_algorithms_are_disabled(gchar *const*algorithms);
+bool fips_attributes_disable_bad_algos(gchar *const*attributes,
+                                       gchar *const*algorithms);
 
 #endif /* _SWTPM_FIPS_H_ */

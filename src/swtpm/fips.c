@@ -37,8 +37,12 @@
 
 #include "config.h"
 
+#include <string.h>
+
 #include "fips.h"
 #include "logging.h"
+#include "utils.h"
+#include "swtpm_utils.h"
 
 #include <openssl/opensslv.h>
 
@@ -111,3 +115,116 @@ int fips_mode_disable(void)
     return 0;
 }
 #endif
+
+/* list of FIPS-disabled algorithms that TPM 2 may enable */
+static const char *fips_disabled[] = {
+    "camellia",
+    "rsaes",
+    "tdes",
+    NULL
+};
+
+/* list of minimum required key sizes for FIPS */
+static const struct key_sizes {
+    const char *keyword;
+    unsigned int min_size;
+} fips_key_sizes[] = {
+    {
+        .keyword = "ecc-min-size=",
+        .min_size = 224,
+    }, {
+        // keep last
+    }
+};
+
+/* Determine whether any of the algorithms in the array are FIPS-disable */
+static bool _fips_algorithms_are_disabled(gchar *const*algorithms,
+                                          const char **fips_disabled_algos,
+                                          const struct key_sizes *key_sizes)
+{
+    bool all_good = true;
+    unsigned long v;
+    size_t i, l;
+    int j;
+
+    for (i = 0; fips_disabled_algos[i] != NULL; i++) {
+        if (strv_strncmp(algorithms, fips_disabled_algos[i], -1) >= 0) {
+            logprintf(STDERR_FILENO, "Warning(FIPS): Enable algorithms contain '%s'.\n",
+                      fips_disabled_algos[i]);
+            all_good = false;
+            break;
+        }
+    }
+
+    for (i = 0; key_sizes[i].keyword; i++) {
+        l = strlen(key_sizes[i].keyword);
+        j = strv_strncmp(algorithms, key_sizes[i].keyword, l);
+        if (j >= 0) {
+            /* trusting value from libtpms is well formatted avoiding checks */
+            v = strtoul(&(algorithms[j][l]), NULL, 10);
+            if (v < key_sizes[i].min_size) {
+                logprintf(STDERR_FILENO,
+                          "Warning(FIPS): Enabled key sizes %s%lu is smaller than required %u.\n",
+                          key_sizes[i].keyword, v, key_sizes[i].min_size);
+                all_good = false;
+                break;
+            }
+        } else {
+            logprintf(STDERR_FILENO,
+                      "Warning(FIPS): Missing statement '%s%u' to restrict key size.\n",
+                      key_sizes[i].keyword, key_sizes[i].min_size);
+            all_good = false;
+        }
+    }
+    return all_good;
+}
+
+/* Determine whether the algorithms in the given array contain any algorithms
+ * that OpenSSL disables when the host is in FIPS mode. If any of these
+ * algorithms are found to be disabled (unusable for libtpms), then 'false' is
+ * returned, 'true' otherwise. If 'false' is returned then OpenSSL's FIPS mode
+ * must be disabled for libtpms to not cause selftest failures.
+ */
+bool fips_algorithms_are_disabled(gchar *const*algorithms)
+{
+    return _fips_algorithms_are_disabled(algorithms, fips_disabled, fips_key_sizes);
+}
+
+static const struct {
+    const char *attr;
+    const char **fips_disabled_algos;
+    const struct key_sizes *fips_key_sizes;
+} fips_attributes[] = {
+    {
+        .attr = "fips-host",  // disables a few algos/keysizes but also needs the following ones to be disabled
+        .fips_disabled_algos = fips_disabled,
+        .fips_key_sizes = fips_key_sizes,
+    }, {
+        // keep last
+    }
+};
+
+/* Determine whether any of the attributes disable those algorithms and key
+ * sizes that would be a concern for FIPS mode (unusable for libtpms).
+ * This function returns 'true' if all algorithms that are of a concern for
+ * a host in FIPS mode are disabled, 'false' otherwise. If 'false' is returned
+ * the OpenSSL's FIPS mode must be disable for libtpms to not cause selftest
+ * failures.
+ */
+bool fips_attributes_disable_bad_algos(gchar *const*attributes,
+                                       gchar *const*algorithms)
+{
+    bool ret = false;
+    size_t i;
+
+    for (i = 0; fips_attributes[i].attr != NULL; i++) {
+        if (strv_strncmp(attributes, fips_attributes[i].attr, -1) >= 0) {
+            ret = _fips_algorithms_are_disabled(algorithms,
+                                                fips_attributes[i].fips_disabled_algos,
+                                                fips_attributes[i].fips_key_sizes);
+            if (!ret)
+                break;
+        }
+    }
+    return ret;
+}

@@ -45,6 +45,9 @@
 #include <libtpms/tpm_library.h>
 #include <libtpms/tpm_error.h>
 
+#include <json-glib/json-glib.h>
+
+#include "compiler_dependencies.h"
 #include "capabilities.h"
 #include "logging.h"
 #include "swtpm_nvstore.h"
@@ -114,6 +117,130 @@ oom:
     goto cleanup;
 }
 
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+
+static int get_profile_data(const char *info_data, JsonReader *jr,
+                            GString *gstr, const char *member,
+                            const char *prefix, const char *suffix)
+{
+    g_string_append_printf(gstr, "%s: { \"canbedisabled\": ", prefix);
+
+    if (!json_reader_read_member(jr, member)) {
+        logprintf(STDERR_FILENO,
+                  "Missing '%s' field: %s\n",
+                  member, info_data);
+        return -1;
+    }
+    if (!json_reader_read_member(jr, "CanBeDisabled")) {
+        logprintf(STDERR_FILENO,
+                  "Missing 'CanBeDisabled' field under '%s': %s\n",
+                  member, info_data);
+        return -1;
+    }
+    g_string_append_printf(gstr, "\"%s\", \"implemented\": ",
+                           json_reader_get_string_value(jr));
+    json_reader_end_member(jr);
+    if (!json_reader_read_member(jr, "Implemented")) {
+        logprintf(STDERR_FILENO,
+                  "Missing 'Implemented' field under '%s': %s\n",
+                  member, info_data);
+        return -1;
+    }
+    g_string_append_printf(gstr, "\"%s\" }%s",
+                           json_reader_get_string_value(jr),
+                           suffix);
+    json_reader_end_member(jr);
+    json_reader_end_member(jr);
+
+    return 0;
+}
+
+static int get_profiles(gchar **profiles)
+{
+    char *info_data = TPMLIB_GetInfo(64 /*TPMLIB_INFO_AVAILABLE_PROFILES*/ |
+                                     8  /*TPMLIB_INFO_RUNTIME_ALGORITHMS*/ |
+                                     16 /*TPMLIB_INFO_RUNTIME_COMMANDS*/);
+    JsonParser *jp = NULL;
+    JsonReader *jr = NULL;
+    g_autoptr(GError) error = NULL;
+    JsonNode *root;
+    gint i, num;
+    int ret = 0;
+    GString *gstr = g_string_new("\"names\": [ ");
+
+    jp = json_parser_new();
+
+    if (!json_parser_load_from_data(jp, info_data, -1, &error)) {
+        logprintf(STDERR_FILENO,
+                  "Could not parse JSON data: %s\n", error->message);
+        goto error;
+    }
+
+    root = json_parser_get_root(jp);
+    jr = json_reader_new(root);
+
+    if (!json_reader_read_member(jr, "AvailableProfiles")) {
+        logprintf(STDERR_FILENO,
+                  "Missing 'AvailableProfiles' field: %s\n",
+                  info_data);
+        goto error_unref_jr;
+    }
+
+    num = json_reader_count_elements(jr);
+    for (i = 0; i < num; i++) {
+        if (!json_reader_read_element(jr, i) ||
+            !json_reader_read_member(jr, "Name")) {
+            logprintf(STDERR_FILENO,
+                      "Failed to traverse JSON list.\n");
+            goto error_unref_jr;
+        }
+        g_string_append_printf(gstr, "%s\"%s\"",
+                               i > 0 ? ", " : "",
+                               json_reader_get_string_value(jr));
+        json_reader_end_element(jr);
+        json_reader_end_element(jr);
+    }
+    json_reader_end_member(jr);
+
+    if (get_profile_data(info_data, jr, gstr,
+                         "RuntimeAlgorithms", " ], \"algorithms\"", "") ||
+        get_profile_data(info_data, jr, gstr,
+                         "RuntimeCommands", ", \"commands\"", " "))
+        goto error_unref_jr;
+
+
+error_unref_jr:
+    g_object_unref(jr);
+
+error:
+    g_object_unref(jp);
+    *profiles = g_string_free(gstr, false);
+    free(info_data);
+
+    return ret;
+}
+
+#else
+
+static int get_profiles(gchar **profiles SWTPM_ATTR_UNUSED)
+{
+    return 0;
+}
+
+#endif
+
+int print_profiles(void)
+{
+    char *info_data = TPMLIB_GetInfo(64 /*TPMLIB_INFO_AVAILABLE_PROFILES*/);
+
+    if (info_data)
+        printf("%s", info_data);
+
+    free(info_data);
+
+    return 0;
+}
+
 int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
 {
     char *string = NULL;
@@ -129,6 +256,13 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
     char *keysizecaps = NULL;
     const char *nvram_backend_dir = "\"nvram-backend-dir\", ";
     const char *nvram_backend_file = "\"nvram-backend-file\"";
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+    const char *cmdarg_profile = "\"cmdarg-profile\"";
+#else
+    const char *cmdarg_profile = NULL;
+#endif
+    g_autofree gchar *profiles = NULL;
+    bool comma1;
 
     /* ignore errors */
     TPMLIB_ChooseTPMVersion(tpmversion);
@@ -137,17 +271,28 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
     if (ret < 0)
         goto cleanup;
 
+    if (tpmversion == TPMLIB_TPM_VERSION_2) {
+        ret = get_profiles(&profiles);
+        if (ret < 0)
+            goto cleanup;
+    }
+
     if (TPMLIB_ChooseTPMVersion(TPMLIB_TPM_VERSION_1_2) == TPM_SUCCESS)
         with_tpm1 = "\"tpm-1.2\", ";
     if (TPMLIB_ChooseTPMVersion(TPMLIB_TPM_VERSION_2) == TPM_SUCCESS)
         with_tpm2 = "\"tpm-2.0\", ";
 
+    comma1 = cmdarg_profile || profiles;
+
     n =  asprintf(&string,
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+         "\"profiles\": { %s}, "
+#endif
          "\"version\": \"" VERSION "\" "
          "}",
          with_tpm1,
@@ -164,7 +309,13 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          true         ? "\"cmdarg-migration\", "       : "",
          nvram_backend_dir,
          nvram_backend_file,
-         keysizecaps  ? keysizecaps                    : ""
+         keysizecaps  ? keysizecaps                    : "",
+         comma1       ? ", "                           : "",
+         cmdarg_profile ? cmdarg_profile               : ""
+#ifdef HAVE_LIBTPMS_SETPROFILE_API
+                                                           ,
+         profiles     ? profiles                       : ""
+#endif
     );
 
     if (n < 0) {

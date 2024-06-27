@@ -73,6 +73,8 @@ struct mainLoopParams {
        the lock on outgoing migration. */
     unsigned int locking_retries;
 #define DEFAULT_LOCKING_RETRIES  300 /* 300 * 10ms */
+    /* TPM 2 profile on JSON format */
+    char *json_profile;
 };
 
 int mainLoop(struct mainLoopParams *mlp,

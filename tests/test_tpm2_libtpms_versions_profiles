@@ -1,0 +1,367 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+# FIXME
+#if [ ${SWTPM_TEST_EXPENSIVE:-0} -eq 0 ]; then
+#	exit 77
+#fi
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
+
+source "${TESTDIR}/common"
+
+workdir="$(mktemp -d)" || exit 1
+export TPM_PATH=${workdir}
+SWTPM_SERVER_PORT=65476
+SWTPM_CTRL_PORT=65477
+SWTPM_SERVER_NAME=127.0.0.1
+SWTPM_INTERFACE="socket+socket"
+
+LIBTPMS_URL=https://github.com/stefanberger/libtpms
+LIBTPMS_INITIAL_BRANCH=stefanberger/runtime_disable_algorithms.v3  # FIXME: should be master
+
+
+cat <<_EOF_ > "${workdir}/swtpm-localca.options"
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 2
+--platform-manufacturer "Fedora XYZ"
+--platform-version 2.1
+--platform-model "QEMU A.B"
+_EOF_
+
+export MY_SWTPM_LOCALCA="${SWTPM_LOCALCA}"
+
+cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
+create_certs_tool=\${MY_SWTPM_LOCALCA}
+create_certs_tool_config=${workdir}/swtpm-localca.conf
+create_certs_tool_options=${workdir}/swtpm-localca.options
+_EOF_
+
+# Copy swtpm source tree to workdir
+pushd "${SRCDIR}" &>/dev/null || exit 1
+mkdir -p "${workdir}/swtpm"
+cp -rp . "${workdir}/swtpm"
+cd "${workdir}/swtpm" || exit 1
+chmod -R 0755 .   # when using 'distcheck'
+git clean -xdf &>/dev/null
+popd &>/dev/null || exit 1
+
+function cleanup()
+{
+	rm -rf "${workdir}"
+
+	if kill_quiet -0 "${SWTPM_PID}"; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+}
+
+trap "cleanup" SIGTERM EXIT
+
+function build_swtpm()
+{
+	local srcdir="$1"
+	local cflags="$2"
+	local destdir="$3"
+
+	echo -e "\nBuilding swtpm with CFLAGS=${cflags} ..."
+
+	pushd "${srcdir}" &>/dev/null || exit 1
+
+	git clean -xdf &>/dev/null
+	CFLAGS="${cflags}" ./autogen.sh --without-cuse --without-selinux --without-seccomp
+	make -j "$(nproc)" || return 1
+
+	cp \
+		src/swtpm/.libs/swtpm src/swtpm/.libs/libswtpm*.so* \
+		src/swtpm_setup/swtpm_setup \
+		src/swtpm_ioctl/swtpm_ioctl \
+			"${destdir}"
+
+	popd &>/dev/null || exit 1
+}
+
+# Copy a compiled libtpms version to its destination directory; the destination
+# directory will be created
+# @param1: Destination directory's parent
+# @param2: The version of libtpms, e.g. '0.9' or 'master'
+function copy_libtpms()
+{
+	local dest="$1"
+	local version="$2"
+
+	local destdir="${dest}/libtpms-${version}"
+
+	mkdir -p "${destdir}"
+	cp src/.libs/libtpms.so* "${destdir}"
+
+	return 0
+}
+
+# Build various versions of libtpms starting with libtpms 0.9 up to 'master'
+# Build swtpm for each one of these versions as well.
+function build_libtpms_and_swtpm()
+{
+	local workdir="$1"
+
+	local tmp major maj min
+	local libtpmsdir="${workdir}/libtpms"
+
+	pushd "${workdir}" 2>&1 || return 1
+
+	git clone "${LIBTPMS_URL}" libtpms
+
+	pushd libtpms 2>&1 || return 1
+
+	git checkout "${LIBTPMS_INITIAL_BRANCH}"
+
+	echo -e "\nBuilding libtpms ${INITIAL_BRANCH} ..."
+	CFLAGS="-g -O2" ./autogen.sh --with-tpm2 --without-tpm1
+	make -j "$(nproc)" || return 1
+
+	copy_libtpms "${workdir}" "master"
+
+	# Determine major version of what master built
+	tmp=$(ls src/.libs/libtpms.so.*.*)
+	major=$(echo "${tmp}" | sed -n 's/.*.so\.\([^\.]\+\)\.\([^\.]\+\)\..*/\1/p')
+
+	if ! build_swtpm \
+		"${workdir}/swtpm" \
+		"-I${libtpmsdir}/include -L${workdir}/libtpms-master" \
+		"${workdir}/libtpms-master"; then
+		echo "Error: Could not build swtpm"
+		return 1
+	fi
+
+	for ((maj=0; maj<=major; maj++)) {
+		min=0
+		[ "${maj}" = 0 ] && min=9  # start with v0.9
+
+		for ((;; min++)) {
+			git checkout "origin/stable-${maj}.${min}" &>/dev/null || break
+
+			# clean directory containing libtpms.so.*
+			rm -rf src/.libs
+			echo -e "\nBuilding libtpms ${maj}.${min}..."
+			make -j "$(nproc)" || return 1
+
+			copy_libtpms "${workdir}" "${maj}.${min}"
+
+			if ! build_swtpm \
+				"${workdir}/swtpm" \
+				"-I${libtpmsdir}/include -L${workdir}/libtpms-${maj}.${min}" \
+				"${workdir}/libtpms-${maj}.${min}"; then
+				echo "Error: Could not build swtpm"
+				return 1
+			fi
+		}
+	}
+
+	popd &>/dev/null || return 1
+
+	#ls -l libtpms-*
+	#PATH="${workdir}/libtpms-master" LD_LIBRARY_PATH=${PATH} ./libtpms-master/swtpm_setup --help
+	#PATH="${workdir}/libtpms-0.9" LD_LIBRARY_PATH=${PATH} ./libtpms-0.9/swtpm_setup socket --help
+
+	popd &>/dev/null || return 1
+
+	return 0
+}
+
+# Run swtpm_setup on all versions >= v0.10 of libtpms. The state is written
+# into directories with the name patterns of state--${branch}--${profile},
+# which leads to names like state--0.10--null for null profile and libtpms v0.10
+function swtpm_setup_create_profile_state()
+{
+	local workdir="$1"
+
+	local branch profiles libtpmsdir statedir
+
+	echo "INFO: Creating state with various profiles"
+
+	pushd "${workdir}" &>/dev/null || return 1
+
+	# Setup swtpm-0.10 and later with null profile and check that swtpm-0.9 works with it
+	for libtpmsdir in libtpms-master libtpms-*.*; do
+		branch=$(echo "${libtpmsdir}" | sed -n 's/.*-//p')
+		[ "${branch}" = "0.9" ] && continue
+
+		# get a space-separated list of profile names
+		profiles=$(PATH="${workdir}/${libtpmsdir}" \
+			     LD_LIBRARY_PATH="${workdir}/${libtpmsdir}" \
+			     swtpm socket --tpm2 --print-capabilities \
+				| sed -n \
+					-e "s/.* \"profiles\": { \"names\": \[ \(.*\) \].*/\1/" \
+					-e 's/[ "]//g' -e 's/,/ /gp')
+		for profile in ${profiles}; do
+			statedir="state--${branch}--${profile}"
+			mkdir "${statedir}"
+			echo "$statedir,$libtpmsdir,$profile"
+			if ! PATH="${workdir}/${libtpmsdir}" \
+			     LD_LIBRARY_PATH="${workdir}/${libtpmsdir}" \
+			     "./${libtpmsdir}/swtpm_setup" \
+				--tpm2 \
+				--tpmstate "${statedir}" \
+				--config "${workdir}/swtpm_setup.conf" \
+				--log "${statedir}/swtpm_setup.log" \
+				--tpm "${workdir}/${libtpmsdir}/swtpm socket" \
+				--profile "{\"Name\":\"${profile}\"}"; then
+				echo "Error: Could not run swtpm_setup with libtpms from branch ${branch} with profile ${profile}"
+			fi
+			#ls -l "${statedir}"
+			#cat "${statedir}/swtpm_setup.log"
+		done
+	done
+
+	popd &>/dev/null || return 1
+
+	echo "INFO: Done creating state with various profiles"
+
+	return 0
+}
+
+# This function tests that the NULL profile state, that was created by a certain
+# version of libtpms, can be used by swtpm with libtpms v0.9 and others.
+function swtpm_run_with_null_profile_state()
+{
+	local workdir="$1"
+
+	local statedir branch libtpmsbranch resp exp fsize err=0
+
+	echo "INFO: Running with NULL profile states using different version of libtpms"
+
+	pushd "${workdir}" &>/dev/null || return 1
+
+	for statedir in state--*--null; do
+		branch=$(echo "${statedir}" | sed -n 's/.*--\(.*\)--.*/\1/p')
+		for libtpmsdir in libtpms-master libtpms-*.*; do
+			libtpmsbranch=$(echo "${libtpmsdir}" | sed -n 's/.*-//p')
+			fsize=$(get_filesize "${workdir}/${statedir}/tpm2-00.permall")
+			if ! LD_LIBRARY_PATH="${workdir}/${libtpmsdir}" \
+				SWTPM_EXE=./${libtpmsdir}/swtpm \
+					run_swtpm "${SWTPM_INTERFACE}" \
+					--tpm2 \
+					--tpmstate "dir=${workdir}/${statedir}" \
+					--flags not-need-init,startup-clear; then
+				echo "Error: Could not start swtpm with null profile state and libtpms version '${libtpmsbranch}'."
+				err=1
+				break
+			fi
+			# Read PCR 10
+			resp=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b\x03\x00\x04\x00')
+			exp=' 80 01 00 00 00 3e 00 00 00 00 00 00 00 14 00 00 00 01 00 0b 03 00 04 00 00 00 00 01 00 20 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00'
+			if [ "${resp}" != "${exp}" ]; then
+				echo "Error: Did not get expected result from TPM2_PCRRead(10)"
+				echo "expected: ${exp}"
+				echo "received: ${resp}"
+				err=1
+				break
+			fi
+			echo " PCR 10 is good:  profile: null   libtpms: ${libtpmsbranch}   state written by: ${branch}"
+
+			if [ "$(get_filesize "${workdir}/${statedir}/tpm2-00.permall")" != "${fsize}" ]; then
+				echo "Error: Size of tpm2 state file has changed"
+				echo "expected: ${fsize}"
+				echo "actual  : $(get_filesize "${workdir}/${statedir}/tpm2-00.permall")"
+				err=1
+				break
+			fi
+
+			kill_quiet -9 "${SWTPM_PID}"
+			echo " INFO: Passed with libtpms ${libtpmsbranch}"
+		done
+		if [ ${err} -ne 0 ]; then
+			kill_quiet -9 "${SWTPM_PID}"
+			break
+		fi
+	done
+
+	popd &>/dev/null || return 1
+
+	echo "INFO: Done running with NULL profile states using different version of libtpms"
+
+	return "${err}"
+}
+
+# This function tetst that a default profile state with 'stateFormatLevel = 2' can be used
+# and remains at this level.
+function swtpm_run_with_default_profile_state()
+{
+	local workdir="$1"
+	local statefile="$2"
+
+	local libtpmsdir libtpmsbranch output err=0 exp
+
+	mkdir "${workdir}/tmp"
+	cp "${statefile}" "${workdir}/tmp/"
+
+	echo "INFO: Testing with previously created default profile state"
+
+	pushd "${workdir}" &>/dev/null || return 1
+
+	for libtpmsdir in libtpms-master libtpms-*.*; do
+		libtpmsbranch=$(echo "${libtpmsdir}" | sed -n 's/.*-//p')
+		[ "${libtpmsbranch}" = "0.9" ] && continue
+
+		if ! LD_LIBRARY_PATH="${workdir}/${libtpmsdir}" \
+			SWTPM_EXE=./${libtpmsdir}/swtpm \
+				run_swtpm "${SWTPM_INTERFACE}" \
+				--tpm2 \
+				--tpmstate "dir=${workdir}/tmp" \
+				--flags not-need-init,startup-clear; then
+			echo "Error: Could not start swtpm with 'default' profile state and libtpms version '${libtpmsbranch}'."
+			err=1
+			break
+		fi
+		if ! SWTPM_IOCTL=./${libtpmsdir}/swtpm_ioctl \
+				output=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" \
+				--info 0x20); then
+			echo "Error: Could not run swtpm_ioctl: ${output}"
+			err=1
+			break
+		fi
+		exp=',"stateFormatLevel":2,'
+		if ! echo "${output}" | grep -q "${exp}"; then
+			echo "Error: Could not find '${exp}' in swtpm_ioctl output."
+			echo "  output: ${output}"
+		fi
+
+		echo " INFO: Found proper default state in libtpms ${libtpmsbranch}"
+
+		kill_quiet -9 "${SWTPM_PID}"
+	done
+
+	if [ ${err} -ne 0 ]; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+
+	popd &>/dev/null || return 1
+
+	echo "INFO: Done testing with previously created default profile state"
+
+	rm -rf "${workdir}/tmp/"
+
+	return "${err}"
+}
+
+if ! build_libtpms_and_swtpm "${workdir}"; then
+	echo "Error: Building libtpms and/or swtpm failed"
+	exit 1
+fi
+
+if ! swtpm_setup_create_profile_state "${workdir}"; then
+	exit 1
+fi
+
+if ! swtpm_run_with_null_profile_state "${workdir}"; then
+	exit 1
+fi
+
+if ! swtpm_run_with_default_profile_state "${workdir}" "${TESTDIR}/data/tpm2state7/tpm2-00.permall"; then
+	exit 1
+fi
+
+exit 0
