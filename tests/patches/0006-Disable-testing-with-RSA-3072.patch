@@ -1,25 +1,26 @@
-From d49c9dbdeb62a1e04cc427d559a5c5bb66dba3d3 Mon Sep 17 00:00:00 2001
+From 131e80a33e2b95e2b552e6c2bf80fe84b2aefe3b Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
-Date: Sun, 28 Feb 2021 16:35:02 -0500
+Date: Wed, 26 Jun 2024 22:54:32 -0400
 Subject: [PATCH 06/13] Disable testing with RSA 3072
 
 ---
- utils/reg.sh                       |  2 +-
- utils/regtests/initkeys.sh         |  2 +-
- utils/regtests/testcreateloaded.sh |  2 +-
- utils/regtests/testcredential.sh   |  2 +-
- utils/regtests/testprimary.sh      |  2 +-
- utils/regtests/testrsa.sh          | 14 +++++++-------
- utils/regtests/testsalt.sh         |  1 +
- utils/regtests/testsign.sh         |  6 +++---
- utils/regtests/testx509.sh         |  2 +-
- 9 files changed, 17 insertions(+), 16 deletions(-)
+ utils/reg.sh                       |   2 +-
+ utils/regtests/initkeys.sh         |   2 +-
+ utils/regtests/testcreateloaded.sh |   2 +-
+ utils/regtests/testcredential.sh   |   2 +-
+ utils/regtests/testhelp.sh         | 230 ++++++++++++++---------------
+ utils/regtests/testprimary.sh      |   2 +-
+ utils/regtests/testrsa.sh          |  18 +--
+ utils/regtests/testsalt.sh         |   1 +
+ utils/regtests/testsign.sh         |   6 +-
+ utils/regtests/testx509.sh         |   2 +-
+ 10 files changed, 134 insertions(+), 133 deletions(-)
 
 diff --git a/utils/reg.sh b/utils/reg.sh
-index 0bba17a..b3228d6 100755
+index 5f44760..ddf821f 100755
 --- a/utils/reg.sh
 +++ b/utils/reg.sh
-@@ -205,7 +205,7 @@ cleanup()
+@@ -187,7 +187,7 @@ cleanup()
  	rm -f khrpub${HALG}.bin
      done
  
@@ -29,7 +30,7 @@ index 0bba17a..b3228d6 100755
  	rm -f signrsa${BITS}priv.bin
  	rm -f signrsa${BITS}pub.bin
 diff --git a/utils/regtests/initkeys.sh b/utils/regtests/initkeys.sh
-index 569ec89..171662a 100755
+index d0f0f15..6cc0a97 100755
 --- a/utils/regtests/initkeys.sh
 +++ b/utils/regtests/initkeys.sh
 @@ -64,7 +64,7 @@ BITS=(2048 3072)
@@ -55,7 +56,7 @@ index f4c449e..959f313 100755
  
  	echo "CreateLoaded primary key, parent ${HIER} ${ALG}"
 diff --git a/utils/regtests/testcredential.sh b/utils/regtests/testcredential.sh
-index b70cdb2..45a9595 100755
+index 0392fa9..b7b0df9 100755
 --- a/utils/regtests/testcredential.sh
 +++ b/utils/regtests/testcredential.sh
 @@ -289,7 +289,7 @@ NVNAME=(
@@ -67,6 +68,247 @@ index b70cdb2..45a9595 100755
  	echo "Create an ${CALG[i]} EK certificate"
  	${PREFIX}createekcert -high ${CALG[i]} -cakey cakey.pem -capwd rrrr -pwdp ppp -pwde eee -of tmp.der > run.out
  	checkSuccess $?
+diff --git a/utils/regtests/testhelp.sh b/utils/regtests/testhelp.sh
+index 8fb0732..f3031a4 100755
+--- a/utils/regtests/testhelp.sh
++++ b/utils/regtests/testhelp.sh
+@@ -2116,121 +2116,121 @@ echo "load"
+ ${PREFIX}load -se2 02000000 100 > run.out
+ checkFailure $?
+ 
+-echo "loadexternal 0"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -v -h  > run.out
+-checkFailure $?
+-
+-echo "loadexternal 1"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -v -xxxxx > run.out
+-checkFailure $?
+-
+-echo "loadexternal 2"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se0 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 3"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se0 02000000 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 4"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se0 02000000 100 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 5"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se1 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 6"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se1 02000000 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 7"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se1 02000000 100 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 8"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se2 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 9"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se2 02000000 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 10"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -se2 02000000 100 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 11"
+-${PREFIX}loadexternal > run.out
+-checkFailure $?
+-
+-echo "loadexternal 12"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -hi > run.out
+-checkFailure $?
+-
+-echo "loadexternal 13"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -hi x > run.out
+-checkFailure $?
+-
+-echo "loadexternal 14"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -nalg > run.out
+-checkFailure $?
+-
+-echo "loadexternal 15"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -nalg x > run.out
+-checkFailure $?
+-
+-echo "loadexternal 16"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -halg > run.out
+-checkFailure $?
+-
+-echo "loadexternal 17"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -halg x > run.out checkFailure $?
+-checkFailure $?
+-
+-echo "loadexternal 18"
+-${PREFIX}loadexternal -xxx > run.out
+-checkFailure $?
+-
+-echo "loadexternal 19"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -pwdk > run.out
+-checkFailure $?
+-
+-echo "loadexternal 20"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -si -scheme > run.out
+-checkFailure $?
+-
+-echo "loadexternal 21"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -si -scheme rsapkcs1 > run.out
+-checkFailure $?
+-
+-echo "loadexternal 22"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -si -scheme rsaoaep > run.out
+-checkFailure $?
+-
+-echo "loadexternal 23"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -den -scheme rsassa > run.out
+-checkFailure $?
+-
+-echo "loadexternal 24"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -den -scheme rsapss > run.out
+-checkFailure $?
+-
+-echo "loadexternal 25"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -si -scheme null > run.out
+-checkSuccess $?
+-
+-echo "Flush the session"
+-${PREFIX}flushcontext -ha 80000001 > run.out
+-checkSuccess $?
+-
+-echo "loadexternal 26"
+-${PREFIX}loadexternal -ipem signrsa3072pub.pem -den -scheme null > run.out
+-checkSuccess $?
+-
+-echo "Flush the session"
+-${PREFIX}flushcontext -ha 80000001 > run.out
+-checkSuccess $?
++#echo "loadexternal 0"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -v -h  > run.out
++#checkFailure $?
++#
++#echo "loadexternal 1"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -v -xxxxx > run.out
++#checkFailure $?
++#
++#echo "loadexternal 2"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se0 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 3"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se0 02000000 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 4"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se0 02000000 100 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 5"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se1 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 6"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se1 02000000 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 7"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se1 02000000 100 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 8"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se2 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 9"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se2 02000000 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 10"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -se2 02000000 100 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 11"
++#${PREFIX}loadexternal > run.out
++#checkFailure $?
++#
++#echo "loadexternal 12"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -hi > run.out
++#checkFailure $?
++#
++#echo "loadexternal 13"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -hi x > run.out
++#checkFailure $?
++#
++#echo "loadexternal 14"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -nalg > run.out
++#checkFailure $?
++#
++#echo "loadexternal 15"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -nalg x > run.out
++#checkFailure $?
++#
++#echo "loadexternal 16"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -halg > run.out
++#checkFailure $?
++#
++#echo "loadexternal 17"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -halg x > run.out checkFailure $?
++#checkFailure $?
++#
++#echo "loadexternal 18"
++#${PREFIX}loadexternal -xxx > run.out
++#checkFailure $?
++#
++#echo "loadexternal 19"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -pwdk > run.out
++#checkFailure $?
++#
++#echo "loadexternal 20"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -si -scheme > run.out
++#checkFailure $?
++#
++#echo "loadexternal 21"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -si -scheme rsapkcs1 > run.out
++#checkFailure $?
++#
++#echo "loadexternal 22"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -si -scheme rsaoaep > run.out
++#checkFailure $?
++#
++#echo "loadexternal 23"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -den -scheme rsassa > run.out
++#checkFailure $?
++#
++#echo "loadexternal 24"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -den -scheme rsapss > run.out
++#checkFailure $?
++#
++#echo "loadexternal 25"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -si -scheme null > run.out
++#checkSuccess $?
++#
++#echo "Flush the session"
++#${PREFIX}flushcontext -ha 80000001 > run.out
++#checkSuccess $?
++#
++#echo "loadexternal 26"
++#${PREFIX}loadexternal -ipem signrsa3072pub.pem -den -scheme null > run.out
++#checkSuccess $?
++#
++#echo "Flush the session"
++#${PREFIX}flushcontext -ha 80000001 > run.out
++#checkSuccess $?
+ 
+ echo "makecredential"
+ ${PREFIX}makecredential -v -h > run.out
 diff --git a/utils/regtests/testprimary.sh b/utils/regtests/testprimary.sh
 index f51687f..59b1754 100755
 --- a/utils/regtests/testprimary.sh
@@ -81,11 +323,11 @@ index f51687f..59b1754 100755
  do
  
 diff --git a/utils/regtests/testrsa.sh b/utils/regtests/testrsa.sh
-index 15577b6..44f6357 100755
+index daad35e..c88a4a2 100755
 --- a/utils/regtests/testrsa.sh
 +++ b/utils/regtests/testrsa.sh
 @@ -55,7 +55,7 @@ echo ""
- echo "Generate the encryption key with openssl"
+ echo "Generate the encryption keys with openssl"
  if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
  
 -    for BITS in 2048 3072
@@ -93,7 +335,7 @@ index 15577b6..44f6357 100755
      do
  
  	echo "Generate the RSA $BITS encryption key with openssl"
-@@ -73,7 +73,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+@@ -76,7 +76,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
  
  elif [ ${CRYPTOLIBRARY} == "mbedtls" ]; then
  
@@ -102,7 +344,7 @@ index 15577b6..44f6357 100755
      do
  
  	echo "Generate the RSA $BITS encryption key with openssl"
-@@ -99,7 +99,7 @@ echo ""
+@@ -102,7 +102,7 @@ echo ""
  echo "RSA decryption key"
  echo ""
  
@@ -111,7 +353,7 @@ index 15577b6..44f6357 100755
  do
  
      echo "Load the RSA $BITS decryption key under the primary key"
-@@ -129,7 +129,7 @@ echo ""
+@@ -132,7 +132,7 @@ echo ""
  echo "RSA decryption key to sign with OID"
  echo ""
  
@@ -120,7 +362,7 @@ index 15577b6..44f6357 100755
  do
  
      echo "Load the RSA $BITS decryption key"
-@@ -173,7 +173,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+@@ -176,7 +176,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
      ${PREFIX}startauthsession -se h > run.out
      checkSuccess $?
  
@@ -129,7 +371,7 @@ index 15577b6..44f6357 100755
      do
  
  	for SESS in "" "-se0 02000000 1"
-@@ -260,7 +260,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+@@ -263,7 +263,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
      echo "Loadexternal DER encryption key"
      echo ""
  
@@ -138,7 +380,25 @@ index 15577b6..44f6357 100755
      do
  
  	echo "Start an HMAC auth session"
-@@ -418,7 +418,7 @@ rm -f deepub.bin
+@@ -308,7 +308,7 @@ echo ""
+ echo "TPM key, Encrypt with OpenSSL OAEP, decrypt with TPM"
+ echo ""
+ 
+-for BITS in 2048 3072
++for BITS in 2048
+ do
+ 
+     echo "Create ${BITS} OAEP encryption key"
+@@ -422,7 +422,7 @@ if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
+     echo "OpenSSL key, Encrypt with OpenSSL, decrypt with TPM"
+     echo ""
+ 
+-    for BITS in 2048 3072
++    for BITS in 2048
+     do
+ 
+ 	for SCHEME in oaep pkcs1
+@@ -467,7 +467,7 @@ rm -f deepub.bin
  rm -f tmpmsg.bin
  rm -f tmpdig.bin
  rm -f tmpsig.bin
@@ -197,5 +457,5 @@ index 5640985..17d0288 100755
      ${PREFIX}load -hp 80000000 -ipr sign${SKEY[i]}rpriv.bin -ipu sign${SKEY[i]}rpub.bin -pwdp sto > run.out
      checkSuccess $?
 -- 
-2.39.1
+2.45.2
 
