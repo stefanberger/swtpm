@@ -37,7 +37,8 @@ swtpm_setup_LDFLAGS = \
 	$(HARDENING_LDFLAGS) \
 	$(GLIB_LIBS) \
 	$(JSON_GLIB_LIBS) \
-	$(LIBCRYPTO_LIBS)
+	$(LIBCRYPTO_LIBS) \
+	$(GNUTLS_LIBS)
 
 swtpm_setup_CFLAGS = \
 	-I$(top_builddir)/include \
@@ -49,7 +50,8 @@ swtpm_setup_CFLAGS = \
 	$(CFLAGS) \
 	$(HARDENING_CFLAGS) \
 	$(GLIB_CFLAGS) \
-	$(JSON_GLIB_CFLAGS)
+	$(JSON_GLIB_CFLAGS) \
+	$(GNUTLS_CFLAGS)
 
 EXTRA_DIST = \
 	README
