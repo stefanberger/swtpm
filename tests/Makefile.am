@@ -178,6 +178,7 @@ EXTRA_DIST = \
 	patches/0010-Adjust-test-cases-for-OpenSSL-3.patch \
 	patches/0011-Disable-ECC-encrypt-decrypt-tests.patch \
 	patches/0012-Disable-Nuvoton-commands.patch \
+	patches/0001-Disable-rev183-test-cases.patch \
 	patches/libtpm.patch \
 	softhsm_setup \
 	test_clientfds.py \
