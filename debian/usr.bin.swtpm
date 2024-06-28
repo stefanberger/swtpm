@@ -29,6 +29,7 @@ profile swtpm /usr/bin/swtpm {
   /run/libvirt/qemu/swtpm/*.pid rwk,
   /run/libvirt/qemu/swtpm/*.sock rwk,
   /tmp/** rwk,
+  /var/lib/libvirt/swtpm/** wk,
 
   owner /dev/vtpmx rw,
   owner /etc/nsswitch.conf r,
