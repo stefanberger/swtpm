@@ -50,7 +50,7 @@ git clone https://git.code.sf.net/p/ibmtpm20tss/tss ibmtpm20tss-tss
 
 pushd ibmtpm20tss-tss &>/dev/null || exit 1
 
-if ! git checkout tags/v2.2.0; then
+if ! git checkout tags/v2.3.1; then
 	echo "'Git checkout' failed."
 	exit 1
 fi
@@ -97,6 +97,10 @@ fi
 revision=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 1 |
            sed 's/.*,"revision":\([^\}]*\).*/\1/')
 echo "Libtpms implements TPM 2.0 revision ${revision}."
+if [ "$revision" -lt 183 ]; then
+	echo "Disabling revision 183 and later test cases."
+	git am < "${PATCHESDIR}/0001-Disable-rev183-test-cases.patch"
+fi
 if [ "$revision" -lt 155 ]; then
 	echo "Removing revision 155 and later test cases."
 	git am < "${PATCHESDIR}/0007-Disable-rev155-test-cases.patch"

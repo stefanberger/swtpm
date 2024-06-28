@@ -1,0 +1,40 @@
+From 3f16ef9bbfe862d8a26eb9883881e53f69fb2e08 Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.vnet.ibm.com>
+Date: Thu, 27 Jun 2024 13:41:24 -0400
+Subject: [PATCH] Disable rev183 test cases
+
+Signed-off-by: Stefan Berger <stefanb@linux.vnet.ibm.com>
+---
+ utils/reg.sh | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/utils/reg.sh b/utils/reg.sh
+index 5725fd6..cf884c7 100755
+--- a/utils/reg.sh
++++ b/utils/reg.sh
+@@ -588,14 +588,14 @@ main ()
+ 	fi
+ 	((I++))
+     fi
+-    if [ "$1" == "-a" ] || [ "$1" == "-35" ]; then
+-    	./regtests/testpolicy183.sh
+-    	RC=$?
+-	if [ $RC -ne 0 ]; then
+-	    exit 255
+-	fi
+-	((I++))
+-    fi
++#    if [ "$1" == "-a" ] || [ "$1" == "-35" ]; then
++#    	./regtests/testpolicy183.sh
++#    	RC=$?
++#	if [ $RC -ne 0 ]; then
++#	    exit 255
++#	fi
++#	((I++))
++#    fi
+     # these test may power cycle the TPM, erasing loaded keys */
+     # put them after other tests
+     if [ "$1" == "-a" ] || [ "$1" == "-36" ]; then
+-- 
+2.45.2
+
