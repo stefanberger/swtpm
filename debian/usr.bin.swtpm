@@ -17,6 +17,7 @@ profile swtpm /usr/bin/swtpm {
   capability fsetid,
   capability setgid,
   capability setuid,
+  capability sys_admin,
 
   network inet stream,
   network inet6 stream,
