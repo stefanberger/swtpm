@@ -64,11 +64,9 @@ FILESIZES=(
 source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
-SWTPM=swtpm
-SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
 TPMDIR="$(mktemp -d)" || exit 1
 # filesystem privileges require to run swtpm_setup as root during test
-TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --config ${SWTPM_SETUP_CONF}"
+TPMAUTHORING="$SWTPM_SETUP --config ${SWTPM_SETUP_CONF}"
 PATH=${ROOT}/src/swtpm_bios:${TESTDIR}:$PATH
 
 trap "cleanup" SIGTERM EXIT

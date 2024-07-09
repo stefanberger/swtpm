@@ -6,7 +6,6 @@
 ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-SWTPM_BIOS=$ROOT/src/swtpm_bios/swtpm_bios
 VTPM_NAME="vtpm-test-swtpm-bios"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
 TPM_PATH="$(mktemp -d)" || exit 1
