@@ -4,8 +4,9 @@ if [ "${SWTPM_TEST_EXPENSIVE:-0}" -eq 0 ]; then
 	exit 77
 fi
 
-ROOT=${abs_top_builddir:-$(pwd)/..}
-TESTDIR=${abs_top_testdir:-${PWD}/$(dirname "$0")}
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+TESTDIR=$(realpath "${TESTDIR}")
 
 function cleanup() {
 	if [ -n "${SWTPM_PID}" ]; then
@@ -137,9 +138,11 @@ done
 
 $SWTPM_IOCTL --tcp :65441 -s
 wait_process_gone "${SWTPM1_PID}" 4
+SWTPM1_PID=
 
 $SWTPM_IOCTL --tcp :65443 -s
 wait_process_gone "${SWTPM_PID}" 4
+SWTPM_PID=
 
 popd &>/dev/null || exit 1
 popd &>/dev/null || exit 1
