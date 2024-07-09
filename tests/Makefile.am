@@ -226,6 +226,15 @@ EXTRA_DIST = \
 	_test_volatilestate \
 	_test_wrongorder
 
+testdir = $(libexecdir)/installed-tests/$(PACKAGE)
+
+install-data-hook:
+	mkdir -p $(DESTDIR)$(testdir)
+	cd $(srcdir) && for file in $(EXTRA_DIST); do install -D "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
+
+uninstall-hook:
+	cd $(DESTDIR)$(testdir) && rm -f $(EXTRA_DIST) tests
+
 check-display:
 	@if test -n "$$SWTPM_EXE"; then \
 		echo "*** Using SWTPM_EXE=$$SWTPM_EXE"; \
