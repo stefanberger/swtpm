@@ -11,8 +11,6 @@ skip_test_no_tpm20 "${SWTPM_EXE}"
 
 PATH=$ROOT/src/swtpm:$PATH
 
-source "${abs_top_builddir:-$(dirname "$0")/..}/tests/test_config"
-
 PARAMETERS=(
 	""
 	"--createek"
@@ -62,10 +60,8 @@ exec 101<"${TESTDIR}/data/pwdfile.txt"
 
 # produced file size is always the same with TPM2
 
-SWTPM=swtpm
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
 TPMDIR="$(mktemp -d)" || exit 1
-TPMAUTHORING="$ROOT/src/swtpm_setup/swtpm_setup --tpm2 --config ${SWTPM_SETUP_CONF}"
+TPMAUTHORING="$SWTPM_SETUP --tpm2 --config ${SWTPM_SETUP_CONF}"
 PATH=${ROOT}/src/swtpm_bios:$PATH
 
 

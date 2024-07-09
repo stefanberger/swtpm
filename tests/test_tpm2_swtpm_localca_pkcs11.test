@@ -3,10 +3,8 @@
 # For the license, see the LICENSE file in the root directory.
 #set -x
 
-TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
-
-SWTPM_LOCALCA=${TOPBUILD}/src/swtpm_localca/swtpm_localca
 
 workdir="$(mktemp -d)" || exit 1
 
@@ -26,7 +24,7 @@ done
 ISSUERCERT="${workdir}/issuercert.pem"
 CERTSERIAL="${workdir}/certserial"
 
-PATH="${TOPBUILD}/src/swtpm_cert:$PATH"
+PATH="${ROOT}/src/swtpm_cert:$PATH"
 
 source "${TESTDIR}/common"
 

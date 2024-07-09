@@ -8,8 +8,6 @@ TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
-SWTPM_LOCALCA=${ROOT}/src/swtpm_localca/swtpm_localca
-
 workdir="$(mktemp -d)" || exit 1
 
 SIGNINGKEY=${workdir}/signingkey.pem

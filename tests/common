@@ -8,6 +8,7 @@ if [ -z "${INSTALLED}" ]; then
     SWTPM_BIOS=${SWTPM_BIOS:-${ROOT}/src/swtpm_bios/swtpm_bios}
     SWTPM_SETUP=${SWTPM_SETUP:-${ROOT}/src/swtpm_setup/swtpm_setup}
     SWTPM_CERT=${SWTPM_CERT:-${ROOT}/src/swtpm_cert/swtpm_cert}
+    SWTPM_LOCALCA=${SWTPM_LOCALCA:-${ROOT}/src/swtpm_localca/swtpm_localca}
     SWTPM_SETUP_CONF="${ROOT}/samples/swtpm_setup.conf"
 else
     SWTPM_EXE=${SWTPM_EXE:-$(type -P swtpm)}
@@ -15,6 +16,7 @@ else
     SWTPM_BIOS=${SWTPM_BIOS:-$(type -P swtpm_bios)}
     SWTPM_SETUP=${SWTPM_SETUP:-$(type -P swtpm_setup)}
     SWTPM_CERT=${SWTPM_CERT:-$(type -P swtpm_cert)}
+    SWTPM_LOCALCA=${SWTPM_LOCALCA:-$(type -P swtpm_localca)}
     SWTPM_SETUP_CONF="$(dirname "$0")/swtpm_setup.conf"
 fi
 
