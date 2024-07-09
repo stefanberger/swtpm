@@ -224,13 +224,15 @@ EXTRA_DIST = \
 	_test_tpm2_volatilestate \
 	_test_tpm2_wrongorder \
 	_test_volatilestate \
-	_test_wrongorder
+	_test_wrongorder \
+	installed-runner.sh
 
 testdir = $(libexecdir)/installed-tests/$(PACKAGE)
 
 install-data-hook:
 	mkdir -p $(DESTDIR)$(testdir)
 	cd $(srcdir) && for file in $(EXTRA_DIST); do install -D "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
+	echo "$(TESTS)" > $(DESTDIR)$(testdir)/tests
 
 uninstall-hook:
 	cd $(DESTDIR)$(testdir) && rm -f $(EXTRA_DIST) tests
@@ -254,6 +256,6 @@ syntax-check:
 # SC2009: Consider using pgrep instead of grepping ps output.
 # SC2317: (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
 	shellcheck -e SC2009,SC2317 \
-		$(TESTS) $(TEST_UTILS) $(filter _test_%,$(EXTRA_DIST)) softhsm_setup
+		$(TESTS) $(TEST_UTILS) $(filter _test_%,$(EXTRA_DIST)) softhsm_setup installed-runner.sh
 
 check: check-am check-display
