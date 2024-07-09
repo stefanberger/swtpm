@@ -11,8 +11,8 @@ fi
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-SWTPM=swtpm
-SWTPM_EXE=$ROOT/src/swtpm/$SWTPM
+source "${TESTDIR}/common"
+
 TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm2-00.permall
 VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
@@ -24,7 +24,7 @@ LOGFILE=$TPM_PATH/logfile
 
 function cleanup()
 {
-	pid=$(ps aux | grep "$SWTPM" | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
+	pid=$(ps aux | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
 	if [ -n "$pid" ]; then
 		kill_quiet -9 "$pid"
 	fi
@@ -49,7 +49,7 @@ $SWTPM_EXE chardev \
 	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} \
 	--pid "file=$PID_FILE" &>"$LOGFILE" &
 sleep 0.5
-PID=$(ps aux | grep $SWTPM | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
+PID=$(ps aux | grep -E " file=${PID_FILE}\$" | gawk '{print $2}')
 
 display_processes_by_name "$SWTPM"
 
