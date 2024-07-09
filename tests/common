@@ -8,13 +8,18 @@ if [ -z "${INSTALLED}" ]; then
     SWTPM_BIOS=${SWTPM_BIOS:-${ROOT}/src/swtpm_bios/swtpm_bios}
     SWTPM_SETUP=${SWTPM_SETUP:-${ROOT}/src/swtpm_setup/swtpm_setup}
     SWTPM_CERT=${SWTPM_CERT:-${ROOT}/src/swtpm_cert/swtpm_cert}
+    SWTPM_SETUP_CONF="${ROOT}/samples/swtpm_setup.conf"
 else
     SWTPM_EXE=${SWTPM_EXE:-$(type -P swtpm)}
     SWTPM_IOCTL=${SWTPM_IOCTL:-$(type -P swtpm_ioctl)}
     SWTPM_BIOS=${SWTPM_BIOS:-$(type -P swtpm_bios)}
     SWTPM_SETUP=${SWTPM_SETUP:-$(type -P swtpm_setup)}
     SWTPM_CERT=${SWTPM_CERT:-$(type -P swtpm_cert)}
+    SWTPM_SETUP_CONF="$(dirname "$0")/swtpm_setup.conf"
 fi
+
+# SC2034 unused
+export SWTPM_SETUP_CONF
 
 ECHO=$(type -P echo)
 

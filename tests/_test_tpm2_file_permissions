@@ -15,7 +15,6 @@ PIDFILE=${TPM_PATH}/swtpm.pid
 LOGFILE=${TPM_PATH}/swtpm.log
 PWDFILE=${TPM_PATH}/pwdfile.txt
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
-SWTPM_SETUP_CONF=${TPM_PATH}/swtpm_setup.conf
 
 function cleanup()
 {
@@ -29,6 +28,7 @@ trap "cleanup" EXIT
 
 [ "${SWTPM_INTERFACE}" == cuse ] && source "${TESTDIR}/test_cuse"
 source "${TESTDIR}/common"
+SWTPM_SETUP_CONF=${TPM_PATH}/swtpm_setup.conf
 
 cat <<_EOF_ > "${SWTPM_SETUP_CONF}"
 create_certs_tool=unused
