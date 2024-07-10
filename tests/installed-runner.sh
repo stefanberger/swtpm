@@ -23,8 +23,6 @@ pass_count=0
 skip_count=0
 fail_count=0
 
-export INSTALLED=1
-
 # Iterate through each test in the TESTS variable
 for t in $TESTS; do
   if [ "$verbose" -eq 1 ]; then
