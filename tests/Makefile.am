@@ -233,6 +233,7 @@ install-data-hook:
 	mkdir -p $(DESTDIR)$(testdir)
 	cd $(srcdir) && for file in $(EXTRA_DIST); do install -D "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
 	echo "$(TESTS)" > $(DESTDIR)$(testdir)/tests
+	sed -i '/SWTPM_TEST_UNINSTALLED=1/d' $(DESTDIR)$(testdir)/common
 
 uninstall-hook:
 	cd $(DESTDIR)$(testdir) && rm -f $(EXTRA_DIST) tests
