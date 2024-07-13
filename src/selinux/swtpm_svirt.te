@@ -13,6 +13,7 @@ require {
 	type user_tmp_t;
 	type virtd_t;
 	type virtqemud_t;
+	type virt_var_run_t;
 }
 
 swtpm_domtrans(svirt_t)
@@ -27,6 +28,9 @@ allow svirt_t user_tmp_t:sock_file { create setattr unlink };
 allow svirt_t virtd_t:dir search;
 allow svirt_t virtd_t:fifo_file write;
 allow svirt_t virtqemud_t:fifo_file write;
+allow svirt_t virt_var_run_t:dir { write add_name remove_name };
+allow svirt_t virt_var_run_t:file { create write setattr unlink };
+allow svirt_t virt_var_run_t:sock_file { create write setattr unlink };
 
 # For virt-install (see https://bugzilla.redhat.com/show_bug.cgi?id=2283878 )
 allow svirt_tcg_t user_tmp_t:sock_file { create setattr unlink };
