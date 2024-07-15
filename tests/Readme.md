@@ -23,6 +23,10 @@ variable only has an effect if `SWTPM_TEST_EXPENSIVE=1` is set.
  - test_tpm2_save_load_state_2
  - test_tpm2_save_load_state_3
 
+To run against an installed IBM TSS test suite, you may set the
+`SWTPM_TEST_IBMTSS` to the location of the test suite, such as
+`/usr/libexec/installed-tests/ibmtss`.
+
 Some tests require root rights, especially those involving the CUSE TPM
 and the vTPM proxy device. To run these and all the other ones you
 can use the following command line:
