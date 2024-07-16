@@ -6,6 +6,7 @@
 cd "$(dirname "$0")" || exit 1
 
 ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 export SWTPM_INTERFACE=cuse
 
@@ -33,7 +34,7 @@ function swtpm_read_n_bytes_fd100()
 
 trap "cleanup" EXIT
 
-source common
+source "${TESTDIR}/common"
 [ "${SWTPM_INTERFACE}" == "cuse" ] && source test_cuse
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
