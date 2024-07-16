@@ -880,6 +880,37 @@ function validate_pidfile()
 	fi
 }
 
+# Check whether swtpm can use CUSE
+function skip_test_no_cuse()
+{
+	local swtpm_exe="$1"
+
+	local res
+
+	if ! [[ "$(uname -s)" =~ Linux ]]; then
+		echo "Need Linux to run test with CUSE interface."
+		exit 77
+	fi
+
+	if [ "$(id -u)" -ne 0 ]; then
+		echo "Need to be root to run test with CUSE interface."
+		exit 77
+	fi
+
+	if [ ! -c /dev/cuse ]; then
+		if ! modprobe cuse; then
+			echo "Skipping test using CUSE module: module not available"
+			exit 77
+		fi
+	fi
+
+	res=$(${swtpm_exe} --help | grep 'cuse')
+	if [ -z "${res}" ]; then
+		echo "${swtpm_exe} does not provide CUSE"
+		exit 77
+	fi
+}
+
 # Check whether swtpm can use a TPM 1.2
 function skip_test_no_tpm12()
 {
