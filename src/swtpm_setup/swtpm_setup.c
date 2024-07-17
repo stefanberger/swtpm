@@ -471,14 +471,11 @@ static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_fi
 /* Get the default PCR banks from the config file and if nothing can
    be found there use the DEFAULT_PCR_BANKS #define.
  */
-static gchar *get_default_pcr_banks(const gchar *config_file)
+static gchar *get_default_pcr_banks(gchar *const *config_file_lines)
 {
-    g_auto(GStrv) config_file_lines = NULL;
     gchar *pcr_banks;
-    int ret;
 
-    ret = read_file_lines(config_file, &config_file_lines);
-    if (ret != 0)
+    if (!config_file_lines)
         return NULL;
 
     pcr_banks = get_config_value(config_file_lines, "active_pcr_banks");
@@ -1231,6 +1228,7 @@ int main(int argc, char *argv[])
         {NULL, 0, NULL, 0}
     };
     unsigned long flags = 0;
+    g_auto(GStrv) config_file_lines = NULL;
     g_autofree gchar *swtpm_prg = NULL;
     g_autofree gchar *tpm_state_path = NULL;
     struct swtpm_backend_ops *backend_ops = &swtpm_backend_dir;
@@ -1581,6 +1579,9 @@ int main(int argc, char *argv[])
         goto error;
     }
 
+    /* read the config file; ignore errors here now */
+    read_file_lines(config_file, &config_file_lines);
+
     /* check pcr_banks; read from config file if not given */
     tmp_l = g_strsplit(pcr_banks ? pcr_banks : "", ",", -1);
     for (i = 0, n = 0; tmp_l[i]; i++) {
@@ -1590,7 +1591,7 @@ int main(int argc, char *argv[])
     g_strfreev(tmp_l);
     if (n == 0) {
         g_free(pcr_banks);
-        pcr_banks = get_default_pcr_banks(config_file);
+        pcr_banks = get_default_pcr_banks(config_file_lines);
     }
 
     if (cipher != NULL) {

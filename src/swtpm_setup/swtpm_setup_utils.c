@@ -24,7 +24,7 @@
 #include "swtpm_setup_utils.h"
 
 /* Get a configuration value given its name */
-gchar *get_config_value(gchar **config_file_lines, const gchar *configname)
+gchar *get_config_value(gchar *const *config_file_lines, const gchar *configname)
 {
     g_autofree gchar *regex = g_strdup_printf("^%s[[:space:]]*=[[:space:]]*([^#\n]*).*",
                                               configname);

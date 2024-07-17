@@ -12,7 +12,8 @@
 
 #include <glib.h>
 
-gchar *get_config_value(gchar **config_file_lines, const gchar *configname);
+gchar *get_config_value(gchar *const *config_file_lines,
+                        const gchar *configname);
 int create_config_files(gboolean overwrite, gboolean root_flag,
                         gboolean skip_if_exist);
 
