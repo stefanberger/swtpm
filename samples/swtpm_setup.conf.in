@@ -5,3 +5,4 @@ create_certs_tool_options = @SYSCONFDIR@/swtpm-localca.options
 # Comma-separated list (no spaces) of PCR banks to activate by default
 active_pcr_banks = @DEFAULT_PCR_BANKS@
 rsa_keysize = 2048
+profile = {"Name": "default-v1"}
