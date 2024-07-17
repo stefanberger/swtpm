@@ -508,6 +508,16 @@ static gchar *get_default_rsa_keysize(gchar *const *config_file_lines)
     return rsa_keysize;
 }
 
+/* Get the default policy from the config file */
+static gchar *get_default_profile(gchar *const *config_file_lines)
+{
+    gchar *profile;
+
+    profile = get_config_value(config_file_lines, "profile");
+    if (profile)
+        g_strstrip(profile);
+    return profile;
+}
 
 /* Activate the given list of PCR banks. If pcr_banks is '-' then leave
  * the configuration as-is.
@@ -1661,6 +1671,10 @@ int main(int argc, char *argv[])
         g_free(pcr_banks);
         pcr_banks = get_default_pcr_banks(config_file_lines);
     }
+
+    /* read default profile from swtpm_setup.conf */
+    if ((flags & SETUP_TPM2_F) != 0 && json_profile == NULL)
+        json_profile = get_default_profile(config_file_lines);
 
     if ((flags & SETUP_TPM2_F) != 0 && json_profile) {
         if (validate_json_profile(swtpm_prg_l, json_profile) != 0)
