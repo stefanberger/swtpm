@@ -60,6 +60,7 @@
 #define SETUP_DECRYPTION_F          (1 << 14)
 #define SETUP_WRITE_EK_CERT_FILES_F (1 << 15)
 #define SETUP_RECONFIGURE_F         (1 << 16)
+#define SETUP_RSA_KEYSIZE_BY_USER_F (1 << 17)
 
 /* default configuration file */
 #define SWTPM_SETUP_CONF "swtpm_setup.conf"
@@ -487,6 +488,25 @@ static gchar *get_default_pcr_banks(gchar *const *config_file_lines)
     }
     return pcr_banks;
 }
+
+/* Get the default RSA keysize from the config file */
+static gchar *get_default_rsa_keysize(gchar *const *config_file_lines)
+{
+    gchar *rsa_keysize;
+
+    if (!config_file_lines)
+        return NULL;
+
+    rsa_keysize = get_config_value(config_file_lines, "rsa_keysize");
+    if (rsa_keysize)
+        g_strstrip(rsa_keysize);
+    if (rsa_keysize == NULL || strlen(rsa_keysize) == 0) {
+        g_free(rsa_keysize);
+        rsa_keysize = g_strdup_printf("%d", DEFAULT_RSA_KEYSIZE);
+    }
+    return rsa_keysize;
+}
+
 
 /* Activate the given list of PCR banks. If pcr_banks is '-' then leave
  * the configuration as-is.
@@ -1246,7 +1266,7 @@ int main(int argc, char *argv[])
     g_autofree gchar *pwdfile = NULL;
     long int pwdfile_fd = -1;
     g_autofree gchar *cipher = g_strdup("aes-128-cbc");
-    g_autofree gchar *rsa_keysize_str = g_strdup_printf("%d", DEFAULT_RSA_KEYSIZE);
+    g_autofree gchar *rsa_keysize_str = NULL;
     unsigned int rsa_keysize;
     g_autofree gchar *swtpm_keyopt = NULL;
     g_autofree gchar *runas = NULL;
@@ -1412,6 +1432,7 @@ int main(int argc, char *argv[])
         case 'A': /* --rsa-keysize */
             g_free(rsa_keysize_str);
             rsa_keysize_str = strdup(optarg);
+            flags |= SETUP_RSA_KEYSIZE_BY_USER_F;
             break;
         case '3': /* --write-ek-cert-files */
             g_free(user_certsdir);
@@ -1631,6 +1652,9 @@ int main(int argc, char *argv[])
         swtpm_keyopt = g_strdup_printf("pwdfd=%ld%s", pwdfile_fd, cipher);
         logit(gl_LOGFILE, "  The TPM's state will be encrypted using a key derived from a passphrase (fd).\n");
     }
+
+    if ((flags & SETUP_RSA_KEYSIZE_BY_USER_F) == 0)
+        rsa_keysize_str = get_default_rsa_keysize(config_file_lines);
 
     if (strcmp(rsa_keysize_str, "max") == 0) {
         unsigned int *keysizes = NULL;

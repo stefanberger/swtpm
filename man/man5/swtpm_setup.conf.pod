@@ -95,6 +95,13 @@ This keyword is to be followed by a comma-separated list
 of names of PCR banks. The list must not contain any spaces.
 Valid PCR bank names are sha1, sha256, sha384, and sha512.
 
+=item B<rsa_keysize> (since v0.10)
+
+This keyword allows to specify the default RSA keysize to be used if it is
+not provided with a command line option to swtpm_setup. Any value
+that can be passed to swtpm_setup is also valid here, such as 2048, or
+'max'. The supported key sizes depend on the version of libtpms.
+
 =back
 
 =head1 SEE ALSO
