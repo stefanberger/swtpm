@@ -1,0 +1,37 @@
+---
+version: '3.7'
+
+services:
+
+  swtpm:
+    build:
+      context: .
+    volumes:
+      - tpm-data:/swtpm
+    networks:
+      - swtpm
+    command: ['socket', '--tpm2',
+              '--server', 'type=unixio,path=/swtpm/swtpm.sock',
+              '--ctrl', 'type=unixio,path=/swtpm/swtpm.sock.ctrl',
+              '--tpmstate', 'dir=/swtpm',
+              '--log', 'file=swtpm.log',
+              '--log', 'level=20',
+              '--flags', 'not-need-init,startup-clear']
+
+  swtpm-test:
+    image: docker.io/strongx509/tpm:5.9.13
+    depends_on:
+      - swtpm
+    volumes:
+      - tpm-data:/swtpm
+    networks:
+      - swtpm
+    environment:
+      TPM2TOOLS_TCTI: swtpm:path=/swtpm/swtpm.sock
+    command: ['tpm2', 'clear']
+
+volumes:
+  tpm-data:
+
+networks:
+  swtpm:
