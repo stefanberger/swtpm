@@ -99,6 +99,11 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
         return TPM_IOERROR;
     }
 
+    if (bufferSize < sizeof(struct tpm_req_header)) {
+        TPM_DEBUG("SWTPM_IO_Read: Passed buffer is too small\n");
+        return TPM_IOERROR;
+    }
+
     while (true) {
         n = read(connection_fd->fd, &buffer[offset], bufferSize - offset);
         if (n < 0 && errno == EINTR)
