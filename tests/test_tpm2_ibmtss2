@@ -42,7 +42,8 @@ REGLOG=${WORKDIR}/reglog
 SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
 	--tpmstate "dir=${WORKDIR}" \
-	--flags not-need-init
+	--flags not-need-init \
+	--profile name=default-v1
 
 pushd "${WORKDIR}" &>/dev/null || exit 1
 
@@ -59,9 +60,6 @@ fi
 # for user that don't have this set up properly
 git config --local user.name test
 git config --local user.email test@test.test
-
-# ECC encrypt/decrypt is not supported in any version of libtpms
-git am < "${PATCHESDIR}/0011-Disable-ECC-encrypt-decrypt-tests.patch"
 
 # Nuvoton commands are not supported
 git am < "${PATCHESDIR}/0012-Disable-Nuvoton-commands.patch"
@@ -82,28 +80,6 @@ git am < "${PATCHESDIR}/0004-Store-and-restore-volatile-state-at-every-step.patc
 
 # Disable 'Events' test
 git am < "${PATCHESDIR}/0005-Disable-tests-related-to-events.patch"
-
-rsa3072=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 4 |
-          sed -n 's/.*"RSAKeySizes":\[\([0-9,]*\)\].*/\1/p' |
-          grep 3072)
-if [ -z "$rsa3072" ]; then
-	echo "Modifying test cases related to RSA 3072 keys."
-	git am < "${PATCHESDIR}/0006-Disable-testing-with-RSA-3072.patch"
-else
-	echo "swtpm/libtpms support RSA 3072 bit keys"
-fi
-
-# Adjust test suite to TPM 2.0 revision libtpms is implementing
-revision=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 1 |
-           sed 's/.*,"revision":\([^\}]*\).*/\1/')
-echo "Libtpms implements TPM 2.0 revision ${revision}."
-if [ "$revision" -lt 155 ]; then
-	echo "Removing revision 155 and later test cases."
-	git am < "${PATCHESDIR}/0007-Disable-rev155-test-cases.patch"
-	git am < "${PATCHESDIR}/0008-Disable-x509-test-cases.patch"
-	git am < "${PATCHESDIR}/0009-Disable-getcapability-TPM_CAP_ACT.patch"
-	git am < "${PATCHESDIR}/0013-Disable-x509-test-cases-part2.patch"
-fi
 
 if openssl version | grep -q -E "^OpenSSL 3"; then
 	git am < "${PATCHESDIR}/0010-Adjust-test-cases-for-OpenSSL-3.patch"
