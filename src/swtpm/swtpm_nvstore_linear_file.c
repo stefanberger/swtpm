@@ -202,13 +202,17 @@ SWTPM_NVRAM_LinearFile_Flush(const char* uri SWTPM_ATTR_UNUSED,
     uint32_t msync_count;
 
     if (!mmap_state.mapped) {
-        logprintf(STDERR_FILENO,
-                  "SWTPM_NVRAM_LinearFile_Flush: Nothing mapped\n");
-        rc = TPM_FAIL;
+        logprintf(STDERR_FILENO, "%s: Nothing mapped\n", __func__);
+        return TPM_FAIL;
     }
 
     /* msync parameters must be page-aligned */
     uint32_t pagesize = sysconf(_SC_PAGESIZE);
+    if ((int)pagesize < 0) {
+        logprintf(STDERR_FILENO, "%s: sysconf failed: %s\n",
+                  __func__, strerror(errno));
+        return TPM_FAIL;
+    }
     msync_offset = mmap_state.ptr + (offset & ~(pagesize - 1));
 #if defined(__CYGWIN__)
     /* Cygwin uses Win API FlushViewOfFile, which we call with len = 0 */
