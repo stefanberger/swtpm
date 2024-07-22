@@ -41,6 +41,7 @@ LIBTPMS_URL=https://github.com/stefanberger/libtpms
 LIBTPMS_INITIAL_BRANCH=master
 
 SWTPM_URL=https://github.com/stefanberger/swtpm
+SWTPM_DEFAULT_BRANCH=master   # during development change to local branch
 
 cat <<_EOF_ > "${workdir}/swtpm-localca.options"
 --tpm-manufacturer IBM
@@ -496,7 +497,7 @@ function build_libtpms_and_swtpm()
 		"${workdir}/swtpm" \
 		"-I${libtpmsdir}/include -L${workdir}/libtpms-master" \
 		"${workdir}/libtpms-master" \
-		stefanberger/libtpms_profiles; then		# FIXME: should be master
+		"${SWTPM_DEFAULT_BRANCH}"; then
 		echo "Error: Could not build swtpm"
 		return 1
 	fi
