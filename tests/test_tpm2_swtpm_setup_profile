@@ -100,7 +100,7 @@ test_swtpm_setup_profile()
 
 	if [ -n "${disabled_algos}" ]; then
 		response=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x8 |
-			   sed -n 's/.*"Disabled":"\([^"]\+\).*/\1/p')
+			   sed -n 's/.*"Disabled":"\([^"]*\).*/\1/p')
 		if [ "${response}" != "${disabled_algos}" ]; then
 			echo "Error: Response for disabled algorithms does not match expected response"
 			echo "Actual   : ${response}"
@@ -141,14 +141,14 @@ if ! kill_quiet -0 "${SWTPM_PID}"; then
 fi
 
 profiles=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x40 |
-	   sed 's/{"Name/\n{"Name/g' |
-	   sed -n 's/^{"Name":"\([^"]\+\)".*/\1/p')
+	   sed $'s/{"Name/\\\n{"Name/g' |
+	   sed -n 's/^{"Name":"\([^"]*\)".*/\1/p')
 
 canbedisabled_algos_str=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x8 |
-			  sed -n 's/.*"CanBeDisabled":"\([^"]\+\).*/\1/p')
+			  sed -n 's/.*"CanBeDisabled":"\([^"]*\).*/\1/p')
 
 implemented_algos_str=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x8 |
-			sed -n 's/.*"Implemented":"\([^"]\+\).*/\1/p')
+			sed -n 's/.*"Implemented":"\([^"]*\).*/\1/p')
 
 if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
