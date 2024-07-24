@@ -61,15 +61,19 @@ _EOF_
 # Copy swtpm source tree to workdir
 pushd "${SRCDIR}" &>/dev/null || exit 1
 
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-	echo "git repo has modified files"
-	exit 1
-fi
-
 mkdir -p "${workdir}/swtpm"
 cp -rp . "${workdir}/swtpm"
 cd "${workdir}/swtpm" || exit 1
 chmod -R 0755 .   # when using 'distcheck'
+
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+	# store all current modifications in a temp patch
+	git config --local user.name test
+	git config --local user.email test@test.test
+	git add --all . >/dev/null
+	git commit -m "temp" >/dev/null
+fi
+
 git clean -xdf &>/dev/null
 popd &>/dev/null || exit 1
 
@@ -95,7 +99,7 @@ function nv_storefile()
 		return 1
 	fi
 
-	if ! tssnvdefinespace -ha "${nvindex}" -hi o -pwdn nv -sz "${sz}"; then
+	if ! tssnvdefinespace -ha "${nvindex}" -hi o -pwdn nv -sz "${sz}" 1>/dev/null; then
 		return 1
 	fi
 
@@ -137,7 +141,7 @@ function create_tpm_state()
 	local contextfile="${workdir}/context.bin"
 	local aespub="${workdir}/aespub.bin"
 	local aespriv="${workdir}/aespriv.bin"
-	local cc
+	local cc rsasize ecdsaparam
 
 	echo "input" > "${inputfile}"
 
@@ -147,8 +151,12 @@ function create_tpm_state()
 	export TPM_INTERFACE_TYPE=socsim
 	export TPM_SERVER_TYPE=raw
 
-	# Test siging
-	if ! tsscreateprimary -hi o -pwdk ooo -si 1>/dev/null; then
+	if tsscreateprimary --help | grep rsa | grep -q keybits; then
+		rsasize="3072"
+	fi
+
+	# Test signing with RSA 3072 key
+	if ! tsscreateprimary -rsa ${rsasize:+${rsasize}} -hi o -pwdk ooo -si 1>/dev/null; then
 		return 1
 	fi
 
@@ -161,7 +169,7 @@ function create_tpm_state()
 	fi
 
 	# Save the key as contextfile
-	if ! tsscontextsave -ha 80000000 -of "${contextfile}"; then
+	if ! tsscontextsave -ha 80000000 -of "${contextfile}" 1>/dev/null; then
 		return 1
 	fi
 
@@ -177,7 +185,7 @@ function create_tpm_state()
 	# Test HMAC
 	# tsssign -salg was added in a later version only; Ubuntu Jammy does not have it
 	if tsssign -h | grep -q "salg"; then
-		if ! tsscreateprimary -hi o -pwdk ooo 1>/dev/null; then
+		if ! tsscreateprimary -rsa ${rsasize:+${rsasize}} -hi o -pwdk ooo 1>/dev/null; then
 			return 1
 		fi
 
@@ -201,9 +209,9 @@ function create_tpm_state()
 			return 1
 		fi
 
-		if ! tsscontextsave -ha 80000000 -of "${contextfile}" || \
+		if ! tsscontextsave -ha 80000000 -of "${contextfile}" 1>/dev/null || \
 		   ! nv_storefile 01000005 "${contextfile}" || \
-		   ! tsscontextsave -ha 80000001 -of "${contextfile}" || \
+		   ! tsscontextsave -ha 80000001 -of "${contextfile}" 1>/dev/null || \
 		   ! nv_storefile 01000006 "${contextfile}"; then
 			return 1
 		fi
@@ -227,7 +235,7 @@ function create_tpm_state()
 		return 1
 	fi
 
-	if ! tsscontextsave -ha 80000000 -of "${contextfile}" || \
+	if ! tsscontextsave -ha 80000000 -of "${contextfile}" 1>/dev/null || \
 	   ! nv_storefile 01000008 "${contextfile}"; then
 		return 1
 	fi
@@ -235,6 +243,40 @@ function create_tpm_state()
 	if ! tssflushcontext -ha 80000000; then
 		return 1
 	fi
+
+
+	# Signing with a NIST P256 key
+	if ! tsscreateprimary -ecc nistp256 -hi o -pwdk ooo -si 1>/dev/null; then
+		return 1
+	fi
+
+	ecdsaparam="-scheme ecdsa"
+	# older tools had: [-ecc (ECDSA scheme)]
+	if tsssign --help | grep ecc | grep -q scheme; then
+		ecdsaparam="-ecc"
+	fi
+	if ! tsssign ${ecdsaparam:+${ecdsaparam}} -hk 80000000 -pwdk ooo -if "${inputfile}" -os "${signature}"; then
+		return 1
+	fi
+
+	if ! nv_storefile 01000009 "${signature}"; then
+		return 1
+	fi
+
+	# Save the key as contextfile
+	if ! tsscontextsave -ha 80000000 -of "${contextfile}" 1>/dev/null; then
+		return 1
+	fi
+
+	if ! nv_storefile 0100000a "${contextfile}"; then
+		return 1
+	fi
+
+	# Flush all keys
+	if ! tssflushcontext -ha 80000000; then
+		return 1
+	fi
+
 
 	# Test setting command audit if available; Ubuntu Jammy does not have it
 	if type -P tsssetcommandcodeauditstatus >/dev/null; then
@@ -261,7 +303,7 @@ function check_tpm_state()
 	local contextfile="${workdir}/context.bin"
 	local aespub="${workdir}/aespub.bin"
 	local aespriv="${workdir}/aespriv.bin"
-	local cc
+	local cc rsasize
 
 	echo "input" > "${inputfile}"
 
@@ -271,8 +313,12 @@ function check_tpm_state()
 	export TPM_INTERFACE_TYPE=socsim
 	export TPM_SERVER_TYPE=raw
 
-	# Test siging key
-	if ! tsscreateprimary -hi o -pwdk ooo -si 1>/dev/null; then
+	if tsscreateprimary --help | grep rsa | grep -q keybits; then
+		rsasize="3072"
+	fi
+
+	# Test RSA 3072 signing key
+	if ! tsscreateprimary -rsa ${rsasize:+${rsasize}} -hi o -pwdk ooo -si 1>/dev/null; then
 		return 1
 	fi
 
@@ -312,7 +358,7 @@ function check_tpm_state()
 	# HMAC test
 	# tsssign -salg was added in a later version only
 	if tsssign -h | grep -q "salg"; then
-		if ! tsscreateprimary -hi o -pwdk ooo 1>/dev/null; then
+		if ! tsscreateprimary -rsa ${rsasize:+${rsasize}} -hi o -pwdk ooo 1>/dev/null; then
 			return 1
 		fi
 
@@ -399,6 +445,45 @@ function check_tpm_state()
 			return 1
 		fi
 	fi
+
+	# Test NIST p256 signing key
+	if ! tsscreateprimary -ecc nistp256 -hi o -pwdk ooo -si 1>/dev/null; then
+		return 1
+	fi
+
+	if ! nv_savetofile 01000009 "${signature}"; then
+		return 1
+	fi
+
+	if ! tssverifysignature -ecc -hk 80000000 -if "${inputfile}" -is "${signature}"; then
+		return 1
+	fi
+	echo "INFO: Verified signature with RSA key"
+
+	if ! tssflushcontext -ha 80000000; then
+		return 1
+	fi
+
+	# Test with the key stored in context; this only works with save/restore of all state
+	if [ "${is_fullresume}" -ne 0 ]; then
+		if ! nv_savetofile 0100000a "${contextfile}"; then
+			return 1
+		fi
+
+		if ! tsscontextload -if "${contextfile}" 1>/dev/null; then
+			return 1
+		fi
+
+		if ! tssverifysignature -ecc -hk 80000000 -if "${inputfile}" -is "${signature}"; then
+			return 1
+		fi
+		echo "INFO: Verified signature with RSA key and restored key context"
+
+		if ! tssflushcontext -ha 80000000; then
+			return 1
+		fi
+	fi
+
 
 	# Test the audited commands is command was available to set audited commands
 	if [ "${is_fullresume}" -ne 0 ]; then
