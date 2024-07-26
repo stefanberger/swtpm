@@ -163,7 +163,7 @@ The output may contain the following:
 
 The version field is available since 0.7.
 
-The maining of the feature verbs is as follows:
+The meaning of the feature verbs is as follows:
 
 =over 4
 

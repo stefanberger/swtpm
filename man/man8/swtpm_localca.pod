@@ -29,7 +29,7 @@ SWTPM_ROOTCA_PASSWORD can be set for the password of the root CA's
 private key.
 
 Note: Due to limitations of 'certtool', the possible passwords used for
-securing the root CA's private key and the intermedia CA's private
+securing the root CA's private key and the intermediate CA's private
 key have to be passed over the command line and therefore will be visible
 to others on the system. If you are concerned about this, you should create
 the CAs elsewhere and copy them onto the target system.
@@ -57,7 +57,7 @@ This parameter indicates the modulus of the public key of the endorsement key
 The --key option is an alias for --ek and should be used if key parameters
 for another key than an endorsement key are passed.
 
-In case ECC (elliptic curve crypography) keys are used, the parameter must
+In case ECC (elliptic curve cryptography) keys are used, the parameter must
 have the format --ek x=<hex digits>,y=<hex digits>,id=<curve id>. The
 id=<curve id> part is optional and only necessary for ECC curves other
 than secp256r1.
