@@ -102,6 +102,13 @@ not provided with a command line option to swtpm_setup. Any value
 that can be passed to swtpm_setup is also valid here, such as 2048, or
 'max'. The supported key sizes depend on the version of libtpms.
 
+=item B<profile> (since v0.10)
+
+This keyword allows to specify either the name of a profile or a JSON
+map describing the profile, such as 'profile = {"Name": "default-v1"}'.
+Please also refer to the description of the I<--profile> option for
+swtpm_setup.
+
 =back
 
 =head1 SEE ALSO
