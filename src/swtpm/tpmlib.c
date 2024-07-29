@@ -48,6 +48,8 @@
 #include <libtpms/tpm_nvfilename.h>
 #include <libtpms/tpm_memory.h>
 
+#include <json-glib/json-glib.h>
+
 #include "tpmlib.h"
 #include "logging.h"
 #include "tpm_ioctl.h"
@@ -60,6 +62,7 @@
 #include "compiler_dependencies.h"
 #include "swtpm_utils.h"
 #include "fips.h"
+#include "check_algos.h"
 
 /*
  * convert the blobtype integer into a string that libtpms
@@ -105,6 +108,96 @@ TPM_RESULT tpmlib_choose_tpm_version(TPMLIB_TPMVersion tpmversion)
     return res;
 }
 
+static int tpmlib_check_disabled_algorithms(bool *need_disabled,
+                                            unsigned int disabled_filter,
+                                            bool stop_on_first_disabled)
+{
+    char *info_data = TPMLIB_GetInfo(TPMLIB_INFO_RUNTIME_ALGORITHMS);
+    g_autofree gchar *enabled = NULL;
+    gchar **algorithms;
+    int ret;
+
+    *need_disabled = false;
+
+    ret = json_get_submap_value(info_data, "RuntimeAlgorithms", "Enabled",
+                                &enabled);
+    if (ret)
+        goto error;
+
+    algorithms = g_strsplit(enabled, ",", -1);
+
+    *need_disabled = ! ossl_algorithms_are_disabled((const gchar * const *)algorithms,
+                                                    disabled_filter,
+                                                    stop_on_first_disabled);
+
+    g_strfreev(algorithms);
+error:
+    free(info_data);
+
+    return ret;
+}
+
+/*
+ * This function only applies to TPM2: If FIPS mode was enabled on the host,
+ * determine whether OpenSSL needs to deactivate FIPS mode. It doesn't need
+ * to deactivate it if a profile was chosen that has no algorithms that FIPS
+ * deactivates, otherwise it has to deactivate FIPS mode in the OpenSSL
+ * instance being used.
+ */
+static int tpmlib_check_need_disable_fips_mode_tpm2(bool *need_disabled)
+{
+     return tpmlib_check_disabled_algorithms(need_disabled,
+                                             DISABLED_BY_FIPS, true);
+}
+
+/*
+ * Check whether swtpm would have to be started with OpenSSL_no_config() so
+ * that libtpms can use the algorithms given by its profile.
+ */
+static bool tpmlib_check_need_no_ossl_config(bool *need_disabled)
+{
+     return tpmlib_check_disabled_algorithms(need_disabled,
+                                             0, false);
+}
+
+
+/* Determine wheter FIPS mode is enabled in the crypto library. If FIPS mode is
+ * enabled check whether any of the algorithms that the TPM 2 uses would need
+ * OpenSSL FIPS mode to be disabled for the TPM 2 to work and then try to disable
+ * it.
+ */
+static int tpmlib_maybe_disable_fips_mode(TPMLIB_TPMVersion tpmversion)
+{
+    bool disable_fips = false;
+    int ret = 0;
+
+    if (fips_mode_enabled()) {
+        switch (tpmversion) {
+        case TPMLIB_TPM_VERSION_1_2:
+            disable_fips = true;
+            break;
+        case TPMLIB_TPM_VERSION_2:
+            ret = tpmlib_check_need_disable_fips_mode_tpm2(&disable_fips);
+            break;
+        }
+        if (!ret && disable_fips && fips_mode_disable())
+            ret = 1;
+    }
+
+    if (!ret && tpmversion == TPMLIB_TPM_VERSION_2) {
+        bool disable_config = false;
+
+        ret = tpmlib_check_need_no_ossl_config(&disable_config);
+        if (!ret && disable_config) {
+            logprintf(STDERR_FILENO,
+                     "Error: Need to start with OpenSSL config file to enable all needed algorithms.\n");
+            ret = 1;
+        }
+    }
+
+    return ret;
+}
+
 TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
                         bool lock_nvram, const char *json_profile)
 {
@@ -143,8 +236,10 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
         }
     }
 
-    if (fips_mode_enabled() && fips_mode_disable() < 0)
+    if (tpmlib_maybe_disable_fips_mode(tpmversion)) {
+        res = TPM_FAIL;
         goto error_terminate;
+    }
 
     return TPM_SUCCESS;
 
