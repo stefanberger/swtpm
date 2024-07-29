@@ -5,7 +5,7 @@ if [ "${SWTPM_TEST_EXPENSIVE:-0}" -eq 0 ]; then
 fi
 
 ROOT=${abs_top_builddir:-$(pwd)/..}
-TESTDIR=${abs_top_testdir:-${PWD}/$(dirname "$0")}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
 function cleanup() {
 	if [ -n "${SWTPM_PID}" ]; then

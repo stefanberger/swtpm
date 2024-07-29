@@ -114,8 +114,7 @@ endif # ENABLE_TESTS
 TEST_UTILS = \
 	common \
 	load_vtpm_proxy \
-	test_common \
-	test_cuse
+	test_common
 
 EXTRA_DIST = \
 	$(TESTS) \
