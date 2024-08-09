@@ -230,7 +230,8 @@ The output may contain the following:
         "cmdarg-pwdfile-fd",
         "cmdarg-write-ek-cert-files",
         "cmdarg-create-config-files",
-	"cmdarg-reconfigure-pcr-banks",
+        "cmdarg-reconfigure-pcr-banks",
+        "creates-iak-idevid",
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
         "tpm12-not-need-root",
@@ -266,6 +267,11 @@ The I<--create-config-files> option is supported.
 
 The I<--reconfigure> option is supported and allows the reconfiguration of
 the active PCR banks.
+
+=item B<creates-iak-idevid> (since v0.9)
+
+If I<--create-ek-cert> is given then it also creates IAK and IDevID
+keys and certificates.
 
 =item B<tpm2-rsa-keysize-2048, ...> (since v0.4)
 
@@ -335,6 +341,10 @@ the default configuration files' paths is currently not handled. On many
 systems this may be the case when a user is part of the 'tss' group. In
 this case it is recommended that the user replace the swtpm-localca.conf
 created with this command with a symbolic link to /etc/swtpm-localca.conf.
+
+=item <--no-iak> (since v0.9)
+
+Do not create IAK and IDevID keys and certificates.
 
 =item B<--help, -h>
 

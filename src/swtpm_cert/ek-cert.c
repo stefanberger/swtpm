@@ -69,6 +69,8 @@ enum cert_type_t {
     CERT_TYPE_EK = 1,
     CERT_TYPE_PLATFORM,
     CERT_TYPE_AIK,
+    CERT_TYPE_IAK,
+    CERT_TYPE_IDEVID,
 };
 
 /* some flags */
@@ -132,9 +134,11 @@ usage(const char *prg)
         "                            -1 for no expiration\n"
         "--pem                     : Write certificate in PEM format; default is DER\n"
         "--type <platform|ek>      : The type of certificate to create; default is ek\n"
+        "                            Other options are platform, iak, idevid\n"
         "--tpm-manufacturer <name> : The name of the TPM manufacturer\n"
         "--tpm-model <model>       : The TPM model (part number)\n"
         "--tpm-version <version>   : The TPM version (firmware version)\n"
+        "--tpm-serial-num <s>      : The TPM serial number; required for IAK and IDevID\n"
         "--platform-manufacturer <name> : The name of the Platform manufacturer\n"
         "--platform-model <model>       : The Platform model (part number)\n"
         "--platform-version <version>   : The Platform version (firmware version)\n"
@@ -803,6 +807,59 @@ create_tpm_specification_info(const char *spec_family,
 }
 
 static int
+create_iak_info(gnutls_datum_t *asn1,
+                const char *hwSerialNum)
+{
+    asn1_node at = NULL;
+    int err;
+
+    err = asn_init();
+    if (err != ASN1_SUCCESS) {
+        goto cleanup;
+    }
+
+    err = asn1_create_element(_tpm_asn, "TPM.TPMIAKSanInfo", &at);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "1cia. asn1_create_element error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "tpmIAKSanInfoSeq.id", "1.3.6.1.5.5.7.8.4", 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "2cia. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "tpmIAKSanInfoSeq.iakSanInfoSet.hwType", "2.23.133.1.2", 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "3cia. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = asn1_write_value(at, "tpmIAKSanInfoSeq.iakSanInfoSet.hwSerialNum", hwSerialNum, 0);
+    if (err != ASN1_SUCCESS) {
+        fprintf(stderr, "4cia. asn1_write_value error: %d\n", err);
+        goto cleanup;
+    }
+
+    err = encode_asn1(asn1, at);
+
+#if 0
+    fprintf(stderr, "size=%d\n", asn1->size);
+    unsigned int i = 0;
+    for (i = 0; i < asn1->size; i++) {
+        fprintf(stderr, "%02x ", asn1->data[i]);
+    }
+    fprintf(stderr, "\n");
+#endif
+
+ cleanup:
+    asn1_delete_structure(&at);
+    return err;
+}
+
+
+static int
 create_cert_extended_key_usage(const char *oid, gnutls_datum_t *asn1)
 {
     asn1_node at = NULL;
@@ -992,6 +1049,8 @@ static void capabilities_print_json()
             "\"features\": [ "
              "\"cmdarg-signkey-pwd\""
              ", \"cmdarg-parentkey-pwd\""
+             ", \"cmdarg-tpm-serial-num\""
+             ", \"supports-iak-idevid\""
             " ], "
             "\"version\": \"" VERSION "\" "
             "}\n");
@@ -1041,6 +1100,7 @@ main(int argc, char *argv[])
     const char *tpm_manufacturer = NULL;
     const char *tpm_version = NULL;
     const char *tpm_model = NULL;
+    const char *tpm_serial_num = NULL;
     const char *platf_manufacturer = NULL;
     const char *platf_version = NULL;
     const char *platf_model = NULL;
@@ -1071,6 +1131,7 @@ main(int argc, char *argv[])
         {"tpm-manufacturer", required_argument, NULL, '1'},
         {"tpm-model", required_argument, NULL, '2'},
         {"tpm-version", required_argument, NULL, '3'},
+        {"tpm-serial-num", required_argument, NULL, '0'},
         {"platform-manufacturer", required_argument, NULL, '4'},
         {"platform-model", required_argument, NULL, '5'},
         {"platform-version", required_argument, NULL, '6'},
@@ -1190,6 +1251,10 @@ main(int argc, char *argv[])
                 certtype = CERT_TYPE_EK;
             } else if (!strcasecmp(optarg, "platform")) {
                 certtype = CERT_TYPE_PLATFORM;
+            } else if (!strcasecmp(optarg, "iak")) {
+                certtype = CERT_TYPE_IAK;
+            } else if (!strcasecmp(optarg, "idevid")) {
+                certtype = CERT_TYPE_IDEVID;
             } else {
                 fprintf(stderr, "Unknown certificate type '%s'.\n",
                         optarg);
@@ -1204,6 +1269,9 @@ main(int argc, char *argv[])
             break;
         case '3': /* --tpm-version */
             tpm_version = optarg;
+            break;
+        case '0': /* --tpm-serial-num */
+            tpm_serial_num = optarg;
             break;
         case '4': /* --platform-manufacturer */
             platf_manufacturer = optarg;
@@ -1317,6 +1385,13 @@ main(int argc, char *argv[])
         break;
     case CERT_TYPE_AIK:
         break;
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
+        if (tpm_serial_num == NULL) {
+            fprintf(stderr, "--tpm-serial-num must be provided\n");
+            goto cleanup;
+        }
+        break;
     }
 
     switch (certtype) {
@@ -1340,6 +1415,8 @@ main(int argc, char *argv[])
         }
         break;
     case CERT_TYPE_AIK:
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
         break;
     }
 
@@ -1501,6 +1578,10 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     case CERT_TYPE_AIK:
         oid = "1.2.840.113549.1.1.1";
         break;
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
+        oid = NULL;
+        break;
     default:
         fprintf(stderr, "Internal error: unhandle case in line %d\n",
                 __LINE__);
@@ -1551,6 +1632,14 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         break;
     case CERT_TYPE_AIK:
         break;
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
+        err = create_iak_info(&datum, tpm_serial_num);
+        if (err) {
+            fprintf(stderr, "Could not create IAK info");
+            goto cleanup;
+        }
+        break;
     default:
         fprintf(stderr, "Internal error: unhandle case in line %d\n",
                 __LINE__);
@@ -1558,9 +1647,18 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     }
 
     if (datum.size > 0) {
-        err = prepend_san_asn1_header(&datum);
-        CHECK_GNUTLS_ERROR(err, "Could not prepend SAN ASN.1 header: %s\n",
-                           gnutls_strerror(err))
+        switch (certtype) {
+        case CERT_TYPE_EK:
+        case CERT_TYPE_PLATFORM:
+            err = prepend_san_asn1_header(&datum);
+            CHECK_GNUTLS_ERROR(err, "Could not prepend SAN ASN.1 header: %s\n",
+                               gnutls_strerror(err))
+            break;
+        case CERT_TYPE_AIK:
+        case CERT_TYPE_IAK:
+        case CERT_TYPE_IDEVID:
+            break;
+        }
 
         err = gnutls_x509_crt_set_extension_by_oid(crt, GNUTLS_X509EXT_OID_SAN,
                                                    datum.data, datum.size,
@@ -1589,6 +1687,8 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         break;
     case CERT_TYPE_PLATFORM:
     case CERT_TYPE_AIK:
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
         break;
     default:
         fprintf(stderr, "Internal error: unhandled case in line %d\n",
@@ -1641,6 +1741,8 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         }
         break;
     case CERT_TYPE_AIK:
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
         key_usage = GNUTLS_KEY_DIGITAL_SIGNATURE;
         break;
     default:
@@ -1663,6 +1765,8 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         oid = "2.23.133.8.2";
         break;
     case CERT_TYPE_AIK:
+    case CERT_TYPE_IAK:
+    case CERT_TYPE_IDEVID:
         break;
     default:
         fprintf(stderr, "Internal error: unhandled case in line %d\n",
