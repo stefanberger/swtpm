@@ -271,7 +271,8 @@ test_swtpm_setup_profile \
 	"" \
 	"" \
 	"\x80\x01\x00\x00\x00\x16\x00\x00\x01\x7a\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x40" \
-	" 80 01 00 00 00 25 00 00 00 00 00 00 00 00 05 00 00 00 03 00 0b 03 ff ff ff 00 0c 03 00 00 00 00 0d 03 00 00 00"
+	" 80 01 00 00 00 25 00 00 00 00 00 00 00 00 05 00 00 00 03 00 0b 03 ff ff ff 00 0c 03 00 00 00 00 0d 03 00 00 00" \
+	""
 
 echo "Test with custom profile and 'sha1' disabled algorithms passed"
 
