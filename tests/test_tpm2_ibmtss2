@@ -124,7 +124,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-./reg.sh -a 2>&1 | tee ${REGLOG}
+OPENSSL_ENABLE_SHA1_SIGNATURES=1 ./reg.sh -a 2>&1 | tee ${REGLOG}
 
 ret=0
 
