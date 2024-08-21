@@ -211,9 +211,13 @@ static int tpmlib_maybe_configure_openssl(TPMLIB_TPMVersion tpmversion)
         if (ret)
             return 1;
         if (fix_flags & FIX_ENABLE_SHA1_SIGNATURES) {
+            if (!g_setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", true)) {
+                logprintf(STDERR_FILENO,
+                          "Error: Could not set OPENSSL_ENABLE_SHA1_SIGNATURES=1\n");
+                return 1;
+            }
             logprintf(STDOUT_FILENO,
                       "Warning: Setting OPENSSL_ENABLE_SHA1_SIGNATURES=1\n");
-            g_setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", true);
             check_sha1_signatures = true;
         }
 
