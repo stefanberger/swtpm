@@ -13,13 +13,12 @@ fi
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 
-# need SWTPM to be set
 source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
 TPMDIR="$(mktemp -d)" || exit 1
-PID_FILE=$TPMDIR/${SWTPM}.pid
-LOG_FILE=$TPMDIR/${SWTPM}.log
+PID_FILE=$TPMDIR/swtpm.pid
+LOG_FILE=$TPMDIR/swtpm.log
 
 source "${TESTDIR}/test_common"
 
@@ -177,7 +176,7 @@ cleanup
 
 # Test 4: --tpmstate backend-uri=dir:// parameter test
 TPMDIR="$(mktemp -d)" || exit 1
-PID_FILE=$TPMDIR/${SWTPM}.pid
+PID_FILE=$TPMDIR/swtpm.pid
 FILEMODE=641
 
 $SWTPM_EXE socket \

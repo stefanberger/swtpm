@@ -41,7 +41,7 @@ cp "${TESTDIR}"/data/tpm2state1/* "${TPM_PATH}"
 
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: CUSE TPM did not start."
@@ -92,7 +92,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
 	--key "pwdfile=${TESTDIR}/data/tpm2state2/pwdfile.txt,kdf=sha512"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: CUSE TPM did not start."
@@ -146,7 +146,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
 	--key "pwdfile=${TESTDIR}/data/tpm2state2b/pwdfile.txt,mode=aes-256-cbc"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: CUSE TPM did not start."

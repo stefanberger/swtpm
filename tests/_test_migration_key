@@ -55,7 +55,7 @@ cp "${TESTDIR}"/data/tpmstate1/* "$TPM_PATH"
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--migration-key "pwdfile=$migpwdfile,remove=false,kdf=sha512"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -149,7 +149,7 @@ echo "Test 1: Ok"
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--migration-key "pwdfile=$migpwdfile,remove=false,kdf=sha512"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -194,7 +194,7 @@ echo "Test 2: Ok"
 # This time we make this fail since we don't provide the migration key
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -231,7 +231,7 @@ echo "Test 3: Ok"
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--migration-key "pwdfile=$migpwdfile,remove=true,kdf=sha512"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."

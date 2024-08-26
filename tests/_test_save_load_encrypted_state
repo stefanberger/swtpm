@@ -45,7 +45,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--log "file=$logfile"
 exec 101>&-
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -290,7 +290,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--log "file=$logfile"
 exec 101>&-
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -364,7 +364,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--key "pwdfile=$keyfile,mode=aes-256-cbc" \
 	--log "file=$logfile"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
