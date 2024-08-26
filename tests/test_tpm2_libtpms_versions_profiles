@@ -61,6 +61,11 @@ _EOF_
 # Copy swtpm source tree to workdir
 pushd "${SRCDIR}" &>/dev/null || exit 1
 
+if [ ! -d ".git" ]; then
+	echo "SKIP: This test must be run from a git checkout"
+	exit 77
+fi
+
 mkdir -p "${workdir}/swtpm"
 cp -rp . "${workdir}/swtpm"
 cd "${workdir}/swtpm" || exit 1
