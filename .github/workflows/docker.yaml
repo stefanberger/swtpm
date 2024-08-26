@@ -83,7 +83,9 @@ jobs:
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3.0.0
       - name: Start containers
-        run: docker-compose up --build --force-recreate --detach
+        run: |
+          sudo apt-get install -y docker-compose
+          docker-compose up --build --force-recreate --detach
       - name: Run Tests
         run: |
           set -x
