@@ -46,8 +46,8 @@ logfile="$(mktemp)" || exit 1
 SWTPM_CMD_UNIX_PATH=${tpmstatedir}/unix-cmd.sock
 SWTPM_CTRL_UNIX_PATH=${tpmstatedir}/unix-ctrl.sock
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
 source "${TESTDIR}/common"
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
 
 # make a backup of the volatile state
 TPM_PATH=$tpmstatedir

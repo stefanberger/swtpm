@@ -33,8 +33,8 @@ function swtpm_read_n_bytes_fd100()
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == "cuse" ] && source test_cuse
 source common
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source test_cuse
 skip_test_no_tpm20 "${SWTPM_EXE}"
 
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
