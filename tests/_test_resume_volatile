@@ -41,7 +41,7 @@ cp "${TESTDIR}"/data/tpmstate1/* "${TPM_PATH}"
 
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -92,7 +92,7 @@ cp "${TESTDIR}"/data/tpmstate2/* "${TPM_PATH}"
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--key "pwdfile=${TESTDIR}/data/tpmstate2/pwdfile.txt,kdf=sha512"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -145,7 +145,7 @@ cp "${TESTDIR}"/data/tpmstate2b/* "${TPM_PATH}"
 TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--key "pwdfile=${TESTDIR}/data/tpmstate2b/pwdfile.txt,mode=aes-256-cbc"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."

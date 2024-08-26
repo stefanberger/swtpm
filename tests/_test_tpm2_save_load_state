@@ -40,7 +40,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--log "file=$logfile,level=20" \
 	--tpm2
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."

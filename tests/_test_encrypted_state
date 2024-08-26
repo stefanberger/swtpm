@@ -43,7 +43,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--key "file=$keyfile,mode=aes-cbc,format=hex,remove" \
 	--log "file=$logfile"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -143,7 +143,7 @@ TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
 	--key "file=$binkeyfile,mode=aes-cbc,format=binary,remove" \
 	--log "file=$logfile"
 
-display_processes_by_name "$SWTPM"
+display_processes_by_name "swtpm"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error (2): ${SWTPM_INTERFACE} TPM did not start."

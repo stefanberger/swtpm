@@ -27,7 +27,6 @@ source "${abs_top_builddir:-$(dirname "$0")/..}/tests/test_config"
 SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
 SWTPM_CREATE_TPMCA=${SRCDIR}/samples/swtpm-create-tpmca
 SWTPM_LOCALCA=${ROOT}/src/swtpm_localca/swtpm_localca
-SWTPM=${ROOT}/src/swtpm/swtpm
 SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
 
 SWTPM_INTERFACE=socket+socket
