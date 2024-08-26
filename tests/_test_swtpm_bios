@@ -27,8 +27,8 @@ function cleanup()
 
 trap "cleanup" EXIT
 
-[ "${SWTPM_INTERFACE}" == cuse ] && source "${TESTDIR}/test_cuse"
 source "${TESTDIR}/common"
+[ "${SWTPM_INTERFACE}" == cuse ] && source "${TESTDIR}/test_cuse"
 
 rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
 
