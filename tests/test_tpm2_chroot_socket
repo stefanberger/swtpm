@@ -16,9 +16,7 @@ fi
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:=$(dirname "$0")}
 
-SWTPM=swtpm
-SWTPM_EXE=${SWTPM_EXE:-$ROOT/src/swtpm/$SWTPM}
-PID_FILE=/${SWTPM}.pid
+PID_FILE=/swtpm.pid
 
 source "${TESTDIR}/common"
 source "${TESTDIR}/test_common"
