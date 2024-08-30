@@ -580,6 +580,7 @@ int ctrlchannel_process_fd(int fd,
                       "Error: Could not initialize the TPM\n");
         } else {
             *tpm_running = true;
+            SWTPM_G_FREE(mlp->json_profile);
         }
 
         *res_p = htobe32(res);

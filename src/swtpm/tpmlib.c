@@ -255,6 +255,13 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
         return res;
     }
 
+    if (json_profile != NULL && tpmversion == TPMLIB_TPM_VERSION_2 &&
+        !TPMLIB_WasManufactured()) {
+        logprintf(STDERR_FILENO,
+                  "Error: Profile could not be applied to an existing TPM 2 instance.\n");
+        return TPM_FAIL;
+    }
+
     if (lock_nvram && (res = SWTPM_NVRAM_Lock_Storage(0)) != TPM_SUCCESS)
         goto error_terminate;
 

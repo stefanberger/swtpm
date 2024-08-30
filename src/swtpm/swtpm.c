@@ -58,6 +58,7 @@
 #include "swtpm_debug.h"
 #include "swtpm_io.h"
 #include "swtpm_nvstore.h"
+#include "swtpm_utils.h"
 #include "server.h"
 #include "common.h"
 #include "logging.h"
@@ -567,6 +568,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
                                mlp.json_profile)))
             goto error_no_tpm;
         tpm_running = true;
+        SWTPM_G_FREE(mlp.json_profile);
     }
 
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
