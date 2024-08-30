@@ -1186,6 +1186,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                           "Error: Could not initialize the TPM.\n");
             } else {
                 tpm_running = true;
+                SWTPM_G_FREE(g_json_profile);
             }
             init_p->u.resp.tpm_result = res;
             fuse_reply_ioctl(req, 0, init_p, sizeof(*init_p));
@@ -1900,6 +1901,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
             goto err_unlock;
         }
         tpm_running = true;
+        SWTPM_G_FREE(g_json_profile);
     }
 
     if (param.startupType != _TPM_ST_NONE) {

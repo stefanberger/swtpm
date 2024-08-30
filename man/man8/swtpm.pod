@@ -473,8 +473,8 @@ enables.
 
 The profile can only be set the very first time that a TPM 2 instance is
 started and for as long as no state file exists. The profile cannot be changed
-anymore afterwards and, if passed again using this option, will be silently
-ignored.
+anymore afterwards and, if passed again using this option, an error will
+occur.
 
 Note that profiles may disable algorithms that are considered mandatory for
 a TPM 2, such as RSA-PSS. However, FIPS-enforcement on the host disables
