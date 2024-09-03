@@ -138,6 +138,41 @@ error:
 }
 
 /*
+ * Check the enabled RuntimeAttributes whether either fips-host or
+ * the pair no-sha1-signing & no-sha1-verification are enabled since these
+ * disable sha1 signature support by the TPM 2. Return '1' if this is the
+ * case, '0' otherwise.
+ */
+static int tpmlib_check_attributes_disable_sha1_signatures(void)
+{
+    char *info_data = TPMLIB_GetInfo(TPMLIB_INFO_RUNTIME_ATTRIBUTES);
+    g_autofree gchar *enabled = NULL;
+    g_auto(GStrv) attributes = NULL;
+    int ret;
+
+    ret = json_get_submap_value(info_data, "RuntimeAttributes", "Enabled",
+                                &enabled);
+    if (ret) {
+        ret = 0;
+        goto error;
+    }
+
+    attributes = g_strsplit(enabled, ",", -1);
+
+    ret = 0;
+    if (strv_contains_all((const gchar *const*)attributes,
+                          (const char*[]){"fips-host", NULL}) ||
+        strv_contains_all((const gchar *const*)attributes,
+                          (const char*[]){"no-sha1-signing", "no-sha1-verification", NULL}))
+        ret = 1;
+
+error:
+    free(info_data);
+
+    return ret;
+}
+
+/*
  * This function only applies to TPM2: If FIPS mode was enabled on the host,
  * determine whether OpenSSL needs to deactivate FIPS mode (FIX_DISABLE_FIPS is
  * set). It doesn't need to deactivate it if a profile was chosen that has no
@@ -154,9 +189,13 @@ static int tpmlib_check_need_disable_fips_mode(unsigned int *fix_flags)
 /* Check whether SHA1 signatures need to be enabled. */
 static int tpmlib_check_need_enable_sha1_signatures(unsigned int *fix_flags)
 {
-     return tpmlib_check_disabled_algorithms(fix_flags,
-                                             DISABLED_SHA1_SIGNATURES,
-                                             true);
+    *fix_flags = 0;
+
+    if (tpmlib_check_attributes_disable_sha1_signatures())
+        return 0;
+    return tpmlib_check_disabled_algorithms(fix_flags,
+                                            DISABLED_SHA1_SIGNATURES,
+                                            true);
 }
 
 /*
