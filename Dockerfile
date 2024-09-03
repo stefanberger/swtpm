@@ -10,8 +10,9 @@ WORKDIR /src/build-prep/libtpms
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN curl -kL "https://github.com/stefanberger/libtpms/archive/${LIBTPMS_BRANCH}.tar.gz" \
-      | tar --strip=1 -zxvf - -C /src/build-prep/libtpms \
-    && ./autogen.sh --prefix=/usr --libdir=/usr/lib --with-tpm2 --with-openssl \
+      | tar --strip=1 -zxvf - -C /src/build-prep/libtpms
+
+RUN ./autogen.sh --prefix=/usr --libdir=/usr/lib --with-tpm2 --with-openssl \
     && make -j"$(nproc)" V=1 \
     && make -j"$(nproc)" V=1 check \
     && make -j"$(nproc)" install \
