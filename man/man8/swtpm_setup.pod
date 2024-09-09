@@ -226,16 +226,17 @@ The output may contain the following:
     {
       "type": "swtpm_setup",
       "features": [
+        "tpm-1.2",
+        "tpm-2.0",
         "cmdarg-keyfile-fd",
         "cmdarg-pwdfile-fd",
+        "tpm12-not-need-root",
         "cmdarg-write-ek-cert-files",
         "cmdarg-create-config-files",
-	"cmdarg-reconfigure-pcr-banks",
+        "cmdarg-reconfigure-pcr-banks",
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
-        "tpm12-not-need-root",
-        "tpm-1.2",
-        "tpm-2.0"
+        "cmdarg-profile"
       ],
       "version": "0.7.0"
     }
@@ -285,6 +286,10 @@ TPM 1.2 setup is supported (libtpms is compiled with TPM 1.2 support).
 =item B<tpm-2.0> (since v0.7)
 
 TPM 2 setup is supported (libtpms is compiled with TPM 2 support).
+
+=item B<cmdarg-profile> (since v0.10)
+
+The I<--profile> option is supported.
 
 =back
 
