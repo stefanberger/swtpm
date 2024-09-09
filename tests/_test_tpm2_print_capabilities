@@ -30,7 +30,8 @@ exp='\{ "type": "swtpm", '\
 '"flags-opt-disable-auto-shutdown", "ctrl-opt-terminate", '${seccomp}'"cmdarg-key-fd", '\
 '"cmdarg-pwd-fd", "cmdarg-print-states", "cmdarg-chroot", "cmdarg-migration", '\
 '"nvram-backend-dir", "nvram-backend-file"'\
-'(, "rsa-keysize-1024")?(, "rsa-keysize-2048")?(, "rsa-keysize-3072")?(, "cmdarg-profile")? \],'\
+'(, "rsa-keysize-1024")?(, "rsa-keysize-2048")?(, "rsa-keysize-3072")?, "cmdarg-profile", '\
+'"cmdarg-print-profiles" \],'\
 '( "profiles": \{ "names": \[ [^]]*\], "algorithms": \{ [^\}]*\}, "commands": \{ [^\}]*\} },)? '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then

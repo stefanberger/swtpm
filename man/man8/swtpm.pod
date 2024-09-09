@@ -320,6 +320,9 @@ may contain the following:
       "features": [
         "tpm-1.2",
         "tpm-2.0",
+        "tpm-send-command-header",
+        "flags-opt-startup",
+        "flags-opt-disable-auto-shutdown",
         "cmdarg-seccomp",
         "cmdarg-key-fd",
         "cmdarg-pwd-fd",
@@ -328,14 +331,11 @@ may contain the following:
         "cmdarg-migration",
         "nvram-backend-dir",
         "nvram-backend-file",
-        "tpm-send-command-header",
-        "flags-opt-startup",
-        "flags-opt-disable-auto-shutdown",
         "rsa-keysize-1024",
         "rsa-keysize-2048",
         "rsa-keysize-3072",
         "cmdarg-profile",
-        "cmdarg-print-profile"
+        "cmdarg-print-profiles"
       ],
       "version": "0.7.0"
     }
