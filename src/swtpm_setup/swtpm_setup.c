@@ -559,14 +559,16 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
                      const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
                      const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
                      unsigned int rsa_keysize, const gchar *certsdir,
-                     const gchar *user_certsdir, const gchar *json_profile)
+                     const gchar *user_certsdir, const gchar *json_profile,
+                     const gchar *profile_remove_disabled_param)
 {
     struct swtpm2 *swtpm2;
     struct swtpm *swtpm;
     int ret;
 
     swtpm2 = swtpm2_new(swtpm_prg_l, tpm2_state_path, swtpm_keyopt, gl_LOGFILE,
-                        fds_to_pass, n_fds_to_pass, json_profile);
+                        fds_to_pass, n_fds_to_pass, json_profile,
+                        profile_remove_disabled_param);
     if (swtpm2 == NULL)
         return 1;
     swtpm = &swtpm2->swtpm;
@@ -992,6 +994,12 @@ static void usage(const char *prgname, const char *default_config_file)
         "--profile <json-profile>\n"
         "                 : Configure swtpm with the given profile.\n"
         "\n"
+        "--profile-remove-disabled check|fips-host\n"
+        "                 : Instruct swtpm to remove algorithms that may be disabled by\n"
+        "                   FIPS mode on the host from 'custom' profile.\n"
+        "                   check: algorithms are tested.\n"
+        "                   fips-host: no testing.\n"
+        "\n"
         "--version        : Display version and exit\n"
         "\n"
         "--help,-h        : Display this help screen\n\n",
@@ -1167,7 +1175,7 @@ static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
            ", \"cmdarg-write-ek-cert-files\", \"cmdarg-create-config-files\""
            ", \"cmdarg-reconfigure-pcr-banks\""
            "%s"
-           ", \"cmdarg-profile\""
+           ", \"cmdarg-profile\", \"cmdarg-profile-remove-disabled\""
            ""
            " ], "
            "\"profiles\": [%s], "
@@ -1297,6 +1305,7 @@ int main(int argc, char *argv[])
         {"print-capabilities", no_argument, NULL, 'y'},
         {"reconfigure", no_argument, NULL, 'R'},
         {"profile", required_argument, NULL, 'I'},
+        {"profile-remove-disabled", required_argument, NULL, 'j'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -1326,6 +1335,7 @@ int main(int argc, char *argv[])
     g_autofree gchar *certsdir = NULL;
     g_autofree gchar *user_certsdir = NULL;
     g_autofree gchar *json_profile = NULL;
+    g_autofree gchar *profile_remove_disabled_param = NULL;
     gchar *tmp;
     gchar **swtpm_prg_l = NULL;
     gchar **tmp_l = NULL;
@@ -1514,6 +1524,17 @@ int main(int argc, char *argv[])
         case 'I': /* --profile */
             g_free(json_profile);
             json_profile = g_strdup(optarg);
+            break;
+        case 'j': /* --profile-remove-disabled */
+            if (strcmp(optarg, "fips-host") != 0 &&
+                strcmp(optarg, "check") != 0) {
+                fprintf(stderr,
+                        "Unsupported parameter for --profile-remove-disabled: %s\n",
+                        optarg);
+                goto error;
+            }
+            g_free(profile_remove_disabled_param);
+            profile_remove_disabled_param = g_strdup(optarg);
             break;
         case '?':
         case 'h': /* --help */
@@ -1798,7 +1819,7 @@ int main(int argc, char *argv[])
     } else {
         ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
                        swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize, certsdir,
-                       user_certsdir, json_profile);
+                       user_certsdir, json_profile, profile_remove_disabled_param);
     }
 
     if (ret == 0) {
