@@ -69,6 +69,7 @@ struct swtpm {
     size_t n_fds_to_pass;
     gboolean is_tpm2;
     const char *json_profile;
+    const char *profile_remove_disabled_param;
 
     GPid pid;
     int ctrl_fds[2];
@@ -92,7 +93,8 @@ struct swtpm12 *swtpm12_new(gchar **swtpm_prg_l, const gchar *tpm_state_path,
 struct swtpm2 *swtpm2_new(gchar **swtpm_prg_l, const gchar *tpm_state_path,
                          const gchar *swtpm_keyopts, const gchar *logfile,
                          int *fds_to_pass, size_t n_fds_to_pass,
-                         const gchar *profile_rules);
+                         const gchar *profile_rules,
+                         const gchar *profile_remove_disabled_param);
 
 void swtpm_free(struct swtpm *);
 

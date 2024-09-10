@@ -281,6 +281,20 @@ test_swtpm_setup_profile \
 
 echo "Test with custom profile and 'sha1' disabled algorithms passed"
 
+# Check that swtpm adjusts key sizes and sets 'Attributes' when
+# '--profile-remove-disabled fips-host' is passed
+profile="{\"Name\":\"custom\",\"Description\":\"Test\"} --profile-remove-disabled fips-host"
+exp_response="\{\"ActiveProfile\":\{\"Name\":\"custom\",.*,\"Algorithms\":\".*,rsa-min-size=2048,.*,ecc-min-size=224,.*\",\"Attributes\":\"no-sha1-signing,no-sha1-verification,no-unpadded-encryption\",\"Description\":\"Test\"\}\}"
+test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
+
+profile="{\"Name\":\"custom\",\"Attributes\":\"no-sha1-signing\",\"Description\":\"Test\"} --profile-remove-disabled fips-host"
+test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
+
+profile="{\"Name\":\"custom\",\"Attributes\":\"fips-host\",\"Description\":\"Test\"} --profile-remove-disabled fips-host"
+exp_response="\{\"ActiveProfile\":\{\"Name\":\"custom\",.*,\"Algorithms\":\".*,rsa-min-size=2048,.*,ecc-min-size=224,.*\",\"Attributes\":\"fips-host\",\"Description\":\"Test\"\}\}"
+test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
+
+echo "Tests with custom profile and --profile-remove-disabled option passed"
 
 # Copy TPM 2 state written by libtpms v0.9 and have the TPM read and re-write the state.
 # The size of the state file must not change since we don't want the profile to be
