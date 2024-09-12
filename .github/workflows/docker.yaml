@@ -73,8 +73,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
           #platforms: linux/amd64,linux/arm/v7,linux/arm/v6
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          no-cache: true
 
   test:
     runs-on: ubuntu-latest
