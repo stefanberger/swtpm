@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+	sed -i "$1" "$2"
+else
+	sed -i '' "$1" "$2"
+fi
