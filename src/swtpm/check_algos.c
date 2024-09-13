@@ -211,7 +211,9 @@ unsigned char rsa1024_der[] = {
   0xea, 0xe6, 0xf3, 0xfb, 0x37, 0xfc, 0x8f, 0x60, 0xae, 0x29
 };
 
-static int check_cipher(const char *ciphername, unsigned int _1, unsigned int _2)
+static int check_cipher(const char *ciphername,
+                        unsigned int unused1 SWTPM_ATTR_UNUSED,
+                        unsigned int unused2 SWTPM_ATTR_UNUSED)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     EVP_CIPHER *c = EVP_CIPHER_fetch(NULL, ciphername, NULL);
