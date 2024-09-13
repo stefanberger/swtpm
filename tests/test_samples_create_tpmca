@@ -22,12 +22,18 @@ SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
 
 PATH=$ROOT/src/swtpm:$PATH
 
-source "${abs_top_builddir:-$(dirname "$0")/..}/tests/test_config"
+source "${TESTDIR}/test_config"
+source "${TESTDIR}/common"
 
-SWTPM_SETUP=${ROOT}/src/swtpm_setup/swtpm_setup
-SWTPM_CREATE_TPMCA=${SRCDIR}/samples/swtpm-create-tpmca
-SWTPM_LOCALCA=${ROOT}/src/swtpm_localca/swtpm_localca
-SWTPM_IOCTL=${ROOT}/src/swtpm_ioctl/swtpm_ioctl
+if [ -n "${SWTPM_TEST_UNINSTALLED}" ]; then
+	SWTPM_CREATE_TPMCA=${SRCDIR}/samples/swtpm-create-tpmca
+else
+	SWTPM_CREATE_TPMCA=/usr/share/swtpm/swtpm-create-tpmca
+fi
+if [ ! -x "${SWTPM_CREATE_TPMCA}" ]; then
+	echo "Could not find swtpm-create-tpmca"
+	exit 77
+fi
 
 SWTPM_INTERFACE=socket+socket
 SWTPM_SERVER_NAME=localhost
@@ -75,7 +81,6 @@ function cleanup()
 }
 
 trap "cleanup" SIGTERM EXIT
-source "${TESTDIR}/common"
 skip_test_no_tpm12 "${SWTPM_EXE}"
 
 PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
