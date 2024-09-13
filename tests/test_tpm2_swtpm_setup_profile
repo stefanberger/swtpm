@@ -214,40 +214,45 @@ for todisable in "${canbedisabled_algos[@]}"; do
 done
 
 # Test the custom profiles with disabled commands and various StateFormatLevels
+test_custom_profile_sfls()
+{
+	local cmds="$1"
+	local sfls_list="$2"
+	local msg="$3"
+
+	local sfl exp_sfl exp_fail profile exp_response
+
+	for sfls in ${sfls_list}; do
+		sfl=$(cut -d":" -f1 <<< "${sfls}")
+		exp_sfl=$(cut -d":" -f2 <<< "${sfls}")
+		exp_fail=$(cut -d":" -f3 <<< "${sfls}")
+		profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\",\"StateFormatLevel\":${sfl}}"
+		exp_response=".*,\"StateFormatLevel\":${exp_sfl},.*"
+		test_swtpm_setup_profile \
+			"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
+		echo "Test with custom profile and commands${msg} passed with StateFormatLevel ${sfl}."
+	done
+}
 
 # because of 0x199-0x19a we must have StateFormatLevel >=3 for it to be acceptable
 cmds="0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x199-0x19a"
-for sfls in 1:0:1 2:0:1 3:3:0 4:4:0; do
-	sfl=$(cut -d":" -f1 <<< "${sfls}")
-	exp_sfl=$(cut -d":" -f2 <<< "${sfls}")
-	exp_fail=$(cut -d":" -f3 <<< "${sfls}")
-	profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\",\"StateFormatLevel\":${sfl}}"
-	exp_response=".*,\"StateFormatLevel\":${exp_sfl},.*"
-	test_swtpm_setup_profile \
-		"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
-	echo "Test with custom profile and commands (with 0x199-0x19a) passed with StateFormatLevel ${sfl}."
-done
+test_custom_profile_sfls "${cmds}" "1:f:1 2:f:1 3:3:0 4:4:0 5:5:0 6:6:0 7:7:0" " (with 0x199-0x19a)"
+
+# because of 0x19b we must have StateFormatLevel >=5 for it to be acceptable
+cmds="0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x199-0x19a,0x19b"
+test_custom_profile_sfls "${cmds}" "1:f:1 2:f:1 3:f:1 4:f:1 5:5:0 6:6:0 7:7:0" " (with 0x199-0x19b)"
 
 # Without given StateFormatLevel it should go up to StateFormatLevel '4' (due to AES-192 being selected)
 profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\"}"
 exp_response=".*,\"StateFormatLevel\":[[:digit:]]+,.*"
 test_swtpm_setup_profile \
-	"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
+	"${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
 
 # with cmds 0x199-0x19a missing it can have many StateFormatLevels >= 2
 cmds="0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193"
-# StateFormatLevel 3 enables 'nothing' additional and so will fall down to '2'
+# StateFormatLevel 3 enables 'nothing' additional but will be kept
 # StateFormatLevel 4 enables AES-192 and will remain at '4'
-for sfls in 1:0:1 2:2:0 3:2:0 4:4:0; do
-	sfl=$(cut -d":" -f1 <<< "${sfls}")
-	exp_sfl=$(cut -d":" -f2 <<< "${sfls}")
-	exp_fail=$(cut -d":" -f3 <<< "${sfls}")
-	profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\",\"StateFormatLevel\":${sfl}}"
-	exp_response=".*,\"StateFormatLevel\":${exp_sfl},.*"
-	test_swtpm_setup_profile \
-		"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
-	echo "Test with custom profile and commands passed with StateFormatLevel ${sfl}."
-done
+test_custom_profile_sfls "${cmds}" "1:f:1 2:2:0 3:3:0 4:4:0 5:5:0 6:6:0 7:7:0" ""
 
 # Without given StateFormatLevel it should go up to StateFormatLevel '4' (due to AES-192 being selected)
 profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\"}"
