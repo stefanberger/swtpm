@@ -178,6 +178,7 @@ EXTRA_DIST = \
 	patches/0010-Adjust-test-cases-for-OpenSSL-3.patch \
 	patches/0012-Disable-Nuvoton-commands.patch \
 	patches/libtpm.patch \
+	sed-inplace \
 	softhsm_setup \
 	test_clientfds.py \
 	test_setdatafd.py \
@@ -232,7 +233,7 @@ install-data-hook:
 	mkdir -p $(DESTDIR)$(testdir)
 	cd $(srcdir) && for file in $(EXTRA_DIST); do ./fileinstall "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
 	echo "$(TESTS)" > $(DESTDIR)$(testdir)/tests
-	sed -i '/SWTPM_TEST_UNINSTALLED=1/d' $(DESTDIR)$(testdir)/common
+	$(srcdir)/sed-inplace '/SWTPM_TEST_UNINSTALLED=1/d' $(DESTDIR)$(testdir)/common
 
 uninstall-hook:
 	cd $(DESTDIR)$(testdir) && rm -f $(EXTRA_DIST) tests
