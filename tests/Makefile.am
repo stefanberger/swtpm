@@ -169,6 +169,7 @@ EXTRA_DIST = \
 	data/tpm2state5/signature.bin \
 	data/tpm2state5/tpm2-00.permall \
 	data/tpm2state6/tpm2-00.permall \
+	fileinstall \
 	patches/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch \
 	patches/0002-Implement-powerup-for-swtpm.patch \
 	patches/0003-Set-CRYPTOLIBRARY-to-openssl.patch \
@@ -229,7 +230,7 @@ testdir = $(libexecdir)/installed-tests/$(PACKAGE)
 
 install-data-hook:
 	mkdir -p $(DESTDIR)$(testdir)
-	cd $(srcdir) && for file in $(EXTRA_DIST); do install -D "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
+	cd $(srcdir) && for file in $(EXTRA_DIST); do ./fileinstall "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
 	echo "$(TESTS)" > $(DESTDIR)$(testdir)/tests
 	sed -i '/SWTPM_TEST_UNINSTALLED=1/d' $(DESTDIR)$(testdir)/common
 
