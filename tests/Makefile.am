@@ -231,7 +231,7 @@ testdir = $(libexecdir)/installed-tests/$(PACKAGE)
 
 install-data-hook:
 	mkdir -p $(DESTDIR)$(testdir)
-	cd $(srcdir) && for file in $(EXTRA_DIST); do ./fileinstall "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
+	cd $(srcdir) && for file in test_config $(EXTRA_DIST); do ./fileinstall "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
 	echo "$(TESTS)" > $(DESTDIR)$(testdir)/tests
 	$(srcdir)/sed-inplace '/SWTPM_TEST_UNINSTALLED=1/d' $(DESTDIR)$(testdir)/common
 
