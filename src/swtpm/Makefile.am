@@ -21,6 +21,7 @@ noinst_HEADERS = \
 	options.h \
 	daemonize.h \
 	pidfile.h \
+	profile.h \
 	seccomp_profile.h \
 	server.h \
 	swtpm_aes.h \
@@ -49,6 +50,7 @@ libswtpm_libtpms_la_SOURCES = \
 	mainloop.c \
 	options.c \
 	pidfile.c \
+	profile.c \
 	seccomp_profile.c \
 	server.c \
 	swtpm_aes.c \

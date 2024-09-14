@@ -335,7 +335,8 @@ may contain the following:
         "rsa-keysize-2048",
         "rsa-keysize-3072",
         "cmdarg-profile",
-        "cmdarg-print-profiles"
+        "cmdarg-print-profiles",
+        "profile-opt-remove-disabled"
       ],
       "version": "0.7.0"
     }
@@ -420,6 +421,11 @@ to provide a JSON-formatted profile.
 
 The option <--print-profiles> is supported.
 
+=item B<profile-opt-remove-disabled>
+
+The I<--profile> option supports the I<remove-disabled> option
+parameter.
+
 =back
 
 =item B<--print-states> (since v0.7)
@@ -463,7 +469,8 @@ from swtpm. To avoid releasing the lock too early the 'permanent'
 and 'volatile' state blobs must be received before the 'savestate'
 blob.
 
-=item B<--profile name=E<lt>profile-nameE<gt>|profile=E<lt>json-profileE<gt>> (since v0.10)
+=item B<--profile
+name=E<lt>profile-nameE<gt>|profile=E<lt>json-profileE<gt>[,remove-disabled=check|fips-host]> (since v0.10)
 
 This option allows to set a profile for a TPM 2 using either the option parameter
 I<name=> to select a built-in profile by its name or I<profile=> to provide a
@@ -475,6 +482,36 @@ The profile can only be set the very first time that a TPM 2 instance is
 started and for as long as no state file exists. The profile cannot be changed
 anymore afterwards and, if passed again using this option, an error will
 occur.
+
+The I<remove-disabled> option parameter tells swtpm to remove those
+algorithms from the profile that are disabled when FIPS is enabled on a host
+(I<fips-host> parameter; reference is RHEL 9.4+ FIPS mode) and OpenSSL's access
+to crypto algorithms is restricted. The I<check> parameter can be used to
+check that an algorithm is actually disabled before removing it. This option
+is only supported if the I<custom> profile is chosen. In this case it will
+(currently) do the following:
+
+=over 2
+
+=item * remove camellia, tdes, and rsaes (RSA encryption with PKCS#1 v1.5
+padding)
+
+=item * disable signature support (RSA and EC) over SHA1
+
+=item * disable unpadded RSA encryption
+
+=item * set the minimum size for RSA keys to 2048 bits
+
+=item * set the minimum size for EC keys to 224 bits
+
+=back
+
+All other algorithms remain enabled, including those that FIPS may normally not
+allow, such as ecdaa and ecschnorr and others. The list of disabled algorithms
+will be extended in the future when FIPS mode on the host disables more
+algorithms. Since swtpm may add attributes to the profile that require a
+certain StateFormatLevel, it is recommended to omit the StateFormatLevel from
+the passed custom profile.
 
 Note that profiles may disable algorithms that are considered mandatory for
 a TPM 2, such as RSA-PSS. However, FIPS-enforcement on the host disables

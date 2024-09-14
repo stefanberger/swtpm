@@ -269,7 +269,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"profiles\": { %s}, "
          "\"version\": \"" VERSION "\" "
@@ -291,6 +291,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          keysizecaps  ? keysizecaps                    : "",
          true         ? ", \"cmdarg-profile\""         : "",
          true         ? ", \"cmdarg-print-profiles\""  : "",
+         true         ? ", \"profile-opt-remove-disabled\"" : "",
          profiles     ? profiles                       : ""
     );
 

@@ -71,6 +71,8 @@
 #include "seccomp_profile.h"
 #include "tpmlib.h"
 #include "mainloop.h"
+#include "profile.h"
+#include "swtpm_utils.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -284,6 +286,9 @@ static const OptionDesc profile_opt_desc[] = {
         .type = OPT_TYPE_STRING,
     }, {
         .name = "profile",
+        .type = OPT_TYPE_STRING,
+    }, {
+        .name = "remove-disabled",
         .type = OPT_TYPE_STRING,
     },
     END_OPTION_DESC
@@ -1430,7 +1435,9 @@ error:
 
 static int parse_profile_options(char *options, char **json_profile)
 {
+    const char *remove_disabled;
     OptionValues *ovs = NULL;
+    gboolean force = false;
     char *error = NULL;
     const char *profile;
     const char *name;
@@ -1458,6 +1465,21 @@ static int parse_profile_options(char *options, char **json_profile)
         }
     }
 
+    remove_disabled = option_get_string(ovs, "remove-disabled", NULL);
+    if (remove_disabled) {
+        if (!strcmp(remove_disabled, "check")) {
+            force = false;
+        } else if (!strcmp(remove_disabled, "fips-host")) {
+            force = true;
+        } else {
+            logprintf(STDERR_FILENO, "Invalid option parameter '%s' for 'remove-disabled'\n",
+                      remove_disabled);
+            goto error;
+        }
+        if (profile_remove_fips_disabled_algorithms(json_profile, force))
+            goto error;
+    }
+
     option_values_free(ovs);
 
     return 0;
@@ -1467,6 +1489,7 @@ oom_error:
               "Out of memory to create JSON profile\n");
 
 error:
+    SWTPM_G_FREE(*json_profile);
     option_values_free(ovs);
     free(error);
 
