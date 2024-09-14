@@ -56,4 +56,9 @@ unsigned int check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
 #define FIX_ENABLE_SHA1_SIGNATURES  (1 << 1) /* fix by setting OPENSSL_ENABLE_SHA1_SIGNATURES=1 */
 #define FIX_DISABLE_CONFIG          (1 << 2) /* fix by modifying openssl config (how?) */
 
+int check_ossl_fips_disabled_remove_algorithms(gchar ***algorithms,
+                                               gboolean check);
+int check_ossl_fips_disabled_set_attributes(gchar ***attributes,
+                                            gboolean check);
+
 #endif /* _SWTPM_CHECK_ALGOS_H_ */

@@ -37,6 +37,9 @@
 
 #include "config.h"
 
+#define _GNU_SOURCE
+#include <errno.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "check_algos.h"
@@ -312,6 +315,25 @@ static int check_rsa_sign(const char *hashname, unsigned int keysize,
     return bad;
 }
 
+static int check_rsa_verify(const char *hashname, unsigned int keysize,
+                            unsigned int padding)
+{
+    EVP_PKEY *pkey = get_rsakey(keysize);
+    EVP_PKEY_CTX *ctx =  EVP_PKEY_CTX_new(pkey, NULL);
+    const EVP_MD *md = EVP_get_digestbyname(hashname);
+    int bad;
+
+    bad = (!pkey || !ctx || !md ||
+           EVP_PKEY_verify_init(ctx) <= 0 ||
+           EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0 ||
+           EVP_PKEY_CTX_set_signature_md(ctx, md) <= 0);
+
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ctx);
+
+    return bad;
+}
+
 /*
  * List of OpenSSL configuration-disabled and 'fips=yes'-disabled algorithms
  * that TPM 2 may enable with a profile.
@@ -374,6 +396,17 @@ static const struct algorithms_tests {
       .testfn = check_rsa_encryption,
       .fix_flags = FIX_DISABLE_FIPS,
     }, {
+      .disabled_type = DISABLED_BY_FIPS,
+      /*
+       * Use RSA 1024 test that indicates OpenSSL minimum supported key length
+       * see: https://www.keylength.com/en/4/
+       */
+      .names = (const char *[]){"ecc-nist-p192", NULL},
+      .algname = "SHA256",
+      .keysize = 1024,
+      .padding = RSA_PKCS1_PSS_PADDING,
+      .testfn = check_rsa_sign,
+    }, {
       .disabled_type = DISABLED_SHA1_SIGNATURES,
       .names = (const char *[]){"rsa", "sha1", "rsapss", NULL},
       .algname = "SHA1",
@@ -414,24 +447,77 @@ static const struct algorithms_tests {
     }
 };
 
+static const struct fips_disabled {
+    const char *name;
+    const char *related;
+    size_t related_len;
+} ossl_fips_disabled_algorithms[] = {
+#define ENTRY(NAME, RELATED, R_LEN) \
+    { .name = NAME, .related = RELATED, .related_len = R_LEN}
+    /* minimum required list of algorithms to disable */
+    ENTRY("camellia", "camellia-min-size=", 18),
+    ENTRY("tdes", "tdes-min-size=", 14),
+    ENTRY("rsaes", NULL, 0),
+    ENTRY("ecc-nist-p192", NULL, 0),
+    ENTRY(NULL, 0, 0)
+#undef ENTRY
+};
+
 /* list of minimum required key sizes for FIPS */
 static const struct key_sizes {
     const char **names;     // all of these must be found enabled in profile
     const char *keyword;
     unsigned int min_size;
+    const char *algname;    // string to use for OpenSSL
+    unsigned int keysize;   // keysize
+    unsigned int padding;   // padding
+    AlgorithmTest testfn;   // function to call
 } fips_key_sizes[] = {
     {
         .names = (const char *[]){"ecc-nist", NULL}, //keyword only matters if this is given
         .keyword = "ecc-min-size=",
         .min_size = 224,
+        /*
+         * Use RSA 1024 test that indicates OpenSSL minimum supported key length
+         * see: https://www.keylength.com/en/4/
+         */
+        .algname = "SHA256",
+        .keysize = 1024, // 1024 would fail test; 2048 expected to work
+        .padding = RSA_PKCS1_PSS_PADDING,
+        .testfn = check_rsa_sign,
     }, {
         .names = (const char *[]){"rsa", NULL}, //keyword only matters if this is given
         .keyword = "rsa-min-size=",
         .min_size = 2048,
+
+        .algname = "SHA256",
+        .keysize = 1024, // 1024 would fail test; 2048 expected to work
+        .padding = RSA_PKCS1_PSS_PADDING,
+        .testfn = check_rsa_sign,
     }, {
         // keep last
     }
 };
+
+/*
+ * Check whether the crypto algorithm described by the TPM algorithm 'verbs'
+ * is disabled.
+ */
+static bool check_ossl_algorithm_is_disabled(const gchar *const*tpm_algorithms)
+{
+    size_t i;
+
+    for (i = 0; ossl_config_disabled[i].names; i++) {
+        if (!strv_contains_all(ossl_config_disabled[i].names, tpm_algorithms))
+            continue;
+        if (ossl_config_disabled[i].testfn(
+                ossl_config_disabled[i].algname,
+                ossl_config_disabled[i].keysize,
+                ossl_config_disabled[i].padding))
+            return true;
+    }
+    return false;
+}
 
 /* Determine whether any of the algorithms in the array are FIPS-disable */
 static unsigned int
@@ -525,4 +611,180 @@ unsigned int check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
                                                fips_key_sizes,
                                                disabled_filter,
                                                stop_on_first_disabled);
+}
+
+static gchar *algorithms_gencmpstr(gchar *input, ssize_t *len)
+{
+    char *equals = index(input, '=');
+
+    if (equals)
+        *len = equals - input;
+    else
+        *len = -1;
+
+    return input;
+}
+
+/*
+ * Remove those algorithms in the given array that are disabled by FIPS and
+ * set or adjust key lengths to minimum required sizes for FIPS.
+ *
+ * @algorithms: pointer to NULL-terminated array of algorithms
+ * @force: whether to test force adding attributes rather than test the
+ *         algorithm
+ */
+int check_ossl_fips_disabled_remove_algorithms(gchar ***algorithms,
+                                               gboolean force)
+{
+    unsigned long v;
+    char *end_ptr;
+    size_t i, l;
+    gchar *old;
+    ssize_t j;
+
+    /* remove all unsupported algorithms */
+    for (i = 0; ossl_fips_disabled_algorithms[i].name != NULL; i++) {
+        if (!force &&
+            !check_ossl_algorithm_is_disabled(
+                    (const char *[]){ossl_fips_disabled_algorithms[i].name,
+                                     NULL})) {
+            continue;
+        }
+
+        strv_remove(*algorithms,
+                    ossl_fips_disabled_algorithms[i].name, -1,
+                    true);
+        if (ossl_fips_disabled_algorithms[i].related)
+            strv_remove(*algorithms,
+                        ossl_fips_disabled_algorithms[i].related,
+                        ossl_fips_disabled_algorithms[i].related_len,
+                        true);
+    }
+
+    /* deduplicate items in algorithms array */
+    strv_dedup(*algorithms, algorithms_gencmpstr, true);
+
+    /* set/adjust min. key sizes */
+    for (i = 0; fips_key_sizes[i].keyword; i++) {
+        if (!force &&
+            fips_key_sizes[i].testfn(fips_key_sizes[i].algname,
+                                     fips_key_sizes[i].keysize,
+                                     fips_key_sizes[i].padding) == 0) {
+            continue;
+        }
+
+        l = strlen(fips_key_sizes[i].keyword);
+        j = strv_strncmp((const gchar *const*)*algorithms, fips_key_sizes[i].keyword, l);
+        if (j >= 0) {
+            /* key size large enough as indicated? */
+            errno = 0;
+            v = strtoul(&((*algorithms)[j])[l], &end_ptr, 10);
+            if (errno || end_ptr[0] != '\0') {
+                logprintf(STDERR_FILENO,
+                          "Error: Could not parse '%s' as a number.\n",
+                          &((*algorithms)[j])[l]);
+                return 1;
+            }
+            if (v >= fips_key_sizes[i].min_size)
+                continue;
+
+            /* need to adjust min key size */
+            old = (*algorithms)[j];
+        } else {
+            /* append to strv */
+            j = g_strv_length(*algorithms);
+            *algorithms = g_realloc(*algorithms,
+                                    sizeof(char *) * (j + 1 + 1));
+            (*algorithms)[j + 1] = NULL;
+            old = NULL;
+        }
+
+        if (asprintf(&((*algorithms)[j]), "%s%u",
+                     fips_key_sizes[i].keyword,
+                     fips_key_sizes[i].min_size) < 0) {
+            (*algorithms)[j] = old;
+            return 1;
+        }
+        g_free(old);
+    }
+
+    return 0;
+}
+
+/*
+ * Set attributes in the profile that are needed due to FIPS-disabled
+ * algorithms.
+ *
+ * @attributes: pointer to NULL-termainted array of attributes
+ * @force: whether to test force adding attributes rather than test the
+ *         algorithm
+ */
+int check_ossl_fips_disabled_set_attributes(gchar ***attributes, gboolean force)
+{
+    const gchar *const fips_attributes[] = {
+        "no-sha1-signing",
+        "no-sha1-verification",
+        "no-unpadded-encryption",
+        NULL
+    };
+
+    if (force) {
+        if (!(*attributes) ||
+            (!strv_contains_all((const gchar *const*)*attributes,
+                                (const char*[]){"fips-host", NULL}) &&
+             !strv_contains_all((const gchar *const*)*attributes,
+                                fips_attributes)))
+            *attributes = strv_extend(*attributes, fips_attributes);
+        goto exit;
+    }
+
+    /* need to do checks */
+    if ((*attributes) &&
+        strv_contains_all((const gchar *const*)*attributes,
+                          (const char*[]){"fips-host", NULL})) {
+        /* fips-host is already set */
+        goto exit;
+    }
+
+    if (!(*attributes) ||
+        !g_strv_contains((const gchar *const*)*attributes,
+                         "no-sha1-signing")) {
+        /* 2048 bit key will not be reason signing fails but SHA1 */
+        if (check_rsa_sign("SHA1", 2048, RSA_PKCS1_PSS_PADDING)) {
+            /* set no-sha1-signing */
+            *attributes = strv_extend(*attributes,
+                                      (const char *[]){
+                                          "no-sha1-signing",
+                                          NULL
+                                      });
+        }
+    }
+    if (!(*attributes) ||
+        !g_strv_contains((const gchar *const*)*attributes,
+                         "no-sha1-verification")) {
+        /* 2048 bit key will not be reason signing fails but SHA1 */
+        if (check_rsa_verify("SHA1", 2048, RSA_PKCS1_PSS_PADDING)) {
+            /* set no-sha1-verification */
+            *attributes = strv_extend(*attributes,
+                                      (const char *[]){
+                                          "no-sha1-verification",
+                                          NULL
+                                      });
+        }
+    }
+    if (!(*attributes) ||
+        !g_strv_contains((const gchar *const*)*attributes,
+                         "no-unpadded-encryption")) {
+        if (check_rsa_encryption(NULL, 2048, RSA_NO_PADDING)) {
+            /* set no-unpadded-encryption */
+            *attributes = strv_extend(*attributes,
+                                      (const char *[]){
+                                          "no-unpadded-encryption",
+                                          NULL
+                                      });
+        }
+    }
+
+exit:
+    return 0;
 }
