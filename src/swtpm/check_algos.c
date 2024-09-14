@@ -283,8 +283,8 @@ static int check_rsaes(const char *unused SWTPM_ATTR_UNUSED,
     return bad;
 }
 
-static int check_rsasign(const char *hashname, unsigned int keysize,
-                         unsigned int padding SWTPM_ATTR_UNUSED)
+static int check_rsa_sign(const char *hashname, unsigned int keysize,
+                          unsigned int padding)
 {
     EVP_PKEY *pkey = get_rsakey(keysize);
     EVP_PKEY_CTX *ctx =  EVP_PKEY_CTX_new(pkey, NULL);
@@ -296,7 +296,7 @@ static int check_rsasign(const char *hashname, unsigned int keysize,
 
     bad = (!pkey || !ctx || !md ||
            EVP_PKEY_sign_init(ctx) <= 0 ||
-           EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
+           EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0 ||
            EVP_PKEY_CTX_set_signature_md(ctx, md) <= 0 ||
            EVP_PKEY_sign(ctx, signature, &siglen, hash, EVP_MD_size(md)) <= 0);
 
@@ -371,7 +371,7 @@ static const struct algorithms_tests {
       .algname = "SHA1",
       .keysize = 1024,
       .padding = RSA_PKCS1_PSS_PADDING,
-      .testfn = check_rsasign,
+      .testfn = check_rsa_sign,
       .display = "RSA-1024-sign(SHA1, pkcs1-pss)",
       .fix_flags = FIX_ENABLE_SHA1_SIGNATURES,
     }, {
@@ -380,7 +380,7 @@ static const struct algorithms_tests {
       .algname = "SHA1",
       .keysize = 1024,
       .padding = RSA_PKCS1_PADDING,
-      .testfn = check_rsasign,
+      .testfn = check_rsa_sign,
       .display = "RSA-1024-sign(SHA1, pkcs1)",
       .fix_flags = FIX_ENABLE_SHA1_SIGNATURES,
     }, {
@@ -389,16 +389,16 @@ static const struct algorithms_tests {
       .algname = "SHA1",
       .keysize = 2048,
       .padding = RSA_PKCS1_PSS_PADDING,
-      .testfn = check_rsasign,
+      .testfn = check_rsa_sign,
       .display = "RSA-2048-sign(SHA1, pkcs1-pss)",
       .fix_flags = FIX_ENABLE_SHA1_SIGNATURES,
     }, {
       .disabled_type = DISABLED_SHA1_SIGNATURES,
-      .names = (const char *[]){"rsa", "sha1", "rsapss", NULL},
+      .names = (const char *[]){"rsa", "sha1", "rsassa", NULL},
       .algname = "SHA1",
       .keysize = 2048,
       .padding = RSA_PKCS1_PADDING,
-      .testfn = check_rsasign,
+      .testfn = check_rsa_sign,
       .display = "RSA-2048-sign(SHA1, pkcs1)",
       .fix_flags = FIX_ENABLE_SHA1_SIGNATURES,
     }, {
