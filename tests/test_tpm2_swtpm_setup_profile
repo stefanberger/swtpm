@@ -304,9 +304,11 @@ cp "${TESTDIR}/data/tpm2state6/tpm2-00.permall" "${workdir}"
 before=$(get_filesize "${workdir}/tpm2-00.permall")
 
 # Avoid swptm sending TPM2_Shutdown(SU_STATE) and adding savestate to the state file
+rm -f "${workdir}/logfile"
 run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
-	--flags not-need-init,startup-clear,disable-auto-shutdown
+	--flags not-need-init,startup-clear,disable-auto-shutdown \
+	--log "file=${workdir}/logfile"
 
 if ! kill_quiet -0 "${SWTPM_PID}"; then
 	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
@@ -343,6 +345,21 @@ if [ "${after}" -ne "${before}" ]; then
 fi
 
 echo "Test with state written by libtpms v0.9 passed"
+
+# Check that swtpm emitted log message with OPENSSL_ENABLE_SHA1_SIGNATURES=1 on
+# RHEL and CentOS; libtpms 0.9 supported SHA1 signatures
+case $(get_distro_name) in
+RHEL)	[ "$(get_rhel_version)" -ge 904 ] && exp=1;;
+CentOS)	[ "$(get_centos_version)" -ge 900 ] && exp=1;;
+*)	exp=0;;
+esac
+if [ "${exp}" -eq 1 ]; then
+	if ! grep -q OPENSSL_ENABLE_SHA1_SIGNATURES "${workdir}/logfile"; then
+		echo "Missing reference to OPENSSL_ENABLE_SHA1_SIGNATURES in logfile"
+		exit 1
+	fi
+	echo "Test checking for reference to OPENSSL_ENABLE_SHA1_SIGNATURES in logfile passed"
+fi
 
 # If the user passes the null profile in then libtpms has to write state
 # at the level of libtpms v0.9 and the size of the state file has to be
