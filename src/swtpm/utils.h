@@ -77,6 +77,10 @@ ssize_t read_eintr(int fd, void *buffer, size_t buflen);
 
 int json_get_submap_value(const char *json_input, const char *field_name,
                           const char *field_name2, char **value);
+int json_get_map_key_value(const char *json_input,
+                           const char *key, char **value);
+int json_set_map_key_value(char **json_input,
+                           const char *key, const char *value);
 
 ssize_t strv_strncmp(const gchar *const*str_array, const gchar *s, size_t n);
 
