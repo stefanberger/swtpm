@@ -261,21 +261,27 @@ static EVP_PKEY *get_rsakey(unsigned int size)
     return d2i_PrivateKey(EVP_PKEY_RSA, NULL, &p, len);
 }
 
-/* TPM_ALG_RSAES == RSA_PKCS1_PADDING */
-static int check_rsaes(const char *unused SWTPM_ATTR_UNUSED,
-                       unsigned int unused2 SWTPM_ATTR_UNUSED,
-                       unsigned int unused3 SWTPM_ATTR_UNUSED)
+static int check_rsa_encryption(const char *unused SWTPM_ATTR_UNUSED,
+                                unsigned int keysize,
+                                unsigned int padding)
 {
-    unsigned char buffer[MAX_RSA_KEYSIZE / 8];
-    size_t bufferlen = sizeof(buffer);
-    EVP_PKEY *pkey = get_rsakey(2048);
+    EVP_PKEY *pkey = get_rsakey(keysize);
     EVP_PKEY_CTX *ctx =  EVP_PKEY_CTX_new(pkey, NULL);
+    unsigned char input[MAX_RSA_KEYSIZE / 8] = {0, };
+    unsigned char enc[MAX_RSA_KEYSIZE / 8];
+    size_t enclen = sizeof(enc);
+    size_t inlen = 1;
     int bad;
 
+    /* for RSA_NO_PADDING the input must be size of the key */
+    if (padding == RSA_NO_PADDING)
+        inlen = keysize / 8;
+
+    /* RSA_NO_PADDING only fails in EVP_PKEY_encrypt */
     bad = (!pkey || !ctx ||
            EVP_PKEY_encrypt_init(ctx) <= 0 ||
-           EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0 ||
-           EVP_PKEY_encrypt(ctx, buffer, &bufferlen, (void *)".", 1) <= 0);
+           EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0 ||
+           EVP_PKEY_encrypt(ctx, enc, &enclen, input, inlen) <= 0);
 
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
@@ -363,7 +369,9 @@ static const struct algorithms_tests {
     }, {
       .disabled_type = DISABLED_BY_FIPS,
       .names = (const char *[]){"rsaes", NULL},
-      .testfn = check_rsaes,
+      .keysize = 2048,
+      .padding = RSA_PKCS1_PADDING,
+      .testfn = check_rsa_encryption,
       .fix_flags = FIX_DISABLE_FIPS,
     }, {
       .disabled_type = DISABLED_SHA1_SIGNATURES,
