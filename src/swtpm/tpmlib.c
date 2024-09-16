@@ -126,9 +126,9 @@ static int tpmlib_check_disabled_algorithms(unsigned int *fix_flags,
 
     algorithms = g_strsplit(enabled, ",", -1);
 
-    *fix_flags = ossl_algorithms_are_disabled((const gchar * const *)algorithms,
-                                              disabled_filter,
-                                              stop_on_first_disabled);
+    *fix_flags = check_ossl_algorithms_are_disabled((const gchar * const *)algorithms,
+                                                    disabled_filter,
+                                                    stop_on_first_disabled);
 
     g_strfreev(algorithms);
 error:
