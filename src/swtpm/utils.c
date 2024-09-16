@@ -440,3 +440,114 @@ gboolean strv_contains_all(const gchar *const*haystack, const gchar *const*needl
     }
     return true;
 }
+
+/*
+ * Remove all entries in the @array that either fully match @toremove
+ * (@len = -1) or where @toremove is a prefix of.
+ * This function returns the number of entries that were removed.
+ */
+size_t strv_remove(gchar **array, const gchar *toremove, ssize_t len,
+                   gboolean freethem)
+{
+    size_t i = 0, j, num = 0;
+
+    while (array[i]) {
+        if ((len < 0 && strcmp(array[i], toremove) == 0) ||
+            (strncmp(array[i], toremove, len) == 0)) {
+            if (freethem)
+                g_free(array[i]);
+
+            j = i;
+            do {
+                j++;
+                array[j - 1] = array[j];
+            } while(array[j]);
+
+            num++;
+        } else {
+            i++;
+        }
+    }
+    return num;
+}
+
+/*
+ * Deduplicate items in a NULL-terminated array of strings.
+ * When a duplicate item is found then the first item is removed and all later
+ * ones are kept -- this is to deduplicate items in the same way as libtpms
+ * deduplicates comma separated items in a string. The string to use for
+ * finding duplicates is expected to be returned from an optional gencmpstr_t
+ * function that in the simplest case can return the passed string and adjust
+ * string comparison to be done on full string (len = -1) or prefix comparison.
+ * If not function is given then full string matching is done.
+ *
+ * This function returns the number of entries removed from the array.
+ */
+size_t strv_dedup(gchar **array, gencmpstr_t gencmpstr, gboolean freethem)
+{
+    gboolean free_cmp = false;
+    size_t num = 0, i = 0, j;
+    ssize_t len = 0;
+    gchar *cmp;
+
+    while (array[i]) {
+        if (gencmpstr) {
+            cmp = gencmpstr(array[i], &len);
+            free_cmp = array[i] != cmp;
+        } else {
+            cmp = array[i];
+            len = strlen(cmp);
+        }
+
+        j = i + 1;
+        while (array[j]) {
+            if ((len < 0 && strcmp(array[j], cmp) == 0) ||
+                (strncmp(array[j], cmp, len) == 0)) {
+
+                num++;
+                if (freethem)
+                    g_free(array[i]);
+
+                /*
+                 * Keep the later ones in the array since libtpms also keeps
+                 * later items ones in string when deduplicating.
+                 */
+                j = i;
+                do {
+                    array[j] = array[j + 1];
+                    j++;
+                } while (array[j]);
+                break;
+            }
+            j++;
+        }
+
+        if (free_cmp)
+            g_free(cmp);
+        i++;
+    }
+    return num;
+}
+
+/*
+ * Append entries from a 2nd string array to the first one. Make copies of
+ * each entry.
+ */
+gchar **strv_extend(gchar **array, const gchar *const*append)
+{
+    size_t len1 = 0, len2 = 0, i;
+
+    if (array)
+        len1 = g_strv_length(array);
+
+    while (append[len2])
+        len2++;
+
+    array = g_realloc(array, sizeof(char *) * (len1 + len2 + 1));
+
+    for (i = 0; i < len2; i++)
+        array[len1 + i] = g_strdup(append[i]);
+    array[len1 + len2] = NULL;
+
+    return array;
+}

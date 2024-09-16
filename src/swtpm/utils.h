@@ -82,4 +82,11 @@ ssize_t strv_strncmp(const gchar *const*str_array, const gchar *s, size_t n);
 
 gboolean strv_contains_all(const gchar *const*haystack, const gchar *const*needles);
 
+size_t strv_remove(gchar **array, const gchar *toremove, ssize_t len,
+                   gboolean freethem);
+typedef char *(*gencmpstr_t)(gchar *string, ssize_t *cmplen);
+size_t strv_dedup(gchar **array, gencmpstr_t strtrafo, gboolean freethem);
+
+gchar **strv_extend(gchar **array, const gchar *const*append);
+
 #endif /* _SWTPM_UTILS_H_ */
