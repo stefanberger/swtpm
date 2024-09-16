@@ -1014,3 +1014,27 @@ function check_swtpm_storage_locked()
 		exit 1
 	fi
 }
+
+# Get the name of the distro; only a few distros are supported for specific tests
+function get_distro_name()
+{
+	if [ -r /etc/redhat-release ]; then
+		if grep -qE "^Red Hat Enterprise" /etc/redhat-release; then
+			echo "RHEL"
+		elif grep -qE "^CentOS Stream release" /etc/redhat-release; then
+			echo "CentOS"
+		fi
+	fi
+}
+
+function get_rhel_version()
+{
+	sed -n 's/Red Hat Enterprise Linux release \([^ ]*\) .*/\1/p' /etc/redhat-release |
+		gawk '{split($0,a,"."); print a[1]*100 + a[2]}'
+}
+
+function get_centos_version()
+{
+	sed -n 's/CentOS Stream release \([0-9]*\).*/\1/p' /etc/redhat-release |
+		gawk '{print $0*100}'
+}
