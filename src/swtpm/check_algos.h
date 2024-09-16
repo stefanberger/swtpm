@@ -42,9 +42,9 @@
 
 #include <glib.h>
 
-unsigned int ossl_algorithms_are_disabled(const gchar *const*algorithms,
-                                          unsigned int disabled_filter,
-                                          bool stop_on_first_disabled);
+unsigned int check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
+                                                unsigned int disabled_filter,
+                                                bool stop_on_first_disabled);
 
 /* disabled_filters: */
 #define DISABLED_BY_FIPS            (1 << 0)

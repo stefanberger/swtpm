@@ -434,12 +434,12 @@ static const struct key_sizes {
 };
 
 /* Determine whether any of the algorithms in the array are FIPS-disable */
-static unsigned int _ossl_algorithms_are_disabled(const gchar *const*algorithms,
-                                                  const struct algorithms_tests *ossl_config_disabled_algos,
-                                                  const struct key_sizes *key_sizes,
-                                                  unsigned int disabled_filter,          // filter by these flags (optional)
-                                                  bool stop_on_first_disabled
-                                                 )
+static unsigned int
+_check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
+                                    const struct algorithms_tests *ossl_config_disabled_algos,
+                                    const struct key_sizes *key_sizes,
+                                    unsigned int disabled_filter,          // filter by these flags (optional)
+                                    bool stop_on_first_disabled)
 {
     unsigned int disabled_type;
     unsigned int fix_flags = 0;
@@ -517,11 +517,12 @@ static unsigned int _ossl_algorithms_are_disabled(const gchar *const*algorithms,
  * signatures with SHA1 are disabled and if so this function will set the
  * FIX_ENABLE_SHA1_SIGNATURES flag.
  */
-unsigned int ossl_algorithms_are_disabled(const gchar *const*algorithms,
-                                          unsigned int disabled_filter,
-                                          bool stop_on_first_disabled)
+unsigned int check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
+                                                unsigned int disabled_filter,
+                                                bool stop_on_first_disabled)
 {
-    return _ossl_algorithms_are_disabled(algorithms, ossl_config_disabled, fips_key_sizes,
-                                         disabled_filter,
-                                         stop_on_first_disabled);
+    return _check_ossl_algorithms_are_disabled(algorithms, ossl_config_disabled,
+                                               fips_key_sizes,
+                                               disabled_filter,
+                                               stop_on_first_disabled);
 }
