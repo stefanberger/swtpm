@@ -50,6 +50,7 @@
 
 #include <openssl/rsa.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 
 #define MAX_RSA_KEYSIZE 2048
 
@@ -332,6 +333,21 @@ static int check_rsa_verify(const char *hashname, unsigned int keysize,
     EVP_PKEY_CTX_free(ctx);
 
     return bad;
+}
+
+static int check_hmac(const char *hashname,
+                      unsigned int unused1 SWTPM_ATTR_UNUSED,
+                      unsigned int unused2 SWTPM_ATTR_UNUSED)
+{
+    const EVP_MD *evp_md = EVP_get_digestbyname(hashname);
+    unsigned char md[EVP_MAX_MD_SIZE];
+    unsigned int md_len = sizeof(md);
+
+    /*
+     * libtpms may not use OpenSSL HMAC functions to calculate an HMAC (but
+     * hash functions), nevertheles use HMAC() to test.
+     */
+    return HMAC(evp_md, NULL, 0, (unsigned char *)".", 1, md, &md_len) == NULL;
 }
 
 /*
@@ -721,6 +737,11 @@ int check_ossl_fips_disabled_remove_algorithms(gchar ***algorithms,
  */
 int check_ossl_fips_disabled_set_attributes(gchar ***attributes, gboolean force)
 {
+    const gchar *const fips_hmac_attributes[] = {
+        "no-sha1-hmac-creation",
+        "no-sha1-hmac-verification",
+        NULL
+    };
     const gchar *const fips_attributes[] = {
         "no-sha1-signing",
         "no-sha1-verification",
@@ -735,6 +756,10 @@ int check_ossl_fips_disabled_set_attributes(gchar ***attributes, gboolean force)
              !strv_contains_all((const gchar *const*)*attributes,
                                 fips_attributes)))
             *attributes = strv_extend(*attributes, fips_attributes);
+        /*
+         * Do not force-remove HMAC+sha1 support until it is officially
+         * disabled
+         */
         goto exit;
     }
 
@@ -743,7 +768,7 @@ int check_ossl_fips_disabled_set_attributes(gchar ***attributes, gboolean force)
         strv_contains_all((const gchar *const*)*attributes,
                           (const char*[]){"fips-host", NULL})) {
         /* fips-host is already set */
-        goto exit;
+        goto check_hmac_sha1;
     }
 
     if (!(*attributes) ||
@@ -780,6 +805,30 @@ int check_ossl_fips_disabled_set_attributes(gchar ***attributes, gboolean force)
             *attributes = strv_extend(*attributes,
                                       (const char *[]){
                                           "no-unpadded-encryption",
+                                          NULL
+                                      });
+        }
+    }
+
+check_hmac_sha1:
+    /* HMAC with SHA1 may be disabled next */
+    if ((*attributes) &&
+        (strv_contains_all((const gchar *const*)*attributes,
+                           (const char*[]){"no-sha1-hmac", NULL}) ||
+         strv_contains_all((const gchar *const*)*attributes,
+                           fips_hmac_attributes))) {
+        /*
+         * no-sha1-hmac or no-sha1-hmac-creation & no-sha1-hmac-verification
+         * are already set
+         */
+        goto exit;
+    }
+
+    if (!(*attributes)) {
+        if (check_hmac("SHA1", 0, 0)) {
+            *attributes = strv_extend(*attributes,
+                                      (const char *[]){
+                                          "no-sha1-hmac",
                                           NULL
                                       });
         }
