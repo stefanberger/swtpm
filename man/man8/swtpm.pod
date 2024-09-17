@@ -476,10 +476,21 @@ selected by its name using the option parameter I<name=>. With the I<profile=>
 option parameter a JSON-formatted profile can be passed directly. With
 the I<file=> option parameter a JSON-formatted profile will be read from a file.
 The I<fd=> option parameter allows to read it from a file descriptor.
-Any JSON-formatted profile must reference the name of a built-in profile.
-Note that only the 'custom' profile may be modified and provide a list of
-algorithms, commands, or attributes that controls which crypto algorithms a
-TPM 2 enables.
+
+Profiles must reference the name of a built-in profile. Note that only the
+'custom' profile, or profiles whose name starts with 'custom:', may be modified
+and provide a list of algorithms, commands, or attributes that control which
+crypto algorithms a TPM 2 enables. If either one of these lists is not given
+then the corresponding list from the built-in 'custom' profile is used.
+
+The following command line option selects the 'custom' profile under the new
+name 'custom:test' with the 'fips-host' attribute set:
+
+=over 2
+
+  [...] --profile '{"Name":"custom:test", "Attributes":"fips-host"}'
+
+=back
 
 The profile can only be set the very first time that a TPM 2 instance is
 started and for as long as no state file exists. The profile cannot be changed
@@ -490,7 +501,7 @@ The I<remove-disabled> option parameter tells swtpm to remove those
 algorithms from the profile that are disabled when FIPS is enabled on a host
 (I<fips-host> parameter; reference is RHEL 9.4+ FIPS mode) and OpenSSL's access
 to crypto algorithms is restricted. The I<check> parameter can be used to
-check that an algorithm is actually disabled before removing it. This option
+check that an algorithm is in fact disabled before removing it. This option
 is only supported if the I<custom> profile is chosen. In this case it will
 (currently) do the following:
 
@@ -512,24 +523,13 @@ padding)
 All other algorithms remain enabled, including those that FIPS may normally not
 allow, such as ecdaa and ecschnorr and others. The list of disabled algorithms
 will be extended in the future when FIPS mode on the host disables more
-algorithms. Since swtpm may add attributes to the profile that require a
-certain StateFormatLevel, it is recommended to omit the StateFormatLevel from
-the passed custom profile.
+algorithms. Since in this case swtpm may add Attributes to the profile that
+require a certain StateFormatLevel, it is recommended to omit the
+StateFormatLevel field from the profile.
 
-Note that profiles may disable algorithms that are considered mandatory for
-a TPM 2, such as RSA-PSS. However, FIPS-enforcement on the host disables
-algorithms in the OpenSSL crypto library that the TPM 2 would normally
-provide (RSA-PSS, Camellia, TDES, ...) and therefore they cannot be made
-available by the TPM 2. Because of this it may be required that a profile be used
-to avoid the TPM 2 entering failure mode upon self-testing. The effect of the
-disablement of algorithms may be that certain programs and test suites requiring
-them may not work correctly anymore. Therefore, profiles other than the default
-profile have to be applied very carefully to avoid unnecessary application
-failures where the only solution would be to not run them on a host that has
-FIPS-enforcement enabled.
-
-To see the list of algorithms that are supported and can be disabled one
-may use the I<swtpm_ioctl> tool like this:
+To see the list of algorithms that are supported and can be disabled, one
+may use I<swtpm_ioctl> as follows. A swtpm instance is assumed to be
+listening for control commands on port 2322:
 
     $ swtpm_ioctl --tcp :2322 --info 0x08 | jq
     {
@@ -541,9 +541,34 @@ may use the I<swtpm_ioctl> tool like this:
       }
     }
 
+To see the list of supported commands:
 
-To see the list of available profiles one may use the I<swtpm_ioctl> tool like
-this:
+    $ swtpm_ioctl --tcp :2322 --info 0x10 | jq
+    {
+      "RuntimeCommands": {
+        "Implemented": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197,0x199-0x19c",
+        "CanBeDisabled": "0x11f,0x121-0x122,0x124-0x128,0x12a,0x12c-0x12e,0x130,0x132-0x13b,0x13d-0x140,0x142,0x146-0x147,0x149-0x14d,0x14f-0x152,0x154-0x155,0x159,0x15b,0x15d-0x15e,0x160-0x164,0x167-0x168,0x16a-0x172,0x174,0x177-0x178,0x17b,0x17f-0x181,0x183-0x184,0x187-0x193,0x197,0x199-0x19c",
+        "Enabled": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197,0x199-0x19c",
+        "Disabled": ""
+      }
+    }
+
+To see the list of supported attributes:
+
+    $swtpm_ioctl --tcp :2322 --info 0x80 | jq
+    {
+      "RuntimeAttributes": {
+        "Implemented": "no-unpadded-encryption,no-sha1-signing,no-sha1-verification,no-sha1-hmac-creation,no-sha1-hmac-verification,no-sha1-hmac,fips-host",
+        "CanBeDisabled": "no-unpadded-encryption,no-sha1-signing,no-sha1-verification,no-sha1-hmac-creation,no-sha1-hmac-verification,no-sha1-hmac,fips-host",
+        "Enabled": "no-unpadded-encryption,no-sha1-signing,no-sha1-verification,no-sha1-hmac",
+        "Disabled": "no-sha1-hmac-creation,no-sha1-hmac-verification,fips-host"
+      }
+    }
+
+The above attributes may be added to a profile under an "Attributes" map
+entry, which is similar to the "Algorithms" and "Commands" entries.
+
+To see the list of available profiles:
 
     $ swtpm_ioctl --tcp :2322 --info 0x40 | jq
     {
@@ -563,18 +588,16 @@ this:
           "Description": "The profile enables the commands and algorithms that were enabled in libtpms v0.9. This profile is automatically used when the state does not have a profile, for example when it was created by libtpms v0.9 or before."
         },
         {
-          "Name": "custpm",
+          "Name": "custom",
           "StateFormatLevel": 2,
           "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197",
-          "Algorithms": "rsa,rsa-min-size=2048,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-nist,symcipher,cmac,ctr,ofb,cbc,cfb,ecb,ecc-min-size=256",
-          "Description": "This profile disables several algorithms to meet FIPS requirements (rsa-1024, sha1, rsapss, camellia, tdes). Since some of the disabled algorithms are mandatory for a TPM 2, expect that some applications and test suites will fail."
+          "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,ecc-sm2-p256,symcipher,camellia,camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
+          "Description": "This profile allows customization of enabled algorithms and commands. This profile requires at least libtpms v0.10."
         }
       ]
     }
 
-
-To see the current profile that a TPM 2 instance is running with one may use the
-I<swtpm_ioctl> tool:
+To see the current active profile:
 
     $ swtpm_ioctl --tcp :2322 --info 0x20 | jq
     {
@@ -586,6 +609,11 @@ I<swtpm_ioctl> tool:
         "Description": "This profile enables all currently supported commands and algorithms. It is applied when the user chooses no profile."
       }
     }
+
+The only profile that a user may modify is the 'custom' profile. Here a user
+may choose to disable algorithms, commands, and attributes that are allowed
+to be disabled. To avoid failing TPM 2 applications, care must be taken that
+none of them relies on disabled commands or algorithms.
 
 =item B<--print-profiles> (since v0.10)
 
