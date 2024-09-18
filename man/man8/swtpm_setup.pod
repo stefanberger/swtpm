@@ -214,9 +214,10 @@ like this:
 
 
 The JSON profile must contain the 'name' field with a name of a profile
-supported by libtpms. The profile may contain an algorithms field with a
-list of algorithms to enable. Unknown fields in the JSON profile will be
-ignored.
+supported by libtpms. Only the 'custom' profile, or profiles whose name
+starts with 'custom:', are modifiable and may contain Algorithms, Commands, or
+Attributes fields with user selections. Unknown fields in the JSON profile
+will be ignored. For further information see the swtpm man page.
 
 =item B<--profile-name <profile filename| built-in profile name> (since v0.10)
 
@@ -237,8 +238,8 @@ prefix the name with 'builtin:'
 
 =back
 
-All profile filenames will automatically get extended with the suffix
-'.json'.
+All profiles loaded from the above mentioned directories require that the
+file is available under the given name with '.json' appended.
 
 =item B<--profile-file <file>> (since v0.10)
 
@@ -256,8 +257,8 @@ the I<check> parameter is given then algorithms are tested before they are
 removed while the I<fips-host> parameter forces the removal of all potentially
 disabled algorithms without testing them.
 
-This option only works if the 'custom' profile is given by passing
-I<--profile '{"Name":"custom"}'> for example.
+This option only works if the 'custom' profile is referenced by passing
+I<--profile '{"Name":"custom:test"}'> for example.
 
 This option passes the I<remove-disable> option parameter as part of the
 I<--profile> option to swtpm. For further information see the man page for
