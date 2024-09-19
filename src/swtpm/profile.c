@@ -45,10 +45,10 @@ int profile_remove_fips_disabled_algorithms(char **json_profile,
 
     SWTPM_G_FREE(value);
     ret = json_get_map_key_value(*json_profile, "Algorithms", &value);
-    if (ret == 1)
+    if (ret == -1)
         return -1;
 
-    if (ret == 2) {
+    if (ret == -2) {
         info_data = TPMLIB_GetInfo(TPMLIB_INFO_RUNTIME_ALGORITHMS);
 
         ret = json_get_submap_value(info_data, "RuntimeAlgorithms", "Implemented",
@@ -71,7 +71,7 @@ int profile_remove_fips_disabled_algorithms(char **json_profile,
     SWTPM_G_FREE(value);
     /* disable sha1 signature and unpadded encryption using Attributes */
     ret = json_get_map_key_value(*json_profile, "Attributes", &value);
-    if (ret == 1)
+    if (ret == -1)
         return -1;
 
     if (value)
