@@ -363,8 +363,8 @@ ssize_t read_eintr(int fd, void *buffer, size_t buflen)
  *
  * Returns:
  * 0 : success
- * 1 : failure to parse the JSON input
- * 2 : could not find the key
+ * -1 : failure to parse the JSON input
+ * -2 : could not find the key
  */
 int json_get_map_key_value(const char *json_input,
                            const char *key, char **value)
@@ -378,21 +378,21 @@ int json_get_map_key_value(const char *json_input,
     if (!json_parser_load_from_data(jp, json_input, -1, &error)) {
         logprintf(STDERR_FILENO,
                   "Could not parse JSON '%s': %s\n", json_input, error->message);
-        return 1;
+        return -1;
     }
 
     root = json_parser_get_root(jp);
     jr = json_reader_new(root);
 
     if (!json_reader_read_member(jr, key))
-        return 2;
+        return -2;
 
     *value = g_strdup(json_reader_get_string_value(jr));
     if (*value == NULL) {
         /* value not a string */
         logprintf(STDERR_FILENO,
                   "'%s' in JSON map is not a string\n", key);
-        return 1;
+        return -1;
     }
 
     return 0;
@@ -403,7 +403,7 @@ int json_get_map_key_value(const char *json_input,
  *
  * Returns:
  * 0 : success
- * 1 : fatal failure
+ * -1 : fatal failure
  */
 int json_set_map_key_value(char **json_string,
                            const char *key, const char *value)
@@ -416,13 +416,13 @@ int json_set_map_key_value(char **json_string,
 
     jg = json_generator_new();
     if (!jg)
-        return 1;
+        return -1;
 
     jp = json_parser_new();
     if (!json_parser_load_from_data(jp, *json_string, -1, &error)) {
         logprintf(STDERR_FILENO,
                   "Could not parse JSON '%s': %s\n", *json_string, error->message);
-        return 1;
+        return -1;
     }
 
     root = json_parser_get_root(jp);
