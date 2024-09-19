@@ -27,8 +27,8 @@
  *
  * Return values:
  * 0 : no error
- * 1 : fatal error
- * 2 : this is not the 'custom' profile
+ * -1 : fatal error
+ * -2 : this is not the 'custom' profile
  */
 int profile_remove_fips_disabled_algorithms(char **json_profile,
                                             gboolean force)
@@ -41,12 +41,12 @@ int profile_remove_fips_disabled_algorithms(char **json_profile,
 
     ret = json_get_map_key_value(*json_profile, "Name", &value);
     if (ret || !value || strcmp(value, "custom"))
-        return 2;
+        return -2;
 
     SWTPM_G_FREE(value);
     ret = json_get_map_key_value(*json_profile, "Algorithms", &value);
     if (ret == 1)
-        return 1;
+        return -1;
 
     if (ret == 2) {
         info_data = TPMLIB_GetInfo(TPMLIB_INFO_RUNTIME_ALGORITHMS);
@@ -54,11 +54,11 @@ int profile_remove_fips_disabled_algorithms(char **json_profile,
         ret = json_get_submap_value(info_data, "RuntimeAlgorithms", "Implemented",
                                     &value);
         if (ret)
-            return 1;
+            return -1;
     }
     algorithms = g_strsplit(value, ",", -1);
     if (check_ossl_fips_disabled_remove_algorithms(&algorithms, force))
-        return 1;
+        return -1;
 
     g_free(value);
     value = g_strjoinv(",", algorithms);
@@ -66,19 +66,19 @@ int profile_remove_fips_disabled_algorithms(char **json_profile,
     /* put algorithms into JSON */
     ret = json_set_map_key_value(json_profile, "Algorithms", value);
     if (ret)
-        return 1;
+        return -1;
 
     SWTPM_G_FREE(value);
     /* disable sha1 signature and unpadded encryption using Attributes */
     ret = json_get_map_key_value(*json_profile, "Attributes", &value);
     if (ret == 1)
-        return 1;
+        return -1;
 
     if (value)
         attributes = g_strsplit(value, ",", -1);
 
     if (check_ossl_fips_disabled_set_attributes(&attributes, force))
-        return 1;
+        return -1;
 
     g_free(value);
     if (attributes) {
@@ -86,7 +86,7 @@ int profile_remove_fips_disabled_algorithms(char **json_profile,
 
         ret = json_set_map_key_value(json_profile, "Attributes", value);
         if (ret)
-            return 1;
+            return -1;
     }
 
     return 0;

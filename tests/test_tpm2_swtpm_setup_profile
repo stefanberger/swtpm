@@ -294,6 +294,13 @@ profile="{\"Name\":\"custom\",\"Attributes\":\"fips-host\",\"Description\":\"Tes
 exp_response="\{\"ActiveProfile\":\{\"Name\":\"custom\",.*,\"Algorithms\":\".*,rsa-min-size=2048,.*,ecc-min-size=224,.*\",\"Attributes\":\"fips-host\",\"Description\":\"Test\"\}\}"
 test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
 
+# --profile-remove-disabled must not have any effect on other profiles
+for p in null default-v1; do
+	profile="{\"Name\":\"${p}\"} --profile-remove-disabled fips-host"
+	exp_response="\{\"ActiveProfile\":\{\"Name\":\"${p}\",.*,\"Algorithms\":\".*,rsa-min-size=1024,.*,ecc-min-size=192,.*\",.*\}\}"
+	test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
+done
+
 echo "Tests with custom profile and --profile-remove-disabled option passed"
 
 # Copy TPM 2 state written by libtpms v0.9 and have the TPM read and re-write the state.
