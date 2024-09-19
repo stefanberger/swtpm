@@ -162,8 +162,8 @@ static int get_profiles(gchar **profiles)
     JsonReader *jr = NULL;
     g_autoptr(GError) error = NULL;
     JsonNode *root;
+    int ret = -1;
     gint i, num;
-    int ret = 0;
     GString *gstr = g_string_new("\"names\": [ ");
 
     jp = json_parser_new();
@@ -206,6 +206,7 @@ static int get_profiles(gchar **profiles)
                          "RuntimeCommands", ", \"commands\"", " "))
         goto error_unref_jr;
 
+    ret = 0;
 
 error_unref_jr:
     g_object_unref(jr);
