@@ -238,22 +238,22 @@ static int tpmlib_maybe_configure_openssl(TPMLIB_TPMVersion tpmversion)
         case TPMLIB_TPM_VERSION_2:
             ret = tpmlib_check_need_disable_fips_mode(&fix_flags);
             if (ret)
-                return 1;
+                return -1;
             break;
         }
         if ((fix_flags & FIX_DISABLE_FIPS) && fips_mode_disable())
-            return 1;
+            return -1;
     }
 
     if (tpmversion == TPMLIB_TPM_VERSION_2) {
         ret = tpmlib_check_need_enable_sha1_signatures(&fix_flags);
         if (ret)
-            return 1;
+            return -1;
         if (fix_flags & FIX_ENABLE_SHA1_SIGNATURES) {
             if (!g_setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", true)) {
                 logprintf(STDERR_FILENO,
                           "Error: Could not set OPENSSL_ENABLE_SHA1_SIGNATURES=1\n");
-                return 1;
+                return -1;
             }
             logprintf(STDOUT_FILENO,
                       "Warning: Setting OPENSSL_ENABLE_SHA1_SIGNATURES=1\n");
@@ -262,11 +262,11 @@ static int tpmlib_maybe_configure_openssl(TPMLIB_TPMVersion tpmversion)
 
         ret = tpmlib_check_need_modify_ossl_config(&fix_flags, check_sha1_signatures);
         if (ret)
-            return 1;
+            return -1;
         if (fix_flags) {
             logprintf(STDERR_FILENO,
                      "Error: Need to start with modified OpenSSL config file to enable all needed algorithms.\n");
-            return 1;
+            return -1;
         }
     }
 
