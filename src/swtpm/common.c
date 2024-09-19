@@ -1476,7 +1476,7 @@ static int parse_profile_options(char *options, char **json_profile)
                       remove_disabled);
             goto error;
         }
-        if (profile_remove_fips_disabled_algorithms(json_profile, force))
+        if (profile_remove_fips_disabled_algorithms(json_profile, force) == -1)
             goto error;
     }
 
