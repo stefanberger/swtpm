@@ -455,7 +455,7 @@ int json_get_submap_value(const char *json_input, const char *field_name,
     JsonParser *jp = NULL;
     JsonReader *jr = NULL;
     JsonNode *root;
-    int ret = 1;
+    int ret = -1;
 
     jp = json_parser_new();
     if (!json_parser_load_from_data(jp, json_input, -1, &error)) {
