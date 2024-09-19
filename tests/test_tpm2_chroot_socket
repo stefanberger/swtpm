@@ -51,7 +51,7 @@ for OPTION in --chroot -R; do
 		--pid "file=$PID_FILE" \
 		--tpm2 \
 		--flags not-need-init \
-		${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &>/dev/null &
+		${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &
 	PID=$!
 
 	if wait_for_file "$TPMDIR/$PID_FILE" 3; then

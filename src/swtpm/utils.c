@@ -53,6 +53,8 @@
 
 #include <json-glib/json-glib.h>
 
+#include <openssl/rand.h>
+
 #include "utils.h"
 #include "logging.h"
 #include "tpmlib.h"
@@ -162,6 +164,13 @@ do_chroot(const char *path)
                   strerror(errno));
         return -1;
     }
+
+    if (!RAND_status()) {
+        logprintf(STDERR_FILENO,
+                  "Error: no good entropy source in chroot environment\n");
+        return -1;
+    }
+
     return 0;
 }
 
