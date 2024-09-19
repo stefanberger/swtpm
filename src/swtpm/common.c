@@ -1518,7 +1518,7 @@ int handle_migration_options(char *options, bool *incoming_migration,
                                 release_lock_outgoing) < 0)
         return -1;
 
-    return 0l;
+    return 0;
 }
 
 /*
