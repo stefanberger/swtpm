@@ -325,12 +325,13 @@ static int swtpm_ctrl_shutdown(struct swtpm *self)
 }
 
 /* Get the TPM specification parameters over the control channel */
-static int swtpm_ctrl_get_tpm_specs_and_attrs(struct swtpm *self, gchar **result)
+static int do_cmd_get_info(struct swtpm *self, uint64_t swtpm_info_flags,
+                           gchar **result)
 {
     unsigned char req[] = {AS4BE(CMD_GET_INFO),
-                           AS8BE(SWTPM_INFO_TPMSPECIFICATION | SWTPM_INFO_TPMATTRIBUTES),
+                           AS8BE(swtpm_info_flags),
                            AS4BE(0), AS4BE(0)};
-    unsigned char tpmresp[1024];
+    unsigned char tpmresp[16 * 1024];
     size_t tpmresp_len = sizeof(tpmresp);
     int ret;
     uint32_t length;
@@ -355,6 +356,13 @@ err_too_short:
     logerr(self->logfile, "Response from CMD_GET_INFO is too short!\n");
 
     return 1;
+}
+
+static int swtpm_ctrl_get_tpm_specs_and_attrs(struct swtpm *self, gchar **result)
+{
+    return do_cmd_get_info(self,
+                           SWTPM_INFO_TPMSPECIFICATION | SWTPM_INFO_TPMATTRIBUTES,
+                           result);
 }
 
 static const struct swtpm_cops swtpm_cops = {
@@ -1479,6 +1487,15 @@ static int swtpm_tpm2_write_platform_cert_nvram(struct swtpm *self, gboolean loc
                                        lock_nvram, "", "platform certificate");
 }
 
+static char *swtpm_tpm2_get_active_profile(struct swtpm *self)
+{
+    gchar *result = NULL;
+
+    if (do_cmd_get_info(self, SWTPM_INFO_ACTIVE_PROFILE, &result))
+        return NULL;
+    return result;
+}
+
 static const struct swtpm2_ops swtpm_tpm2_ops = {
     .shutdown = swtpm_tpm2_shutdown,
     .create_spk = swtpm_tpm2_create_spk,
@@ -1487,6 +1504,7 @@ static const struct swtpm2_ops swtpm_tpm2_ops = {
     .set_active_pcr_banks = swtpm_tpm2_set_active_pcr_banks,
     .write_ek_cert_nvram = swtpm_tpm2_write_ek_cert_nvram,
     .write_platform_cert_nvram = swtpm_tpm2_write_platform_cert_nvram,
+    .get_active_profile = swtpm_tpm2_get_active_profile,
 };
 
 /*

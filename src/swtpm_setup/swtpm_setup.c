@@ -554,6 +554,34 @@ static int tpm2_activate_pcr_banks(struct swtpm2 *swtpm2,
     return 0;
 }
 
+static int log_active_profile(struct swtpm2 *swtpm2)
+{
+    g_autofree gchar *profile = NULL;
+    char *tmp;
+
+    profile = swtpm2->ops->get_active_profile(&swtpm2->swtpm);
+    if (!profile) {
+        logerr(gl_LOGFILE, "Could not get active profile.\n");
+        return 1;
+    }
+    /* Strip out surrounding '{"ActiveProfile":<to display>} */
+    tmp = strrchr(profile, '}');
+    if (!tmp)
+        goto malformatted;
+    *tmp = 0;
+
+    tmp = strchr(profile, ':');
+    if (!tmp)
+        goto malformatted;
+
+    logit(gl_LOGFILE, "Active profile: %s\n", tmp + 1);
+    return 0;
+
+malformatted:
+    logerr(gl_LOGFILE, "Malformatted active profile");
+    return 1;
+}
+
 /* Simulate manufacturing a TPM 2: create keys and certificates */
 static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                      const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
@@ -580,6 +608,10 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
     }
 
     if (!(flags & SETUP_RECONFIGURE_F)) {
+        ret = log_active_profile(swtpm2);
+        if (ret)
+            goto error;
+
         if ((flags & SETUP_CREATE_SPK_F)) {
             ret = swtpm2->ops->create_spk(swtpm, !!(flags & SETUP_TPM2_ECC_F), rsa_keysize);
             if (ret != 0)
