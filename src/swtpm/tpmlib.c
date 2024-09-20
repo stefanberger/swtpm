@@ -284,7 +284,8 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
     if (json_profile != NULL && tpmversion == TPMLIB_TPM_VERSION_2 &&
         (res = TPMLIB_SetProfile(json_profile)) != TPM_SUCCESS) {
         logprintf(STDERR_FILENO,
-                  "Error: Could not set profile for TPM2.\n");
+                  "Error: Could not set profile for TPM2: '%s'\n",
+                  json_profile);
         return res;
     }
 

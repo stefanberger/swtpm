@@ -411,11 +411,10 @@ The I<--flags> option supports the I<disable-auto-shutdown> flag.
 The TPM 2 supports the shown RSA key sizes. If none of the
 rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 
-=item B<cmarg-profile> (since v0.10)
+=item B<cmdarg-profile> (since v0.10)
 
-The option <--profile> is supported to set a profile for a TPM 2 using either
-the option parameter I<name=> to select a profile by its name or I<profile=>
-to provide a JSON-formatted profile.
+The option <--profile> is supported to set a profile for a TPM 2 with either
+one of the option parameters I<name=>, I<profile=>, or I<file=>.
 
 =item B<cmdarg-print-profiles> (since v0.10)
 
@@ -470,13 +469,16 @@ and 'volatile' state blobs must be received before the 'savestate'
 blob.
 
 =item B<--profile
-name=E<lt>profile-nameE<gt>|profile=E<lt>json-profileE<gt>[,remove-disabled=check|fips-host]> (since v0.10)
+name=E<lt>profile-nameE<gt>|profile=E<lt>json-profileE<gt>|file=E<lt>filenameE<gt>[,remove-disabled=check|fips-host]> (since v0.10)
 
-This option allows to set a profile for a TPM 2 using either the option parameter
-I<name=> to select a built-in profile by its name or I<profile=> to provide a
-JSON-formatted profile that must provide the name of a built-in profile and may
-also include a list of algorithms that restricts the algorithms that a TPM 2
-enables.
+This option allows to set a profile for a TPM 2. A built-in profile can be
+selected by its name using the option parameter I<name=>. With the I<profile=>
+option parameter a JSON-formatted profile can be passed directly. With
+the I<file=> option parameter a JSON-formatted profile will be read from a file.
+Any JSON-formatted profile must reference the name of a built-in profile.
+Note that only the 'custom' profile may be modified and provide a list of
+algorithms, commands, or attributes that controls which crypto algorithms a
+TPM 2 enables.
 
 The profile can only be set the very first time that a TPM 2 instance is
 started and for as long as no state file exists. The profile cannot be changed
