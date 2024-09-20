@@ -56,6 +56,7 @@ struct swtpm2_ops {
                                gboolean lock_nvram, const unsigned char *data, size_t data_len);
     int (*write_platform_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
                                      const unsigned char *data, size_t data_len);
+    char *(*get_active_profile)(struct swtpm *self);
 };
 
 /* common structure for swtpm object */

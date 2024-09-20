@@ -227,8 +227,14 @@ struct ptm_getinfo {
     } u;
 };
 
-#define SWTPM_INFO_TPMSPECIFICATION ((uint64_t)1 << 0)
-#define SWTPM_INFO_TPMATTRIBUTES    ((uint64_t)1 << 1)
+#define SWTPM_INFO_TPMSPECIFICATION   ((uint64_t)1 << 0)
+#define SWTPM_INFO_TPMATTRIBUTES      ((uint64_t)1 << 1)
+#define SWTPM_INFO_TPMFEATURES        ((uint64_t)1 << 2)
+#define SWTPM_INFO_RUNTIME_ALGORITHMS ((uint64_t)1 << 3)
+#define SWTPM_INFO_RUNTIME_COMMANDS   ((uint64_t)1 << 4)
+#define SWTPM_INFO_ACTIVE_PROFILE     ((uint64_t)1 << 5)
+#define SWTPM_INFO_AVAILABLE_PROFILES ((uint64_t)1 << 6)
+#define SWTPM_INFO_RUNTIME_ATTRIBUTES ((uint64_t)1 << 7)
 
 /*
  * PTM_LOCK_STORAGE: Lock the storage and retry n times
