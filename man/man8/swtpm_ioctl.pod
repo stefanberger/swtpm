@@ -111,13 +111,31 @@ be issued.
 Get configuration flags that for example indicate which keys (file encryption
 or migration key) are in use by the TPM.
 
-=item B<--info E<lt>flagE<gt>>
+=item B<--info E<lt>flagsE<gt>>
 
-Get information about the TPM implementation in JSON format. The flag
-I<TPMLIB_INFO_TPMSPECIFICATION>, which has the value 1, returns information
-about the specification the TPM implementation followed. The flag
-I<TPMLIB_INFO_TPMATTRIBUTES>, which has the value 2, returns information
-about the manufacturer, model, and version of the TPM.
+Get information about the TPM implementation and its configuration in JSON
+format. The following values can be provided. All of the values can be
+or'ed (or added) together to get information about all of them in one query.
+
+=over 2
+
+=item * 0x1: information about the specification the TPM implementation followed
+
+=item * 0x2: information about the manufacturer, model and version of the TPM
+
+=item * 0x4: lists supported RSA and Camellia key sizes
+
+=item * 0x8: describes supported and enabled algorithms
+
+=item * 0x10: describes supported and enabled commands
+
+=item * 0x20: describes the active profile
+
+=item * 0x40: lists all built-in profiles
+
+=item * 0x80: describes supported attributes
+
+=back
 
 =item B<--lock-storage E<lt>retriesE<gt>>
 
