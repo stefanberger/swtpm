@@ -288,6 +288,9 @@ static const OptionDesc profile_opt_desc[] = {
         .name = "profile",
         .type = OPT_TYPE_STRING,
     }, {
+        .name = "file",
+        .type = OPT_TYPE_STRING,
+    }, {
         .name = "remove-disabled",
         .type = OPT_TYPE_STRING,
     },
@@ -1436,11 +1439,15 @@ error:
 
 static int parse_profile_options(const char *options, char **json_profile)
 {
+    g_autofree gchar *buffer = NULL;
     const char *remove_disabled;
     OptionValues *ovs = NULL;
     gboolean force = false;
-    char *error = NULL;
+    GError *gerror = NULL;
+    const char *filename;
     const char *profile;
+    char *error = NULL;
+    gsize buffer_len;
     const char *name;
 
     ovs = options_parse(options, profile_opt_desc, &error);
@@ -1451,8 +1458,10 @@ static int parse_profile_options(const char *options, char **json_profile)
 
     profile = option_get_string(ovs, "profile", NULL);
     name = option_get_string(ovs, "name", NULL);
-    if (profile && name) {
-        logprintf(STDERR_FILENO, "Profile and name cannot be provided at the same time\n");
+    filename = option_get_string(ovs, "file", NULL);
+
+    if ((profile != NULL) + (name != NULL) + (filename != NULL) > 1) {
+        logprintf(STDERR_FILENO, "Only one profile option parameter of 'profile', 'name', or 'file' may be provided\n");
         goto error;
     }
     if (profile) {
@@ -1464,7 +1473,19 @@ static int parse_profile_options(const char *options, char **json_profile)
             logprintf(STDERR_FILENO, "Out of memory.\n");
             goto oom_error;
         }
+    } else if (filename) {
+        if (!g_file_get_contents(filename, &buffer, &buffer_len, &gerror)) {
+            logprintf(STDERR_FILENO, "%s\n", gerror->message);
+            goto error;
+        }
+        *json_profile = strndup(buffer, buffer_len);
+    } else {
+        logprintf(STDERR_FILENO,
+                  "No profile option parameter given to get a profile\n");
+        goto error;
     }
+    /* remove leading and trailing whitespaces */
+    g_strstrip(*json_profile);
 
     remove_disabled = option_get_string(ovs, "remove-disabled", NULL);
     if (remove_disabled) {
@@ -1490,6 +1511,7 @@ oom_error:
               "Out of memory to create JSON profile\n");
 
 error:
+    g_error_free(gerror);
     SWTPM_G_FREE(*json_profile);
     option_values_free(ovs);
     free(error);
