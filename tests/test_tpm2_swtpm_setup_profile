@@ -379,7 +379,7 @@ if ! $SWTPM_SETUP \
 	--config "${workdir}/swtpm_setup.conf" \
 	--log "${workdir}/logfile" \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--profile '{"Name":"null"}'
+	--profile-file <(echo '{"Name":"null"}')
 then
 	echo "Test failed: Error: Could not run $SWTPM_SETUP and set null-profile."
 	echo "Setup Logfile:"
