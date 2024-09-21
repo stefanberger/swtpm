@@ -532,7 +532,7 @@ size_t strv_remove(gchar **array, const gchar *toremove, ssize_t len,
 
     while (array[i]) {
         if ((len < 0 && strcmp(array[i], toremove) == 0) ||
-            (strncmp(array[i], toremove, len) == 0)) {
+            (len > 0 && strncmp(array[i], toremove, len) == 0)) {
             if (freethem)
                 g_free(array[i]);
 
@@ -581,7 +581,7 @@ size_t strv_dedup(gchar **array, gencmpstr_t gencmpstr, gboolean freethem)
         j = i + 1;
         while (array[j]) {
             if ((len < 0 && strcmp(array[j], cmp) == 0) ||
-                (strncmp(array[j], cmp, len) == 0)) {
+                (len > 0 && strncmp(array[j], cmp, len) == 0)) {
 
                 num++;
                 if (freethem)
