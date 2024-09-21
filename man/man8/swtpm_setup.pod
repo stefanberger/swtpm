@@ -218,6 +218,10 @@ supported by libtpms. The profile may contain an algorithms field with a
 list of algorithms to enable. Unknown fields in the JSON profile will be
 ignored.
 
+=item B<--profile-file <file>>
+
+Configure a TPM 2 with a profile from a file.
+
 =item B<--profile-remove-disabled check|fips-host>
 
 When this option is passed then swtpm will remove algorithms from the given
@@ -305,7 +309,7 @@ TPM 2 setup is supported (libtpms is compiled with TPM 2 support).
 
 =item B<cmdarg-profile> (since v0.10)
 
-The I<--profile> option is supported.
+The I<--profile> and I<--profile-file> option are supported.
 
 =item B<cmdarg-profile-remove-disabled> (since v0.10)
 

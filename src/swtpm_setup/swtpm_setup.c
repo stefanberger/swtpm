@@ -588,14 +588,14 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
                      const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
                      unsigned int rsa_keysize, const gchar *certsdir,
                      const gchar *user_certsdir, const gchar *json_profile,
-                     const gchar *profile_remove_disabled_param)
+                     int json_profile_fd, const gchar *profile_remove_disabled_param)
 {
     struct swtpm2 *swtpm2;
     struct swtpm *swtpm;
     int ret;
 
     swtpm2 = swtpm2_new(swtpm_prg_l, tpm2_state_path, swtpm_keyopt, gl_LOGFILE,
-                        fds_to_pass, n_fds_to_pass, json_profile,
+                        fds_to_pass, n_fds_to_pass, json_profile, json_profile_fd,
                         profile_remove_disabled_param);
     if (swtpm2 == NULL)
         return 1;
@@ -1026,6 +1026,9 @@ static void usage(const char *prgname, const char *default_config_file)
         "--profile <json-profile>\n"
         "                 : Configure swtpm with the given profile.\n"
         "\n"
+        "--profile-file <file>\n"
+        "                 : Configure swtpm with a profile read from the given file.\n"
+        "\n"
         "--profile-remove-disabled check|fips-host\n"
         "                 : Instruct swtpm to remove algorithms that may be disabled by\n"
         "                   FIPS mode on the host from 'custom' profile.\n"
@@ -1337,6 +1340,7 @@ int main(int argc, char *argv[])
         {"print-capabilities", no_argument, NULL, 'y'},
         {"reconfigure", no_argument, NULL, 'R'},
         {"profile", required_argument, NULL, 'I'},
+        {"profile-file", required_argument, NULL, 'g'},
         {"profile-remove-disabled", required_argument, NULL, 'j'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
@@ -1367,7 +1371,9 @@ int main(int argc, char *argv[])
     g_autofree gchar *certsdir = NULL;
     g_autofree gchar *user_certsdir = NULL;
     g_autofree gchar *json_profile = NULL;
+    g_autofree gchar *json_profile_file = NULL;
     g_autofree gchar *profile_remove_disabled_param = NULL;
+    int json_profile_fd = -1;
     gchar *tmp;
     gchar **swtpm_prg_l = NULL;
     gchar **tmp_l = NULL;
@@ -1378,7 +1384,7 @@ int main(int argc, char *argv[])
     char *endptr;
     gboolean swtpm_has_tpm12 = FALSE;
     gboolean swtpm_has_tpm2 = FALSE;
-    int fds_to_pass[1] = { -1 };
+    int fds_to_pass[2] = { -1, -1 };
     unsigned n_fds_to_pass = 0;
     char tmpbuffer[200];
     time_t now;
@@ -1557,6 +1563,10 @@ int main(int argc, char *argv[])
             g_free(json_profile);
             json_profile = g_strdup(optarg);
             break;
+        case 'g': /* --profile-file */
+            g_free(json_profile_file);
+            json_profile_file = g_strdup(optarg);
+            break;
         case 'j': /* --profile-remove-disabled */
             if (strcmp(optarg, "fips-host") != 0 &&
                 strcmp(optarg, "check") != 0) {
@@ -1725,9 +1735,26 @@ int main(int argc, char *argv[])
         pcr_banks = get_default_pcr_banks(config_file_lines);
     }
 
+    if ((json_profile != NULL) + (json_profile_file != NULL) > 1) {
+        logerr(gl_LOGFILE, "Only one of --profile and --profile-file may be given\n");
+        goto error;
+    }
+
+    if (json_profile_file) {
+        json_profile_fd = open(json_profile_file, O_RDONLY);
+        if (json_profile_fd < 0) {
+            logerr(gl_LOGFILE, "Could not open profile file '%s': %s\n",
+                   json_profile_file, strerror(errno));
+            goto error;
+        }
+        fds_to_pass[n_fds_to_pass++] = json_profile_fd;
+    }
+
     /* read default profile from swtpm_setup.conf */
-    if ((flags & SETUP_TPM2_F) != 0 && json_profile == NULL)
+    if ((flags & SETUP_TPM2_F) != 0 &&
+        json_profile == NULL && json_profile_fd < 0) {
         json_profile = get_default_profile(config_file_lines);
+    }
 
     if ((flags & SETUP_TPM2_F) != 0 && json_profile) {
         if (validate_json_profile((const char **)swtpm_prg_l, json_profile) != 0)
@@ -1851,7 +1878,8 @@ int main(int argc, char *argv[])
     } else {
         ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
                        swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize, certsdir,
-                       user_certsdir, json_profile, profile_remove_disabled_param);
+                       user_certsdir, json_profile, json_profile_fd,
+                       profile_remove_disabled_param);
     }
 
     if (ret == 0) {
