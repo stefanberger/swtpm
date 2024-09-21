@@ -1029,6 +1029,9 @@ static void usage(const char *prgname, const char *default_config_file)
         "--profile-file <file>\n"
         "                 : Configure swtpm with a profile read from the given file.\n"
         "\n"
+        "--profile-file-fd <fd>\n"
+        "                 : Configure swtpm with a profile read from a file descriptor.\n"
+        "\n"
         "--profile-remove-disabled check|fips-host\n"
         "                 : Instruct swtpm to remove algorithms that may be disabled by\n"
         "                   FIPS mode on the host from 'custom' profile.\n"
@@ -1341,6 +1344,7 @@ int main(int argc, char *argv[])
         {"reconfigure", no_argument, NULL, 'R'},
         {"profile", required_argument, NULL, 'I'},
         {"profile-file", required_argument, NULL, 'g'},
+        {"profile-file-fd", required_argument, NULL, 'G'},
         {"profile-remove-disabled", required_argument, NULL, 'j'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
@@ -1567,6 +1571,13 @@ int main(int argc, char *argv[])
             g_free(json_profile_file);
             json_profile_file = g_strdup(optarg);
             break;
+        case 'G': /* --profile-file-fd */
+            json_profile_fd = strtoull(optarg, &endptr, 10);
+            if (*endptr != '\0' || json_profile_fd >= INT_MAX) {
+                fprintf(stderr, "Invalid file descriptor '%s'\n", optarg);
+                goto error;
+            }
+            break;
         case 'j': /* --profile-remove-disabled */
             if (strcmp(optarg, "fips-host") != 0 &&
                 strcmp(optarg, "check") != 0) {
@@ -1735,8 +1746,8 @@ int main(int argc, char *argv[])
         pcr_banks = get_default_pcr_banks(config_file_lines);
     }
 
-    if ((json_profile != NULL) + (json_profile_file != NULL) > 1) {
-        logerr(gl_LOGFILE, "Only one of --profile and --profile-file may be given\n");
+    if ((json_profile != NULL) + (json_profile_file != NULL) > 1 + (json_profile_fd >= 0)) {
+        logerr(gl_LOGFILE, "Only one of --profile, --profile-file and --profile-file-fd may be given\n");
         goto error;
     }
 
@@ -1747,7 +1758,6 @@ int main(int argc, char *argv[])
                    json_profile_file, strerror(errno));
             goto error;
         }
-        fds_to_pass[n_fds_to_pass++] = json_profile_fd;
     }
 
     /* read default profile from swtpm_setup.conf */
@@ -1755,6 +1765,9 @@ int main(int argc, char *argv[])
         json_profile == NULL && json_profile_fd < 0) {
         json_profile = get_default_profile(config_file_lines);
     }
+
+    if (json_profile_fd >= 0)
+        fds_to_pass[n_fds_to_pass++] = json_profile_fd;
 
     if ((flags & SETUP_TPM2_F) != 0 && json_profile) {
         if (validate_json_profile((const char **)swtpm_prg_l, json_profile) != 0)

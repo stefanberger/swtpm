@@ -222,6 +222,10 @@ ignored.
 
 Configure a TPM 2 with a profile from a file.
 
+=item B<--profile-file-fd <fd>>
+
+Configure a TPM 2 with a profile read from a file descriptor.
+
 =item B<--profile-remove-disabled check|fips-host>
 
 When this option is passed then swtpm will remove algorithms from the given
@@ -309,7 +313,8 @@ TPM 2 setup is supported (libtpms is compiled with TPM 2 support).
 
 =item B<cmdarg-profile> (since v0.10)
 
-The I<--profile> and I<--profile-file> option are supported.
+The I<--profile>, I<profile-file>, and I<--profile-file-fd> options are
+supported.
 
 =item B<cmdarg-profile-remove-disabled> (since v0.10)
 
