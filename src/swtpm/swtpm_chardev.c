@@ -219,7 +219,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : print capabilities and terminate\n"
     "--print-states\n"
     "                 : print existing TPM states and terminate\n"
-    "--profile name=<name>|profile=<json-profile>,file=<filename>[,remove-disabled=check|fips-host]\n"
+    "--profile name=<name>|profile=<json-profile>|file=<filename>|fd=<fd>[,remove-disabled=check|fips-host]\n"
     "                 : Set a profile on the TPM 2\n"
     "                   remove-disabled: On the 'custom' profile remove algorithms\n"
     "                   disabled by FIPS mode in OpenSSL; use 'check' to test the\n"
