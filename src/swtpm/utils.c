@@ -446,22 +446,21 @@ int json_set_map_key_value(char **json_string,
  * @field_name2: Name of entry in map
  * @value: Results is returned here
  *
- * Returns 0 in case of success, 1 otherwise.
+ * Returns 0 in case of success, -1 otherwise.
  */
 int json_get_submap_value(const char *json_input, const char *field_name,
                           const char *field_name2, char **value)
 {
+    g_autoptr(JsonParser) jp = NULL;
+    g_autoptr(JsonReader) jr = NULL;
     g_autoptr(GError) error = NULL;
-    JsonParser *jp = NULL;
-    JsonReader *jr = NULL;
     JsonNode *root;
-    int ret = -1;
 
     jp = json_parser_new();
     if (!json_parser_load_from_data(jp, json_input, -1, &error)) {
         logprintf(STDERR_FILENO,
                   "Could not parse JSON '%s': %s\n", json_input, error->message);
-        goto error_unref_jp;
+        return -1;
     }
 
     root = json_parser_get_root(jp);
@@ -470,25 +469,17 @@ int json_get_submap_value(const char *json_input, const char *field_name,
     if (!json_reader_read_member(jr, field_name)) {
         logprintf(STDERR_FILENO, "Missing '%s' field in '%s'\n",
                   field_name, json_input);
-        goto error_unref_jr;
+        return -1;
     }
 
     if (!json_reader_read_member(jr, field_name2)) {
         logprintf(STDERR_FILENO, "Missing '%s/%s' field in '%s'\n",
                   field_name, field_name2, json_input);
-        goto error_unref_jr;
+        return -1;
     }
     *value = g_strdup(json_reader_get_string_value(jr));
 
-    ret = 0;
-
-error_unref_jr:
-    g_object_unref(jr);
-
-error_unref_jp:
-    g_object_unref(jp);
-
-    return ret;
+    return 0;
 }
 
 ssize_t strv_strncmp(const gchar *const*str_array, const gchar *s, size_t n)
