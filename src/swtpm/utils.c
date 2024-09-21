@@ -382,6 +382,11 @@ int json_get_map_key_value(const char *json_input,
     }
 
     root = json_parser_get_root(jp);
+    if (!root) {
+        logprintf(STDERR_FILENO,
+                  "Could not get root of JSON '%s'\n", json_input);
+        return -1;
+    }
     jr = json_reader_new(root);
 
     if (!json_reader_read_member(jr, key))
@@ -426,6 +431,11 @@ int json_set_map_key_value(char **json_string,
     }
 
     root = json_parser_get_root(jp);
+    if (!root) {
+        logprintf(STDERR_FILENO,
+                  "Could not get root of JSON '%s'\n", *json_string);
+        return -1;
+    }
     json_generator_set_root(jg, root);
 
     jo = json_node_get_object(root);
@@ -464,6 +474,11 @@ int json_get_submap_value(const char *json_input, const char *field_name,
     }
 
     root = json_parser_get_root(jp);
+    if (!root) {
+        logprintf(STDERR_FILENO,
+                  "Could not get root of JSON '%s'\n", json_input);
+        return -1;
+    }
     jr = json_reader_new(root);
 
     if (!json_reader_read_member(jr, field_name)) {
