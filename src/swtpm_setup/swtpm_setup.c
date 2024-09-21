@@ -508,7 +508,7 @@ static gchar *get_default_rsa_keysize(gchar *const *config_file_lines)
     return rsa_keysize;
 }
 
-/* Get the default policy from the config file */
+/* Get the default profile from the config file */
 static gchar *get_default_profile(gchar *const *config_file_lines)
 {
     gchar *profile;
@@ -517,6 +517,25 @@ static gchar *get_default_profile(gchar *const *config_file_lines)
     if (profile)
         g_strstrip(profile);
     return profile;
+}
+
+/* If available, open the default profile and return its file descriptor */
+static int get_default_profile_fd(gchar *const *config_file_lines)
+{
+    g_autofree gchar *profile_file;
+    int fd;
+
+    profile_file = get_config_value(config_file_lines, "profile_file");
+    if (!profile_file)
+        return -1;
+
+    fd = open(profile_file, O_RDONLY);
+    if (fd < 0) {
+        logerr(gl_LOGFILE, "Could not read default profile '%s': %s",
+               profile_file, strerror(errno));
+        return -2;
+    }
+    return fd;
 }
 
 /* Activate the given list of PCR banks. If pcr_banks is '-' then leave
@@ -1763,7 +1782,11 @@ int main(int argc, char *argv[])
     /* read default profile from swtpm_setup.conf */
     if ((flags & SETUP_TPM2_F) != 0 &&
         json_profile == NULL && json_profile_fd < 0) {
-        json_profile = get_default_profile(config_file_lines);
+        json_profile_fd = get_default_profile_fd(config_file_lines);
+        if (json_profile_fd == -2)
+            goto error;
+        if (json_profile_fd < 0)
+            json_profile = get_default_profile(config_file_lines);
     }
 
     if (json_profile_fd >= 0)
