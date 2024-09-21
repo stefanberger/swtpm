@@ -414,7 +414,7 @@ rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 =item B<cmdarg-profile> (since v0.10)
 
 The option <--profile> is supported to set a profile for a TPM 2 with either
-one of the option parameters I<name=>, I<profile=>, or I<file=>.
+one of the option parameters I<name=>, I<profile=>, I<fd=>, or I<file=>.
 
 =item B<cmdarg-print-profiles> (since v0.10)
 
@@ -469,12 +469,13 @@ and 'volatile' state blobs must be received before the 'savestate'
 blob.
 
 =item B<--profile
-name=E<lt>profile-nameE<gt>|profile=E<lt>json-profileE<gt>|file=E<lt>filenameE<gt>[,remove-disabled=check|fips-host]> (since v0.10)
+name=E<lt>profile-nameE<gt>|profile=E<lt>json-profileE<gt>|file=E<lt>filenameE<gt>|fd=E<lt>fdE<gt>[,remove-disabled=check|fips-host]> (since v0.10)
 
 This option allows to set a profile for a TPM 2. A built-in profile can be
 selected by its name using the option parameter I<name=>. With the I<profile=>
 option parameter a JSON-formatted profile can be passed directly. With
 the I<file=> option parameter a JSON-formatted profile will be read from a file.
+The I<fd=> option parameter allows to read it from a file descriptor.
 Any JSON-formatted profile must reference the name of a built-in profile.
 Note that only the 'custom' profile may be modified and provide a list of
 algorithms, commands, or attributes that controls which crypto algorithms a

@@ -73,6 +73,7 @@
 #include "mainloop.h"
 #include "profile.h"
 #include "swtpm_utils.h"
+#include "utils.h"
 
 /* --log %s */
 static const OptionDesc logging_opt_desc[] = {
@@ -290,6 +291,9 @@ static const OptionDesc profile_opt_desc[] = {
     }, {
         .name = "file",
         .type = OPT_TYPE_STRING,
+    }, {
+        .name = "fd",
+        .type = OPT_TYPE_INT,
     }, {
         .name = "remove-disabled",
         .type = OPT_TYPE_STRING,
@@ -1447,6 +1451,7 @@ static int parse_profile_options(const char *options, char **json_profile)
     const char *filename;
     const char *profile;
     char *error = NULL;
+    int profilefd = -1;
     gsize buffer_len;
     const char *name;
 
@@ -1459,9 +1464,10 @@ static int parse_profile_options(const char *options, char **json_profile)
     profile = option_get_string(ovs, "profile", NULL);
     name = option_get_string(ovs, "name", NULL);
     filename = option_get_string(ovs, "file", NULL);
+    profilefd = option_get_int(ovs, "fd", -1);
 
-    if ((profile != NULL) + (name != NULL) + (filename != NULL) > 1) {
-        logprintf(STDERR_FILENO, "Only one profile option parameter of 'profile', 'name', or 'file' may be provided\n");
+    if ((profile != NULL) + (name != NULL) + (filename != NULL) > 1 + (profilefd >= 0)) {
+        logprintf(STDERR_FILENO, "Only one profile option parameter of 'profile', 'name', 'fd', or 'file' may be provided\n");
         goto error;
     }
     if (profile) {
@@ -1479,6 +1485,18 @@ static int parse_profile_options(const char *options, char **json_profile)
             goto error;
         }
         *json_profile = strndup(buffer, buffer_len);
+    } else if (profilefd >= 0) {
+        buffer_len = 10 * 1024;
+        buffer = g_malloc(buffer_len);
+        buffer_len = read_eintr(profilefd, buffer, buffer_len - 1);
+        if ((ssize_t)buffer_len < 0) {
+            logprintf(STDERR_FILENO, "Unable to read profile: %s\n",
+                      strerror(errno));
+            goto error;
+        }
+        SWTPM_CLOSE(profilefd);
+        buffer[buffer_len] = 0;
+        *json_profile = g_steal_pointer(&buffer);
     } else {
         logprintf(STDERR_FILENO,
                   "No profile option parameter given to get a profile\n");
@@ -1511,6 +1529,8 @@ oom_error:
               "Out of memory to create JSON profile\n");
 
 error:
+    if (profilefd >= 0)
+        close(profilefd);
     g_error_free(gerror);
     SWTPM_G_FREE(*json_profile);
     option_values_free(ovs);
