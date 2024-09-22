@@ -389,10 +389,9 @@ static void tpmlib_write_error_response(unsigned char **rbuffer,
         *rTotal < sizeof(errresp)) {
         free(*rbuffer);
 
-        *rbuffer = malloc(sizeof(errresp));
-        if (*rbuffer)
-            *rTotal = sizeof(errresp);
-        else
+        *rTotal = sizeof(errresp);
+        *rbuffer = malloc(*rTotal);
+        if (*rbuffer == NULL)
             *rTotal = 0;
     }
     if (*rbuffer) {
