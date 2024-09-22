@@ -302,7 +302,7 @@ static const OptionDesc profile_opt_desc[] = {
  * Returns 0 on success, -1 on failure.
  */
 int
-handle_log_options(char *options)
+handle_log_options(const char *options)
 {
     char *error = NULL;
     const char *logfile = NULL, *logprefix = NULL;
@@ -374,7 +374,7 @@ error:
  * Returns 0 on success, -1 on failure.
  */
 static int
-parse_key_options(char *options, unsigned char *key, size_t maxkeylen,
+parse_key_options(const char *options, unsigned char *key, size_t maxkeylen,
                   size_t *keylen, enum encryption_mode *encmode)
 {
     OptionValues *ovs = NULL;
@@ -488,7 +488,7 @@ error:
  * Returns 0 on success, -1 on failure.
  */
 int
-handle_key_options(char *options)
+handle_key_options(const char *options)
 {
     enum encryption_mode encmode = ENCRYPTION_MODE_UNKNOWN;
     unsigned char key[256/8];
@@ -524,7 +524,7 @@ error:
  * Returns 0 on success, -1 on failure.
  */
 int
-handle_migration_key_options(char *options)
+handle_migration_key_options(const char *options)
 {
     enum encryption_mode encmode = ENCRYPTION_MODE_UNKNOWN;
     unsigned char key[256/8];
@@ -562,7 +562,7 @@ error:
  * Returns 0 on success, -1 on failure.
  */
 static int
-parse_pid_options(char *options, char **pidfile, int *pidfilefd)
+parse_pid_options(const char *options, char **pidfile, int *pidfilefd)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -620,7 +620,7 @@ error:
  * Returns 0 on success, -1 on failure.
  */
 int
-handle_pid_options(char *options)
+handle_pid_options(const char *options)
 {
     char *pidfile = NULL;
     int pidfilefd = -1;
@@ -655,7 +655,7 @@ handle_pid_options(char *options)
  * Returns 0 on success, -1 on failure.
  */
 static int
-parse_tpmstate_options(char *options, char **tpmstatedir, mode_t *mode,
+parse_tpmstate_options(const char *options, char **tpmstatedir, mode_t *mode,
                        bool *mode_is_default, char **tpmbackend_uri)
 {
     OptionValues *ovs = NULL;
@@ -718,7 +718,7 @@ error:
  * Returns 0 on success, -1 on failure.
  */
 int
-handle_tpmstate_options(char *options)
+handle_tpmstate_options(const char *options)
 {
     char *tpmstatedir = NULL;
     char *tpmbackend_uri = NULL;
@@ -956,7 +956,8 @@ error:
  *
  * Returns 0 on success, -1 on failure.
  */
-static int parse_ctrlchannel_options(char *options, struct ctrlchannel **cc,
+static int parse_ctrlchannel_options(const char *options,
+                                     struct ctrlchannel **cc,
                                      uint32_t *mainloop_flags)
 {
     OptionValues *ovs = NULL;
@@ -1081,7 +1082,7 @@ error:
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc,
+int handle_ctrlchannel_options(const char *options, struct ctrlchannel **cc,
                                uint32_t *mainloop_flag)
 {
     if (!options)
@@ -1101,7 +1102,7 @@ int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc,
  *
  * Returns 0 on success, -1 on failure.
  */
-static int parse_server_options(char *options, struct server **c)
+static int parse_server_options(const char *options, struct server **c)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -1224,7 +1225,7 @@ error:
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_server_options(char *options, struct server **c)
+int handle_server_options(const char *options, struct server **c)
 {
     if (!options)
         return 0;
@@ -1235,7 +1236,7 @@ int handle_server_options(char *options, struct server **c)
     return 0;
 }
 
-static int parse_locality_options(char *options, uint32_t *flags)
+static int parse_locality_options(const char *options, uint32_t *flags)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -1270,7 +1271,7 @@ error:
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_locality_options(char *options, uint32_t *flags)
+int handle_locality_options(const char *options, uint32_t *flags)
 {
     *flags = 0;
 
@@ -1283,7 +1284,7 @@ int handle_locality_options(char *options, uint32_t *flags)
     return 0;
 }
 
-static int parse_flags_options(char *options, bool *need_init_cmd,
+static int parse_flags_options(const char *options, bool *need_init_cmd,
                                uint16_t *startupType, bool *disable_auto_shutdown)
 {
     OptionValues *ovs = NULL;
@@ -1331,7 +1332,7 @@ error:
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_flags_options(char *options, bool *need_init_cmd,
+int handle_flags_options(const char *options, bool *need_init_cmd,
                          uint16_t *startupType, bool *disable_auto_shutdown)
 {
     if (!options)
@@ -1345,7 +1346,7 @@ int handle_flags_options(char *options, bool *need_init_cmd,
 }
 
 #ifdef WITH_SECCOMP
-static int parse_seccomp_options(char *options, unsigned int *seccomp_action)
+static int parse_seccomp_options(const char *options, unsigned int *seccomp_action)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -1392,7 +1393,7 @@ error:
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_seccomp_options(char *options, unsigned int *seccomp_action)
+int handle_seccomp_options(const char *options, unsigned int *seccomp_action)
 {
     *seccomp_action = SWTPM_SECCOMP_ACTION_KILL;
 
@@ -1406,7 +1407,7 @@ int handle_seccomp_options(char *options, unsigned int *seccomp_action)
 }
 #endif /* WITH_SECCOMP */
 
-static int parse_migration_options(char *options, bool *incoming_migration,
+static int parse_migration_options(const char *options, bool *incoming_migration,
                                    bool *release_lock_outgoing)
 {
     OptionValues *ovs = NULL;
@@ -1433,7 +1434,7 @@ error:
     return -1;
 }
 
-static int parse_profile_options(char *options, char **json_profile)
+static int parse_profile_options(const char *options, char **json_profile)
 {
     const char *remove_disabled;
     OptionValues *ovs = NULL;
@@ -1506,7 +1507,7 @@ error:
  *
  * Return 0 on success, -1 on failure.
  */
-int handle_migration_options(char *options, bool *incoming_migration,
+int handle_migration_options(const char *options, bool *incoming_migration,
                              bool *release_lock_outgoing)
 {
     *incoming_migration = false;
@@ -1530,7 +1531,7 @@ int handle_migration_options(char *options, bool *incoming_migration,
  *
  * Returns 0 on success, -1 on failure.
  */
-int handle_profile_options(char *options, char **json_profile)
+int handle_profile_options(const char *options, char **json_profile)
 {
     *json_profile = NULL;
 

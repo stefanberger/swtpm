@@ -43,32 +43,31 @@
 
 #include "compiler_dependencies.h"
 
-int handle_log_options(char *options);
-int handle_key_options(char *options);
-int handle_migration_key_options(char *options);
-int handle_pid_options(char *options);
-int handle_tpmstate_options(char *options);
+int handle_log_options(const char *options);
+int handle_key_options(const char *options);
+int handle_migration_key_options(const char *options);
+int handle_pid_options(const char *options);
+int handle_tpmstate_options(const char *options);
 struct ctrlchannel;
-int handle_ctrlchannel_options(char *options, struct ctrlchannel **cc,
+int handle_ctrlchannel_options(const char *options, struct ctrlchannel **cc,
                                uint32_t *mainloop_flag);
 struct server;
-int handle_server_options(char *options, struct server **s);
-int handle_locality_options(char *options, uint32_t *flags);
-int handle_flags_options(char *options, bool *need_init_cmd,
+int handle_server_options(const char *options, struct server **s);
+int handle_locality_options(const char *options, uint32_t *flags);
+int handle_flags_options(const char *options, bool *need_init_cmd,
                          uint16_t *startupType, bool *disable_auto_shutdown);
 #ifdef WITH_SECCOMP
-int handle_seccomp_options(char *options, unsigned int *seccomp_action);
+int handle_seccomp_options(const char *options, unsigned int *seccomp_action);
 #else
-static inline int handle_seccomp_options(char *options SWTPM_ATTR_UNUSED,
+static inline int handle_seccomp_options(const char *options SWTPM_ATTR_UNUSED,
                                          unsigned int *seccomp_action SWTPM_ATTR_UNUSED)
 {
     return 0;
 }
 #endif
-int handle_migration_options(char *options, bool *incoming_migration,
+int handle_migration_options(const char *options, bool *incoming_migration,
                              bool *release_lock_outgoing);
 
-int handle_profile_options(char *options, char **json_profile);
+int handle_profile_options(const char *options, char **json_profile);
 
 #endif /* _SWTPM_COMMON_H_ */
-
