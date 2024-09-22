@@ -169,7 +169,7 @@ struct cuse_param {
 };
 
 /* single message to send to the worker thread */
-static struct thread_message msg;
+static struct thread_message g_msg;
 
 struct stateblob {
     uint8_t type;
@@ -995,11 +995,11 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
             /* have command processed by thread pool */
             memcpy(ptm_request, buf, ptm_req_len);
 
-            msg.type = MESSAGE_TPM_CMD;
+            g_msg.type = MESSAGE_TPM_CMD;
 
             worker_thread_mark_busy();
 
-            g_thread_pool_push(pool, &msg, NULL);
+            g_thread_pool_push(pool, &g_msg, NULL);
         } else {
             /* direct processing */
             TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
