@@ -349,7 +349,8 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
                 msg->msg_iov[0].iov_len > buffer_len)
                 return -1;
         } else
-            n = read_eintr(fd, msg->msg_iov[0].iov_base + recvd, buffer_len - recvd);
+            n = read_eintr(fd, (char *)msg->msg_iov[0].iov_base + recvd,
+                           buffer_len - recvd);
         if (n <= 0)
             return n;
         recvd += n;

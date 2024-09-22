@@ -276,7 +276,7 @@ ssize_t write_full(int fd, const void *buffer, size_t buflen)
             return -1;
         }
         written += n;
-        buffer += n;
+        buffer = (const char *)buffer + n;
     }
     return written;
 }
