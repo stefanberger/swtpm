@@ -45,7 +45,7 @@
 
 #include <libtpms/tpm_library.h>
 
-extern bool mainloop_terminate;
+extern bool g_mainloop_terminate;
 
 struct mainLoopParams {
     uint32_t flags;

@@ -69,15 +69,15 @@
 #include "swtpm_nvstore.h"
 
 /* local variables */
-static TPM_MODIFIER_INDICATOR locality;
+static TPM_MODIFIER_INDICATOR g_locality;
 
-bool mainloop_terminate;
+bool g_mainloop_terminate;
 
 TPM_RESULT
 mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
                          uint32_t tpmnum SWTPM_ATTR_UNUSED)
 {
-    *loc = locality;
+    *loc = g_locality;
 
     return TPM_SUCCESS;
 }
@@ -179,13 +179,13 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
         }
 
         if (rc || command_length == 0) {
-            mainloop_terminate = true;
+            g_mainloop_terminate = true;
             if (rc)
                 logprintf(STDERR_FILENO, "Could not send Startup: 0x%x\n", rc);
         }
     }
 
-    while (!mainloop_terminate) {
+    while (!g_mainloop_terminate) {
 
         while (rc == 0) {
             if (mlp->flags & MAIN_LOOP_FLAG_USE_FD)
@@ -242,7 +242,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
                 /* chardev and unixio get this signal, not tcp */
                 if (mlp->flags & MAIN_LOOP_FLAG_END_ON_HUP) {
                     /* only the chardev terminates here */
-                    mainloop_terminate = true;
+                    g_mainloop_terminate = true;
                     break;
                 }
             }
@@ -255,14 +255,14 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
 
             if (pollfds[CTRL_CLIENT_FD].revents & POLLIN) {
                 ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd,
-                                                    &mainloop_terminate,
-                                                    &locality, &tpm_running,
+                                                    &g_mainloop_terminate,
+                                                    &g_locality, &tpm_running,
                                                     mlp);
                 if (ctrlclntfd < 0 &&
                     mlp->flags & MAIN_LOOP_FLAG_CTRL_END_ON_HUP)
-                    mainloop_terminate = true;
+                    g_mainloop_terminate = true;
 
-                if (mainloop_terminate)
+                if (g_mainloop_terminate)
                     break;
             }
 
@@ -272,7 +272,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
                 ctrlclntfd = -1;
                 /* unixio gets this signal, not tcp */
                 if (mlp->flags & MAIN_LOOP_FLAG_CTRL_END_ON_HUP) {
-                    mainloop_terminate = true;
+                    g_mainloop_terminate = true;
                     break;
                 }
             }
@@ -281,7 +281,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
                 continue;
 
             /* before processing a command ensure that the storage is locked */
-            if ((mainloop_terminate = !mainloop_ensure_locked_storage(mlp)))
+            if ((g_mainloop_terminate = !mainloop_ensure_locked_storage(mlp)))
                 break;
 
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
@@ -299,7 +299,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
             if (rc == 0 && mlp->tpmversion == TPMLIB_TPM_VERSION_2) {
                 cmd_offset = tpmlib_handle_tcg_tpm2_cmd_header(command,
                                                                command_length,
-                                                               &locality);
+                                                               &g_locality);
                 if (cmd_offset > 0) {
                     /* send header and trailer */
                     iov[0].iov_len = sizeof(respprefix);
@@ -335,7 +335,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
                                     &command[cmd_offset],
                                     command_length - cmd_offset,
                                     mlp->locality_flags,
-                                    &locality,
+                                    &g_locality,
                                     mlp->tpmversion);
                 if (rlength)
                     goto skip_process;
