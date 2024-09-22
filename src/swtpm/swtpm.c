@@ -94,7 +94,7 @@ static void sigterm_handler(int sig __attribute__((unused)))
         logprintf(STDERR_FILENO, "Error: sigterm notification failed: %s\n",
                   strerror(errno));
     }
-    mainloop_terminate = true;
+    g_mainloop_terminate = true;
 }
 
 static void usage(FILE *file, const char *prgname, const char *iface)
