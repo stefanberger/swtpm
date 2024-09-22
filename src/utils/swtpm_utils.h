@@ -60,4 +60,46 @@ int json_get_map_value(const char *json_input, const char *field_name,
 
 int strv_strcmp(gchar *const*str_array, const gchar *s);
 
+/*
+ * Wrapper for g_spawn_sync taking const gchar ** argv / envp that
+ * internal glib function g_spawn_sync_impl & fork_exec will also use like
+ * this on posix.
+ */
+static inline gboolean spawn_sync(const gchar           *working_directory,
+                                  const gchar          **argv,
+                                  const gchar          **envp,
+                                  GSpawnFlags            flags,
+                                  GSpawnChildSetupFunc   child_setup,
+                                  gpointer               user_data,
+                                  gchar                **standard_output,
+                                  gchar                **standard_error,
+                                  gint                  *wait_status,
+                                  GError               **error)
+{
+    g_auto(GStrv) _argv = g_strdupv((gchar **)argv);
+    g_auto(GStrv) _envp = g_strdupv((gchar **)envp);
+
+    return g_spawn_sync(working_directory, _argv, _envp, flags, child_setup,
+                        user_data, standard_output, standard_error, wait_status,
+                        error);
+}
+
+/* Wrapper g_spawn_async that take const gchar ** for argv and envp. */
+static inline gboolean spawn_async(const gchar          *working_directory,
+                                   const gchar         **argv,
+                                   const gchar         **envp,
+                                   GSpawnFlags           flags,
+                                   GSpawnChildSetupFunc  child_setup,
+                                   gpointer              user_data,
+                                   GPid                 *child_pid,
+                                   GError              **error)
+{
+    g_auto(GStrv) _argv = g_strdupv((gchar **)argv);
+    g_auto(GStrv) _envp = g_strdupv((gchar **)envp);
+
+    return g_spawn_async_with_pipes(
+                working_directory, _argv, _envp, flags, child_setup, user_data,
+                child_pid, NULL, NULL, NULL, error);
+}
+
 #endif /* SWTPM_UTILS_H */
