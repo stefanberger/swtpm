@@ -131,7 +131,7 @@ static int parse_tcp_optarg(char *optarg, char **tcp_hostname,
 	return 0;
 }
 
-static int open_connection(char *devname, char *tcp_device_hostname,
+static int open_connection(const char *devname, const char *tcp_device_hostname,
                            unsigned int tcp_device_port, const char *unix_path)
 {
 	int fd = -1;
