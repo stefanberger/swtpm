@@ -408,8 +408,8 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                                    unsigned int rsa_keysize, struct swtpm2 *swtpm2,
                                    const gchar *user_certsdir)
 {
+    const char *key_description = "";
     g_autofree gchar *ekparam = NULL;
-    const char *key_description;
     unsigned long cert_flags;
     const gchar *key_type;
     size_t idx;
