@@ -70,15 +70,15 @@ static int init(gchar **options_file, gchar **config_file)
 /* Run the certtool command line prepared in cmd. Display error message
  * in case of failure and also display the keyfile if something goes wrong.
  */
-static int run_certtool(gchar **cmd, gchar **env, const char *msg, gchar *keyfile)
+static int run_certtool(const gchar **cmd, const gchar **env, const char *msg, gchar *keyfile)
 {
     g_autofree gchar *standard_error = NULL;
     gint exit_status;
     GError *error = NULL;
     gboolean success;
 
-    success = g_spawn_sync(NULL, cmd, env, G_SPAWN_STDOUT_TO_DEV_NULL, NULL, NULL,
-                           NULL, &standard_error, &exit_status, &error);
+    success = spawn_sync(NULL, cmd, env, G_SPAWN_STDOUT_TO_DEV_NULL, NULL, NULL,
+                         NULL, &standard_error, &exit_status, &error);
     if (!success || exit_status != 0) {
         logerr(gl_LOGFILE, "%s" , msg);
         if (keyfile)
@@ -125,7 +125,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         g_autofree gchar *cacert = g_strjoin(G_DIR_SEPARATOR_S, directory, "swtpm-localca-rootca-cert.pem", NULL);
         const gchar *swtpm_rootca_password = g_getenv("SWTPM_ROOTCA_PASSWORD");
         g_autofree gchar *certtool = g_find_program_in_path(CERTTOOL_NAME);
-        g_autofree gchar **cmd = NULL;
+        g_autofree const gchar **cmd = NULL;
         g_autofree gchar *fc = NULL;
         const char *filecontent;
 
@@ -135,14 +135,14 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         }
 
         /* generate the root-CA's private key */
-        cmd = concat_arrays(cmd, (gchar*[]){
-                                (gchar *)certtool, "--generate-privkey", "--outfile", cakey, NULL
+        cmd = concat_arrays(cmd, (const gchar*[]){
+                                certtool, "--generate-privkey", "--outfile", cakey, NULL
                             }, TRUE);
         if (swtpm_rootca_password != NULL)
-            cmd = concat_arrays(cmd, (gchar*[]){
-                                   "--password", (gchar *)swtpm_rootca_password, NULL
+            cmd = concat_arrays(cmd, (const char*[]){
+                                   "--password", swtpm_rootca_password, NULL
                                 }, TRUE);
-        if (run_certtool(cmd, certtool_env, "Could not create root-CA key", cakey))
+        if (run_certtool(cmd, (const gchar **)certtool_env, "Could not create root-CA key", cakey))
             goto error;
 
         if (chmod(cakey, S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
@@ -164,7 +164,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
 
         g_free(cmd);
         cmd = concat_arrays(NULL,
-                            (gchar *[]) {
+                            (const gchar *[]) {
                                 certtool,
                                 "--generate-self-signed",
                                 "--template", template1_file,
@@ -175,21 +175,21 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         if (swtpm_rootca_password != NULL)
             certtool_env = g_environ_setenv(certtool_env, "GNUTLS_PIN", swtpm_rootca_password, TRUE);
 
-        if (run_certtool(cmd, certtool_env, "Could not create root-CA:", NULL))
+        if (run_certtool(cmd, (const char **)certtool_env, "Could not create root-CA:", NULL))
             goto error;
 
         g_free(cmd);
 
         /* create the intermediate CA's key */
         cmd = concat_arrays(NULL,
-                            (gchar *[]) {
-                                certtool, "--generate-privkey", "--outfile", (gchar *)signkey, NULL
+                            (const gchar *[]) {
+                                certtool, "--generate-privkey", "--outfile", signkey, NULL
                             }, FALSE);
         if (signkey_password != NULL)
-            cmd = concat_arrays(cmd, (gchar *[]){
-                                    "--password", (gchar *)signkey_password, NULL},
+            cmd = concat_arrays(cmd, (const gchar *[]){
+                                    "--password", signkey_password, NULL},
                                 TRUE);
-        if (run_certtool(cmd, certtool_env, "Could not create local-CA key", cakey))
+        if (run_certtool(cmd, (const char **)certtool_env, "Could not create local-CA key", cakey))
             goto error;
 
         if (chmod(signkey, S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
@@ -213,12 +213,12 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
 
         g_free(cmd);
         cmd = concat_arrays(NULL,
-                            (gchar *[]) {
+                            (const gchar *[]) {
                                 certtool,
                                 "--generate-certificate",
                                 "--template", template2_file,
-                                "--outfile", (gchar *)issuercert,
-                                "--load-privkey", (gchar *)signkey,
+                                "--outfile", issuercert,
+                                "--load-privkey", signkey,
                                 "--load-ca-privkey", cakey,
                                 "--load-ca-certificate", cacert,
                                 NULL
@@ -228,7 +228,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         else if (swtpm_rootca_password != NULL)
             certtool_env = g_environ_setenv(certtool_env, "GNUTLS_PIN", swtpm_rootca_password, TRUE);
 
-        if (run_certtool(cmd, certtool_env, "Could not create local-CA:", NULL))
+        if (run_certtool(cmd, (const char **)certtool_env, "Could not create local-CA:", NULL))
             goto error;
     }
 
@@ -366,17 +366,17 @@ error:
 
 /* Create a TPM 1.2 or TPM 2 EK or platform cert */
 static int create_cert(unsigned long flags, const gchar *typ, const gchar *directory,
-                       gchar *key_params, const gchar *vmid, gchar **tpm_spec_params,
-                       gchar **tpm_attr_params, const gchar *signkey,
+                       gchar *key_params, const gchar *vmid, const gchar **tpm_spec_params,
+                       const gchar **tpm_attr_params, const gchar *signkey,
                        const gchar *signkey_password, const gchar *issuercert,
-                       const gchar *parentkey_password, gchar **swtpm_cert_env,
+                       const gchar *parentkey_password, const gchar **swtpm_cert_env,
                        const gchar *certserial, const gchar *lockfile,
                        const gchar *optsfile)
 {
     gchar ** optsfile_lines = NULL;
-    g_autofree gchar **options = NULL;
-    g_autofree gchar **keyparams = NULL;
-    g_autofree gchar **cmd = NULL;
+    g_autofree const gchar **options = NULL;
+    g_autofree const gchar **keyparams = NULL;
+    g_autofree const gchar **cmd = NULL;
     g_autofree gchar *subject = NULL;
     g_autofree gchar *ecc_x = NULL;
     g_autofree gchar *ecc_y = NULL;
@@ -424,9 +424,9 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
             chomped = g_strchomp(split[j]);
             if (strlen(chomped) > 0) {
                 gchar *to_add = g_strdup(chomped);
-                options = concat_arrays(options, (gchar *[]){to_add, NULL}, TRUE);
+                options = concat_arrays(options, (const gchar *[]){to_add, NULL}, TRUE);
                 /* need to collect this also to free later on */
-                to_free = concat_arrays(to_free, (gchar *[]){to_add, NULL}, TRUE);
+                to_free = concat_varrays(to_free, (gchar *[]){to_add, NULL}, TRUE);
             }
         }
         g_strfreev(split);
@@ -438,22 +438,22 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
         subject = g_strdup("CN=unknown");
 
     if (flags & SETUP_TPM2_F)
-        options = concat_arrays(options, (gchar *[]){"--tpm2", NULL}, TRUE);
+        options = concat_arrays(options, (const gchar *[]){"--tpm2", NULL}, TRUE);
     else
-        options = concat_arrays(options, (gchar *[]){"--add-header", NULL}, TRUE);
+        options = concat_arrays(options, (const gchar *[]){"--add-header", NULL}, TRUE);
 
     if (strcmp(typ, "ek") == 0) {
         if (flags & ALLOW_SIGNING_F)
-            options = concat_arrays(options, (gchar *[]){"--allow-signing", NULL}, TRUE);
+            options = concat_arrays(options, (const gchar *[]){"--allow-signing", NULL}, TRUE);
         if (flags & DECRYPTION_F)
-            options = concat_arrays(options, (gchar *[]){"--decryption", NULL}, TRUE);
+            options = concat_arrays(options, (const gchar *[]){"--decryption", NULL}, TRUE);
     }
 
     switch (extract_ecc_params(key_params, &ecc_x, &ecc_y, &ecc_curveid)) {
     case 1:
         goto error;
     case 2:
-        keyparams = concat_arrays((gchar *[]){
+        keyparams = concat_arrays((const gchar *[]){
                                       "--ecc-x", ecc_x,
                                       "--ecc-y", ecc_y,
                                       NULL
@@ -461,20 +461,20 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
                                   NULL, FALSE);
         if (ecc_curveid != NULL)
            keyparams = concat_arrays(keyparams,
-                                     (gchar *[]){
+                                     (const gchar *[]){
                                          "--ecc-curveid", ecc_curveid,
                                          NULL
                                      }, TRUE);
         break;
     case 0:
-        keyparams = concat_arrays((gchar *[]){
+        keyparams = concat_arrays((const gchar *[]){
                                       "--modulus", key_params,
                                       NULL},
                                    NULL, FALSE);
         break;
     }
 
-    cmd = concat_arrays((gchar *[]){
+    cmd = concat_arrays((const gchar *[]){
                             swtpm_cert_path, "--subject", subject, NULL
                         }, options, FALSE);
 
@@ -485,7 +485,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
             goto error;
 
         signkey_pwd_file_param = g_strdup_printf("file:%s", signkey_pwd_file);
-        cmd = concat_arrays(cmd, (gchar*[]){"--signkey-pwd", signkey_pwd_file_param, NULL}, TRUE);
+        cmd = concat_arrays(cmd, (const gchar*[]){"--signkey-pwd", signkey_pwd_file_param, NULL}, TRUE);
     }
     if (parentkey_password != NULL) {
         parentkey_pwd_fd = write_to_tempfile(&parentkey_pwd_file,
@@ -494,7 +494,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
             goto error;
 
         parentkey_pwd_file_param = g_strdup_printf("file:%s", parentkey_pwd_file);
-        cmd = concat_arrays(cmd, (gchar*[]){"--parentkey-pwd", parentkey_pwd_file_param, NULL}, TRUE);
+        cmd = concat_arrays(cmd, (const gchar*[]){"--parentkey-pwd", parentkey_pwd_file_param, NULL}, TRUE);
     }
 
     if (strcmp(typ, "ek") == 0)
@@ -505,7 +505,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     if (strcmp(typ, "platform") == 0) {
         certfile = g_strjoin(G_DIR_SEPARATOR_S, directory, "platform.cert", NULL);
         cmd = concat_arrays(cmd,
-                            (gchar *[]){
+                            (const gchar *[]){
                                 "--type", "platform",
                                 "--out-cert", certfile,
                                 NULL},
@@ -513,18 +513,18 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     } else {
         certfile = g_strjoin(G_DIR_SEPARATOR_S, directory, "ek.cert", NULL);
         cmd = concat_arrays(cmd,
-                            (gchar *[]){
+                            (const gchar *[]){
                                 "--out-cert", certfile,
                                 NULL
                             }, TRUE);
     }
 
     cmd = concat_arrays(cmd, keyparams, TRUE);
-    cmd = concat_arrays(cmd, (gchar *[]){
-                            "--signkey", (gchar *)signkey,
-                            "--issuercert", (gchar *)issuercert,
+    cmd = concat_arrays(cmd, (const gchar *[]){
+                            "--signkey", signkey,
+                            "--issuercert", issuercert,
                             "--days", "-1",
-                            "--serial", (gchar *)serial_str,
+                            "--serial", serial_str,
                             NULL
                         }, TRUE);
 
@@ -538,8 +538,8 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
         fprintf(stderr, "Starting: %s\n", join);
     }
 #endif
-    success = g_spawn_sync(NULL, cmd, swtpm_cert_env, G_SPAWN_DEFAULT, NULL, NULL,
-                           &standard_output, &standard_error, &exit_status, &error);
+    success = spawn_sync(NULL, cmd, swtpm_cert_env, G_SPAWN_DEFAULT, NULL, NULL,
+                         &standard_output, &standard_error, &exit_status, &error);
     if (!success) {
         logerr(gl_LOGFILE, "Could not run swtpm_cert: %s\n", error);
         g_error_free(error);
@@ -695,17 +695,21 @@ int main(int argc, char *argv[])
         case 'f': /* --tpm-spec-family */
         case 'r': /* --tpm-spec-revision */
         case '1': /* --tpm-spec-level */
-            tpm_spec_params = concat_arrays(tpm_spec_params,
+            tpm_spec_params = concat_varrays(tpm_spec_params,
                           (gchar *[]) {
-                              g_strdup_printf("--%s", long_options[option_index].name), g_strdup(optarg), NULL
+                              g_strdup_printf("--%s", long_options[option_index].name),
+                              g_strdup(optarg),
+                              NULL
                           }, TRUE);
             break;
         case 'a': /* --tpm-manufacturer */
         case 'm': /* --tpm-model */
         case 's': /* --tpm-version */
-            tpm_attr_params = concat_arrays(tpm_attr_params,
+            tpm_attr_params = concat_varrays(tpm_attr_params,
                           (gchar *[]) {
-                              g_strdup_printf("--%s", long_options[option_index].name), g_strdup(optarg), NULL
+                              g_strdup_printf("--%s", long_options[option_index].name),
+                              g_strdup(optarg),
+                              NULL
                           }, TRUE);
             break;
         case '2': /* --tpm2 */
@@ -906,9 +910,10 @@ int main(int argc, char *argv[])
             goto error;
     }
 
-    ret = create_cert(flags, typ, directory, key_params, vmid, tpm_spec_params, tpm_attr_params,
-                      signkey, signkey_password, issuercert, parentkey_password, swtpm_cert_env,
-                      certserial, lockfile, optsfile);
+    ret = create_cert(flags, typ, directory, key_params, vmid,
+                      (const char **)tpm_spec_params, (const char **)tpm_attr_params,
+                      signkey, signkey_password, issuercert, parentkey_password,
+                      (const char **)swtpm_cert_env, certserial, lockfile, optsfile);
 
 out:
 error:
