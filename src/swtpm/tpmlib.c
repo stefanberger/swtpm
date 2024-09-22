@@ -306,7 +306,7 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
 
     if (flags & PTM_INIT_FLAG_DELETE_VOLATILE) {
         uint32_t tpm_number = 0;
-        char *name = TPM_VOLATILESTATE_NAME;
+        const char *name = TPM_VOLATILESTATE_NAME;
         res = SWTPM_NVRAM_DeleteName(tpm_number,
                                      name,
                                      FALSE);
