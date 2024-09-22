@@ -1063,7 +1063,8 @@ static void ptm_open(fuse_req_t req, struct fuse_file_info *fi)
 /*
  * ptm_release:
  */
-static void ptm_release(fuse_req_t req, struct fuse_file_info *fi)
+static void ptm_release(fuse_req_t req,
+                        struct fuse_file_info *fi SWTPM_ATTR_UNUSED)
 {
     tx_state.state = TX_STATE_CLOSED;
 
