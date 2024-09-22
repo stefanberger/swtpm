@@ -95,7 +95,7 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
 #define TCG_TAG_PCCLIENT_FULL_CERT 0x1002
 
 static void
-versioninfo()
+versioninfo(void)
 {
     fprintf(stdout,
         "TPM certificate tool version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
@@ -312,7 +312,7 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
 }
 
 static int
-asn_init()
+asn_init(void)
 {
     static bool inited;
     int err;
@@ -984,7 +984,7 @@ readfd:
     return result;
 }
 
-static void capabilities_print_json()
+static void capabilities_print_json(void)
 {
     fprintf(stdout,
             "{ "
