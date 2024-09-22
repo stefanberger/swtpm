@@ -37,7 +37,8 @@ void logerr(const char *logfile, const char *fmt, ...);
 
 char *pathjoin(char *buffer, size_t bufferlen, const char *p1, const char *p2, const char *p3);
 
-gchar **concat_arrays(char **arr1, char **arr2, gboolean free_arr1);
+const gchar **concat_arrays(const gchar **arr1, const gchar **arr2, gboolean free_arr1);
+gchar **concat_varrays(gchar **arr1, gchar **arr2, gboolean free_arr1);
 ssize_t concat(unsigned char *buf, size_t buflen, ...);
 ssize_t memconcat(unsigned char **buffer, ...);
 

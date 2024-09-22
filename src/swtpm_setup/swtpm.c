@@ -82,7 +82,7 @@ static int swtpm_start(struct swtpm *self)
     g_autofree gchar *ctrl_fd = NULL;
     g_autofree gchar *keyopts = NULL;
     g_autofree gchar *logop = NULL;
-    g_autofree gchar **argv = NULL;
+    g_autofree const gchar **argv = NULL;
     struct stat statbuf;
     gboolean success;
     GError *error = NULL;
@@ -100,8 +100,8 @@ static int swtpm_start(struct swtpm *self)
     // pass filename rather than fd (Cygwin)
     pidfile_arg = g_strdup_printf("file=%s", pidfile);
 
-    argv = concat_arrays(self->swtpm_exec_l,
-                         (gchar*[]){
+    argv = concat_arrays((const char **)self->swtpm_exec_l,
+                         (const gchar*[]){
                               "--flags", "not-need-init,startup-clear",
                               "--tpmstate", tpmstate,
                               "--pid", pidfile_arg,
@@ -112,11 +112,11 @@ static int swtpm_start(struct swtpm *self)
                          }, FALSE);
 
     if (self->is_tpm2)
-        argv = concat_arrays(argv, (gchar*[]){"--tpm2", NULL}, TRUE);
+        argv = concat_arrays(argv, (const gchar*[]){"--tpm2", NULL}, TRUE);
 
     if (self->keyopts != NULL) {
         keyopts = g_strdup(self->keyopts);
-        argv = concat_arrays(argv, (gchar*[]){"--key", keyopts, NULL}, TRUE);
+        argv = concat_arrays(argv, (const gchar*[]){"--key", keyopts, NULL}, TRUE);
     }
 
     if (self->json_profile != NULL) {
@@ -128,13 +128,13 @@ static int swtpm_start(struct swtpm *self)
                                        self->profile_remove_disabled_param != NULL
                                            ? self->profile_remove_disabled_param
                                            : "");
-        argv = concat_arrays(argv, (gchar*[]){"--profile", json_profile, NULL}, TRUE);
+        argv = concat_arrays(argv, (const gchar*[]){"--profile", json_profile, NULL}, TRUE);
         logit(self->logfile, "Apply profile: %s\n", self->json_profile);
     }
 
     if (gl_LOGFILE != NULL) {
         logop = g_strdup_printf("file=%s", gl_LOGFILE);
-        argv = concat_arrays(argv, (gchar*[]){"--log", logop, NULL}, TRUE);
+        argv = concat_arrays(argv, (const gchar*[]){"--log", logop, NULL}, TRUE);
     }
 
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, self->ctrl_fds) != 0) {
@@ -149,7 +149,7 @@ static int swtpm_start(struct swtpm *self)
     }
     server_fd = g_strdup_printf("type=tcp,fd=%d", self->data_fds[1]);
 
-    argv = concat_arrays(argv, (gchar*[]){
+    argv = concat_arrays(argv, (const gchar*[]){
                              "--server", server_fd,
                              "--ctrl", ctrl_fd,
                              NULL
@@ -171,8 +171,8 @@ static int swtpm_start(struct swtpm *self)
 #endif
     }
 
-    success = g_spawn_async(NULL, argv, NULL, flags,
-                            NULL, NULL, &self->pid, &error);
+    success = spawn_async(NULL, argv, NULL, flags,
+                          NULL, NULL, &self->pid, &error);
     if (!success) {
         logerr(self->logfile, "Could not start swtpm: %s\n", error->message);
         g_error_free(error);

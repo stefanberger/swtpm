@@ -101,10 +101,10 @@ char *pathjoin(char *buffer, size_t bufferlen, const char *p1, const char *p2, c
  * This function does not duplicate the memory for the elements.
  * Either one of the arrays may be NULL. The first array can be freed.
  */
-gchar **concat_arrays(char **arr1, char **arr2, gboolean free_arr1)
+const gchar **concat_arrays(const gchar **arr1, const gchar **arr2, gboolean free_arr1)
 {
     size_t n = 0;
-    gchar **res;
+    const gchar **res;
     size_t i;
 
     for (i = 0; arr1 != NULL && arr1[i]; i++)
@@ -122,6 +122,13 @@ gchar **concat_arrays(char **arr1, char **arr2, gboolean free_arr1)
         g_free(arr1);
 
     return res;
+}
+
+gchar **concat_varrays(gchar **arr1, gchar **arr2, gboolean free_arr1)
+{
+    return (gchar **)concat_arrays((const char **)arr1,
+                                   (const char **)arr2,
+                                   free_arr1);
 }
 
 /* Concatenate buffers into a given buffer of a given length 'buflen' */

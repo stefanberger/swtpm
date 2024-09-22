@@ -149,7 +149,7 @@ static int tpm_get_specs_and_attributes(struct swtpm *swtpm, gchar ***params)
             else
                 str = g_strdup(json_reader_get_string_value(jr));
 
-            *params = concat_arrays(*params,
+            *params = concat_varrays(*params,
                                     (gchar*[]){
                                         g_strdup(parser_rules[idx].optname),
                                         str,
@@ -185,7 +185,7 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
     g_autofree gchar *create_certs_tool = NULL;
     g_autofree gchar *create_certs_tool_config = NULL;
     g_autofree gchar *create_certs_tool_options = NULL;
-    g_autofree gchar **cmd = NULL;
+    g_autofree const gchar **cmd = NULL;
     gchar **params = NULL; /* must free */
     g_autofree gchar *prgname = NULL;
     gboolean success;
@@ -217,28 +217,28 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
         }
 
         if (flags & SETUP_TPM2_F) {
-            params = concat_arrays(params,
+            params = concat_varrays(params,
                                 (gchar*[]){
                                     g_strdup("--tpm2"),
                                     NULL
                                 }, TRUE);
         }
-        cmd = concat_arrays((gchar*[]) {
+        cmd = concat_arrays((const gchar*[]) {
                                 create_certs_tool_path,
                                 "--type", "_",  /* '_' must be at index '2' ! */
-                                "--ek", (gchar *)ekparam,
-                                "--dir", (gchar *)certsdir,
+                                "--ek", ekparam,
+                                "--dir", certsdir,
                                 NULL
                             }, NULL, FALSE);
         if (gl_LOGFILE != NULL)
-            cmd = concat_arrays(cmd, (gchar*[]){"--logfile", (gchar *)gl_LOGFILE, NULL}, TRUE);
+            cmd = concat_arrays(cmd, (const gchar*[]){"--logfile", gl_LOGFILE, NULL}, TRUE);
         if (vmid != NULL)
-            cmd = concat_arrays(cmd, (gchar*[]){"--vmid", (gchar *)vmid, NULL}, TRUE);
-        cmd = concat_arrays(cmd, params, TRUE);
+            cmd = concat_arrays(cmd, (const gchar*[]){"--vmid", vmid, NULL}, TRUE);
+        cmd = concat_arrays(cmd, (const char **)params, TRUE);
         if (create_certs_tool_config != NULL)
-            cmd = concat_arrays(cmd, (gchar*[]){"--configfile", create_certs_tool_config, NULL}, TRUE);
+            cmd = concat_arrays(cmd, (const gchar*[]){"--configfile", create_certs_tool_config, NULL}, TRUE);
         if (create_certs_tool_options != NULL)
-            cmd = concat_arrays(cmd, (gchar*[]){"--optsfile", create_certs_tool_options, NULL}, TRUE);
+            cmd = concat_arrays(cmd, (const gchar*[]){"--optsfile", create_certs_tool_options, NULL}, TRUE);
 
         s = g_strrstr(create_certs_tool, G_DIR_SEPARATOR_S);
         if (s)
@@ -255,12 +255,12 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
 
                 cmd[2] = (gchar *)flags_to_certfiles[idx].type; /* replaces the "_" above */
 
-                s = g_strjoinv(" ", cmd);
+                s = g_strjoinv(" ", (char **)cmd);
                 logit(gl_LOGFILE, "  Invoking %s\n", s);
                 g_free(s);
 
-                success = g_spawn_sync(NULL, cmd, NULL, 0, NULL, NULL,
-                                       &standard_output, &standard_error, &exit_status, &error);
+                success = spawn_sync(NULL, cmd, NULL, 0, NULL, NULL,
+                                     &standard_output, &standard_error, &exit_status, &error);
                 if (!success) {
                     logerr(gl_LOGFILE, "An error occurred running %s: %s\n",
                            create_certs_tool, error->message);
@@ -831,19 +831,19 @@ error:
  * This function returns 2 if the state exists but flag is set to not to overwrite it,
  * 0 in case we can overwrite it, 1 if the state exists.
  */
-static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
+static int check_state_overwrite(const gchar **swtpm_prg_l, unsigned int flags,
                                  const char *tpm_state_path)
 {
     gboolean success;
     g_autofree gchar *standard_output = NULL;
     int exit_status = 0;
     g_autoptr(GError) error = NULL;
-    g_autofree gchar **argv = NULL;
+    g_autofree const gchar **argv = NULL;
     g_autofree gchar *statearg = g_strdup_printf("backend-uri=%s", tpm_state_path);
     g_autofree gchar *logop = NULL;
-    g_autofree gchar **my_argv = NULL;
+    g_autofree const gchar **my_argv = NULL;
 
-    my_argv = concat_arrays((gchar*[]) {
+    my_argv = concat_arrays((const gchar*[]) {
                                 "--print-states",
                                 "--tpmstate",
                                 statearg,
@@ -851,17 +851,17 @@ static int check_state_overwrite(gchar **swtpm_prg_l, unsigned int flags,
                             }, NULL, FALSE);
 
     if (flags & SETUP_TPM2_F)
-        my_argv = concat_arrays(my_argv, (gchar*[]) { "--tpm2", NULL }, TRUE);
+        my_argv = concat_arrays(my_argv, (const gchar*[]) { "--tpm2", NULL }, TRUE);
 
     if (gl_LOGFILE != NULL) {
         logop = g_strdup_printf("file=%s", gl_LOGFILE);
-        my_argv = concat_arrays(my_argv, (gchar*[]){"--log", logop, NULL}, TRUE);
+        my_argv = concat_arrays(my_argv, (const gchar*[]){"--log", logop, NULL}, TRUE);
     }
 
     argv = concat_arrays(swtpm_prg_l, my_argv, FALSE);
 
-    success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-                           &standard_output, NULL, &exit_status, &error);
+    success = spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+                         &standard_output, NULL, &exit_status, &error);
     if (!success) {
         logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
         return 1;
@@ -1044,13 +1044,13 @@ static void usage(const char *prgname, const char *default_config_file)
         );
 }
 
-static int get_swtpm_capabilities(gchar **swtpm_prg_l, gboolean is_tpm2,
+static int get_swtpm_capabilities(const gchar **swtpm_prg_l, gboolean is_tpm2,
                                   gchar **standard_output)
 {
-    gchar *my_argv[] = { "--print-capabilities", is_tpm2 ? "--tpm2" : NULL, NULL };
+    const gchar *my_argv[] = { "--print-capabilities", is_tpm2 ? "--tpm2" : NULL, NULL };
     g_autofree gchar *logop = NULL;
     g_autoptr(GError) error = NULL;
-    g_autofree gchar **argv = NULL;
+    g_autofree const gchar **argv = NULL;
     int exit_status = 0;
     gboolean success;
     int ret = 1;
@@ -1059,11 +1059,11 @@ static int get_swtpm_capabilities(gchar **swtpm_prg_l, gboolean is_tpm2,
 
     if (gl_LOGFILE != NULL) {
         logop = g_strdup_printf("file=%s", gl_LOGFILE);
-        argv = concat_arrays(argv, (gchar*[]){"--log", logop, NULL}, TRUE);
+        argv = concat_arrays(argv, (const gchar*[]){"--log", logop, NULL}, TRUE);
     }
 
-    success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-                           standard_output, NULL, &exit_status, &error);
+    success = spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+                         standard_output, NULL, &exit_status, &error);
     if (!success) {
         logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
         goto error;
@@ -1074,7 +1074,7 @@ error:
     return ret;
 }
 
-static int get_supported_tpm_versions(gchar **swtpm_prg_l, gboolean *swtpm_has_tpm12,
+static int get_supported_tpm_versions(const gchar **swtpm_prg_l, gboolean *swtpm_has_tpm12,
                                       gboolean *swtpm_has_tpm2)
 {
     g_autofree gchar *standard_output = NULL;
@@ -1095,7 +1095,7 @@ static int get_supported_tpm_versions(gchar **swtpm_prg_l, gboolean *swtpm_has_t
  *  - [ 1024, 2048, 3072 ]
  *  - [] (empty array, indicating only 2048 bit RSA keys are supported)
  */
-static int get_rsa_keysizes(unsigned long flags, gchar **swtpm_prg_l,
+static int get_rsa_keysizes(unsigned long flags, const gchar **swtpm_prg_l,
                             unsigned int **keysizes, size_t *n_keysizes)
 {
     g_autofree gchar *standard_output = NULL;
@@ -1131,7 +1131,7 @@ error:
 }
 
 /* Return the RSA key size capabilities in a NULL-terminated array */
-static int get_rsa_keysize_caps(unsigned long flags, gchar **swtpm_prg_l,
+static int get_rsa_keysize_caps(unsigned long flags, const gchar **swtpm_prg_l,
                                 gchar ***keysize_strs)
 {
     unsigned int *keysizes = NULL;
@@ -1152,7 +1152,7 @@ static int get_rsa_keysize_caps(unsigned long flags, gchar **swtpm_prg_l,
     return 0;
 }
 
-static int validate_json_profile(gchar **swtpm_prg_l, const char *json_profile)
+static int validate_json_profile(const gchar **swtpm_prg_l, const char *json_profile)
 {
     g_autofree gchar *standard_output = NULL;
     int ret;
@@ -1165,7 +1165,7 @@ static int validate_json_profile(gchar **swtpm_prg_l, const char *json_profile)
 }
 
 /* Print the JSON object of swtpm_setup's capabilities */
-static int print_capabilities(char **swtpm_prg_l, gboolean swtpm_has_tpm12,
+static int print_capabilities(const char **swtpm_prg_l, gboolean swtpm_has_tpm12,
                               gboolean swtpm_has_tpm2)
 {
     g_autofree gchar *standard_output = NULL;
@@ -1595,12 +1595,12 @@ int main(int argc, char *argv[])
     }
     g_free(tmp);
 
-    ret = get_supported_tpm_versions(swtpm_prg_l, &swtpm_has_tpm12, &swtpm_has_tpm2);
+    ret = get_supported_tpm_versions((const char **)swtpm_prg_l, &swtpm_has_tpm12, &swtpm_has_tpm2);
     if (ret != 0)
         goto error;
 
     if (printcapabilities) {
-        ret = print_capabilities(swtpm_prg_l, swtpm_has_tpm12, swtpm_has_tpm2);
+        ret = print_capabilities((const char **)swtpm_prg_l, swtpm_has_tpm12, swtpm_has_tpm2);
         goto out;
     }
 
@@ -1691,7 +1691,7 @@ int main(int argc, char *argv[])
     }
 
     if (!(flags & SETUP_RECONFIGURE_F)) {
-        ret = check_state_overwrite(swtpm_prg_l, flags, tpm_state_path);
+        ret = check_state_overwrite((const char **)swtpm_prg_l, flags, tpm_state_path);
         if (ret == 1) {
             goto error;
         } else if (ret == 2) {
@@ -1730,7 +1730,7 @@ int main(int argc, char *argv[])
         json_profile = get_default_profile(config_file_lines);
 
     if ((flags & SETUP_TPM2_F) != 0 && json_profile) {
-        if (validate_json_profile(swtpm_prg_l, json_profile) != 0)
+        if (validate_json_profile((const char **)swtpm_prg_l, json_profile) != 0)
             goto error;
     } else if (json_profile) {
         logerr(gl_LOGFILE, "There's no --profile support for TPM 1.2\n");
@@ -1782,7 +1782,7 @@ int main(int argc, char *argv[])
         unsigned int *keysizes = NULL;
         size_t n_keysizes;
 
-        ret = get_rsa_keysizes(flags, swtpm_prg_l, &keysizes, &n_keysizes);
+        ret = get_rsa_keysizes(flags, (const char **)swtpm_prg_l, &keysizes, &n_keysizes);
         if (ret)
             goto error;
         g_free(rsa_keysize_str);
@@ -1799,7 +1799,7 @@ int main(int argc, char *argv[])
         size_t n_keysizes;
         gboolean found = FALSE;
 
-        ret = get_rsa_keysizes(flags, swtpm_prg_l, &keysizes, &n_keysizes);
+        ret = get_rsa_keysizes(flags, (const char **)swtpm_prg_l, &keysizes, &n_keysizes);
         if (ret)
             goto error;
 
