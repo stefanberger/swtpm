@@ -407,7 +407,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                                    const gchar *user_certsdir)
 {
     g_autofree gchar *ekparam = NULL;
-    const char *key_description;
+    const char *key_description = "";
     unsigned long cert_flags;
     const gchar *key_type;
     size_t idx;
