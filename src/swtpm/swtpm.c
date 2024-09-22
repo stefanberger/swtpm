@@ -265,6 +265,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     bool printcapabilities = false;
     bool printstates = false;
     bool printprofiles = false;
+    bool tpm_running = false;
     static struct option longopts[] = {
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
@@ -584,7 +585,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         daemonize_finish();
     }
 
-    rc = mainLoop(&mlp, notify_fd[0]);
+    rc = mainLoop(&mlp, notify_fd[0], tpm_running);
 
 error_seccomp_profile:
     uninstall_sighandlers();

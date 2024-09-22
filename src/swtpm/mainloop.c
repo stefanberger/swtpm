@@ -70,7 +70,6 @@
 
 /* local variables */
 static TPM_MODIFIER_INDICATOR locality;
-bool tpm_running = false;
 
 bool mainloop_terminate;
 
@@ -114,8 +113,7 @@ void mainloop_unlock_nvram(struct mainLoopParams *mlp,
     mlp->locking_retries = locking_retries;
 }
 
-int mainLoop(struct mainLoopParams *mlp,
-             int notify_fd)
+int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
 {
     TPM_RESULT          rc = 0;
     TPM_CONNECTION_FD   connection_fd;             /* file descriptor for read/write */

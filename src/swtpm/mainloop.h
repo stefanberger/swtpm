@@ -46,7 +46,6 @@
 #include <libtpms/tpm_library.h>
 
 extern bool mainloop_terminate;
-extern bool tpm_running;
 
 struct mainLoopParams {
     uint32_t flags;
@@ -78,7 +77,7 @@ struct mainLoopParams {
 };
 
 int mainLoop(struct mainLoopParams *mlp,
-             int notify_fd);
+             int notify_fd, bool tpm_running);
 TPM_RESULT mainloop_cb_get_locality(TPM_MODIFIER_INDICATOR *loc,
                                     uint32_t tpmnum);
 bool mainloop_ensure_locked_storage(struct mainLoopParams *mlp);
