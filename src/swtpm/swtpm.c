@@ -261,7 +261,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
 #ifdef DEBUG
     time_t              start_time;
 #endif
-    unsigned int seccomp_action;
+    unsigned int seccomp_action = SWTPM_SECCOMP_ACTION_KILL;;
     bool printcapabilities = false;
     bool printstates = false;
     bool printprofiles = false;
