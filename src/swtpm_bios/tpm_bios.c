@@ -66,12 +66,12 @@
 
 #define DEFAULT_TCP_PORT 6545
 
-static char *tpm_device; /* e.g., /dev/tpm0 */
+static char *g_tpm_device; /* e.g., /dev/tpm0 */
 
-static char *tcp_hostname;
-static unsigned int tcp_port = DEFAULT_TCP_PORT;
+static char *g_tcp_hostname;
+static unsigned int g_tcp_port = DEFAULT_TCP_PORT;
 
-static char *unix_path;
+static char *g_unix_path;
 
 static int parse_tcp_optarg(char *optarg, char **tcp_hostname,
                             unsigned int *tcp_port)
@@ -247,7 +247,8 @@ static int talk(const void *cmd, size_t count, int *tpm_errcode,
 	fd_set rfds;
 	struct tpm_resp_header *hdr;
 
-	fd = open_connection(tpm_device, tcp_hostname, tcp_port, unix_path);
+	fd = open_connection(g_tpm_device, g_tcp_hostname, g_tcp_port,
+	                     g_unix_path);
 	if (fd < 0) {
 		goto err_exit;
 	}
@@ -712,23 +713,23 @@ int main(int argc, char *argv[])
 #endif
 		switch (opt) {
 		case 'D':
-			free(tpm_device);
-			tpm_device = strdup(optarg);
-			if (!tpm_device) {
+			free(g_tpm_device);
+			g_tpm_device = strdup(optarg);
+			if (!g_tpm_device) {
 				fprintf(stderr, "Out of memory.");
 				return EXIT_FAILURE;
 			}
 			break;
 		case 'T':
-			free(tcp_hostname);
-			if (parse_tcp_optarg(optarg, &tcp_hostname, &tcp_port) < 0) {
+			free(g_tcp_hostname);
+			if (parse_tcp_optarg(optarg, &g_tcp_hostname, &g_tcp_port) < 0) {
 				return EXIT_FAILURE;
 			}
 			break;
 		case 'U':
-			free(unix_path);
-			unix_path = strdup(optarg);
-			if (!unix_path) {
+			free(g_unix_path);
+			g_unix_path = strdup(optarg);
+			if (!g_unix_path) {
 				fprintf(stderr, "Out of memory.\n");
 				return EXIT_FAILURE;
 			}
