@@ -1628,7 +1628,6 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     const char *devname = NULL;
     char *cinfo_argv[1] = { 0 };
     unsigned int num;
-    struct passwd *passwd;
     const char *uri = NULL;
     int n, tpmfd;
     char path[PATH_MAX];
@@ -1786,7 +1785,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     }
 
     if (param.runas) {
-        if (!(passwd = getpwnam(param.runas))) {
+        if (!getpwnam(param.runas)) {
             logprintf(STDERR_FILENO, "User '%s' does not exist\n",
                       param.runas);
             ret = -5;
