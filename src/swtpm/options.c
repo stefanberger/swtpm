@@ -297,10 +297,10 @@ option_parse_token(char *str, char **saveptr, char **tok, char **error)
 OptionValues *
 options_parse(const char *opts, const OptionDesc optdesc[], char **error)
 {
+    OptionValues *ovs = calloc(1, sizeof(OptionValues));
     char *saveptr;
     char *tok;
     int i;
-    OptionValues *ovs = calloc(sizeof(OptionValues), 1);
     bool found;
     char *opts_bak;
 
