@@ -450,7 +450,7 @@ TPM_RESULT SWTPM_NVRAM_DeleteName(uint32_t tpm_number,
 TPM_RESULT SWTPM_NVRAM_Store_Volatile(void)
 {
     TPM_RESULT     rc = 0;
-    char           *name = TPM_VOLATILESTATE_NAME;
+    const char     *name = TPM_VOLATILESTATE_NAME;
     uint32_t       tpm_number = 0;
     unsigned char  *buffer = NULL;
     uint32_t       buflen;
