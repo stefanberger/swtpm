@@ -81,7 +81,7 @@ typedef struct {
         .name = NULL, \
     }
 
-OptionValues *options_parse(char *opts, const OptionDesc optdesc[],
+OptionValues *options_parse(const char *opts, const OptionDesc optdesc[],
                             char **error);
 void option_values_free(OptionValues *ov);
 const char *option_get_string(OptionValues *ovs, const char *name,
