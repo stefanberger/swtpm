@@ -554,7 +554,7 @@ static int SWTPM_HMAC(unsigned char *md, unsigned int *md_len,
         goto err;
 
     params[0] = OSSL_PARAM_construct_utf8_string(OSSL_ALG_PARAM_DIGEST,
-                                                 "sha256", 0);
+                                                 (char *)"sha256", 0);
     params[1] = OSSL_PARAM_construct_end();
 
     if (!EVP_MAC_init(ctx, key, key_len, params) ||
