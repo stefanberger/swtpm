@@ -250,7 +250,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     char *localitydata = NULL;
     char *tpmstatedata = NULL;
     char *ctrlchdata = NULL;
-    char *serverdata = NULL;
+    const char *serverdata = NULL;
     char *flagsdata = NULL;
     char *seccompdata = NULL;
     char *migrationdata = NULL;
