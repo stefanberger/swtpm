@@ -994,6 +994,9 @@ SWTPM_NVRAM_GetPlainData(unsigned char **plain, uint32_t *plain_length,
             rc = TPM_FAIL;
         }
     break;
+
+    default:
+        rc = TPM_FAIL;
     }
 
     return rc;
