@@ -1531,7 +1531,8 @@ oom_error:
 error:
     if (profilefd >= 0)
         close(profilefd);
-    g_error_free(gerror);
+    if (gerror)
+        g_error_free(gerror);
     SWTPM_G_FREE(*json_profile);
     option_values_free(ovs);
     free(error);
