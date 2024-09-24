@@ -1099,7 +1099,7 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
                                                       uint32_t *curr_handle)
 {
     unsigned int keyflags = 0x00030472;
-    const unsigned char authpolicy[0];
+    const unsigned char authpolicy[0] = { };
     size_t authpolicy_len = sizeof(authpolicy);
     const unsigned char symkeydata[] = {AS2BE(TPM2_ALG_AES), AS2BE(256), AS2BE(TPM2_ALG_CFB)};
     size_t symkeydata_len = sizeof(symkeydata);
@@ -1120,7 +1120,7 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
                                             uint32_t *curr_handle)
 {
     unsigned int keyflags = 0x00030472;
-    const unsigned char authpolicy[0];
+    const unsigned char authpolicy[0] = { };
     size_t authpolicy_len = sizeof(authpolicy);
     unsigned short symkeylen = 0;
     unsigned char symkeydata[6];
