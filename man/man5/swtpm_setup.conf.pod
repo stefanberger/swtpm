@@ -109,6 +109,17 @@ map describing the profile, such as 'profile = {"Name": "default-v1"}'.
 Please also refer to the description of the I<--profile> option for
 swtpm_setup.
 
+=item B<profile_file> (since v0.10)
+
+This keyword allows to specify a default profile file.
+
+=item B<local_profiles_dir> (since v0.10)
+
+This keyword allows to set a profile directory that contains profiles written
+by users of the system.
+
+=item B<>
+
 =back
 
 =head1 SEE ALSO

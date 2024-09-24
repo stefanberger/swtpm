@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+source "${TESTDIR}/common"
+skip_test_no_tpm20 "${SWTPM_EXE}"
+
+workdir="$(mktemp -d)" || exit 1
+export TPM_PATH=${workdir}
+SWTPM_SERVER_PORT=65482
+SWTPM_CTRL_PORT=65483
+SWTPM_SERVER_NAME=127.0.0.1
+SWTPM_INTERFACE="socket+socket"
+
+SP="[[:blank:]+]"
+
+profilesdir="${workdir}/profiles"
+mkdir -p "${profilesdir}"
+
+trap "cleanup" SIGTERM EXIT
+
+
+cat <<_EOF_ > "${workdir}/swtpm-localca.options"
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 2
+--platform-manufacturer "Fedora XYZ"
+--platform-version 2.1
+--platform-model "QEMU A.B"
+_EOF_
+
+cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
+create_certs_tool=\${SWTPM_LOCALCA}
+create_certs_tool_config=${workdir}/swtpm-localca.conf
+create_certs_tool_options=${workdir}/swtpm-localca.options
+local_profiles_dir = ${workdir}/profiles
+_EOF_
+
+function cleanup()
+{
+	rm -rf "${workdir}"
+
+	if kill_quiet -0 "${SWTPM_PID}"; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+}
+
+test_swtpm_setup_profile()
+{
+	local workdir="${1}"
+	local profilename="${2}"
+	local exp_response="${3}"	# expected 'ActiveProfile' response; optional
+	local exp_fail="${4}"		# swtpm_setup is expexted to fail when '1'
+
+	local response
+
+	rm -f "${workdir}/logfile"
+
+	if ! $SWTPM_SETUP \
+		--tpm2 \
+		--tpmstate "${workdir}" \
+		--config "${workdir}/swtpm_setup.conf" \
+		--log "${workdir}/logfile" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--overwrite \
+		${profilename:+--profile-name ${profilename}}
+	then
+		if [ "${exp_fail}" -eq 1 ]; then
+			# swtpm_setup failed as expected
+			return 0
+		fi
+		echo "Test failed: Error: Could not run $SWTPM_SETUP."
+		echo "Setup Logfile:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
+	if [ -n "${exp_fail}" ] && [ "${exp_fail}" -eq 1 ]; then
+		echo "Error: swtpm_setup did not fail as expected"
+		exit 1
+	fi
+
+	run_swtpm "${SWTPM_INTERFACE}" \
+		--tpm2 \
+		--flags not-need-init,startup-clear
+
+	if ! kill_quiet -0 "${SWTPM_PID}"; then
+		echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+		exit 1
+	fi
+
+	if [ -n "${exp_response}" ]; then
+		response=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 0x20)
+		if ! [[ "${response}" =~ ${exp_response} ]]; then
+			echo "Error: Response does not match expected response regular expression"
+			echo "Actual   : ${response}"
+			echo "Expected : ${exp_response}"
+			exit 1
+		fi
+	fi
+
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+		echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+		exit 1
+	fi
+
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+		exit 1
+	fi
+}
+
+# Force-load built-in's and local's
+
+exp_response_null=$(echo "^\{\"ActiveProfile\":\{" \
+               "\"Name\":\"null\"," \
+               "\"StateFormatLevel\":1,"\
+               "\"Commands\":\"[,x[:xdigit:]-]+\","\
+               "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+               "\"Description\":\"The${SP}profile${SP}enables${SP}[[:print:]]+\""\
+               "\}\}\$"| tr -d " ")
+test_swtpm_setup_profile "${workdir}" "builtin:null" "${exp_response_null}" "0"
+
+exp_response_default=$(echo "^\{\"ActiveProfile\":\{" \
+               "\"Name\":\"default-v1\"," \
+               "\"StateFormatLevel\":[0-9]+,"\
+               "\"Commands\":\"[,x[:xdigit:]-]+\","\
+               "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+               "\"Description\":\"This${SP}profile${SP}enables${SP}all${SP}[[:print:]]+\""\
+               "\}\}\$"| tr -d " ")
+test_swtpm_setup_profile "${workdir}" "builtin:default-v1" "${exp_response_default}" "0"
+
+echo '{"Name":"custom","Description":"test1"}' > "${profilesdir}/test1.json"
+exp_response_test1=$(echo "^\{\"ActiveProfile\":\{" \
+               "\"Name\":\"custom\"," \
+               "\"StateFormatLevel\":[0-9]+,"\
+               "\"Commands\":\"[,x[:xdigit:]-]+\","\
+               "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+               "\"Description\":\"test1\""\
+               "\}\}\$"| tr -d " ")
+test_swtpm_setup_profile "${workdir}" "local:test1" "${exp_response_test1}" "0"
+
+echo '{"Name":"custom","Description":"test2"}' > "${profilesdir}/test2.json"
+exp_response_test2=$(echo "^\{\"ActiveProfile\":\{" \
+               "\"Name\":\"custom\"," \
+               "\"StateFormatLevel\":[0-9]+,"\
+               "\"Commands\":\"[,x[:xdigit:]-]+\","\
+               "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+               "\"Description\":\"test2\""\
+               "\}\}\$"| tr -d " ")
+test_swtpm_setup_profile "${workdir}" "local:test2" "${exp_response_test2}" "0"
+
+# Load by searching through directories and last use built-in's
+
+test_swtpm_setup_profile "${workdir}" "null" "${exp_response_null}" "0"
+test_swtpm_setup_profile "${workdir}" "default-v1" "${exp_response_default}" "0"
+test_swtpm_setup_profile "${workdir}" "test1" "${exp_response_test1}" "0"
+test_swtpm_setup_profile "${workdir}" "test2" "${exp_response_test2}" "0"
+test_swtpm_setup_profile "${workdir}" "test3" "${exp_response_test2}" "1"

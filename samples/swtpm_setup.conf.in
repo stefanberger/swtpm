@@ -7,3 +7,4 @@ active_pcr_banks = @DEFAULT_PCR_BANKS@
 rsa_keysize = 2048
 profile = {"Name": "default-v1"}
 # profile_file =
+local_profiles_dir = /etc/swtpm/profiles/

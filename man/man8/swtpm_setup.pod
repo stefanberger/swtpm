@@ -193,7 +193,7 @@ size is used.
 This option allows the reconfiguration of the active PCR banks of a
 TPM 2 using the I<--pcr-banks> option.
 
-=item B<--profile <json-profile>>
+=item B<--profile <json-profile>> (since v0.10)
 
 Configure a TPM 2 with the given profile. Example profiles look
 like this:
@@ -218,15 +218,37 @@ supported by libtpms. The profile may contain an algorithms field with a
 list of algorithms to enable. Unknown fields in the JSON profile will be
 ignored.
 
-=item B<--profile-file <file>>
+=item B<--profile-name <profile filename| built-in profile name> (since v0.10)
+
+Configure a TPM 2 with a profile loaded from either one of the following
+locations in the shown order, unless qualified by a prefix:
+
+=over 2
+
+=item * local profiles dir specified in swtpm_setup.conf as
+'local_profiles_dir'; to force loading the profile from this directory,
+prefix the name with 'local:'
+
+=item * distro profile dir, which is typically /usr/share/swtpm/profiles; to
+force loading the profile from this directory prefix the name with 'distro:'
+
+=item * instantiate a libtpms built-in profile; to force a built-in profile
+prefix the name with 'builtin:'
+
+=back
+
+All profile filenames will automatically get extended with the suffix
+'.json'.
+
+=item B<--profile-file <file>> (since v0.10)
 
 Configure a TPM 2 with a profile from a file.
 
-=item B<--profile-file-fd <fd>>
+=item B<--profile-file-fd <fd>> (since v0.10)
 
 Configure a TPM 2 with a profile read from a file descriptor.
 
-=item B<--profile-remove-disabled check|fips-host>
+=item B<--profile-remove-disabled check|fips-host> (since v0.10)
 
 When this option is passed then swtpm will remove algorithms from the given
 profile that OpenSSL cannot use when FIPS mode is enabled on the host. If
