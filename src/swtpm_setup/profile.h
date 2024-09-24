@@ -15,4 +15,9 @@
 int get_profile_names(const gchar *swtpm_capabilities_json, gchar ***profile_names);
 int check_json_profile(const gchar *swtpm_capabilities_json, const char *json_profile);
 
+int profile_get_by_name(gchar *const *config_file_lines,
+                        const gchar *json_profile_name,
+                        gchar **json_profile_file,
+                        gchar **json_profile);
+
 #endif /* SWTPM_SETUP_PROFILE_H */
