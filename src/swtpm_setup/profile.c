@@ -7,13 +7,23 @@
  * Copyright (c) IBM Corporation, 2022
  */
 
-#include <stdio.h>
 #include "config.h"
+
+#include <stdio.h>
+
+#include <glib.h>
+#include <glib/gstdio.h>
 
 #include <json-glib/json-glib.h>
 
 #include "profile.h"
+#include "swtpm_conf.h"
 #include "swtpm_utils.h"
+#include "swtpm_setup_utils.h"
+#include "compiler_dependencies.h"
+
+#define DISTRO_PROFILES_DIR DATAROOTDIR "swtpm/profiles"
+
 
 /* Return the names of the supported profiles */
 int get_profile_names(const gchar *swtpm_capabilities_json, gchar ***profile_names)
@@ -113,4 +123,125 @@ error:
     g_strfreev(profile_names);
 
     return ret;
+}
+
+/* Create a path to the profile and check whether the file is accessible */
+static int profile_path_from_dir(const gchar *dir,
+                                 const gchar *profile_name,
+                                 gchar **json_profile_file)
+{
+    *json_profile_file = g_strdup_printf("%s/%s.json",
+                                         dir, profile_name);
+    if (g_access(*json_profile_file, R_OK) != 0) {
+        SWTPM_G_FREE(*json_profile_file);
+        return -1;
+    }
+    return 0;
+}
+
+static int profile_path_local(gchar *const *config_file_lines,
+                              const gchar *profile_name,
+                              gchar **json_profile_file)
+{
+    g_autofree gchar *dir;
+
+    dir = get_config_value(config_file_lines, "local_profiles_dir");
+    if (dir == NULL || strlen(dir) == 0 )
+        return -1;
+    return profile_path_from_dir(dir, profile_name, json_profile_file);
+}
+
+static int profile_path_distro(gchar *const *config_file_lines SWTPM_ATTR_UNUSED,
+                               const gchar *profile_name,
+                               gchar **json_profile_file)
+{
+    return profile_path_from_dir(DISTRO_PROFILES_DIR,
+                                 profile_name,
+                                 json_profile_file);
+}
+
+static int profile_build_json(gchar *const *config_file_lines SWTPM_ATTR_UNUSED,
+                              const gchar *profile_name,
+                              gchar **json_profile)
+{
+    *json_profile = g_strdup_printf("{\"Name\":\"%s\"}", profile_name);
+    return 0;
+}
+
+/*
+ * Check whether the profile name is valid; especially avoid names with '/'
+ * that would enable '../../etc/foo'.
+ */
+int profile_name_check(const gchar *profile_name)
+{
+    GMatchInfo *match_info;
+    GRegex *regex;
+    int ret = 0;
+
+    regex = g_regex_new("^[A-Za-z0-9.\\-:]+$",
+                        0 /* G_REGEX_DEFAULT */,
+                        0 /* G_REGEX_MATCH_DEFAULT */,
+                        NULL);
+    g_regex_match(regex, profile_name, 0, &match_info);
+    if (!g_match_info_matches(match_info)) {
+        logerr(gl_LOGFILE,
+               "Profile name '%s' contains unacceptable characters.\n",
+               profile_name);
+        ret = -1;
+    }
+    g_match_info_free(match_info);
+    g_regex_unref(regex);
+
+    return ret;
+}
+
+/*
+ * Try to find the profile with the given name as a file (with added .json
+ * suffix) in the local or distro files directories. If not found in either,
+ * create the JSON for selecting a built-in profile.
+ *
+ * @config_file_lines: lines of the configuration file
+ * @json_profile_name: the name of the profile to search for
+ * @json_profile_file: pointer to set an available profile file's full path
+ * @json_profile: pointer to set to the JSON string for built-in profile
+ */
+int profile_get_by_name(gchar *const *config_file_lines,
+                        const gchar *json_profile_name,
+                        gchar **json_profile_file,
+                        gchar **json_profile)
+{
+    typedef int (*getter_t)(gchar *const *config_file_lines,
+                            const gchar *name,
+                            gchar **result);
+    const struct {
+        const char  *prefix;
+        gboolean     filename; /* true: returns a filename */
+        getter_t     getter;
+    } prefixes[] = {
+        { "local:",   TRUE,  profile_path_local},
+        { "distro:",  TRUE,  profile_path_distro},
+        { "builtin:", FALSE, profile_build_json},
+        { NULL, },
+    };
+    size_t i, len;
+
+    for (i = 0; prefixes[i].prefix; i++) {
+        len = strlen(prefixes[i].prefix);
+        if (!strncmp(prefixes[i].prefix, json_profile_name, len))
+            return prefixes[i].getter(config_file_lines,
+                                      &json_profile_name[len],
+                                      prefixes[i].filename
+                                         ? json_profile_file
+                                         : json_profile);
+    }
+    /* no prefixes matched */
+    for (i = 0; prefixes[i].prefix; i++) {
+        if (prefixes[i].getter(config_file_lines,
+                               json_profile_name,
+                               prefixes[i].filename
+                                  ? json_profile_file
+                                  : json_profile) == 0)
+            return 0;
+    }
+    return -1;
 }

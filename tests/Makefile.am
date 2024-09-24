@@ -87,6 +87,7 @@ TESTS += \
 	test_tpm2_ibmtss2 \
 	test_tpm2_swtpm_setup_overwrite \
 	test_tpm2_swtpm_setup_profile \
+	test_tpm2_swtpm_setup_profile_name \
 	test_tpm2_libtpms_versions_profiles
 
 if WITH_GNUTLS

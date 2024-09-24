@@ -1039,6 +1039,10 @@ static void usage(const char *prgname, const char *default_config_file)
         "--profile <json-profile>\n"
         "                 : Configure swtpm with the given profile.\n"
         "\n"
+        "--profile-name <profile name | built-in profile name>\n"
+        "                 : Search for a profile with the <name>.json in distro and\n"
+        "                   local directories; if not found try it as a built-in.\n"
+        "\n"
         "--profile-file <file>\n"
         "                 : Configure swtpm with a profile read from the given file.\n"
         "\n"
@@ -1378,6 +1382,7 @@ int main(int argc, char *argv[])
         {"print-capabilities", no_argument, NULL, 'y'},
         {"reconfigure", no_argument, NULL, 'R'},
         {"profile", required_argument, NULL, 'I'},
+        {"profile-name", required_argument, NULL, 'J'},
         {"profile-file", required_argument, NULL, 'g'},
         {"profile-file-fd", required_argument, NULL, 'G'},
         {"profile-remove-disabled", required_argument, NULL, 'j'},
@@ -1410,6 +1415,7 @@ int main(int argc, char *argv[])
     g_autofree gchar *certsdir = NULL;
     g_autofree gchar *user_certsdir = NULL;
     g_autofree gchar *json_profile = NULL;
+    g_autofree gchar *json_profile_name = NULL;
     g_autofree gchar *json_profile_file = NULL;
     g_autofree gchar *profile_remove_disabled_param = NULL;
     int json_profile_fd = -1;
@@ -1602,6 +1608,10 @@ int main(int argc, char *argv[])
             g_free(json_profile);
             json_profile = g_strdup(optarg);
             break;
+        case 'J': /* --profile-name */
+            g_free(json_profile_name);
+            json_profile_name = g_strdup(optarg);
+            break;
         case 'g': /* --profile-file */
             g_free(json_profile_file);
             json_profile_file = g_strdup(optarg);
@@ -1777,10 +1787,28 @@ int main(int argc, char *argv[])
     }
 
     if ((json_profile != NULL) +
+        (json_profile_name != NULL) +
         (json_profile_file != NULL) +
         (json_profile_fd > 0) > 1) {
-        logerr(gl_LOGFILE, "Only one of --profile, --profile-file and --profile-file-fd may be given\n");
+        logerr(gl_LOGFILE, "Only one of --profile, --profile-name, --profile-file, and --profile-file-fd may be given.\n");
         goto error;
+    }
+
+    if (json_profile_name) {
+        if (profile_name_check(json_profile_name) < 0)
+            goto error;
+        /*
+         * Load profile from distro and local locations; sets json_profile_file
+         * to filename or json_profile with the JSON.
+         */
+        if (profile_get_by_name(config_file_lines,
+                                json_profile_name,
+                                &json_profile_file,
+                                &json_profile) < 0) {
+            logerr(gl_LOGFILE, "Could not find or access profile '%s'.\n",
+                   json_profile_name);
+            goto error;
+        }
     }
 
     if (json_profile_file) {
