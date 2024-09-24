@@ -1765,7 +1765,9 @@ int main(int argc, char *argv[])
         pcr_banks = get_default_pcr_banks(config_file_lines);
     }
 
-    if ((json_profile != NULL) + (json_profile_file != NULL) > 1 + (json_profile_fd >= 0)) {
+    if ((json_profile != NULL) +
+        (json_profile_file != NULL) +
+        (json_profile_fd > 0) > 1) {
         logerr(gl_LOGFILE, "Only one of --profile, --profile-file and --profile-file-fd may be given\n");
         goto error;
     }
