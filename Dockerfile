@@ -1,4 +1,4 @@
-FROM python:3.9-alpine3.19 as builder
+FROM python:3.9-alpine3.19 AS builder
 
 LABEL org.opencontainers.image.authors="Stefan Berger"
 
