@@ -135,11 +135,15 @@ int create_config_files(gboolean overwrite, gboolean root_flag,
         "create_certs_tool_config = %s\n"
         "create_certs_tool_options = %s\n"
         "# Comma-separated list (no spaces) of PCR banks to activate by default\n"
-        "active_pcr_banks = %s\n",
+        "active_pcr_banks = %s\n"
+        "profile = {\"Name\":\"default-v1\"}\n"
+        "# profile_file =\n"
+        "local_profiles_dir = %s/etc/swtpm/profiles/\n",
         create_certs_tool,
         configfiles[SWTPM_LOCALCA_CONF],
         configfiles[SWTPM_LOCALCA_OPTIONS],
-        DEFAULT_PCR_BANKS
+        DEFAULT_PCR_BANKS,
+        configdir
     );
 
     /* swtpm-localca.conf */
