@@ -1319,6 +1319,22 @@ static int handle_create_config_files(const char *optarg)
     return create_config_files(overwrite, root_flag, skip_if_exist);
 }
 
+static int read_config_file(const gchar *config_file,
+                            const struct passwd *user,
+                            gchar ***config_file_lines)
+{
+    if (access(config_file, R_OK) != 0) {
+        logerr(gl_LOGFILE, "User %s cannot read config file %s.\n",
+               user ? user->pw_name : "<unknown>", config_file);
+        return -1;
+    }
+
+    /* read the config file; ignore errors here now */
+    read_file_lines(config_file, config_file_lines);
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     int opt, option_index = 0;
@@ -1658,6 +1674,8 @@ int main(int argc, char *argv[])
             goto error;
     }
 
+    curr_user = getpwuid(getuid());
+
     if (!got_ownerpass)
         ownerpass = g_strdup(DEFAULT_OWNER_PASSWORD);
     if (!got_srkpass)
@@ -1677,8 +1695,6 @@ int main(int argc, char *argv[])
         }
         fclose(tmpfile);
     }
-
-    curr_user = getpwuid(getuid());
 
     // Check tpm_state_path directory and access rights
     if (tpm_state_path == NULL) {
@@ -1744,14 +1760,9 @@ int main(int argc, char *argv[])
             goto error;
     }
 
-    if (access(config_file, R_OK) != 0) {
-        logerr(gl_LOGFILE, "User %s cannot read config file %s.\n",
-               curr_user ? curr_user->pw_name : "<unknown>", config_file);
+    if (!config_file_lines &&
+        read_config_file(config_file, curr_user, &config_file_lines) < 0)
         goto error;
-    }
-
-    /* read the config file; ignore errors here now */
-    read_file_lines(config_file, &config_file_lines);
 
     /* check pcr_banks; read from config file if not given */
     tmp_l = g_strsplit(pcr_banks ? pcr_banks : "", ",", -1);
