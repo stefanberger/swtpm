@@ -263,6 +263,14 @@ This option passes the I<remove-disable> option parameter as part of the
 I<--profile> option to swtpm. For further information see the man page for
 I<swtpm>.
 
+=item B<--print-profiles> (since v0.10)
+
+Print all profiles found in the local and disto profiles directories and
+the built-in ones. All profiles stored in files must have the .json
+extension. The names in the displayed JSON will show the name under
+which these profiles can be loaded with the I<--profile-name> option,
+i.e., they will show their filename without the .json extension.
+
 =item B<--print-capabilities> (since v0.2)
 
 Print capabilities that were added to swtpm_setup after version 0.1.

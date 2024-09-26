@@ -21,4 +21,7 @@ int profile_get_by_name(gchar *const *config_file_lines,
                         gchar **json_profile_file,
                         gchar **json_profile);
 
+int profile_printall(const gchar **swtpm_prg_l,
+                     gchar *const *config_file_lines);
+
 #endif /* SWTPM_SETUP_PROFILE_H */

@@ -1386,6 +1386,7 @@ int main(int argc, char *argv[])
         {"profile-file", required_argument, NULL, 'g'},
         {"profile-file-fd", required_argument, NULL, 'G'},
         {"profile-remove-disabled", required_argument, NULL, 'j'},
+        {"print-profiles", no_argument, NULL, 'M'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -1403,6 +1404,7 @@ int main(int argc, char *argv[])
     g_autofree gchar *vmid = NULL;
     g_autofree gchar *pcr_banks = NULL;
     gboolean printcapabilities = FALSE;
+    gboolean printprofiles = FALSE;
     g_autofree gchar *keyfile = NULL;
     long int keyfile_fd = -1;
     g_autofree gchar *pwdfile = NULL;
@@ -1634,6 +1636,9 @@ int main(int argc, char *argv[])
             g_free(profile_remove_disabled_param);
             profile_remove_disabled_param = g_strdup(optarg);
             break;
+        case 'M': /* --print-profiles */
+            printprofiles = TRUE;
+            break;
         case '?':
         case 'h': /* --help */
             usage(argv[0], config_file);
@@ -1685,6 +1690,20 @@ int main(int argc, char *argv[])
     }
 
     curr_user = getpwuid(getuid());
+
+    if (printprofiles) {
+        ret = 0;
+        if (read_config_file(config_file, curr_user, &config_file_lines) < 0)
+            goto error;
+
+        if (flags & SETUP_TPM2_F) {
+            if (profile_printall((const char **)swtpm_prg_l, config_file_lines))
+                ret = 1;
+        } else {
+            printf("{}\n");
+        }
+        goto out;
+    }
 
     if (!got_ownerpass)
         ownerpass = g_strdup(DEFAULT_OWNER_PASSWORD);

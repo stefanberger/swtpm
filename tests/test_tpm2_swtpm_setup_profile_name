@@ -132,6 +132,18 @@ exp_response_default=$(echo "^\{\"ActiveProfile\":\{" \
                "\}\}\$"| tr -d " ")
 test_swtpm_setup_profile "${workdir}" "builtin:default-v1" "${exp_response_default}" "0"
 
+# No local profile must be found
+output=$($SWTPM_SETUP \
+		--tpm2 \
+		--print-profiles \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--config "${workdir}/swtpm_setup.conf")
+if ! echo "${output}" | grep -q '"local":\[\]'; then
+	echo "Error: Unexpected output. There should be no local profiles."
+	echo "${output}"
+	exit 1
+fi
+
 echo '{"Name":"custom","Description":"test1"}' > "${profilesdir}/test1.json"
 exp_response_test1=$(echo "^\{\"ActiveProfile\":\{" \
                "\"Name\":\"custom\"," \
@@ -142,6 +154,18 @@ exp_response_test1=$(echo "^\{\"ActiveProfile\":\{" \
                "\}\}\$"| tr -d " ")
 test_swtpm_setup_profile "${workdir}" "local:test1" "${exp_response_test1}" "0"
 
+# One local profile must be found
+output=$($SWTPM_SETUP \
+		--tpm2 \
+		--print-profiles \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--config "${workdir}/swtpm_setup.conf")
+if ! echo "${output}" | grep -q '"local":\[{"Name":"test1","Description":"test1"}\]'; then
+	echo "Error: Unexpected output. There should be 1 local profile."
+	echo "${output}"
+	exit 1
+fi
+
 echo '{"Name":"custom","Description":"test2"}' > "${profilesdir}/test2.json"
 exp_response_test2=$(echo "^\{\"ActiveProfile\":\{" \
                "\"Name\":\"custom\"," \
@@ -151,6 +175,20 @@ exp_response_test2=$(echo "^\{\"ActiveProfile\":\{" \
                "\"Description\":\"test2\""\
                "\}\}\$"| tr -d " ")
 test_swtpm_setup_profile "${workdir}" "local:test2" "${exp_response_test2}" "0"
+
+# Two local profiles must be found
+output=$($SWTPM_SETUP \
+		--tpm2 \
+		--print-profiles \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--config "${workdir}/swtpm_setup.conf")
+# No assumption can be made on order in which test1 and test2 appear
+if ! echo "${output}" | grep -qE '"local":\[.*\{"Name":"test1","Description":"test1"\}.*"builtin":' || \
+   ! echo "${output}" | grep -qE '"local":\[.*\{"Name":"test2","Description":"test2"\}.*"builtin":'; then
+	echo "Error: Unexpected output. There should be 2 local profiles."
+	echo "${output}"
+	exit 1
+fi
 
 # Load by searching through directories and last use built-in's
 

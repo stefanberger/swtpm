@@ -245,3 +245,142 @@ int profile_get_by_name(gchar *const *config_file_lines,
     }
     return -1;
 }
+
+static int profile_replace_name(JsonObject *jo, const char *name)
+{
+    JsonNode *node;
+
+    node = json_object_get_member(jo, "Name");
+    if (!node || json_node_get_node_type(node) != JSON_NODE_VALUE)
+        return -1;
+
+    json_object_set_string_member(jo, "Name", name);
+
+    return 0;
+}
+
+static JsonArray *profile_gather_dir(const char *dir)
+{
+    g_autofree gchar *fullpath = NULL;
+    g_autoptr(JsonParser) jp = NULL;
+    const gchar *filename;
+    JsonNode *root;
+    JsonObject *jo;
+    JsonArray *ja;
+    GDir *gdir;
+
+    gdir = g_dir_open(dir, 0, NULL);
+    if (!gdir)
+        return NULL;
+
+    jp = json_parser_new();
+    ja = json_array_new();
+
+    while ((filename = g_dir_read_name(gdir))) {
+        size_t len = strlen(filename);
+        if (len <= 5 || !g_str_has_suffix(filename, ".json"))
+            continue;
+
+        fullpath = g_strdup_printf("%s/%s", dir, filename);
+        if (json_parser_load_from_file(jp, fullpath, NULL)) {
+            root = json_parser_get_root(jp);
+            if (json_node_get_node_type(root) == JSON_NODE_OBJECT) {
+                /* remove suffix .json */
+                g_autofree gchar *name = g_strndup(filename, len - 5);
+
+                jo = json_node_dup_object(root);
+                if (profile_replace_name(jo, name) == 0)
+                    json_array_add_object_element(ja, jo);
+                else
+                    json_object_unref(jo);
+            }
+        }
+        SWTPM_G_FREE(fullpath);
+    }
+    g_dir_close(gdir);
+
+    return ja;
+}
+
+static JsonArray *profile_gather_local(gchar *const *config_file_lines)
+{
+    g_autofree gchar *dir;
+
+    dir = get_config_value(config_file_lines, "local_profiles_dir");
+    if (dir == NULL || strlen(dir) == 0 )
+        return NULL;
+
+    return profile_gather_dir(dir);
+}
+
+static JsonArray *profile_gather_builtin(const gchar **swtpm_prg_l)
+{
+    g_autofree gchar *standard_output = NULL;
+    g_autofree const gchar **cmd = NULL;
+    g_autoptr(JsonParser) jp = NULL;
+    JsonNode *root, *arr;
+    JsonArray *ja = NULL;
+    JsonObject *jo;
+
+    cmd = concat_arrays(swtpm_prg_l,
+                        (const gchar*[]) {"--tpm2", "--print-profiles", NULL},
+                        FALSE);
+
+    if (!spawn_sync(NULL, cmd, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
+                    &standard_output, NULL, NULL, NULL))
+        return NULL;
+
+    jp  = json_parser_new();
+    if (json_parser_load_from_data(jp, standard_output, -1, NULL)) {
+        root = json_parser_get_root(jp);
+        if (json_node_get_node_type(root) == JSON_NODE_OBJECT) {
+            jo = json_node_get_object(root);
+            arr = json_object_get_member(jo, "AvailableProfiles");
+            if (arr && json_node_get_node_type(arr) == JSON_NODE_ARRAY)
+                ja = json_node_dup_array(arr);
+        }
+    }
+    return ja;
+}
+
+/*
+ * Gather all local, distro, and built-in profiles in a JSON map and print
+ * to stdout.
+ *
+ * @swtpm_prg_l: Array of strings to invoke swtpm (e.g., 'swtpm socket')
+ * @config_file_line: Lines of the configuratin file
+ *
+ * Returns the number of bytes printed.
+ */
+int profile_printall(const gchar **swtpm_prg_l,
+                     gchar *const *config_file_lines)
+{
+    g_autoptr(JsonGenerator) jg;
+    g_autoptr(JsonObject) jo;
+    g_autoptr(JsonNode) root;
+    g_autofree gchar *out;
+    JsonArray *ja;
+
+    jo = json_object_new();
+
+    ja = profile_gather_local(config_file_lines);
+    if (ja)
+        json_object_set_array_member(jo, "local", ja);
+
+    ja = profile_gather_dir(DATAROOTDIR "swtpm/profiles");
+    if (ja)
+        json_object_set_array_member(jo, "distro", ja);
+
+    ja = profile_gather_builtin(swtpm_prg_l);
+    if (ja)
+        json_object_set_array_member(jo, "builtin", ja);
+
+    root = json_node_new(JSON_NODE_OBJECT);
+    json_node_set_object(root, jo);
+
+    jg = json_generator_new();
+    json_generator_set_root(jg, root);
+
+    out = json_generator_to_data(jg, NULL);
+    return printf("%s\n", out);
+}
