@@ -263,6 +263,13 @@ This option passes the I<remove-disable> option parameter as part of the
 I<--profile> option to swtpm. For further information see the man page for
 I<swtpm>.
 
+=item B<--print-profiles> (since v0.10)
+
+Print all profiles found in the local an disto profiles directories and
+the built-in ones. The names of the profiles read from directories will show
+the name under which they can be loaded with the I<--profile-name> option
+even though they are 'custom' profiles.
+
 =item B<--print-capabilities> (since v0.2)
 
 Print capabilities that were added to swtpm_setup after version 0.1.
