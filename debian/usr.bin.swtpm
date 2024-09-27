@@ -28,8 +28,10 @@ profile swtpm /usr/bin/swtpm {
 
   /run/libvirt/qemu/swtpm/*.pid rwk,
   /run/libvirt/qemu/swtpm/*.sock rwk,
-  /tmp/** rwk,
   /var/lib/libvirt/swtpm/** wk,
+  /usr/share/swtpm/profiles/*.json r,  # distro profiles
+  /etc/swtpm/profiles/*.json r,        # local profiles
+  /tmp/** rwk,
 
   owner /dev/vtpmx rw,
   owner /etc/nsswitch.conf r,
