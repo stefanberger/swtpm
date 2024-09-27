@@ -477,9 +477,6 @@ static gchar *get_default_pcr_banks(gchar *const *config_file_lines)
 {
     gchar *pcr_banks;
 
-    if (!config_file_lines)
-        return NULL;
-
     pcr_banks = get_config_value(config_file_lines, "active_pcr_banks");
     if (pcr_banks)
         g_strstrip(pcr_banks);
@@ -494,9 +491,6 @@ static gchar *get_default_pcr_banks(gchar *const *config_file_lines)
 static gchar *get_default_rsa_keysize(gchar *const *config_file_lines)
 {
     gchar *rsa_keysize;
-
-    if (!config_file_lines)
-        return NULL;
 
     rsa_keysize = get_config_value(config_file_lines, "rsa_keysize");
     if (rsa_keysize)
@@ -1329,8 +1323,8 @@ static int read_config_file(const gchar *config_file,
         return -1;
     }
 
-    /* read the config file; ignore errors here now */
-    read_file_lines(config_file, config_file_lines);
+    if (read_file_lines(config_file, config_file_lines))
+        return -1;
 
     return 0;
 }
