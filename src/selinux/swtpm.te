@@ -7,6 +7,7 @@ policy_module(swtpm, 1.0.0)
 
 require {
 	type qemu_var_run_t;
+	type svirt_image_t;
 	type var_log_t;
 	type virt_var_lib_t;
 	type virtqemud_t;
@@ -33,6 +34,7 @@ allow swtpm_t virt_var_lib_t:dir { add_name remove_name write };
 allow swtpm_t virt_var_lib_t:file { create rename setattr unlink write };
 allow swtpm_t virtqemud_t:unix_stream_socket { read write getattr };
 allow swtpm_t virtqemud_tmp_t:file { open write };
+allow swtpm_t svirt_image_t:file { open write };  # BZ2306817
 
 
 domain_use_interactive_fds(swtpm_t)
