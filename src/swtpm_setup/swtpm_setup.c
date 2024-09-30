@@ -1067,6 +1067,7 @@ static int get_swtpm_capabilities(const gchar **swtpm_prg_l, gboolean is_tpm2,
                                   gchar **standard_output)
 {
     const gchar *my_argv[] = { "--print-capabilities", is_tpm2 ? "--tpm2" : NULL, NULL };
+    g_autofree gchar *standard_error = NULL;
     g_autofree gchar *logop = NULL;
     g_autoptr(GError) error = NULL;
     g_autofree const gchar **argv = NULL;
@@ -1081,10 +1082,15 @@ static int get_swtpm_capabilities(const gchar **swtpm_prg_l, gboolean is_tpm2,
         argv = concat_arrays(argv, (const gchar*[]){"--log", logop, NULL}, TRUE);
     }
 
-    success = spawn_sync(NULL, argv, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL,
-                         standard_output, NULL, &exit_status, &error);
+    success = spawn_sync(NULL, argv, NULL, 0, NULL, NULL,
+                         standard_output, &standard_error, &exit_status, &error);
     if (!success) {
         logerr(gl_LOGFILE, "Could not start swtpm '%s': %s\n", swtpm_prg_l[0], error->message);
+        goto error;
+    }
+    if (exit_status != 0) {
+        /* possible: failure to access log file */
+        logerr(gl_LOGFILE, "Failed to run swtpm '%s': %s\n", swtpm_prg_l[0], standard_error);
         goto error;
     }
     ret = 0;
