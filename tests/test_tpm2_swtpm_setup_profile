@@ -226,7 +226,7 @@ test_custom_profile_sfls()
 		sfl=$(cut -d":" -f1 <<< "${sfls}")
 		exp_sfl=$(cut -d":" -f2 <<< "${sfls}")
 		exp_fail=$(cut -d":" -f3 <<< "${sfls}")
-		profile="{\"Name\":\"custom\",\"Commands\":\"${cmds}\",\"StateFormatLevel\":${sfl}}"
+		profile="{\"Name\":\"custom:test-sfl-${slf}\",\"Commands\":\"${cmds}\",\"StateFormatLevel\":${sfl}}"
 		exp_response=".*,\"StateFormatLevel\":${exp_sfl},.*"
 		test_swtpm_setup_profile \
 			"${workdir}" "${profile}" "${exp_response}" "" "" "" "${exp_fail}"
@@ -267,7 +267,7 @@ algos="${implemented_algos[*]}"
 algos=$(echo "${algos}" | sed "s/sha1//" | tr -s ' ')
 # Format profile
 a=$(echo "${algos}" | sed -e 's/ /,/g' -e 's/,$//')
-profile="{\"Name\":\"custom\",\"Algorithms\":\"${a}\"}"
+profile="{\"Name\":\"custom:no-sha1\",\"Algorithms\":\"${a}\"}"
 
 # Check PCR bank sha1 is not available: tssgetcapability -cap 5
 test_swtpm_setup_profile \
