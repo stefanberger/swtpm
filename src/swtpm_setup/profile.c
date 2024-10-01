@@ -90,6 +90,15 @@ int check_json_profile(const gchar *swtpm_capabilities_json, const char *json_pr
     if (ret)
         return ret;
 
+    if (strlen(name) > 32) {
+        logerr(gl_LOGFILE, "Profile name must not exceed 32 characters.\n");
+        return 1;
+    }
+
+    /* 'custom:' prefix is accepted */
+    if (!strncmp(name, "custom:", 7))
+        return 0;
+
     ret = get_profile_names(swtpm_capabilities_json, &profile_names);
     if (ret)
         goto error;
