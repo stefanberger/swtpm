@@ -40,7 +40,8 @@ int profile_remove_fips_disabled_algorithms(char **json_profile,
     int ret;
 
     ret = json_get_map_key_value(*json_profile, "Name", &value);
-    if (ret || !value || strcmp(value, "custom"))
+    if (ret || !value ||
+        (strcmp(value, "custom") && strncmp(value, "custom:", 7)))
         return -2;
 
     SWTPM_G_FREE(value);
