@@ -38,12 +38,13 @@ skip_test_no_tpm20 "${SWTPM_EXE}"
 WORKDIR="$(mktemp -d)" || exit 1
 
 REGLOG=${WORKDIR}/reglog
+DEFAULT_PROFILE='{"Name":"default-v1"}'
 
 SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
 	--tpmstate "dir=${WORKDIR}" \
 	--flags not-need-init \
-	--profile name=default-v1
+	--profile "profile=${SWTPM_TEST_PROFILE:-${DEFAULT_PROFILE}}"
 
 revision=$(run_swtpm_ioctl "${SWTPM_INTERFACE}" --info 1 |
 			   sed 's/.*,"revision":\([^\}]*\).*/\1/')
