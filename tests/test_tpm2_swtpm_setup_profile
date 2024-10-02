@@ -290,8 +290,8 @@ test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0
 profile="{\"Name\":\"custom\",\"Attributes\":\"no-sha1-signing\",\"Description\":\"Test\"} --profile-remove-disabled fips-host"
 test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
 
-profile="{\"Name\":\"custom\",\"Attributes\":\"fips-host\",\"Description\":\"Test\"} --profile-remove-disabled fips-host"
-exp_response="\{\"ActiveProfile\":\{\"Name\":\"custom\",.*,\"Algorithms\":\".*,rsa-min-size=2048,.*,ecc-min-size=224,.*\",\"Attributes\":\"fips-host\",\"Description\":\"Test\"\}\}"
+profile="{\"Name\":\"custom:test\",\"Attributes\":\"fips-host\",\"Description\":\"Test\"} --profile-remove-disabled fips-host"
+exp_response="\{\"ActiveProfile\":\{\"Name\":\"custom:test\",.*,\"Algorithms\":\".*,rsa-min-size=2048,.*,ecc-min-size=224,.*\",\"Attributes\":\"fips-host\",\"Description\":\"Test\"\}\}"
 test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
 
 # --profile-remove-disabled must not have any effect on other profiles
