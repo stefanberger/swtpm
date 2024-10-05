@@ -226,6 +226,8 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   algorithms first\n"
     "--print-profiles\n"
     "                 : print all profiles supported by libtpms\n"
+    "--print-info <info flags>\n"
+    "                 : print information about the TPM and profiles and exit\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -297,6 +299,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         .incoming_migration = false,
         .storage_locked = false,
     };
+    g_autofree gchar *jsoninfo = NULL;
     unsigned long val;
     char *end_ptr;
     char *keydata = NULL;
@@ -324,6 +327,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     bool printstates = false;
     bool printprofiles = false;
     bool tpm_running = false;
+    enum TPMLIB_InfoFlags infoflags = 0;
     static struct option longopts[] = {
         {"daemon"    ,       no_argument, 0, 'd'},
         {"help"      ,       no_argument, 0, 'h'},
@@ -352,6 +356,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"print-states",     no_argument, 0, 'e'},
         {"profile"   , required_argument, 0, 'I'},
         {"print-profiles",   no_argument, 0, 'N'},
+        {"print-info", required_argument, 0, 'x'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -497,6 +502,18 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             printprofiles = true;
             break;
 
+        case 'x': /* --print-info */
+            errno = 0;
+            infoflags = strtoul(optarg, &end_ptr, 0);
+            if (infoflags != (unsigned int)infoflags || errno || end_ptr[0] != '\0') {
+                logprintf(STDERR_FILENO,
+                          "Cannot parse info value '%s'.\n", optarg);
+                exit(EXIT_FAILURE);
+            }
+            if (mlp.fd < 0)
+                mlp.fd = open("/dev/zero", O_RDWR);
+            break;
+
         default:
             usage(stderr, prgname, iface);
             exit(EXIT_FAILURE);
@@ -613,7 +630,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     if ((rc = tpmlib_register_callbacks(&callbacks)))
         goto error_no_tpm;
 
-    if (!need_init_cmd) {
+    if (!need_init_cmd || (infoflags && tpmstate_get_backend_uri())) {
         mlp.storage_locked = !mlp.incoming_migration;
 
         if ((rc = tpmlib_start(0, mlp.tpmversion, mlp.storage_locked,
@@ -621,6 +638,13 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             goto error_no_tpm;
         tpm_running = true;
         SWTPM_G_FREE(mlp.json_profile);
+    }
+
+    if (infoflags) {
+        /* returns more information with tpmstate active */
+        jsoninfo = TPMLIB_GetInfo(infoflags);
+        printf("%s\n", jsoninfo);
+        goto error_no_sighandlers;
     }
 
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)

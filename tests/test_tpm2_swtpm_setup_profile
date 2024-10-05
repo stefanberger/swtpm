@@ -128,6 +128,20 @@ test_swtpm_setup_profile()
 		echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 		exit 1
 	fi
+
+	# Expecting same results from swtpm directly
+	if [ -n "${exp_response}" ]; then
+		response=$(${SWTPM_EXE} socket \
+				--tpmstate "dir=${workdir}"  \
+				--tpm2 \
+				--print-info 0x20)
+		if ! [[ "${response}" =~ ${exp_response} ]]; then
+			echo "Error: Response does not match expected response regular expression (swtpm)"
+			echo "Actual   : ${response}"
+			echo "Expected : ${exp_response}"
+			exit 1
+		fi
+	fi
 }
 
 # Get available profiles and algorithms that are implemented and those that can be disabled
