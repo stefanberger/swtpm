@@ -336,7 +336,8 @@ may contain the following:
         "rsa-keysize-3072",
         "cmdarg-profile",
         "cmdarg-print-profiles",
-        "profile-opt-remove-disabled"
+        "profile-opt-remove-disabled",
+        "cmdarg-print-info",
       ],
       "version": "0.7.0"
     }
@@ -413,17 +414,21 @@ rsa-keysize verbs is shown then only RSA 2048 bit keys are supported.
 
 =item B<cmdarg-profile> (since v0.10)
 
-The option <--profile> is supported to set a profile for a TPM 2 with either
+The option I<--profile> is supported to set a profile for a TPM 2 with either
 one of the option parameters I<name=>, I<profile=>, I<fd=>, or I<file=>.
 
 =item B<cmdarg-print-profiles> (since v0.10)
 
-The option <--print-profiles> is supported.
+The option I<--print-profiles> is supported.
 
-=item B<profile-opt-remove-disabled>
+=item B<profile-opt-remove-disabled> (since v0.10)
 
 The I<--profile> option supports the I<remove-disabled> option
 parameter.
+
+=item B<cmdard-print-info> (since v0.10)
+
+The option I<--print-info> is supported.
 
 =back
 
@@ -528,10 +533,9 @@ require a certain StateFormatLevel, it is recommended to omit the
 StateFormatLevel field from the profile.
 
 To see the list of algorithms that are supported and can be disabled, one
-may use I<swtpm_ioctl> as follows. A swtpm instance is assumed to be
-listening for control commands on port 2322:
+may use I<swtpm> as follows.
 
-    $ swtpm_ioctl --tcp :2322 --info 0x08 | jq
+    $ swtpm socket --tpmstate dir=./ --tpm2 --print-info 0x08 | jq
     {
       "RuntimeAlgorithms": {
         "Implemented": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,ecc-nist-p192,ecc-nist-p224,ecc-nist-p256,ecc-nist-p384,ecc-nist-p521,ecc-bn-p256,ecc-bn-p638,ecc-sm2-p256,symcipher,camellia,camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
@@ -543,7 +547,7 @@ listening for control commands on port 2322:
 
 To see the list of supported commands:
 
-    $ swtpm_ioctl --tcp :2322 --info 0x10 | jq
+    $ swtpm socket --tpmstate dir=./ --tpm2 --print-info 0x10 | jq
     {
       "RuntimeCommands": {
         "Implemented": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197,0x199-0x19c",
@@ -555,7 +559,7 @@ To see the list of supported commands:
 
 To see the list of supported attributes:
 
-    $swtpm_ioctl --tcp :2322 --info 0x80 | jq
+    $ swtpm socket --tpmstate dir=./ --tpm2 --print-info 0x80 | jq
     {
       "RuntimeAttributes": {
         "Implemented": "no-unpadded-encryption,no-sha1-signing,no-sha1-verification,no-sha1-hmac-creation,no-sha1-hmac-verification,no-sha1-hmac,fips-host",
@@ -570,7 +574,7 @@ entry, which is similar to the "Algorithms" and "Commands" entries.
 
 To see the list of available profiles:
 
-    $ swtpm_ioctl --tcp :2322 --info 0x40 | jq
+    $ swtpm socket --tpm2 --print-info 0x40 | jq
     {
       "AvailableProfiles": [
         {
@@ -597,7 +601,8 @@ To see the list of available profiles:
       ]
     }
 
-To see the current active profile:
+To see the current active profile querying swtpm listening for control
+message on port 2322:
 
     $ swtpm_ioctl --tcp :2322 --info 0x20 | jq
     {
@@ -618,6 +623,37 @@ none of them relies on disabled commands or algorithms.
 =item B<--print-profiles> (since v0.10)
 
 Display the profiles supported by libtpms. Use with I<--tpm2> option.
+
+=item B<--print-info> (since v0.10)
+
+Display information about the TPM from libtpms TPMLIB_GetInfo call and exit.
+Use the I<--tpm2> option for information about TPM 2. If the I<--tpmstate>
+option is also provided then the output will show information about the profile
+as well. Note that with this option a TPM state may be created if none existed
+before.
+
+The following values can be provided. All of the values can be
+or'ed (or added) together to get information about all of them in one query.
+
+=over 2
+
+=item * 0x1: information about the specification the TPM implementation followed
+
+=item * 0x2: information about the manufacturer, model and version of the TPM
+
+=item * 0x4: lists supported RSA and Camellia key sizes
+
+=item * 0x8: describes supported and enabled algorithms
+
+=item * 0x10: describes supported and enabled commands
+
+=item * 0x20: describes the active profile
+
+=item * 0x40: lists all built-in profiles
+
+=item * 0x80: describes supported attributes
+
+=back
 
 =item B<-h|--help>
 

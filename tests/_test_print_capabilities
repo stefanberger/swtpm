@@ -29,8 +29,8 @@ exp='\{ "type": "swtpm", '\
 '"flags-opt-disable-auto-shutdown", "ctrl-opt-terminate", '${seccomp}'"cmdarg-key-fd", '\
 '"cmdarg-pwd-fd", "cmdarg-print-states", "cmdarg-chroot", "cmdarg-migration", '\
 '"nvram-backend-dir", "nvram-backend-file", "cmdarg-profile", '\
-'"cmdarg-print-profiles", "profile-opt-remove-disabled" \],'\
-'( "profiles": \{ \},)? '\
+'"cmdarg-print-profiles", "profile-opt-remove-disabled", "cmdarg-print-info" \], '\
+'"profiles": \{ \}, '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_IFACE} TPM to --print-capabilities:"
@@ -53,8 +53,8 @@ exp='\{ "type": "swtpm_setup", '\
 '"tpm12-not-need-root", "cmdarg-write-ek-cert-files", "cmdarg-create-config-files", '\
 '"cmdarg-reconfigure-pcr-banks"'\
 '(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")?, "cmdarg-profile", '\
-'"cmdarg-profile-remove-disabled" \],'\
-'( "profiles": \[ [^]]*\],)? '\
+'"cmdarg-profile-remove-disabled" \], '\
+'"profiles": \[ [^]]*\], '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
 	echo "Unexpected response from ${SWTPM_SETUP} to --print-capabilities:"

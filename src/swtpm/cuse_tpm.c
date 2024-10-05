@@ -284,7 +284,9 @@ static const char *usage =
 "                      algorithms first\n"
 "--print-profiles\n"
 "                    : print all profiles supported by libtpms\n"
-"-h|--help           :  display this help screen and terminate\n"
+"--print-info <info flags>\n"
+"                    : print information about the TPM and profiles and exit\n"
+"-h|--help           : display this help screen and terminate\n"
 "\n";
 
 static TPM_RESULT
@@ -1594,6 +1596,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 {
 #endif
     int opt, longindex = 0;
+    enum TPMLIB_InfoFlags infoflags = 0;
     static struct option longopts[] = {
         {"maj"           , required_argument, 0, 'M'},
         {"min"           , required_argument, 0, 'm'},
@@ -1619,16 +1622,19 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {"print-states"  ,       no_argument, 0, 'e'},
         {"profile"       , required_argument, 0, 'I'},
         {"print-profiles",       no_argument, 0, 'N'},
+        {"print-info"    , required_argument, 0, 'x'},
         {NULL            , 0                , 0, 0  },
     };
     struct cuse_info cinfo;
     struct cuse_param param = {
         .startupType = _TPM_ST_NONE,
     };
+    g_autofree gchar *jsoninfo = NULL;
     const char *devname = NULL;
     char *cinfo_argv[1] = { 0 };
     unsigned int num;
     const char *uri = NULL;
+    char *end_ptr = NULL;
     int n, tpmfd;
     char path[PATH_MAX];
     int ret = 0;
@@ -1752,6 +1758,16 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
             break;
         case 'N': /* --print-profiles */
             printprofiles = true;
+            break;
+        case 'x': /* --print-info */
+            errno = 0;
+            infoflags = strtoul(optarg, &end_ptr, 0);
+            if (infoflags != (unsigned int)infoflags || errno || end_ptr[0] != '\0') {
+                logprintf(STDERR_FILENO,
+                          "Cannot parse info value '%s'.\n", optarg);
+                ret = -1;
+                goto exit;
+            }
             break;
         case 'v': /* version */
             fprintf(stdout, "TPM emulator CUSE interface version %d.%d.%d, "
@@ -1898,13 +1914,20 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 
     g_mutex_lock(FILE_OPS_LOCK);
 
-    if (!need_init_cmd) {
+    if (!need_init_cmd || (infoflags && tpmstate_get_backend_uri())) {
         if (tpm_start(0, tpmversion, g_json_profile, &res) < 0) {
             ret = -1;
             goto err_unlock;
         }
         tpm_running = true;
         SWTPM_G_FREE(g_json_profile);
+    }
+
+    if (infoflags) {
+        /* returns more information with tpmstate active */
+        jsoninfo = TPMLIB_GetInfo(infoflags);
+        printf("%s\n", jsoninfo);
+        goto err_unlock;
     }
 
     if (param.startupType != _TPM_ST_NONE) {
