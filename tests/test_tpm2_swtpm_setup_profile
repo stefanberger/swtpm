@@ -411,4 +411,44 @@ fi
 
 echo "Test of writing state at the level of libtpms v0.9 passed"
 
+# Test enablement of PCR banks
+rm -f "${workdir}/logfile"
+algorithms="rsa,rsa-min-size=1024,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,null,rsassa,rsapss,oaep,ecdsa,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-nist,symcipher,cmac,ctr,ofb,cbc,cfb,ecb,ecdh"
+profile="{\"Name\":\"custom\",\"Algorithms\":\"${algorithms}\"}"
+if ! $SWTPM_SETUP \
+	--tpm2 \
+	--tpmstate "${workdir}" \
+	--config "${workdir}/swtpm_setup.conf" \
+	--log "${workdir}/logfile" \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--profile "${profile}" \
+	--pcr-banks sha256 \
+	--overwrite; then
+	echo "Error: swtpm_setup failed to run:"
+	cat "${workdir}/logfile"
+	exit 1
+fi
+if ! grep -q "PCR banks sha256 among sha256,sha384." "${workdir}/logfile"; then
+	echo "Error: Did not get expected output from activation of SHA256 PCR bank."
+	cat "${workdir}/logfile"
+	exit 1
+fi
+
+# sha512 enablement must fail
+rm -f "${workdir}/logfile"
+if $SWTPM_SETUP \
+	--tpm2 \
+	--tpmstate "${workdir}" \
+	--config "${workdir}/swtpm_setup.conf" \
+	--log "${workdir}/logfile" \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--profile "${profile}" \
+	--pcr-banks sha512 \
+	--overwrite; then
+	echo "Error: Enablement of SHA512 bank should have failed."
+	cat "${workdir}/logfile"
+	exit 1
+fi
+echo "Test of activation of sha256 bank when only sha256 & sha384 banks are available passed"
+
 exit 0
