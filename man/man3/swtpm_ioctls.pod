@@ -101,6 +101,20 @@ The PTM_LOCK_STORAGE ioctl or CMD_LOCK_STORAGE command is supported.
 
 =back
 
+=item B<PTM_GET_CAPABILITY / CMD_GET_CAPABILITY, ptm_cap_n>
+
+The ptm_cap_n data structure can be used for non-CUSE swtpm and
+looks as follows:
+
+ struct ptm_cap_n {
+    union {
+       struct {
+           ptm_res tpm_result; /* will always be TPM_SUCCESS (0) */
+           uint32_t caps;
+       } resp; /* response */
+    } u;
+ };
+
 =item B<PTM_INIT / CMD_INIT, ptm_init>
 
 This ioctl must be used to initialize the TPM. It must be sent to the
