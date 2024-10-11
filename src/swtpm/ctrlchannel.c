@@ -438,9 +438,9 @@ wait_chunk:
     return recvd;
 }
 
-static uint64_t get_ptm_caps_supported(TPMLIB_TPMVersion tpmversion)
+static uint32_t get_ptm_caps_supported(TPMLIB_TPMVersion tpmversion)
 {
-    uint64_t caps =
+    uint32_t caps =
               PTM_CAP_INIT
             | PTM_CAP_SHUTDOWN
             | PTM_CAP_GET_TPMESTABLISHED
@@ -509,7 +509,7 @@ int ctrlchannel_process_fd(int fd,
     int *data_fd = NULL;
 
     /* Write-only */
-    ptm_cap *ptm_caps = (ptm_cap *)&output.body;
+    ptm_cap_n *ptm_caps_n = (ptm_cap_n *)&output.body;
     ptm_res *res_p = (ptm_res *)&output.body;
     ptm_est *te = (ptm_est *)&output.body;
     ptm_getconfig *pgc = (ptm_getconfig *)&output.body;
@@ -552,9 +552,11 @@ int ctrlchannel_process_fd(int fd,
 
     switch (be32toh(input.cmd)) {
     case CMD_GET_CAPABILITY:
-        *ptm_caps = htobe64(get_ptm_caps_supported(mlp->tpmversion));
+        /* must always succeed */
+        ptm_caps_n->u.resp.tpm_result = htobe32(TPM_SUCCESS);
+        ptm_caps_n->u.resp.caps = htobe32(get_ptm_caps_supported(mlp->tpmversion));
 
-        out_len = sizeof(*ptm_caps);
+        out_len = sizeof(*ptm_caps_n);
         break;
 
     case CMD_INIT:
