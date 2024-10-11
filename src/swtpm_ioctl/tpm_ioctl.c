@@ -80,7 +80,6 @@
 #define devtoh32(is_chardev, x) (is_chardev ? x : be32toh(x))
 #define htodev32(is_chardev, x) (is_chardev ? x : htobe32(x))
 
-#define devtoh64(is_chardev, x) (is_chardev ? x : be64toh(x))
 #define htodev64(is_chardev, x) (is_chardev ? x : htobe64(x))
 
 /* for OpenBSD */
@@ -926,6 +925,7 @@ int main(int argc, char *argv[])
     ptm_reset_est reset_est;
     ptm_loc loc;
     ptm_cap cap;
+    ptm_cap_n cap_n;
     ptm_res res;
     ptm_init init;
     ptm_getconfig cfg;
@@ -1120,6 +1120,7 @@ int main(int argc, char *argv[])
     }
 
     if (!strcmp(command, "-c")) {
+        uint32_t caps;
         n = ctrlcmd(fd, PTM_GET_CAPABILITY, &cap, 0, sizeof(cap));
         if (n < 0) {
             fprintf(stderr,
@@ -1127,10 +1128,13 @@ int main(int argc, char *argv[])
                     "%s\n", strerror(errno));
             goto exit;
         }
-        /* no tpm_result here */
-        printf("ptm capability is 0x%" PRIx64 "\n",
-               (uint64_t)devtoh64(is_chardev, cap));
-
+        if (is_chardev) {
+            caps = (uint32_t)cap;
+        } else {
+            memcpy(&cap_n, &cap, sizeof(cap_n));
+            caps = be32toh(cap_n.u.resp.caps);
+        }
+        printf("ptm capability is 0x%x\n", caps);
     } else if (!strcmp(command, "-i")) {
         init.u.req.init_flags = htodev32(is_chardev,
                                          PTM_INIT_FLAG_DELETE_VOLATILE);
