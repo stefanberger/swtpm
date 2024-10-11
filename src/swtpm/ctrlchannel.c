@@ -919,6 +919,13 @@ int ctrlchannel_process_fd(int fd,
 send_resp:
     SWTPM_PrintAll(" Ctrl Rsp:", " ", output.body, min(out_len, 1024));
 
+    /* all error responses must only be 4 bytes long */
+    if (*res_p != htobe32(TPM_SUCCESS) && out_len != 4) {
+        logprintf(STDERR_FILENO, "Error: Response too long for cmd=0x%x : %u\n",
+                  be32toh(input.cmd), out_len);
+        out_len = sizeof(ptm_res);
+    }
+
     n = write_full(fd, output.body, out_len);
     if (n < 0) {
         logprintf(STDERR_FILENO,
