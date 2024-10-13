@@ -36,7 +36,7 @@
  */
 
 #ifndef _SWTPM_CHECK_ALGOS_H_
-#define _SWTPM_CHECK_ALOGO_H_
+#define _SWTPM_CHECK_ALGOS_H_
 
 #include <stdbool.h>
 
