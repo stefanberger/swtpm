@@ -1302,15 +1302,15 @@ error:
     return ret;
 }
 
-static int handle_create_config_files(const char *optarg)
+static int handle_create_config_files(const char *opt_arg)
 {
     g_auto(GStrv) tokens = NULL;
     gboolean overwrite = FALSE;
     gboolean root_flag = FALSE;
     gboolean skip_if_exist = FALSE;
 
-    if (optarg) {
-        tokens = g_strsplit_set(optarg, ", ", -1);
+    if (opt_arg) {
+        tokens = g_strsplit_set(opt_arg, ", ", -1);
         overwrite = g_strv_contains((const gchar **)tokens, "overwrite");
         root_flag = g_strv_contains((const gchar **)tokens, "root");
         skip_if_exist = g_strv_contains((const gchar **)tokens, "skip-if-exist");
