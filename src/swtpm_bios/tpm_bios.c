@@ -73,23 +73,23 @@ static unsigned int g_tcp_port = DEFAULT_TCP_PORT;
 
 static char *g_unix_path;
 
-static int parse_tcp_optarg(char *optarg, char **tcp_hostname,
+static int parse_tcp_optarg(char *opt_arg, char **tcp_hostname,
                             unsigned int *tcp_port)
 {
-	char *pos = strrchr(optarg, ':');
+	char *pos = strrchr(opt_arg, ':');
 	int n;
 
 	*tcp_port = DEFAULT_TCP_PORT;
 
 	if (!pos) {
 		/* <server> */
-		*tcp_hostname = strdup(optarg);
+		*tcp_hostname = strdup(opt_arg);
 		if (*tcp_hostname == NULL) {
 			fprintf(stderr, "Out of memory.\n");
 			return -1;
 		}
 		return 0;
-	} else if (pos == optarg) {
+	} else if (pos == opt_arg) {
 		if (strlen(&pos[1]) != 0) {
 			/* :<port>  (not just ':') */
 			n = sscanf(&pos[1], "%u", tcp_port);
@@ -99,7 +99,7 @@ static int parse_tcp_optarg(char *optarg, char **tcp_hostname,
 			}
 			if (*tcp_port >= 65536) {
 				fprintf(stderr, "Port '%s' outside valid range.\n",
-					&optarg[1]);
+					&opt_arg[1]);
 				return -1;
 			}
 		}
@@ -118,11 +118,11 @@ static int parse_tcp_optarg(char *optarg, char **tcp_hostname,
 		}
 		if (*tcp_port >= 65536) {
 			fprintf(stderr, "Port '%s' outside valid range.\n",
-				&optarg[1]);
+				&opt_arg[1]);
 			return -1;
 		}
 
-		*tcp_hostname = strndup(optarg, pos - optarg);
+		*tcp_hostname = strndup(opt_arg, pos - opt_arg);
 		if (*tcp_hostname == NULL) {
 			fprintf(stderr, "Out of memory.\n");
 			return -1;
