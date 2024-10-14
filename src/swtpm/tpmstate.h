@@ -45,7 +45,7 @@
 int tpmstate_set_backend_uri(char *backend_uri);
 const char *tpmstate_get_backend_uri(void);
 
-int tpmstate_set_mode(mode_t mode, bool mode_is_default);
+void tpmstate_set_mode(mode_t mode, bool mode_is_default);
 mode_t tpmstate_get_mode(bool *mode_is_default);
 void tpmstate_global_free(void);
 

@@ -88,12 +88,10 @@ const char *tpmstate_get_backend_uri(void)
     return NULL;
 }
 
-int tpmstate_set_mode(mode_t mode, bool mode_is_default)
+void tpmstate_set_mode(mode_t mode, bool mode_is_default)
 {
     g_tpmstate_mode = mode;
     g_tpmstate_mode_is_default = mode_is_default;
-
-    return 0;
 }
 
 mode_t tpmstate_get_mode(bool *mode_is_default)
