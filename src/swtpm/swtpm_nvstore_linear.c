@@ -284,6 +284,19 @@ SWTPM_NVRAM_Prepare_Linear(const char *uri)
 }
 
 static TPM_RESULT
+SWTPM_NVRAM_Lock_Linear(const char *backend_uri,
+                        unsigned int retries)
+{
+    return state.ops->lock(backend_uri, retries);
+}
+
+static void
+SWTPM_NVRAM_Unlock_Linear(void)
+{
+    state.ops->unlock();
+}
+
+static TPM_RESULT
 SWTPM_NVRAM_LoadData_Linear(unsigned char **data,
                             uint32_t *length,
                             uint32_t tpm_number SWTPM_ATTR_UNUSED,
@@ -476,6 +489,8 @@ SWTPM_NVRAM_CheckState_Linear(const char *uri SWTPM_ATTR_UNUSED,
 
 struct nvram_backend_ops nvram_linear_ops = {
     .prepare = SWTPM_NVRAM_Prepare_Linear,
+    .lock    = SWTPM_NVRAM_Lock_Linear,
+    .unlock  = SWTPM_NVRAM_Unlock_Linear,
     .load    = SWTPM_NVRAM_LoadData_Linear,
     .store   = SWTPM_NVRAM_StoreData_Linear,
     .delete  = SWTPM_NVRAM_DeleteName_Linear,
