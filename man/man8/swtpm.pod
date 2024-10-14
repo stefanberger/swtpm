@@ -346,6 +346,7 @@ may contain the following:
         "cmdarg-print-profiles",
         "profile-opt-remove-disabled",
         "cmdarg-print-info",
+        "tpmstate-opt-lock"
       ],
       "version": "0.7.0"
     }
@@ -437,6 +438,10 @@ parameter.
 =item B<cmdard-print-info> (since v0.10)
 
 The option I<--print-info> is supported.
+
+=item B<tpmstate-opt-lock> (since v0.10)
+
+The option parameter I<lock> for the I<--tpmstate> option is supported.
 
 =back
 
