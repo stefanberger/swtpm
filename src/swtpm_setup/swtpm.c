@@ -75,7 +75,7 @@ static void swtpm_close_comm(struct swtpm *self, bool all)
 
 static int swtpm_start(struct swtpm *self)
 {
-    g_autofree gchar *tpmstate = g_strdup_printf("backend-uri=%s", self->state_path);
+    g_autofree gchar *tpmstate = g_strdup_printf("backend-uri=%s,lock", self->state_path);
     g_autofree gchar *json_profile_params = NULL;
     g_autofree gchar *json_profile = NULL;
     g_autofree gchar *pidfile_arg = NULL;
