@@ -157,7 +157,7 @@ The following options are support by all interfaces:
 
 =over 4
 
-=item B<--tpmstate dir=E<lt>dirE<gt>[,mode=E<lt>0...E<gt>]|backend-uri=E<lt>uriE<gt>>
+=item B<--tpmstate dir=E<lt>dirE<gt>|backend-uri=E<lt>uriE<gt>[,mode=E<lt>0...E<gt>][,lock]>
 
 Use the given path rather than using the environment variable TPM_PATH.
 
@@ -173,6 +173,14 @@ as an absolute path, otherwise it is a path relative to the current directory.
 For 'file://', the URI should specify a single file or block device where TPM state
 will be stored. A blockdevice must exist already and be big enough to store all
 state. (since v0.7)
+
+If I<lock> is specified then the TPM storage backend will lock the TPM state
+file to avoid concurrent access to it by another swtpm instance. The default
+value, if this option parameter is missing, depends on the storage backend.
+For the directory-backend the default is that locking is always enabled, and
+therefore this option parameter does not need to be given. For the file backend
+it is required since the default is that locking is not automatically
+enabled. To avoid locking, I<lock=false> can be used.
 
 =item B<--tpm2>
 

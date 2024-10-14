@@ -47,6 +47,10 @@ const char *tpmstate_get_backend_uri(void);
 
 void tpmstate_set_mode(mode_t mode, bool mode_is_default);
 mode_t tpmstate_get_mode(bool *mode_is_default);
+
+void tpmstate_set_locking(bool do_locking);
+bool tpmstate_get_locking(void);
+
 void tpmstate_global_free(void);
 
 void tpmstate_set_version(TPMLIB_TPMVersion version);
