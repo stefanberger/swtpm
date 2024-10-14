@@ -211,6 +211,11 @@ TPM_RESULT SWTPM_NVRAM_Lock_Storage(unsigned int retries)
 {
     const char *backend_uri;
 
+    if (!tpmstate_get_locking()) {
+        /* no locking requested by user */
+        return TPM_SUCCESS;
+    }
+
     if (!g_nvram_backend_ops)
         return TPM_RETRY;
 
@@ -225,6 +230,11 @@ TPM_RESULT SWTPM_NVRAM_Lock_Storage(unsigned int retries)
 
 void SWTPM_NVRAM_Unlock(void)
 {
+    if (!tpmstate_get_locking()) {
+        /* no locking requested by user */
+        return;
+    }
+
     g_nvram_backend_ops->unlock();
 }
 

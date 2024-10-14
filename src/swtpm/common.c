@@ -149,6 +149,9 @@ static const OptionDesc tpmstate_opt_desc[] = {
     }, {
         .name = "backend-uri",
         .type = OPT_TYPE_STRING,
+    }, {
+        .name = "lock",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -658,17 +661,21 @@ handle_pid_options(const char *options)
  * @mode: the mode of the TPM's state files
  * @mode_is_default: true if user did not provide mode bits but using default
  * @tpmbackend_uri: Point to pointer for backend URI
+ * @do_locking: whether the backend should file-lock the storage
  *
  * Returns 0 on success, -1 on failure.
  */
 static int
 parse_tpmstate_options(const char *options, char **tpmstatedir, mode_t *mode,
-                       bool *mode_is_default, char **tpmbackend_uri)
+                       bool *mode_is_default, char **tpmbackend_uri,
+                       bool *do_locking)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
     const char *directory = NULL;
     const char *backend_uri = NULL;
+    /* historically dir backend always locked, file backend did not */
+    bool lock_default = true;
 
     ovs = options_parse(options, tpmstate_opt_desc, &error);
     if (!ovs) {
@@ -698,12 +705,16 @@ parse_tpmstate_options(const char *options, char **tpmstatedir, mode_t *mode,
             logprintf(STDERR_FILENO, "Out of memory.");
             goto error;
         }
+        if (strncmp(*tpmbackend_uri, "file://", 7) == 0)
+            lock_default = false;
     } else {
         logprintf(STDERR_FILENO,
                   "The dir or backend-uri parameters is required "
                   "for the tpmstate option.\n");
         goto error;
     }
+
+    *do_locking = option_get_bool(ovs, "lock", lock_default);
 
     option_values_free(ovs);
 
@@ -733,12 +744,14 @@ handle_tpmstate_options(const char *options)
     int ret = 0;
     mode_t mode;
     bool mode_is_default = true;
+    bool do_locking = false;
 
     if (!options)
         return 0;
 
     if (parse_tpmstate_options(options, &tpmstatedir, &mode,
-                               &mode_is_default, &tpmbackend_uri) < 0) {
+                               &mode_is_default, &tpmbackend_uri,
+                               &do_locking) < 0) {
         ret = -1;
         goto error;
     }
@@ -765,6 +778,7 @@ handle_tpmstate_options(const char *options)
     }
 
     tpmstate_set_mode(mode, mode_is_default);
+    tpmstate_set_locking(do_locking);
 
 error:
     free(tpmstatedir);
