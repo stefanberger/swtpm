@@ -753,8 +753,7 @@ handle_tpmstate_options(const char *options)
             goto error;
         }
 
-        if (tpmstate_set_backend_uri(temp_uri) < 0 ||
-            tpmstate_set_mode(mode, mode_is_default) < 0) {
+        if (tpmstate_set_backend_uri(temp_uri) < 0) {
             ret = -1;
             goto error;
         }
@@ -763,13 +762,9 @@ handle_tpmstate_options(const char *options)
             ret = -1;
             goto error;
         }
-        if ((strncmp(tpmbackend_uri, "dir://", 6) == 0 ||
-            strncmp(tpmbackend_uri, "file://", 7)) &&
-            tpmstate_set_mode(mode, mode_is_default) < 0) {
-            ret = -1;
-            goto error;
-        }
     }
+
+    tpmstate_set_mode(mode, mode_is_default);
 
 error:
     free(tpmstatedir);
