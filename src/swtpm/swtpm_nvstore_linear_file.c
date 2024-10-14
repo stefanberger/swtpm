@@ -159,6 +159,9 @@ SWTPM_NVRAM_LinearFile_DoOpenURI(const char *uri)
     const char *path = SWTPM_NVRAM_LinearFile_UriToPath(uri);
     bool mode_is_default = false;
 
+    if (mmap_state.fd >= 0)
+        return TPM_SUCCESS;
+
     mmap_state.fd = open(path, O_RDWR|O_CREAT,
                          tpmstate_get_mode(&mode_is_default));
     if (mmap_state.fd < 0) {
@@ -249,14 +252,17 @@ SWTPM_NVRAM_LinearFile_Flush(const char* uri SWTPM_ATTR_UNUSED,
 
 static void SWTPM_NVRAM_LinearFile_Cleanup(void)
 {
-    if (!mmap_state.mapped)
-        return;
-
-    SWTPM_NVRAM_LinearFile_Flush(NULL, 0, mmap_state.size);
-    munmap(mmap_state.ptr, mmap_state.size);
-    close(mmap_state.fd);
-    mmap_state.fd = -1;
-    mmap_state.mapped = false;
+    if (mmap_state.mapped) {
+        SWTPM_NVRAM_LinearFile_Flush(NULL, 0, mmap_state.size);
+        munmap(mmap_state.ptr, mmap_state.size);
+        mmap_state.mapped = false;
+        mmap_state.ptr = NULL;
+        mmap_state.size = 0;
+    }
+    if (mmap_state.fd >= 0) {
+        close(mmap_state.fd);
+        mmap_state.fd = -1;
+    }
 }
 
 static TPM_RESULT
@@ -314,8 +320,70 @@ SWTPM_NVRAM_LinearFile_Resize(const char* uri SWTPM_ATTR_UNUSED,
     return rc;
 }
 
+static TPM_RESULT
+SWTPM_NVRAM_LinearFile_Lock(const char *uri, unsigned int retries)
+{
+    struct flock flock = {
+        .l_type = F_WRLCK,
+        .l_whence = SEEK_SET,
+        .l_start = 0,
+        .l_len = 0,
+    };
+    TPM_RESULT rc;
+
+    rc = SWTPM_NVRAM_LinearFile_DoOpenURI(uri);
+    if (rc)
+        return rc;
+
+    while (1) {
+        if (fcntl(mmap_state.fd, F_SETLK, &flock) == 0)
+            break;
+
+        if (retries == 0) {
+            rc = TPM_FAIL;
+            break;
+        }
+        retries--;
+        usleep(10000);
+    }
+
+    if (rc) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_LinearFile_Lock: Could not lock backend-uri %s: %s\n",
+                  uri, strerror(errno));
+        SWTPM_NVRAM_LinearFile_Cleanup();
+    }
+
+    return rc;
+
+}
+
+static void
+SWTPM_NVRAM_LinearFile_Unlock(void)
+{
+    struct flock flock = {
+        .l_type = F_UNLCK,
+        .l_whence = SEEK_SET,
+        .l_start = 0,
+        .l_len = 0,
+    };
+
+    if (mmap_state.fd < 0) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_LinearFile_Unlock: File not open\n");
+        return;
+    }
+
+    if (fcntl(mmap_state.fd, F_SETLK, &flock) < 0)
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_LinearFile_Unlock: Unlock failed: %s\n",
+                  strerror(errno));
+}
+
 struct nvram_linear_store_ops nvram_linear_file_ops = {
     .open = SWTPM_NVRAM_LinearFile_Open,
+    .lock = SWTPM_NVRAM_LinearFile_Lock,
+    .unlock = SWTPM_NVRAM_LinearFile_Unlock,
     .flush = SWTPM_NVRAM_LinearFile_Flush,
     .resize = SWTPM_NVRAM_LinearFile_Resize,
     .cleanup = SWTPM_NVRAM_LinearFile_Cleanup,

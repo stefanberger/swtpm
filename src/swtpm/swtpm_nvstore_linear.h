@@ -52,6 +52,17 @@ struct nvram_linear_store_ops {
                        uint32_t *length);
 
     /*
+        File-lock the storage backend from concurrent usage by other processes.
+    */
+    TPM_RESULT (*lock)(const char *uri,
+                       unsigned int retries);
+
+    /*
+        Unlock the file-locked storage backend.
+    */
+    void (*unlock)(void);
+
+    /*
         Called whenever the data in the provided buffer has changed. Will be
         called for every changed region, offset is relative to base (0 is for
         header or full flushes). Can be left unimplemented if data stored in

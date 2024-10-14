@@ -220,16 +220,12 @@ TPM_RESULT SWTPM_NVRAM_Lock_Storage(unsigned int retries)
                   "SWTPM_NVRAM_Lock: Missing backend URI.\n");
         return TPM_FAIL;
     }
-    if (g_nvram_backend_ops->lock)
-        return g_nvram_backend_ops->lock(backend_uri, retries);
-
-    return TPM_SUCCESS;
+    return g_nvram_backend_ops->lock(backend_uri, retries);
 }
 
 void SWTPM_NVRAM_Unlock(void)
 {
-    if (g_nvram_backend_ops->unlock)
-        g_nvram_backend_ops->unlock();
+    g_nvram_backend_ops->unlock();
 }
 
 /* SWTPM_NVRAM_GetFilenameForName() constructs a file name from the name.

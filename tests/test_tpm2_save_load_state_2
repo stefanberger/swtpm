@@ -24,6 +24,7 @@ TPMDIR="$(mktemp -d)" || exit 1
 PID_FILE=$TPMDIR/swtpm.pid
 SOCK_PATH=$TPMDIR/sock
 LOGFILE=$TPMDIR/logfile
+LOGFILE2=$TPMDIR/logfile2
 TMPFILE=$TPMDIR/tmpfile
 BINFILE=$TPMDIR/binfile
 SIGFILE=$TPMDIR/sigfile
@@ -288,7 +289,7 @@ cp "${TESTDIR}/data/tpm2state5/signature.bin" "$SIGFILE"
 
 $SWTPM_EXE socket \
 	--server "port=${TPM_COMMAND_PORT}" \
-	--tpmstate "$STORE_PARAM" \
+	--tpmstate "$STORE_PARAM,lock" \
 	--pid "file=$PID_FILE" \
 	--ctrl "type=unixio,path=$SOCK_PATH" \
 	--log "file=$LOGFILE,level=20" \
@@ -321,6 +322,23 @@ fillup_nvram 0 1
 if ! "${TOOLSPATH}/${PREFIX}shutdown" -c; then
 	echo "Error: tpm_shutdown clear failed."
 	cat "$LOGFILE"
+	exit 1
+fi
+
+# Start another swtpm that must fail to start due to locked storage
+# The not-need-init flag causes the failure.
+if $SWTPM_EXE socket \
+	--tpmstate "$STORE_PARAM,lock" \
+	--log "file=${LOGFILE2},level=1" \
+	--flags not-need-init \
+	--tpm2 \
+	${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}}; then
+	echo "Error: Starting 2nd instance on locked storage should have failed"
+	exit 1
+fi
+if ! grep -q "Resource temporarily unavailable" "${LOGFILE2}"; then
+	echo "Error: Expected error 'Resource temporarily unavailable' in logfile"
+	cat "${LOGFILE2}"
 	exit 1
 fi
 
