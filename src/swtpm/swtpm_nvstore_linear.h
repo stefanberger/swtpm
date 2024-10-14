@@ -6,6 +6,10 @@
 #define SWTPM_NVSTORE_LINEAR_MAGIC 0x737774706d6c696e /* 'swtpmlin' */
 #define SWTPM_NVSTORE_LINEAR_VERSION 1
 /* TODO: Make this user configurable? */
+/*
+ * Without distributed locking to coordinate concurrent access on
+ * block devices: 1 TPM only
+ */
 #define SWTPM_NVSTORE_LINEAR_MAX_STATES 15 /* 3 files per TPM = 5 TPMs */
 
 struct nvram_linear_hdr_file {
