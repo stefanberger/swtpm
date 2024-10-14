@@ -139,7 +139,7 @@ fail:
     Strip leading "file://" from uri if given.
 */
 static const char*
-SWTPM_NVRAM_LinearFile_UriToPath(const char* uri)
+SWTPM_NVRAM_LinearFile_UriToPath(const char *uri)
 {
     const char *path = uri;
 
@@ -151,19 +151,10 @@ SWTPM_NVRAM_LinearFile_UriToPath(const char* uri)
 }
 
 static TPM_RESULT
-SWTPM_NVRAM_LinearFile_Open(const char* uri,
-                            unsigned char **data,
-                            uint32_t *length)
+SWTPM_NVRAM_LinearFile_DoOpenURI(const char *uri)
 {
-    TPM_RESULT rc = 0;
     const char *path = SWTPM_NVRAM_LinearFile_UriToPath(uri);
     bool mode_is_default = false;
-
-    if (mmap_state.mapped) {
-        logprintf(STDERR_FILENO,
-                  "SWTPM_NVRAM_LinearFile_Open: Already open\n");
-        return TPM_FAIL;
-    }
 
     mmap_state.fd = open(path, O_RDWR|O_CREAT,
                          tpmstate_get_mode(&mode_is_default));
@@ -181,6 +172,25 @@ SWTPM_NVRAM_LinearFile_Open(const char* uri,
                   strerror(errno));
         return TPM_FAIL;
     }
+    return 0;
+}
+
+static TPM_RESULT
+SWTPM_NVRAM_LinearFile_Open(const char* uri,
+                            unsigned char **data,
+                            uint32_t *length)
+{
+    TPM_RESULT rc = 0;
+
+    if (mmap_state.mapped) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_LinearFile_Open: Already open\n");
+        return TPM_FAIL;
+    }
+
+    rc = SWTPM_NVRAM_LinearFile_DoOpenURI(uri);
+    if (rc)
+        return rc;
 
     rc = SWTPM_NVRAM_LinearFile_Mmap();
     if (rc == 0) {
