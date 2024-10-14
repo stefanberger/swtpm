@@ -34,7 +34,9 @@ static struct {
     unsigned char *ptr;
     TPM_BOOL can_truncate;
     uint32_t size;
-} mmap_state;
+} mmap_state = {
+    .fd = -1,
+};
 
 /*
     Update ptr and stat in mmap_state. Closes mmap_state.fd on error.
@@ -132,6 +134,7 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
 fail:
     mmap_state.mapped = false;
     close(mmap_state.fd);
+    mmap_state.fd = -1;
     return rc;
 }
 
@@ -252,7 +255,7 @@ static void SWTPM_NVRAM_LinearFile_Cleanup(void)
     SWTPM_NVRAM_LinearFile_Flush(NULL, 0, mmap_state.size);
     munmap(mmap_state.ptr, mmap_state.size);
     close(mmap_state.fd);
-    mmap_state.fd = 0;
+    mmap_state.fd = -1;
     mmap_state.mapped = false;
 }
 
