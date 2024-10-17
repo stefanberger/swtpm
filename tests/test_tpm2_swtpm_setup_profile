@@ -195,6 +195,7 @@ for profile in ${profiles}; do
 	               "\"StateFormatLevel\":[0-9]+,"\
 	               "\"Commands\":\"[,x[:xdigit:]-]+\","\
 	               "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+	               "(\"Attributes\":\"[,=[:alnum:]-]+\",)?"\
 	               "\"Description\":\"[[:print:]]+\""\
 	               "\}\}\$"| tr -d " ")
 	test_swtpm_setup_profile \

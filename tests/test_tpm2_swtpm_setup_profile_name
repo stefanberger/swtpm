@@ -128,6 +128,7 @@ exp_response_default=$(echo "^\{\"ActiveProfile\":\{" \
                "\"StateFormatLevel\":[0-9]+,"\
                "\"Commands\":\"[,x[:xdigit:]-]+\","\
                "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+               "(\"Attributes\":\"[,=[:alnum:]-]+\",)?"\
                "\"Description\":\"This${SP}profile${SP}enables${SP}all${SP}[[:print:]]+\""\
                "\}\}\$"| tr -d " ")
 test_swtpm_setup_profile "${workdir}" "builtin:default-v1" "${exp_response_default}" "0"
