@@ -982,7 +982,8 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                                         const unsigned char *authpolicy, size_t authpolicy_len,
                                         const unsigned char *schemedata, size_t schemedata_len,
                                         unsigned short curveid, unsigned short hashalg,
-                                        const unsigned char *nonce, size_t nonce_len,
+                                        const unsigned char *nonce1, size_t nonce1_len,
+                                        const unsigned char *nonce2, size_t nonce2_len,
                                         size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
                                         gchar **ekparam, const gchar **key_description)
@@ -1008,8 +1009,8 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                   authpolicy, authpolicy_len,
                   symkeydata, symkeydata_len,
                   schemedata, schemedata_len,
-                  nonce, nonce_len,
-                  nonce, nonce_len,
+                  nonce1, nonce1_len,
+                  nonce2, nonce2_len,
                   NULL);
     if (public_len < 0) {
         logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
@@ -1109,11 +1110,17 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
     size_t schemedata_len = sizeof(schemedata);
     size_t off = 42;
 
+    /* per "TCG TPM v2.0 Provisioning Guidance v1.0" page 37
+     * -> "Ek Credential Profile 2.0" rev.14 section 2.1.5.2:
+     * template for NIST P256 uses 2 identical 32-byte all-zero nonces
+     * -> Use two 48-byte all-zero nonces for NIST P384.
+     */
     return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags, symkeydata, symkeydata_len,
                                         authpolicy, authpolicy_len, schemedata, schemedata_len,
                                         TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
-                                        NONCE_ECC_384, sizeof(NONCE_ECC_384), off, curr_handle,
-                                        NULL, 0, NULL, NULL);
+                                        NONCE_ECC_384, sizeof(NONCE_ECC_384),
+                                        NONCE_ECC_384, sizeof(NONCE_ECC_384),
+                                        off, curr_handle, NULL, 0, NULL, NULL);
 }
 
 static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa_keysize,
@@ -1222,12 +1229,17 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         off = 90;
     }
 
+    /* TCG EK Credential Profile for TPM 2.0; vers 2.5 rev 2:
+     * Two zero-byte empty nonces per Template H-3.
+     */
     ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags,
                                        symkeydata, symkeydata_len,
                                        authpolicy, authpolicy_len,
                                        schemedata, schemedata_len,
                                        TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
-                                       NONCE_EMPTY, sizeof(NONCE_EMPTY), off, curr_handle,
+                                       NONCE_EMPTY, sizeof(NONCE_EMPTY),
+                                       NONCE_EMPTY, sizeof(NONCE_EMPTY),
+                                       off, curr_handle,
                                        ektemplate, ektemplate_len, ekparam, key_description);
     if (ret != 0)
        logerr(self->logfile, "%s failed\n", __func__);
