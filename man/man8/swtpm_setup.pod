@@ -291,7 +291,8 @@ The output may contain the following:
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
         "cmdarg-profile",
-        "cmdarg-profile-remove-disabled"
+        "cmdarg-profile-remove-disabled",
+        "cmdarg-no-iak"
       ],
       "version": "0.7.0"
     }
@@ -322,6 +323,12 @@ The I<--create-config-files> option is supported.
 
 The I<--reconfigure> option is supported and allows the reconfiguration of
 the active PCR banks.
+
+=item B<cmdarg-no-iak> (since v0.9)
+
+If I<--create-ek-cert> is given then swtpm_setup also creates IAK and IDevID
+keys and certificates. When I<--no-iak> is passed then neither one of them is
+created.
 
 =item B<tpm2-rsa-keysize-2048, ...> (since v0.4)
 
@@ -400,6 +407,10 @@ the default configuration files' paths is currently not handled. On many
 systems this may be the case when a user is part of the 'tss' group. In
 this case it is recommended that the user replace the swtpm-localca.conf
 created with this command with a symbolic link to /etc/swtpm-localca.conf.
+
+=item <--no-iak> (since v0.9)
+
+Do not create IAK and IDevID keys and certificates.
 
 =item B<--help, -h>
 

@@ -14,4 +14,7 @@
 
 extern gchar *gl_LOGFILE;
 
+#define TPM_CAP_TPM_PROPERTIES 6
+#define TPM_PT_MANUFACTURER 0x105
+
 #endif /* SWTPM_SETUP_H */
