@@ -465,17 +465,17 @@ static const struct swtpm_cops swtpm_cops = {
 
 struct tpm2_authblock {
     uint32_t auth;
-    uint16_t foo; // FIXME
+    uint16_t nonceSize; // currently always 0
     uint8_t continueSession;
-    uint16_t bar; // FIMXE
+    uint16_t pwdSize; // currently always 0
 } __attribute__((packed));
 
-#define TPM2_AUTHBLOCK_INITIALIZER(AUTH, FOO, CS, BAR) \
+#define TPM2_AUTHBLOCK_INITIALIZER(AUTH) \
     { \
         .auth = htobe32(AUTH), \
-        .foo = htobe16(FOO), \
-        .continueSession = CS, \
-        .bar = htobe16(BAR), \
+        .nonceSize = htobe16(0), \
+        .continueSession = 0, \
+        .pwdSize = htobe16(0), \
     }
 
 static const unsigned char NONCE_EMPTY[2] = {AS2BE(0)};
@@ -636,7 +636,7 @@ static int swtpm_tpm2_set_active_pcr_banks(struct swtpm *self, gchar **pcr_banks
                                            gchar **all_pcr_banks, gchar ***active)
 {
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_PCR_ALLOCATE);
-    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0);
+    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     unsigned char pcrselects[6 * 10]; // supports up to 10 PCR banks
     ssize_t pcrselects_len = 0;
     size_t count = 0;
@@ -766,7 +766,7 @@ static int swtpm_tpm2_evictcontrol(struct swtpm *self, uint32_t curr_handle, uin
         .auth = htobe32(TPM2_RH_OWNER),
         .objectHandle = htobe32(curr_handle),
         .authblockLen = htobe32(sizeof(req.authblock)),
-        .authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0),
+        .authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW),
         .persistentHandle = htobe32(perm_handle),
     };
 
@@ -867,7 +867,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
     size_t nonce_len;
     uint16_t hashalg;
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_CREATEPRIMARY);
-    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0);
+    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     g_autofree unsigned char *public = NULL;
     ssize_t public_len;
     g_autofree unsigned char *createprimary = NULL;
@@ -988,7 +988,7 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                                         gchar **ekparam, const gchar **key_description)
 {
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_CREATEPRIMARY);
-    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0);
+    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     g_autofree unsigned char *public = NULL;
     ssize_t public_len;
     g_autofree unsigned char *createprimary = NULL;
@@ -1305,7 +1305,7 @@ static int swtpm_tpm2_nvdefinespace(struct swtpm *self, uint32_t nvindex, uint32
                                     uint16_t data_len)
 {
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_NV_DEFINESPACE);
-    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0);
+    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     g_autofree unsigned char *nvpublic = NULL;
     ssize_t nvpublic_len;
     g_autofree unsigned char *req = NULL;
@@ -1344,7 +1344,7 @@ static int swtpm_tpm2_nv_write(struct swtpm *self, uint32_t nvindex,
                                const unsigned char *data, size_t data_len)
 {
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_NV_WRITE);
-    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0);
+    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     g_autofree unsigned char *req = NULL;
     ssize_t req_len;
     size_t offset = 0, txlen;
@@ -1383,7 +1383,7 @@ static int swtpm_tpm2_nv_write(struct swtpm *self, uint32_t nvindex,
 static int swtpm_tpm2_nv_writelock(struct swtpm *self, uint32_t nvindex)
 {
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_NV_WRITELOCK);
-    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW, 0, 0, 0);
+    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     g_autofree unsigned char *req;
     ssize_t req_len;
 
