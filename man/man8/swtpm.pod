@@ -351,7 +351,8 @@ may contain the following:
         "cmdarg-print-profiles",
         "profile-opt-remove-disabled",
         "cmdarg-print-info",
-        "tpmstate-opt-lock"
+        "tpmstate-opt-lock",
+        "flags-opt-recreate-svn-base-secret"
       ],
       "version": "0.7.0"
     }
@@ -447,6 +448,10 @@ The option I<--print-info> is supported.
 =item B<tpmstate-opt-lock> (since v0.10)
 
 The option parameter I<lock> for the I<--tpmstate> option is supported.
+
+=item B<flags-opt-recreate-svn-base-secret> (since v0.10)
+
+The I<--flags> option supports the I<recreate-svn-base-secret> flag.
 
 =back
 

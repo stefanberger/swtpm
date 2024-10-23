@@ -32,7 +32,7 @@ exp='\{ "type": "swtpm", '\
 '"nvram-backend-dir", "nvram-backend-file"'\
 '(, "rsa-keysize-1024")?(, "rsa-keysize-2048")?(, "rsa-keysize-3072")?, "cmdarg-profile", '\
 '"cmdarg-print-profiles", "profile-opt-remove-disabled", "cmdarg-print-info", '\
-'"tpmstate-opt-lock" \], '\
+'"tpmstate-opt-lock", "flags-opt-recreate-svn-base-secret" \], '\
 '"profiles": \{ "names": \[ [^]]*\], "algorithms": \{ [^\}]*\}, "commands": \{ [^\}]*\} }, '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
