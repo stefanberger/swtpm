@@ -247,6 +247,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
     const char *nvram_backend_dir = "\"nvram-backend-dir\", ";
     const char *nvram_backend_file = "\"nvram-backend-file\"";
     g_autofree gchar *profiles = NULL;
+    bool is_tpm2 = tpmversion == TPMLIB_TPM_VERSION_2;
 
     /* ignore errors */
     TPMLIB_ChooseTPMVersion(tpmversion);
@@ -255,7 +256,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
     if (ret < 0)
         goto cleanup;
 
-    if (tpmversion == TPMLIB_TPM_VERSION_2) {
+    if (is_tpm2) {
         ret = get_profiles(&profiles);
         if (ret < 0)
             goto cleanup;
@@ -290,9 +291,9 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          nvram_backend_dir,
          nvram_backend_file,
          keysizecaps  ? keysizecaps                    : "",
-         true         ? ", \"cmdarg-profile\""         : "",
-         true         ? ", \"cmdarg-print-profiles\""  : "",
-         true         ? ", \"profile-opt-remove-disabled\"" : "",
+         is_tpm2      ? ", \"cmdarg-profile\""         : "",
+         is_tpm2      ? ", \"cmdarg-print-profiles\""  : "",
+         is_tpm2      ? ", \"profile-opt-remove-disabled\"" : "",
          true         ? ", \"cmdarg-print-info\""      : "",
          true         ? ", \"tpmstate-opt-lock\""      : "",
          profiles     ? profiles                       : ""
