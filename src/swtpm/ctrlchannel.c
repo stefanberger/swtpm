@@ -577,7 +577,7 @@ int ctrlchannel_process_fd(int fd,
 
         res = tpmlib_start(be32toh(init_p->u.req.init_flags),
                            mlp->tpmversion, mlp->storage_locked,
-                           mlp->json_profile);
+                           mlp->json_profile, &mlp->recreate_svn_base_secret);
         if (res) {
             logprintf(STDERR_FILENO,
                       "Error: Could not initialize the TPM\n");

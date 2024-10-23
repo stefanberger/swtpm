@@ -55,7 +55,8 @@ struct server;
 int handle_server_options(const char *options, struct server **s);
 int handle_locality_options(const char *options, uint32_t *flags);
 int handle_flags_options(const char *options, bool *need_init_cmd,
-                         uint16_t *startupType, bool *disable_auto_shutdown);
+                         uint16_t *startupType, bool *disable_auto_shutdown,
+                         bool *recreate_base_secret);
 #ifdef WITH_SECCOMP
 int handle_seccomp_options(const char *options, unsigned int *seccomp_action);
 #else
