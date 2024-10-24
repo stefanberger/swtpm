@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 if [ "${SWTPM_TEST_EXPENSIVE:-0}" -eq 0 ]; then
+	echo "SWTPM_TEST_EXPENSIVE must be set to run this test."
 	exit 77
 fi
 
@@ -56,7 +57,7 @@ function build_ibmtss2() {
 
 	pushd ibmtpm20tss-tss &>/dev/null || exit 1
 
-	if ! git checkout tags/v2.3.2; then
+	if ! git checkout tags/v2.4.0; then
 		echo "'Git checkout' failed."
 		exit 1
 	fi

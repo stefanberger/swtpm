@@ -1,17 +1,17 @@
-From 85c5c7576c9e10f5b7c37573311aaf96353eee07 Mon Sep 17 00:00:00 2001
+From 8904f210a3b0166686206ea0866611141599509c Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:42:11 -0500
-Subject: [PATCH 04/13] Store and restore volatile state at every step
+Subject: [PATCH 4/5] Store and restore volatile state at every step
 
 ---
  utils/reg.sh | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
 
 diff --git a/utils/reg.sh b/utils/reg.sh
-index c9d49b9..0bba17a 100755
+index 9356224..532ca64 100755
 --- a/utils/reg.sh
 +++ b/utils/reg.sh
-@@ -140,6 +140,16 @@ printUsage ()
+@@ -141,6 +141,16 @@ printUsage ()
      echo "-51 Events"
  }
  
@@ -28,7 +28,7 @@ index c9d49b9..0bba17a 100755
  checkSuccess()
  {
  if [ $1 -ne 0 ]; then
-@@ -149,7 +159,7 @@ if [ $1 -ne 0 ]; then
+@@ -150,7 +160,7 @@ if [ $1 -ne 0 ]; then
  else
      echo " INFO:"
  fi
@@ -37,7 +37,7 @@ index c9d49b9..0bba17a 100755
  }
  
  # FIXME should not increment past 254
-@@ -162,6 +172,7 @@ if [ $1 -ne 0 ]; then
+@@ -163,6 +173,7 @@ if [ $1 -ne 0 ]; then
  else
      echo " INFO:"
  fi
@@ -45,7 +45,7 @@ index c9d49b9..0bba17a 100755
  }
  
  checkFailure()
-@@ -173,6 +184,7 @@ if [ $1 -eq 0 ]; then
+@@ -174,6 +185,7 @@ if [ $1 -eq 0 ]; then
  else
      echo " INFO:"
  fi
@@ -54,5 +54,5 @@ index c9d49b9..0bba17a 100755
  
  cleanup()
 -- 
-2.39.1
+2.47.0
 

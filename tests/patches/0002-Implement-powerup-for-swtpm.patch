@@ -1,7 +1,7 @@
-From 8162afd2316d2a374447a0e620d18cf5021d4fdb Mon Sep 17 00:00:00 2001
+From ba655b589276a2ec57c08088257a68f322c1ccbf Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Sun, 28 Feb 2021 16:39:51 -0500
-Subject: [PATCH 02/13] Implement powerup for swtpm
+Subject: [PATCH 2/5] Implement powerup for swtpm
 
 ---
  utils/reg.sh                   | 12 ++++++++++++
@@ -13,7 +13,7 @@ Subject: [PATCH 02/13] Implement powerup for swtpm
  6 files changed, 21 insertions(+), 9 deletions(-)
 
 diff --git a/utils/reg.sh b/utils/reg.sh
-index 5f44760..24ea1df 100755
+index 5725fd6..ac5a5c2 100755
 --- a/utils/reg.sh
 +++ b/utils/reg.sh
 @@ -1,6 +1,12 @@
@@ -29,7 +29,7 @@ index 5f44760..24ea1df 100755
  #################################################################################
  #										#
  #			TPM2 regression test					#
-@@ -261,6 +267,12 @@ initprimary()
+@@ -262,6 +268,12 @@ initprimary()
      checkSuccess $?
  }
  
@@ -65,18 +65,18 @@ index 37d1584..99a4d41 100755
  
  echo "Startup"
 diff --git a/utils/regtests/testevent.sh b/utils/regtests/testevent.sh
-index 7b2ee94..c201cb2 100755
+index 8ecc7fa..24330bf 100755
 --- a/utils/regtests/testevent.sh
 +++ b/utils/regtests/testevent.sh
-@@ -71,7 +71,7 @@ do
-     do
+@@ -69,7 +69,7 @@ for HALG in ${ITERATE_ALGS_WITH_SHA1}
+ do
  
- 	echo "Power cycle to reset IMA PCR"
--	${PREFIX}powerup > run.out
-+	powerup > run.out
- 	checkSuccess $?
+     echo "Power cycle to reset IMA PCR"
+-    ${PREFIX}powerup > run.out
++    powerup > run.out
+     checkSuccess $?
  
- 	echo "Startup"
+     echo "Startup"
 diff --git a/utils/regtests/testnvpin.sh b/utils/regtests/testnvpin.sh
 index 2d96aed..0f09bab 100755
 --- a/utils/regtests/testnvpin.sh
@@ -144,5 +144,5 @@ index dc45721..65c6f4d 100755
  
  echo "Startup clear"
 -- 
-2.39.1
+2.47.0
 
