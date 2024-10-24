@@ -1,7 +1,7 @@
-From 8c8ee0c35ca58afb74a11cf6e8753b3711bfc4b2 Mon Sep 17 00:00:00 2001
+From ba6529ed84df010e2598f20b190957f15d52c66f Mon Sep 17 00:00:00 2001
 From: Stefan Berger <stefanb@linux.vnet.ibm.com>
 Date: Fri, 26 Feb 2021 18:45:57 -0500
-Subject: [PATCH 01/13] Deactivate test cases accessing rootcerts.txt
+Subject: [PATCH 1/5] Deactivate test cases accessing rootcerts.txt
 
 rootcerts.txt contains files in a drive we don't have access to
 ---
@@ -60,10 +60,10 @@ index 0392fa9..b70cdb2 100755
  	echo "Start a policy session"
  	${PREFIX}startauthsession -se p > run.out
 diff --git a/utils/regtests/testunseal.sh b/utils/regtests/testunseal.sh
-index 5cde8e9..7f100dd 100755
+index e7efd93..eb8d0e9 100755
 --- a/utils/regtests/testunseal.sh
 +++ b/utils/regtests/testunseal.sh
-@@ -724,8 +724,8 @@ echo ""
+@@ -728,8 +728,8 @@ echo ""
  
  echo "PROVISION: Create the EK for the salted session 80000000"
  if   [ ${CRYPTOLIBRARY} == "openssl" ]; then
@@ -75,5 +75,5 @@ index 5cde8e9..7f100dd 100755
  fi
  checkSuccess $?
 -- 
-2.39.1
+2.47.0
 
