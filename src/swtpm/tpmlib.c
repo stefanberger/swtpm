@@ -274,7 +274,8 @@ static int tpmlib_maybe_configure_openssl(TPMLIB_TPMVersion tpmversion)
 }
 
 TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
-                        bool lock_nvram, const char *json_profile)
+                        bool lock_nvram, const char *json_profile,
+                        bool *recreate_svn_base_secret)
 {
     TPM_RESULT res;
 
@@ -317,6 +318,11 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
                       "state of the TPM.\n");
             goto error_terminate;
         }
+    }
+
+    if (*recreate_svn_base_secret) {
+        TPMLIB_RecreateSvnBaseSecret();
+        *recreate_svn_base_secret = false;
     }
 
     if (tpmlib_maybe_configure_openssl(tpmversion)) {
