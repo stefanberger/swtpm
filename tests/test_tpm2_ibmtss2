@@ -107,6 +107,13 @@ export TPM_PLATFORM_PORT=${SWTPM_CTRL_PORT}
 export SWTPM_IOCTL
 
 if [ -d "$SWTPM_TEST_IBMTSS" ]; then
+	for opt in swtpm without-ecc without-nuvoton without-events; do
+		if ! "$SWTPM_TEST_IBMTSS"/tssreg.sh -h | grep -q "${opt}"; then
+			echo "Cannot run test with installed IBM TSS2 test suite since it does not support the --${opt} option."
+			exit 1
+		fi
+	done
+
 	# assume tss is installed with the default prefix
 	if ! tssstartup; then
 		echo "Startup of TPM2 failed"
