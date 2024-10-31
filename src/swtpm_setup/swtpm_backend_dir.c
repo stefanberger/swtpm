@@ -6,6 +6,8 @@
  * Refactored as module: Stefan Reiter, stefan@pimaker.at
  */
 
+#include "config.h"
+
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
