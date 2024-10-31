@@ -48,6 +48,10 @@ AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([foreign 1.6])
 AM_SILENT_RULES([yes])
 
+# Allow 64-bit file API on 32-bit systems. Without the change even small
+# files will fail to stat any files on filesystems with 64-bit inodes.
+AC_SYS_LARGEFILE
+
 DEBUG=""
 AC_MSG_CHECKING([for debug-enabled build])
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[create a debug build]),
