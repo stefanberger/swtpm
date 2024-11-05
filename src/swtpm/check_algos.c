@@ -582,7 +582,7 @@ _check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
                           disabled_type & DISABLED_BY_FIPS ? "(FIPS)" : "",
                           display);
             } else {
-                logprintf(STDOUT_FILENO, " Tested: %s\n", display);
+                logprintf(STDOUT_FILENO, "  Tested: %s\n", display);
             }
         }
     }
