@@ -4,6 +4,7 @@
 #include <tunables/global>
 
 profile swtpm /usr/bin/swtpm {
+  #include <abstractions/user-tmp>
   #include <abstractions/base>
   #include <abstractions/openssl>
 
