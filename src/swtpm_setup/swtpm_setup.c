@@ -961,7 +961,7 @@ static void usage(const char *prgname, const char *default_config_file)
         "--create-platform-cert\n"
         "                 : Create a platform certificate; this implies --create-ek-cert\n"
         "\n"
-        "--create-spk     : Create storage primary key; this requires --tpm2\n"
+        "--create-spk     : Create storage primary key; this requires --tpm2; deprecated\n"
         "\n"
         "--lock-nvram     : Lock NVRAM access\n"
         "\n"
