@@ -1098,6 +1098,8 @@ err_too_short:
 static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
                                                       uint32_t *curr_handle)
 {
+    // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth
+    //           noDA, restricted, decrypt
     unsigned int keyflags = 0x00030472;
     const unsigned char authpolicy[0] = { };
     size_t authpolicy_len = sizeof(authpolicy);
@@ -1109,6 +1111,12 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
     size_t schemedata_len = sizeof(schemedata);
     size_t off = 42;
 
+    /* per "TCG TPM v2.0 Provisioning Guidance v1.0" page 37
+     * -> "Ek Credential Profile 2.0" rev.14 section 2.1.5.2:
+     * template for NIST P256 uses 2 identical 32-byte all-zero nonces
+     * -> Use two 48-byte all-zero nonces for NIST P384.
+     */
+
     return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags, symkeydata, symkeydata_len,
                                         authpolicy, authpolicy_len, schemedata, schemedata_len,
                                         TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
@@ -1119,6 +1127,8 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
 static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa_keysize,
                                             uint32_t *curr_handle)
 {
+    // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth
+    //           noDA, restricted, decrypt
     unsigned int keyflags = 0x00030472;
     const unsigned char authpolicy[0] = { };
     size_t authpolicy_len = sizeof(authpolicy);
@@ -1143,7 +1153,7 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
                                         off, curr_handle, NULL, 0, NULL, NULL);
 }
 
-/* Create either an ECC or RSA storage primary key */
+/* Create either an ECC or RSA storage primary key (deprecated) */
 static int swtpm_tpm2_create_spk(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize)
 {
     int ret;
