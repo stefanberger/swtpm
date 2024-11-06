@@ -45,6 +45,8 @@ struct swtpm12_ops {
 /* TPM 2 specific ops */
 struct swtpm2_ops {
     int (*shutdown)(struct swtpm *);
+    int (*create_iak)(struct swtpm *self, gchar **ekparam, const gchar **key_description);
+    int (*create_idevid)(struct swtpm *self, gchar **ekparam, const gchar **key_description);
     int (*create_spk)(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize);
     int (*create_ek)(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize,
                      gboolean allowsigning, gboolean decryption, gboolean lock_nvram,
@@ -57,6 +59,11 @@ struct swtpm2_ops {
     int (*write_platform_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
                                      const unsigned char *data, size_t data_len);
     char *(*get_active_profile)(struct swtpm *self);
+    int (*write_iak_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
+                                const unsigned char *data, size_t data_len);
+    int (*write_idevid_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
+                                   const unsigned char *data, size_t data_len);
+    int (*get_capability)(struct swtpm *self, uint32_t cap, uint32_t prop, uint32_t *res);
 };
 
 /* common structure for swtpm object */

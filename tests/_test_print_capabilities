@@ -53,7 +53,7 @@ exp='\{ "type": "swtpm_setup", '\
 '"tpm12-not-need-root", "cmdarg-write-ek-cert-files", "cmdarg-create-config-files", '\
 '"cmdarg-reconfigure-pcr-banks"'\
 '(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")?, "cmdarg-profile", '\
-'"cmdarg-profile-remove-disabled" \], '\
+'"cmdarg-profile-remove-disabled", "cmdarg-no-iak" \], '\
 '"profiles": \[ [^]]*\], '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
@@ -73,7 +73,10 @@ if [ -x "$(type -P "$(echo "${SWTPM_CERT}" | cut -d" " -f1)" )" ]; then
 		exit 1
 	fi
 
-	exp='\{ "type": "swtpm_cert", "features": \[ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd" \], "version": "[^"]*" \}'
+	exp='\{ "type": "swtpm_cert", "features": '\
+'\[ "cmdarg-signkey-pwd", "cmdarg-parentkey-pwd", "cmdarg-tpm-serial-num", '\
+'"supports-iak-idevid" \], '\
+'"version": "[^"]*" \}'
 	if ! [[ "${msg}" =~ ${exp} ]]; then
 		echo "Unexpected response from ${SWTPM_CERT} to --print-capabilities:"
 		echo "Actual   : ${msg}"

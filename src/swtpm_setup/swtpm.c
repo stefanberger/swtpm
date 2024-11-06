@@ -418,6 +418,7 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_ALG_SHA3_512 0x0029
 #define TPM2_ALG_NULL     0x0010
 #define TPM2_ALG_SM3      0x0012
+#define TPM2_ALG_ECDSA    0x0018
 #define TPM2_ALG_ECC      0x0023
 #define TPM2_ALG_CFB      0x0043
 
@@ -446,6 +447,9 @@ static const struct swtpm_cops swtpm_cops = {
 
 #define TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT     0x01c00016
 #define TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE 0x01c00017
+
+#define TPM2_NV_INDEX_IDEVID_SHA384  0x01c90011
+#define TPM2_NV_INDEX_IAK_SHA384     0x01c90019
 
 #define TPM2_EK_RSA_HANDLE           0x81010001
 #define TPM2_EK_RSA3072_HANDLE       0x8101001c
@@ -982,7 +986,8 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                                         const unsigned char *authpolicy, size_t authpolicy_len,
                                         const unsigned char *schemedata, size_t schemedata_len,
                                         unsigned short curveid, unsigned short hashalg,
-                                        const unsigned char *nonce, size_t nonce_len,
+                                        const unsigned char *nonce1, size_t nonce1_len,
+                                        const unsigned char *nonce2, size_t nonce2_len,
                                         size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
                                         gchar **ekparam, const gchar **key_description)
@@ -1008,8 +1013,8 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                   authpolicy, authpolicy_len,
                   symkeydata, symkeydata_len,
                   schemedata, schemedata_len,
-                  nonce, nonce_len,
-                  nonce, nonce_len,
+                  nonce1, nonce1_len,
+                  nonce2, nonce2_len,
                   NULL);
     if (public_len < 0) {
         logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
@@ -1044,6 +1049,17 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                    tpmresp, &tpmresp_len, TPM2_DURATION_LONG);
     if (ret != 0)
         return 1;
+#if 0
+    {
+        size_t x;
+        for (x = 0; x < tpmresp_len; x++) {
+            if (x % 0x10 == 0)
+                printf("\n");
+            printf("%02x ", tpmresp[x]);
+        }
+        printf("\n");
+    }
+#endif
     if (curr_handle) {
         if (tpmresp_len < 10 + sizeof(*curr_handle))
             goto err_too_short;
@@ -1109,11 +1125,97 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
     size_t schemedata_len = sizeof(schemedata);
     size_t off = 42;
 
+    /* per "TCG TPM v2.0 Provisioning Guidance v1.0" page 37
+     * -> "Ek Credential Profile 2.0" rev.14 section 2.1.5.2:
+     * template for NIST P256 uses 2 identical 32-byte all-zero nonces
+     * -> Use two 48-byte all-zero nonces for NIST P384.
+     */
     return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags, symkeydata, symkeydata_len,
                                         authpolicy, authpolicy_len, schemedata, schemedata_len,
                                         TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
-                                        NONCE_ECC_384, sizeof(NONCE_ECC_384), off, curr_handle,
-                                        NULL, 0, NULL, NULL);
+                                        NONCE_ECC_384, sizeof(NONCE_ECC_384),
+                                        NONCE_ECC_384, sizeof(NONCE_ECC_384),
+                                        off, curr_handle, NULL, 0, NULL, NULL);
+}
+
+static int createprimary_iak_idevid_ecc_nist_p384(struct swtpm *self,
+                                                  unsigned int keyflags,
+                                                  const unsigned char *authpolicy, size_t authpolicy_len,
+                                                  const unsigned char *id, size_t id_len,
+                                                  size_t off, uint32_t *curr_handle,
+                                                  gchar **keyparam, const gchar **key_description)
+{
+    const unsigned char symkeydata[] = {AS2BE(TPM2_ALG_NULL)};
+    size_t symkeydata_len = sizeof(symkeydata);
+    const unsigned char schemedata[] = {
+        /* TPMS_ECC_PARAMS: TPMT_ECC_SCHEME .. TPMT_KDF_SCHEME */
+        AS2BE(TPM2_ALG_ECDSA),
+        AS2BE(TPM2_ALG_SHA384),    // hashAlg
+        AS2BE(TPM2_ECC_NIST_P384), // curveID
+        AS2BE(TPM2_ALG_NULL),      // kdf->scheme
+    };
+    size_t schemedata_len = sizeof(schemedata);
+
+    /* FIXME: unclear specification about nonces on ECCs */
+    return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags,
+                                        symkeydata, symkeydata_len,
+                                        authpolicy, authpolicy_len,
+                                        schemedata, schemedata_len,
+                                        TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
+                                        id /* nonce1 */, id_len,
+                                        id /* nonce2 */, id_len,
+                                        off, curr_handle,
+                                        NULL, 0, keyparam, key_description);
+}
+
+static int
+swtpm_tpm2_createprimary_idevid_ecc_nist_p384(struct swtpm *self,
+                                              uint32_t *curr_handle,
+                                              gchar **keyparam,
+                                              const gchar **key_description)
+{
+    const unsigned char authpolicy[48] = {
+        /* table 19: signing */
+        0x4d, 0xb1, 0xaa, 0x83, 0x6d, 0x0b, 0x56, 0x15, 0xdf, 0x6e, 0xe5, 0x3a,
+        0x40, 0xef, 0x70, 0xc6, 0x1c, 0x21, 0x7f, 0x43, 0x03, 0xd4, 0x46, 0x95,
+        0x92, 0x59, 0x72, 0xbc, 0x92, 0x70, 0x06, 0xcf, 0xa5, 0xcb, 0xdf, 0x6d,
+        0xc1, 0x8c, 0x4d, 0xbe, 0x32, 0x9b, 0x2f, 0x15, 0x42, 0xc3, 0xdd, 0x33
+    };
+    size_t authpolicy_len = sizeof(authpolicy);
+    // 7.3.4.1 keyflags: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth,
+    // adminWithPolicy, sign
+    unsigned int keyflags = 0x000400f2;
+    const char id[2 + 6] = {AS2BE(6), 0x49, 0x44, 0x45, 0x56, 0x49, 0x44}; /* 7.3.1 Table 2*/
+    size_t off = 0x58;
+
+    return createprimary_iak_idevid_ecc_nist_p384(self, keyflags, authpolicy, authpolicy_len,
+                                                  (const unsigned char *)id, sizeof(id),
+                                                  off, curr_handle, keyparam, key_description);
+}
+
+static int
+swtpm_tpm2_createprimary_iak_ecc_nist_p384(struct swtpm *self,
+                                           uint32_t *curr_handle,
+                                           gchar **keyparam,
+                                           const gchar **key_description)
+{
+    const unsigned char authpolicy[48] = {
+        /* table 19: attestation */
+        0x12, 0x9d, 0x94, 0xeb, 0xf8, 0x45, 0x56, 0x65, 0x2c, 0x6e, 0xef, 0x43,
+        0xbb, 0xb7, 0x57, 0x51, 0x2a, 0xc8, 0x7e, 0x52, 0xbe, 0x7b, 0x34, 0x9c,
+        0xa6, 0xce, 0x4d, 0x82, 0x6f, 0x74, 0x9f, 0xcf, 0x67, 0x2f, 0x51, 0x71,
+        0x6c, 0x5c, 0xbb, 0x60, 0x5f, 0x31, 0x3b, 0xf3, 0x45, 0xaa, 0xb3, 0x12
+    };
+    size_t authpolicy_len = sizeof(authpolicy);
+    // 7.3.4.1 keyflags: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth,
+    // adminWithPolicy, restricted, sign
+    unsigned int keyflags = 0x000500f2;
+    const char id[2 + 3] = {AS2BE(3), 0x49, 0x41, 0x4b}; /* 7.3.1 Table 2 */
+    size_t off = 0x58;
+
+    return createprimary_iak_idevid_ecc_nist_p384(self, keyflags, authpolicy, authpolicy_len,
+                                                  (const unsigned char *)id, sizeof(id),
+                                                  off, curr_handle, keyparam, key_description);
 }
 
 static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa_keysize,
@@ -1171,6 +1273,35 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, gboolean isecc, unsigned in
     return ret;
 }
 
+static int swtpm_tpm2_create_iak(struct swtpm *self, gchar **ekparam,
+                                 const gchar **key_description)
+{
+    uint32_t curr_handle;
+    int ret;
+
+    ret = swtpm_tpm2_createprimary_iak_ecc_nist_p384(self, &curr_handle, ekparam,
+                                                     key_description);
+    if (ret != 0)
+        return 1;
+
+    return swtpm_tpm2_flushcontext(self, curr_handle);
+}
+
+static int swtpm_tpm2_create_idevid(struct swtpm *self, gchar **ekparam,
+                                    const gchar **key_description)
+{
+    uint32_t curr_handle;
+    int ret;
+
+    ret = swtpm_tpm2_createprimary_idevid_ecc_nist_p384(self, &curr_handle, ekparam,
+                                                        key_description);
+    if (ret != 0)
+        return 1;
+
+    return swtpm_tpm2_flushcontext(self, curr_handle);
+}
+
+
 /* Create an ECC EK key that may be allowed to sign and/or decrypt */
 static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolean allowsigning,
                                                      gboolean decryption, uint32_t *curr_handle,
@@ -1222,12 +1353,17 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         off = 90;
     }
 
+    /* TCG EK Credential Profile for TPM 2.0; vers 2.5 rev 2:
+     * Two zero-byte empty nonces per Template H-3.
+     */
     ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags,
                                        symkeydata, symkeydata_len,
                                        authpolicy, authpolicy_len,
                                        schemedata, schemedata_len,
                                        TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
-                                       NONCE_EMPTY, sizeof(NONCE_EMPTY), off, curr_handle,
+                                       NONCE_EMPTY, sizeof(NONCE_EMPTY),
+                                       NONCE_EMPTY, sizeof(NONCE_EMPTY),
+                                       off, curr_handle,
                                        ektemplate, ektemplate_len, ekparam, key_description);
     if (ret != 0)
        logerr(self->logfile, "%s failed\n", __func__);
@@ -1506,8 +1642,72 @@ static char *swtpm_tpm2_get_active_profile(struct swtpm *self)
     return result;
 }
 
+static int swtpm_tpm2_write_iak_cert_nvram(struct swtpm *self, gboolean lock_nvram,
+                                           const unsigned char *data, size_t data_len)
+{
+    uint32_t nvindex = TPM2_NV_INDEX_IAK_SHA384;
+    uint32_t nvindexattrs = TPMA_NV_PLATFORMCREATE |
+            TPMA_NV_AUTHREAD |
+            TPMA_NV_OWNERREAD |
+            TPMA_NV_PPREAD |
+            TPMA_NV_PPWRITE |
+            TPMA_NV_NO_DA |
+            TPMA_NV_WRITEDEFINE; // FIXME: fix flags?
+
+    return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
+                                       lock_nvram, "", "IAK certificate");
+}
+
+static int swtpm_tpm2_write_idevid_cert_nvram(struct swtpm *self, gboolean lock_nvram,
+                                              const unsigned char *data, size_t data_len)
+{
+    uint32_t nvindex = TPM2_NV_INDEX_IDEVID_SHA384;
+    uint32_t nvindexattrs = TPMA_NV_PLATFORMCREATE |
+            TPMA_NV_AUTHREAD |
+            TPMA_NV_OWNERREAD |
+            TPMA_NV_PPREAD |
+            TPMA_NV_PPWRITE |
+            TPMA_NV_NO_DA |
+            TPMA_NV_WRITEDEFINE; // FIXME: fix flags?
+
+    return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
+                                       lock_nvram, "", "IDevID certificate");
+}
+
+static int swtpm_tpm2_get_capability(struct swtpm *self, uint32_t cap, uint32_t prop,
+                                     uint32_t *res)
+{
+    struct tpm2_get_capability_req {
+        struct tpm_req_header hdr;
+        uint32_t cap;
+        uint32_t prop;
+        uint32_t count;
+    } __attribute__((packed)) req = {
+        .hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_NO_SESSIONS, sizeof(req), TPM2_CC_GETCAPABILITY),
+        .cap = htobe32(cap),
+        .prop = htobe32(prop),
+        .count = htobe32(1),
+    };
+    unsigned char tpmresp[27];
+    size_t tpmresp_len = sizeof(tpmresp);
+    uint32_t val;
+    int ret;
+
+    ret = transfer(self, &req, sizeof(req), "TPM2_GetCapability", FALSE,
+                   tpmresp, &tpmresp_len, TPM2_DURATION_SHORT);
+    if (ret != 0)
+        return 1;
+
+    memcpy(&val, &tpmresp[23], sizeof(val));
+    *res = be32toh(val);
+
+    return 0;
+}
+
 static const struct swtpm2_ops swtpm_tpm2_ops = {
     .shutdown = swtpm_tpm2_shutdown,
+    .create_iak = swtpm_tpm2_create_iak,
+    .create_idevid = swtpm_tpm2_create_idevid,
     .create_spk = swtpm_tpm2_create_spk,
     .create_ek = swtpm_tpm2_create_ek,
     .get_all_pcr_banks = swtpm_tpm2_get_all_pcr_banks,
@@ -1515,6 +1715,9 @@ static const struct swtpm2_ops swtpm_tpm2_ops = {
     .write_ek_cert_nvram = swtpm_tpm2_write_ek_cert_nvram,
     .write_platform_cert_nvram = swtpm_tpm2_write_platform_cert_nvram,
     .get_active_profile = swtpm_tpm2_get_active_profile,
+    .write_iak_cert_nvram = swtpm_tpm2_write_iak_cert_nvram,
+    .write_idevid_cert_nvram = swtpm_tpm2_write_idevid_cert_nvram,
+    .get_capability = swtpm_tpm2_get_capability,
 };
 
 /*

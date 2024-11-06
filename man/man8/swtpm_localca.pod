@@ -41,7 +41,7 @@ The following options are supported:
 =item B<--type type>
 
 This parameter indicates the type of certificate to create. The type parameter may
-be one of the following: I<ek>, or I<platform>
+be one of the following: I<ek>, I<platform>, I<iak>, I<idevid>
 
 =item B<--dir dir>
 
@@ -86,6 +86,11 @@ I</etc/swtpm-localca.options> will be used.
 TPM specification parameters that describe the specification that was
 followed for the TPM implementation. The parameters will be passed
 to swtpm_cert for the creation of the EK certificate.
+
+=item B<--tpm-serial-num>
+
+The TPM's serial number that will become part of the certificate. This parameter
+is necessary for IAK and IDevID certificates.
 
 =item B<--tpm2>
 

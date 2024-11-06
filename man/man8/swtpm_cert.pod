@@ -19,7 +19,7 @@ The following options are supported:
 
 =over 4
 
-=item B<--type {ek|platform}>
+=item B<--type {ek|platform|iak|idevid}>
 
 The type of certificate to create; by default an EK certificate is created.
 
@@ -114,6 +114,11 @@ The TPM model (part number).
 
 The TPM's firmware version.
 
+=item B<--tpm-serial-num <serial>>
+
+The TPM's serial number. This option is required for creating IAK and IDevID
+certificates.
+
 =item B<--platform-manufacturer <name>>
 
 The name of the platform manufacturer.
@@ -156,7 +161,9 @@ The output may contain the following:
       "type": "swtpm_cert",
       "features": [
         "cmdarg-signkey-pwd",
-        "cmdarg-parentkey-pwd"
+        "cmdarg-parentkey-pwd",
+        "cmdarg-tpm-serial-num",
+        "supports-iak-idevid"
       ],
       "version": "0.7.0"
     }
@@ -174,6 +181,14 @@ The I<--signkey-pwd> option is supported.
 =item B<cmdarg-parentkey-pwd>
 
 The I<--parentkey-pwd> option is supported.
+
+=item B<cmdarg-tpm-serial-num> (since v0.9)
+
+The I<--tpm-serial-num> option is supported.
+
+=item B<supports-iak-idevid> (since v0.9)
+
+Creation of IAK and IDevID certificates is supported.
 
 =back
 

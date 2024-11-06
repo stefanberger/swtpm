@@ -32,10 +32,13 @@
 
 #include <libtpms/tpm_nvfilename.h>
 
+#include <gnutls/x509.h>
+
 #include "profile.h"
 #include "swtpm.h"
 #include "swtpm_conf.h"
 #include "swtpm_utils.h"
+#include "swtpm_setup.h"
 #include "swtpm_setup_utils.h"
 
 #include <openssl/sha.h>
@@ -62,6 +65,8 @@
 #define SETUP_WRITE_EK_CERT_FILES_F (1 << 15)
 #define SETUP_RECONFIGURE_F         (1 << 16)
 #define SETUP_RSA_KEYSIZE_BY_USER_F (1 << 17)
+#define SETUP_IAK_F                 (1 << 18)
+#define SETUP_IDEVID_F              (1 << 19)
 
 /* default configuration file */
 #define SWTPM_SETUP_CONF "swtpm_setup.conf"
@@ -79,6 +84,8 @@ static const struct flag_to_certfile {
 } flags_to_certfiles[] = {
     {.flag = SETUP_EK_CERT_F      , .filename = "ek.cert",       .type = "ek" },
     {.flag = SETUP_PLATFORM_CERT_F, .filename = "platform.cert", .type = "platform" },
+    {.flag = SETUP_IAK_F,           .filename = "iak.cert",      .type = "iak" },
+    {.flag = SETUP_IDEVID_F,        .filename = "idevid.cert",   .type = "idevid" },
     {.flag = 0,                     .filename = NULL,            .type = NULL},
 };
 
@@ -179,7 +186,8 @@ error:
 /* Call an external tool to create the certificates */
 static int call_create_certs(unsigned long flags, unsigned int cert_flags,
                              const gchar *configfile, const gchar *certsdir,
-                             const gchar *ekparam, const gchar *vmid, struct swtpm *swtpm)
+                             const gchar *key_params, const gchar *vmid,
+                             const gchar *tpm_serial_num, struct swtpm *swtpm)
 {
     gchar **config_file_lines = NULL; /* must free */
     g_autofree gchar *create_certs_tool = NULL;
@@ -188,6 +196,7 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
     g_autofree const gchar **cmd = NULL;
     gchar **params = NULL; /* must free */
     g_autofree gchar *prgname = NULL;
+    const char *key_opt = "--key";
     gboolean success;
     gint exit_status;
     size_t idx, j;
@@ -223,10 +232,15 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
                                     NULL
                                 }, TRUE);
         }
+
+        /* use the old --ek option when the ek is passed */
+        if (cert_flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F))
+            key_opt = "--ek";
+
         cmd = concat_arrays((const gchar*[]) {
                                 create_certs_tool_path,
                                 "--type", "_",  /* '_' must be at index '2' ! */
-                                "--ek", ekparam,
+                                key_opt, key_params,
                                 "--dir", certsdir,
                                 NULL
                             }, NULL, FALSE);
@@ -239,6 +253,8 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
             cmd = concat_arrays(cmd, (const gchar*[]){"--configfile", create_certs_tool_config, NULL}, TRUE);
         if (create_certs_tool_options != NULL)
             cmd = concat_arrays(cmd, (const gchar*[]){"--optsfile", create_certs_tool_options, NULL}, TRUE);
+        if (tpm_serial_num) /* required for IAK & IDevID */
+            cmd = concat_arrays(cmd, (const gchar*[]){"--tpm-serial-num", tpm_serial_num, NULL}, TRUE);
 
         s = g_strrstr(create_certs_tool, G_DIR_SEPARATOR_S);
         if (s)
@@ -358,6 +374,52 @@ static int read_certificate_file(const gchar *certsdir, const gchar *filename,
     return read_file(*certfile, filecontent, filecontent_len);
 }
 
+/* data extracted from EK certificate */
+struct ek_certificate_data {
+    unsigned char id[64];
+    size_t id_len;
+    unsigned char serial[20];
+    size_t serial_len;
+};
+
+static int tpm2_extract_certificate_data(gchar *certdata, size_t certdata_len,
+                                         struct ek_certificate_data *ecd)
+{
+    gnutls_x509_crt_t cert;
+    gnutls_datum_t data = {
+        .data = (unsigned char *)certdata,
+        .size = certdata_len,
+    };
+    int err;
+    int ret = 1;
+
+    if ((err = gnutls_x509_crt_init(&cert)) < 0) {
+        logerr(gl_LOGFILE, "gnutls_x509_crt_init() failed: %s\n",
+               gnutls_strerror(err));
+        return 1;
+    }
+    if ((err = gnutls_x509_crt_import(cert, &data, GNUTLS_X509_FMT_DER)) < 0) {
+        logerr(gl_LOGFILE, "gnutls_x509_crt_import() failed: %s\n",
+               gnutls_strerror(err));
+        goto cleanup;
+    }
+    if ((err = gnutls_x509_crt_get_authority_key_id(cert, ecd->id, &ecd->id_len, NULL)) < 0) {
+        logerr(gl_LOGFILE, "gnutls_x509_crt_get_authority_key_id() failed: %s\n",
+               gnutls_strerror(err));
+        goto cleanup;
+    }
+    if ((err = gnutls_x509_crt_get_serial(cert, ecd->serial, &ecd->serial_len)) < 0) {
+        logerr(gl_LOGFILE, "gnutls_x509_crt_get_serial() failed: %s\n",
+               gnutls_strerror(err));
+        goto cleanup;
+    }
+    ret = 0;
+
+cleanup:
+    gnutls_x509_crt_deinit(cert);
+    return ret;
+}
+
 /*
  * Read the certificate from the file where swtpm_cert left it.
  * Write the file into the TPM's NVRAM and, if the user wants it,
@@ -367,11 +429,13 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
                                     const struct flag_to_certfile *ftc,
                                     unsigned int rsa_keysize, struct swtpm2 *swtpm2,
                                     const gchar *user_certsdir, const gchar *key_type,
-                                    const gchar *key_description)
+                                    const gchar *key_description,
+                                    struct ek_certificate_data *ecd)
 {
     g_autofree gchar *filecontent = NULL;
     g_autofree gchar *certfile = NULL;
     size_t filecontent_len;
+    gboolean preserve;
     int ret;
 
     ret = read_certificate_file(certsdir, ftc->filename,
@@ -379,7 +443,21 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
     if (ret != 0)
         goto error_unlink;
 
-    if (ftc->flag == SETUP_EK_CERT_F) {
+    if (ecd) {
+        ret = tpm2_extract_certificate_data(filecontent, filecontent_len, ecd);
+        if (ret != 0)
+            goto error_unlink;
+    }
+
+    if (ftc->flag == SETUP_IAK_F) {
+        ret = swtpm2->ops->write_iak_cert_nvram(&swtpm2->swtpm,
+                                     !!(flags & SETUP_LOCK_NVRAM_F),
+                                     (const unsigned char*)filecontent, filecontent_len);
+    } else if (ftc->flag == SETUP_IDEVID_F) {
+        ret = swtpm2->ops->write_idevid_cert_nvram(&swtpm2->swtpm,
+                                     !!(flags & SETUP_LOCK_NVRAM_F),
+                                     (const unsigned char *)filecontent, filecontent_len);
+    } else if (ftc->flag == SETUP_EK_CERT_F) {
         ret = swtpm2->ops->write_ek_cert_nvram(&swtpm2->swtpm,
                                      !!(flags & SETUP_TPM2_ECC_F), rsa_keysize,
                                      !!(flags & SETUP_LOCK_NVRAM_F),
@@ -393,7 +471,9 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
     if (ret != 0)
         goto error_unlink;
 
-    return certfile_move_or_delete(flags, !!(ftc->flag & SETUP_EK_CERT_F),
+    preserve = !!(ftc->flag & (SETUP_EK_CERT_F | SETUP_IAK_F | SETUP_IDEVID_F));
+
+    return certfile_move_or_delete(flags, preserve,
                                    certfile, user_certsdir,
                                    key_type, key_description);
 
@@ -406,10 +486,12 @@ error_unlink:
 static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file,
                                    const gchar *certsdir, const gchar *vmid,
                                    unsigned int rsa_keysize, struct swtpm2 *swtpm2,
-                                   const gchar *user_certsdir)
+                                   const gchar *user_certsdir,
+                                   struct ek_certificate_data *ecd)
 {
+    g_autofree gchar *key_params = NULL;
+    struct ek_certificate_data *ecd_dup;
     const char *key_description = "";
-    g_autofree gchar *ekparam = NULL;
     unsigned long cert_flags;
     const gchar *key_type;
     size_t idx;
@@ -420,7 +502,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                                      !!(flags & SETUP_ALLOW_SIGNING_F),
                                      !!(flags & SETUP_DECRYPTION_F),
                                      !!(flags & SETUP_LOCK_NVRAM_F),
-                                     &ekparam, &key_description);
+                                     &key_params, &key_description);
         if (ret != 0)
             return 1;
     }
@@ -428,18 +510,26 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
     /* Only look at ek and platform certs here */
     cert_flags = flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F);
     if (cert_flags) {
-        ret = call_create_certs(flags, cert_flags, config_file, certsdir, ekparam,
-                                vmid, &swtpm2->swtpm);
+        ret = call_create_certs(flags, cert_flags, config_file, certsdir, key_params,
+                                vmid, NULL, &swtpm2->swtpm);
         if (ret != 0)
             return 1;
 
         for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
             if (cert_flags & flags_to_certfiles[idx].flag) {
-                key_type = flags_to_certfiles[idx].flag & SETUP_EK_CERT_F ? "ek" : "";
+
+                ecd_dup = NULL;
+                if (flags_to_certfiles[idx].flag & SETUP_EK_CERT_F) {
+                    key_type = "ek";
+                    if (rsa_keysize)
+                        ecd_dup = ecd;
+                } else {
+                    key_type = "";
+                }
 
                 ret = tpm2_persist_certificate(flags, certsdir, &flags_to_certfiles[idx],
                                                rsa_keysize, swtpm2, user_certsdir,
-                                               key_type, key_description);
+                                               key_type, key_description, ecd_dup);
                 if (ret)
                     return 1;
             }
@@ -453,21 +543,102 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
 static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_file,
                                      const gchar *certsdir, const gchar *vmid,
                                      unsigned int rsa_keysize, struct swtpm2 *swtpm2,
-                                     const gchar *user_certsdir)
+                                     const gchar *user_certsdir,
+                                     struct ek_certificate_data *ecd)
 {
      int ret;
 
      /* 1st key will be RSA */
      flags = flags & ~SETUP_TPM2_ECC_F;
      ret = tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
-                                   user_certsdir);
+                                   user_certsdir, ecd);
      if (ret != 0)
          return 1;
 
      /* 2nd key will be an ECC; no more platform cert */
      flags = (flags & ~SETUP_PLATFORM_CERT_F) | SETUP_TPM2_ECC_F;
      return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
-                                    user_certsdir);
+                                    user_certsdir, NULL);
+}
+
+static gchar *tpm2_create_tpm_serial_num(struct swtpm2 *swtpm2, const struct ek_certificate_data *ecd)
+{
+    struct swtpm *swtpm = &swtpm2->swtpm;
+    g_autofree gchar *cert_ser = NULL;
+    g_autofree gchar *ca_akid = NULL;
+    uint32_t res;
+    char code[sizeof(res) + 1];
+    size_t i;
+    int ret;
+
+    ret = swtpm2->ops->get_capability(swtpm, TPM_CAP_TPM_PROPERTIES, TPM_PT_MANUFACTURER, &res);
+    if (ret != 0) {
+        logerr(gl_LOGFILE, "TPM_GetCapability failed\n");
+        return NULL;
+    }
+
+    ca_akid = print_as_hex(ecd->id, ecd->id_len);
+    cert_ser = print_as_hex(ecd->serial, ecd->serial_len);
+    for (i = 0; i < sizeof(res); i++)
+        code[i] = res >> (8 * (3 - i));
+    code[4] = 0;
+
+    return g_strdup_printf("%s:%s:%s", code, ca_akid, cert_ser);
+}
+
+/* Create the IAK and cert */
+static int tpm2_create_iak_idevid_and_certs(unsigned long flags, const gchar *config_file,
+                                            const gchar *certsdir, const char *vmid,
+                                            struct swtpm2 *swtpm2, const gchar *user_certsdir,
+                                            const struct ek_certificate_data *ecd)
+{
+    g_autofree gchar *tpm_serial_num = NULL;
+    g_autofree gchar *key_params = NULL;
+    const char *key_description;
+    const char *key_type = NULL;
+    unsigned long cert_flags;
+    size_t idx;
+    int ret;
+
+    /* Only look at IAK and IDevID certs here */
+    cert_flags = flags & (SETUP_IAK_F | SETUP_IDEVID_F);
+    if (!cert_flags)
+        return 0;
+
+    tpm_serial_num = tpm2_create_tpm_serial_num(swtpm2, ecd);
+
+    for (idx = 0; flags_to_certfiles[idx].filename; idx++) {
+        if (cert_flags & flags_to_certfiles[idx].flag) {
+
+            SWTPM_G_FREE(key_params);
+
+            if (flags_to_certfiles[idx].flag == SETUP_IAK_F) {
+                key_type = "iak";
+                ret = swtpm2->ops->create_iak(&swtpm2->swtpm, &key_params, &key_description);
+            } else if (flags_to_certfiles[idx].flag == SETUP_IDEVID_F) {
+                key_type = "idevid";
+                ret = swtpm2->ops->create_idevid(&swtpm2->swtpm, &key_params, &key_description);
+            } else {
+                continue;
+            }
+            if (ret != 0)
+                return 1;
+
+            ret = call_create_certs(flags, flags_to_certfiles[idx].flag, config_file,
+                                    certsdir, key_params, vmid, tpm_serial_num,
+                                    &swtpm2->swtpm);
+            if (ret != 0)
+                return 1;
+
+            ret = tpm2_persist_certificate(flags, certsdir, &flags_to_certfiles[idx],
+                                           0, swtpm2, user_certsdir,
+                                           key_type, key_description, NULL);
+            if (ret)
+                return 1;
+        }
+    }
+
+    return 0;
 }
 
 /* Get the default PCR banks from the config file and if nothing can
@@ -603,6 +774,10 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
                      const gchar *user_certsdir, const gchar *json_profile,
                      int json_profile_fd, const gchar *profile_remove_disabled_param)
 {
+    struct ek_certificate_data ecd = {
+        .id_len = sizeof(ecd.id),
+        .serial_len = sizeof(ecd.serial),
+    };
     struct swtpm2 *swtpm2;
     struct swtpm *swtpm;
     int ret;
@@ -632,7 +807,12 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
         }
 
         ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
-                                        user_certsdir);
+                                        user_certsdir, &ecd);
+        if (ret != 0)
+            goto destroy;
+
+        ret = tpm2_create_iak_idevid_and_certs(flags, config_file, certsdir, vmid,
+                                               swtpm2, user_certsdir, &ecd);
         if (ret != 0)
             goto destroy;
     }
@@ -727,7 +907,7 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
     cert_flags = flags & (SETUP_EK_CERT_F | SETUP_PLATFORM_CERT_F);
 
     ret = call_create_certs(flags, cert_flags, config_file, certsdir, ekparam,
-                            vmid, &swtpm12->swtpm);
+                            vmid, NULL, &swtpm12->swtpm);
     if (ret != 0)
         return 1;
 
@@ -1055,6 +1235,8 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   check: algorithms are tested.\n"
         "                   fips-host: no testing.\n"
         "\n"
+        "--no-iak         : Do not create IAK and IDevID keys and related certificates.\n"
+        "\n"
         "--version        : Display version and exit\n"
         "\n"
         "--help,-h        : Display this help screen\n\n",
@@ -1237,7 +1419,7 @@ static int print_capabilities(const char **swtpm_prg_l, gboolean swtpm_has_tpm12
            ", \"cmdarg-reconfigure-pcr-banks\""
            "%s"
            ", \"cmdarg-profile\", \"cmdarg-profile-remove-disabled\""
-           ""
+           ", \"cmdarg-no-iak\""
            " ], "
            "\"profiles\": [%s], "
            "\"version\": \"" VERSION "\" "
@@ -1387,6 +1569,7 @@ int main(int argc, char *argv[])
         {"profile-file-fd", required_argument, NULL, 'G'},
         {"profile-remove-disabled", required_argument, NULL, 'j'},
         {"print-profiles", no_argument, NULL, 'M'},
+        {"no-iak", no_argument, NULL, 'n'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -1434,6 +1617,7 @@ int main(int argc, char *argv[])
     int fds_to_pass[2] = { -1, -1 };
     unsigned n_fds_to_pass = 0;
     char tmpbuffer[200];
+    gboolean no_iak = FALSE;
     time_t now;
     struct tm *tm;
     int ret = 1;
@@ -1638,6 +1822,9 @@ int main(int argc, char *argv[])
             break;
         case 'M': /* --print-profiles */
             printprofiles = TRUE;
+            break;
+        case 'n': /* --no-iak */
+            no_iak = TRUE;
             break;
         case '?':
         case 'h': /* --help */
@@ -1966,6 +2153,8 @@ int main(int argc, char *argv[])
                    error->message);
             goto error;
         }
+        if (!no_iak)
+            flags |= SETUP_IAK_F | SETUP_IDEVID_F;
     }
 
     if ((flags & SETUP_TPM2_F) == 0) {
