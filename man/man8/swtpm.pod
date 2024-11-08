@@ -551,9 +551,25 @@ may use I<swtpm> as follows.
     $ swtpm socket --tpmstate dir=./ --tpm2 --print-info 0x08 | jq
     {
       "RuntimeAlgorithms": {
-        "Implemented": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,ecc-nist-p192,ecc-nist-p224,ecc-nist-p256,ecc-nist-p384,ecc-nist-p521,ecc-bn-p256,ecc-bn-p638,ecc-sm2-p256,symcipher,camellia,camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
-        "CanBeDisabled": "tdes,sha1,sha512,rsassa,rsaes,rsapss,ecmqv,ecc-nist-p192,ecc-nist-p224,ecc-nist-p521,ecc-bn-p256,ecc-bn-p638,ecc-sm2-p256,camellia,cmac,ctr,ofb,cbc,ecb",
-        "Enabled": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,symcipher,camellia,camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
+        "Implemented": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,\
+                        hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,\
+                        sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,\
+                        ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,\
+                        kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,\
+                        ecc-nist-p192,ecc-nist-p224,ecc-nist-p256,\
+                        ecc-nist-p384,ecc-nist-p521,ecc-bn-p256,ecc-bn-p638,\
+                        ecc-sm2-p256,symcipher,camellia,camellia-min-size=128,\
+                        cmac,ctr,ofb,cbc,cfb,ecb",
+        "CanBeDisabled": "tdes,sha1,sha512,rsassa,rsaes,rsapss,ecmqv,\
+                          ecc-nist-p192,ecc-nist-p224,ecc-nist-p521,\
+                          ecc-bn-p256,ecc-bn-p638,ecc-sm2-p256,camellia,cmac,\
+                          ctr,ofb,cbc,ecb",
+        "Enabled": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,\
+                    aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,\
+                    sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,\
+                    ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,\
+                    ecc-min-size=192,ecc-nist,ecc-bn,symcipher,camellia,\
+                    camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
         "Disabled": ""
       }
     }
@@ -563,9 +579,18 @@ To see the list of supported commands:
     $ swtpm socket --tpmstate dir=./ --tpm2 --print-info 0x10 | jq
     {
       "RuntimeCommands": {
-        "Implemented": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197,0x199-0x19c",
-        "CanBeDisabled": "0x11f,0x121-0x122,0x124-0x128,0x12a,0x12c-0x12e,0x130,0x132-0x13b,0x13d-0x140,0x142,0x146-0x147,0x149-0x14d,0x14f-0x152,0x154-0x155,0x159,0x15b,0x15d-0x15e,0x160-0x164,0x167-0x168,0x16a-0x172,0x174,0x177-0x178,0x17b,0x17f-0x181,0x183-0x184,0x187-0x193,0x197,0x199-0x19c",
-        "Enabled": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197,0x199-0x19c",
+        "Implemented": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,\
+                        0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,\
+                        0x17a-0x193,0x197,0x199-0x19c",
+        "CanBeDisabled": "0x11f,0x121-0x122,0x124-0x128,0x12a,0x12c-0x12e,\
+                          0x130,0x132-0x13b,0x13d-0x140,0x142,0x146-0x147,\
+                          0x149-0x14d,0x14f-0x152,0x154-0x155,0x159,0x15b,\
+                          0x15d-0x15e,0x160-0x164,0x167-0x168,0x16a-0x172,\
+                          0x174,0x177-0x178,0x17b,0x17f-0x181,0x183-0x184,\
+                          0x187-0x193,0x197,0x199-0x19c",
+        "Enabled": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,\
+                    0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,\
+                    0x17a-0x193,0x197,0x199-0x19c",
         "Disabled": ""
       }
     }
@@ -575,9 +600,14 @@ To see the list of supported attributes:
     $ swtpm socket --tpmstate dir=./ --tpm2 --print-info 0x80 | jq
     {
       "RuntimeAttributes": {
-        "Implemented": "no-unpadded-encryption,no-sha1-signing,no-sha1-verification,no-sha1-hmac-creation,no-sha1-hmac-verification,no-sha1-hmac,fips-host",
-        "CanBeDisabled": "no-unpadded-encryption,no-sha1-signing,no-sha1-verification,no-sha1-hmac-creation,no-sha1-hmac-verification,no-sha1-hmac,fips-host",
-        "Enabled": "no-unpadded-encryption,no-sha1-signing,no-sha1-verification,no-sha1-hmac",
+        "Implemented": "no-unpadded-encryption,no-sha1-signing,\
+                        no-sha1-verification,no-sha1-hmac-creation,\
+                        no-sha1-hmac-verification,no-sha1-hmac,fips-host",
+        "CanBeDisabled": "no-unpadded-encryption,no-sha1-signing,\
+                          no-sha1-verification,no-sha1-hmac-creation,\
+                          no-sha1-hmac-verification,no-sha1-hmac,fips-host",
+        "Enabled": "no-unpadded-encryption,no-sha1-signing,\
+                    no-sha1-verification,no-sha1-hmac",
         "Disabled": "no-sha1-hmac-creation,no-sha1-hmac-verification,fips-host"
       }
     }
@@ -593,23 +623,55 @@ To see the list of available profiles:
         {
           "Name": "default-v1",
           "StateFormatLevel": 4,
-          "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197,0x199-0x19a",
-          "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,symcipher,camellia,camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
-          "Description": "This profile enables all currently supported commands and algorithms. It is applied when the user chooses no profile."
+          "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,\
+                       0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,\
+                       0x17a-0x193,0x197,0x199-0x19a",
+          "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,\
+                         hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,\
+                         sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,\
+                         ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,\
+                         kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,\
+                         symcipher,camellia,camellia-min-size=128,cmac,ctr,\
+                         ofb,cbc,cfb,ecb",
+          "Description": "This profile enables all currently supported \
+                          commands and algorithms. It is applied when the \
+                          user chooses no profile."
         },
         {
           "Name": "null",
           "StateFormatLevel": 1,
-          "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197",
-          "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,symcipher,camellia,camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
-          "Description": "The profile enables the commands and algorithms that were enabled in libtpms v0.9. This profile is automatically used when the state does not have a profile, for example when it was created by libtpms v0.9 or before."
+          "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,\
+                       0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,\
+                       0x17a-0x193,0x197",
+          "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,\
+                         hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,\
+                         sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,\
+                         ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,\
+                         kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,\
+                         symcipher,camellia,camellia-min-size=128,cmac,ctr,\
+                         ofb,cbc,cfb,ecb",
+          "Description": "The profile enables the commands and algorithms \
+                          that were enabled in libtpms v0.9. This profile is \
+                          automatically used when the state does not have a \
+                          profile, for example when it was created by \
+                          libtpms v0.9 or before."
         },
         {
           "Name": "custom",
           "StateFormatLevel": 2,
-          "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197",
-          "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,ecc-sm2-p256,symcipher,camellia,camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
-          "Description": "This profile allows customization of enabled algorithms and commands. This profile requires at least libtpms v0.10."
+          "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,\
+                       0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,\
+                       0x17a-0x193,0x197",
+          "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,\
+                         hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,\
+                         sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,\
+                         ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,\
+                         kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,\
+                         ecc-sm2-p256,symcipher,camellia,\
+                         camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
+          "Description": "This profile allows customization of enabled \
+                          algorithms and commands. This profile requires at \
+                          least libtpms v0.10."
         }
       ]
     }
@@ -622,9 +684,19 @@ message on port 2322:
       "ActiveProfile": {
         "Name": "default-v1",
         "StateFormatLevel": 4,
-        "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,0x17a-0x193,0x197,0x199-0x19a",
-        "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,symcipher,camellia,camellia-min-size=128,cmac,ctr,ofb,cbc,cfb,ecb",
-        "Description": "This profile enables all currently supported commands and algorithms. It is applied when the user chooses no profile."
+        "Commands": "0x11f-0x122,0x124-0x12e,0x130-0x140,0x142-0x159,\
+                     0x15b-0x15e,0x160-0x165,0x167-0x174,0x176-0x178,\
+                     0x17a-0x193,0x197,0x199-0x19a",
+        "Algorithms": "rsa,rsa-min-size=1024,tdes,tdes-min-size=128,sha1,\
+                       hmac,aes,aes-min-size=128,mgf1,keyedhash,xor,sha256,\
+                       sha384,sha512,null,rsassa,rsaes,rsapss,oaep,ecdsa,\
+                       ecdh,ecdaa,sm2,ecschnorr,ecmqv,kdf1-sp800-56a,kdf2,\
+                       kdf1-sp800-108,ecc,ecc-min-size=192,ecc-nist,ecc-bn,\
+                       symcipher,camellia,camellia-min-size=128,cmac,ctr,\
+                       ofb,cbc,cfb,ecb",
+        "Description": "This profile enables all currently supported \
+                        commands and algorithms. It is applied when the \
+                        user chooses no profile."
       }
     }
 
