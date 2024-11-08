@@ -200,7 +200,7 @@ SWTPM_NVRAM_LinearFile_Open(const char* uri,
 
     rc = SWTPM_NVRAM_LinearFile_Mmap();
     if (rc == 0) {
-        TPM_DEBUG("SWTPM_NVRAM_LinearFile_Open: Success opening '%s'\n", path);
+        TPM_DEBUG("SWTPM_NVRAM_LinearFile_Open: Success opening '%s'\n", uri);
         *length = mmap_state.size;
         *data = mmap_state.ptr;
     }
