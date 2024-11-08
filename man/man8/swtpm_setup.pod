@@ -241,6 +241,9 @@ prefix the name with 'builtin:'
 All profiles loaded from the above mentioned directories require that the
 file is available under the given name with '.json' appended.
 
+Use the I<--print-profiles> and I<--tpm2> options to display all available
+profiles.
+
 =item B<--profile-file <file>> (since v0.10)
 
 Configure a TPM 2 with a profile from a file.
@@ -267,10 +270,13 @@ I<swtpm>.
 =item B<--print-profiles> (since v0.10)
 
 Print all profiles found in the local and disto profiles directories and
-the built-in ones. All profiles stored in files must have the .json
+display the built-in ones. All profiles stored in files must have the .json
 extension. The names in the displayed JSON will show the name under
 which these profiles can be loaded with the I<--profile-name> option,
-i.e., they will show their filename without the .json extension.
+i.e., they will show their filename without the .json extension. Therefore,
+a profile with filename myprofile.json will show the I<Name> 'myprofile'.
+The author of the profile may want to set the I<Name> in the profile's JSON
+to 'custom:myprofile'.
 
 =item B<--print-capabilities> (since v0.2)
 
