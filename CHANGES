@@ -1,5 +1,77 @@
 CHANGES - changes for swtpm
 
+version 0.10.0:
+   - swtpm:
+     - Requires libtpms v0.10.0
+     - Display tpmstate-opt-lock as a new capability
+     - Add support for lock option parameter to tpmstate option
+     - nvstore_linear: Add support for file-backend locking
+     - Remove broken logic to check for neither dir nor file backend
+     - Use ptm_cap_n to build PTM_GET_CAPABILITY response
+     - Define a structure to return PTM_GET_CAPABILITY result
+     - Implement --print-info to run TPMLIB_GetInfo with flags
+     - Support --profile fd=<fd> to read profile from file descriptor
+     - Support --profile file=<filename> to read profile from file
+     - Ignore remove-disabled parameter on non-'custom' profile
+     - Check for good entropy source in chroot environment
+     - Implement a check for HMAC+sha1 for testing future restriction
+     - Implement function to check whether a crypto algorithm is disabled
+     - Print cmdarg-print-profiles as part of capabilities
+     - Check whether SHA1 signature support is disabled in profile
+     - Use TPMLIB_WasManufactured to check whether profile was applied
+     - Determine whether OpenSSL needs to be configured (FIPs, SHA1 signature)
+     - Add support for --print-profiles option
+     - Print profile names as part of capabilities JSON
+     - Display new capability to allow setting a profile
+     - Add support for --profile option to set a profile on TPM 2
+   - swtpm_setup:
+     - Comment flags for storage primary key and deprecate --create-spk
+     - Implement --print-profiles to display all profile
+     - Add profile entries to swtpm_setup.conf written by swtpm_setup
+     - Add support for --profile-name option
+     - Accept profiles with name starting with 'custom:'
+     - Support default profile from file in swtpm_setup.conf
+     - Support --profile-file-fd to read profile from file descriptor
+     - Support --profile-file <file> to read profile from file
+     - Always log the active profile
+     - Implement --profile-remove-fips-disabled option
+     - Read default profile from swtpm_setup.conf
+     - Print profile names as part of capabilities JSON
+     - Add support for --profile parameter
+     - Get default rsa keysize from setup_setup.conf if not given
+   - swtpm_ioctl:
+     - Use ptm_cap_n for non-CUSE PTM_GET_CAPABILITY response
+   - selinux:
+     - Change write to append for appending to log
+     - Add rule for logging to svirt_image_t labeled files from swtpm_t
+   - tests:
+     - Update IBMTSS2 test suite to v2.4.0
+     - Test activation of PCR banks when not all are available
+     - Enable SWTPM_TEST_PROFILE for running test_tpm2_ibmtss2 with profile
+     - Add a check for OPENSSL_ENABLE_SHA1_SIGNATURES in log file
+     - Consolidate custom profile test cases and check for StateFormatLevel
+     - Convert test_samples_create_tpmca to run installed
+     - Mention test_tpm2_libtpms_versions_profiles requiring env. variables
+     - allow running ibmtss2 tests against installed version
+     - Derive support for CUSE from SWTPM_EXE help screen
+     - Set OPENSSL_ENABLE_SHA1_SIGNATURES=1 for IBMTSS2 test
+     - Extend test case testing across libtpms versions
+     - Add test case for testing profiles across libtpms versions
+     - Test the --profile option of swtpm_setup and swtpm
+     - teach them to run installed
+     - add installed-runner.sh
+     - install tests on the system
+     - lookup system binaries if INSTALLED is set
+   - build-sys:
+     - enable 64-bit file API on 32-bit systems
+     - Add -Wshadow to the CFLAGS
+     - Require that libtpms v0.10 is available for TPMLIB_SetProfile
+   - debian:
+     - Add rule to allow usage of /var/tmp directory (QEMU)
+     - Add rules for reading profiles from distro and local dirs
+     - Allow non-owner file write access in /var/lib/libvirt/swtpm/
+     - Add sys_admin capability to apparmor profile
+
 version 0.9.0:
   Note: The SElinux policy for swtpm was completely redone. For systems
         with an SELinux policy the same policy (>= 40.17) as used in
