@@ -200,6 +200,9 @@ fi
 %{_libexecdir}/installed-tests/swtpm/
 
 %changelog
+* Fri Nov 15 2024 Stefan Berger <stefanb@linux.ibm.com> - 0.10.0-0.20241115git-------
+- v0.10.0 release
+
 * Mon Jun 17 2024 Stefan Berger <stefanb@linux.ibm.com> - 0.9.0-0.20240617git-------
 - v0.9.0 release
 
