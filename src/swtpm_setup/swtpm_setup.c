@@ -1055,6 +1055,9 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   check: algorithms are tested.\n"
         "                   fips-host: no testing.\n"
         "\n"
+        "--print-profiles : Display all local and distro-provided profile as well as\n"
+        "                   the ones built into libtpms and exit.\n"
+        "\n"
         "--version        : Display version and exit\n"
         "\n"
         "--help,-h        : Display this help screen\n\n",
