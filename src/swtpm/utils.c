@@ -493,6 +493,13 @@ int json_get_submap_value(const char *json_input, const char *field_name,
         return -1;
     }
     *value = g_strdup(json_reader_get_string_value(jr));
+    if (*value == NULL) {
+        /* value not a string */
+        logprintf(STDERR_FILENO,
+                  "'%s/%s' field in '%s' is not a string\n",
+                  field_name, field_name2, json_input);
+        return -1;
+    }
 
     return 0;
 }
