@@ -1436,11 +1436,13 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         } else {
             err = gnutls_x509_privkey_import(sigkey, &datum, GNUTLS_X509_FMT_PEM);
         }
+        /* 'certtool --infile <sigkey_filename> -k' not working?? */
+        CHECK_GNUTLS_ERROR(err,
+                           "Could not import signing key %s: %s - Is the (gnutls) key corrupted?\n",
+                           sigkey_filename, gnutls_strerror(err));
     }
     gnutls_free(datum.data);
     datum.data = NULL;
-    CHECK_GNUTLS_ERROR(err, "Could not import signing key : %s\n",
-                       gnutls_strerror(err));
 
     err = gnutls_load_file(issuercert_filename, &datum);
     CHECK_GNUTLS_ERROR(err, "Could not read certificate from file %s : %s\n",
