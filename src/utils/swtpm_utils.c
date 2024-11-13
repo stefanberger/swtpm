@@ -474,6 +474,7 @@ int json_get_map_value(const char *json_input, const char *field_name,
         goto error_unref_jr;
     }
     *value = g_strdup(json_reader_get_string_value(jr));
+    /* caller should handle *value == NULL */
 
     ret = 0;
 
