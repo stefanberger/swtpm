@@ -97,8 +97,13 @@ int check_json_profile(const gchar *swtpm_capabilities_json, const char *json_pr
     int ret;
 
     ret = json_get_map_value(json_profile, "Name", &name);
-    if (ret)
+    /* { "Name": null } does not lead to parser failure but return name = NULL */
+    if (ret || name == NULL) {
+        ret = 1;
+        logerr(gl_LOGFILE, "Failed to get 'Name' from profile '%s'.\n",
+               json_profile);
         return ret;
+    }
 
     if (strlen(name) > 32) {
         logerr(gl_LOGFILE, "Profile name must not exceed 32 characters.\n");
