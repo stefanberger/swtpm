@@ -10,6 +10,7 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -148,7 +149,7 @@ static int profile_path_local(gchar *const *config_file_lines,
                               const gchar *profile_name,
                               gchar **json_profile_file)
 {
-    g_autofree gchar *dir;
+    g_autofree gchar *dir = NULL;
 
     dir = get_config_value(config_file_lines, "local_profiles_dir");
     if (dir == NULL || strlen(dir) == 0 )
@@ -309,7 +310,7 @@ static JsonArray *profile_gather_dir(const char *dir)
 
 static JsonArray *profile_gather_local(gchar *const *config_file_lines)
 {
-    g_autofree gchar *dir;
+    g_autofree gchar *dir = NULL;
 
     dir = get_config_value(config_file_lines, "local_profiles_dir");
     if (dir == NULL || strlen(dir) == 0 )
@@ -360,10 +361,10 @@ static JsonArray *profile_gather_builtin(const gchar **swtpm_prg_l)
 int profile_printall(const gchar **swtpm_prg_l,
                      gchar *const *config_file_lines)
 {
-    g_autoptr(JsonGenerator) jg;
-    g_autoptr(JsonObject) jo;
-    g_autoptr(JsonNode) root;
-    g_autofree gchar *out;
+    g_autoptr(JsonGenerator) jg = NULL;
+    g_autoptr(JsonObject) jo = NULL;
+    g_autoptr(JsonNode) root = NULL;
+    g_autofree gchar *out = NULL;
     JsonArray *ja;
 
     jo = json_object_new();

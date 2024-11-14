@@ -516,7 +516,7 @@ static gchar *get_default_profile(gchar *const *config_file_lines)
 /* If available, open the default profile and return its file descriptor */
 static int get_default_profile_fd(gchar *const *config_file_lines)
 {
-    g_autofree gchar *profile_file;
+    g_autofree gchar *profile_file = NULL;
     int fd;
 
     profile_file = get_config_value(config_file_lines, "profile_file");

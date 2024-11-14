@@ -415,7 +415,7 @@ int json_set_map_key_value(char **json_string,
 {
     g_autoptr(JsonParser) jp = NULL;
     g_autoptr(GError) error = NULL;
-    g_autoptr(JsonGenerator) jg;
+    g_autoptr(JsonGenerator) jg = NULL;
     JsonObject *jo;
     JsonNode *root;
 
