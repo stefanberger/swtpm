@@ -72,14 +72,14 @@ Requires:       trousers >= 0.3.9 bash gnutls-utils
 %description    tools
 Tools for the TPM emulator from the swtpm package
 
-%package       tools-pkcs11
-Summary:       Tools for creating a local CA based on a pkcs11 device
-License:       BSD-3-Clause
-Requires:      swtpm-tools = %{version}-%{release}
-Requires:      tpm2-pkcs11 tpm2-pkcs11-tools tpm2-tools tpm2-abrmd
-Requires:      expect gnutls-utils trousers >= 0.3.9
+%package        tools-pkcs11
+Summary:        Tools for creating a local CA based on a pkcs11 device
+License:        BSD-3-Clause
+Requires:       swtpm-tools = %{version}-%{release}
+Requires:       tpm2-pkcs11 tpm2-pkcs11-tools tpm2-tools tpm2-abrmd
+Requires:       expect gnutls-utils trousers >= 0.3.9
 
-%description   tools-pkcs11
+%description    tools-pkcs11
 Tools for creating a local CA based on a pkcs11 device
 
 %package        selinux
@@ -92,6 +92,13 @@ BuildArch:      noarch
 
 %description    selinux
 SELinux security policy for swtpm.
+
+%package        tests
+Summary:        Installed swtpm tests
+Requires:       swtpm-tools-pkcs11 = %{version}-%{release}
+
+%description    tests
+Installed swtpm tests
 
 %prep
 %autosetup
@@ -188,6 +195,9 @@ fi
 %files tools-pkcs11
 %{_mandir}/man8/swtpm-create-tpmca.8*
 %{_datadir}/swtpm/swtpm-create-tpmca
+
+%files tests
+%{_libexecdir}/installed-tests/swtpm/
 
 %changelog
 * Mon Jun 17 2024 Stefan Berger <stefanb@linux.ibm.com> - 0.9.0-0.20240617git-------
