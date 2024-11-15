@@ -5,7 +5,7 @@
 
 override_dh_auto_configure:
 	NOCONFIGURE=1 ./autogen.sh
-	dh_auto_configure -- --with-openssl --with-gnutls --without-cuse
+	dh_auto_configure -- --with-openssl --with-gnutls --without-cuse --disable-hardening
 
 override_dh_install:
 	dh_install
