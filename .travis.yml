@@ -87,6 +87,7 @@ matrix:
            SWTPM_TEST_STORE_VOLATILE="1"
       before_script:
       - sudo apt-get -y install libtpm2-pkcs11-tools
+      - sudo pip install setuptools==59.6.0  # Default Jammy version
       - sudo pip install cpp-coveralls
       - p=$PWD; while [ "$PWD" != "/" ]; do chmod o+x . &>/dev/null ; cd .. ; done; cd $p
         && sudo mkdir src/swtpm/.libs
