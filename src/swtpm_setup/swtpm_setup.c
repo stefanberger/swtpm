@@ -923,7 +923,7 @@ static void usage(const char *prgname, const char *default_config_file)
         "\n"
         "--tpmstate <dir> : This is an alias for --tpm-state <dir>.\n"
         "\n"
-        "--tpm <executable>\n"
+        "--tpm '<path-to-executable> socket'\n"
         "                 : Path to the TPM executable; this is an optional argument and\n"
         "                   by default 'swtpm' in the PATH is used.\n"
         "\n"
