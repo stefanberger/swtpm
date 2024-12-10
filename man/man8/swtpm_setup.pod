@@ -37,10 +37,18 @@ will be used.
 Path where the TPM's state will be written to; this is a mandatory argument.
 Prefix with dir:// to use directory backend, or file:// to use linear file.
 
-=item B<--tpm <path to executable>>
+=item B<--tpm "path-to-executable socket">
 
-Path to the TPM executable; this is an optional argument and
-by default the swtpm executable found in the PATH will be used.
+Path to the TPM executable; this is an optional argument and by default the
+swtpm executable found in the PATH will be used. To use 'swtpm' with this
+parameter it is necessary to pass along the 'socket' parameter. To emulate
+the default behavior this option could be used as follows:
+
+=over 2
+
+--tpm "$(type -P swtpm) socket"
+
+=back
 
 =item B<--tpm2>
 
