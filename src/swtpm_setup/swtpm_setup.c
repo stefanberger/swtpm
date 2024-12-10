@@ -1472,6 +1472,11 @@ int main(int argc, char *argv[])
         case 'T': /* --tpm */
             g_free(swtpm_prg);
             swtpm_prg = g_strdup(optarg);
+            if (swtpm_prg) {
+                tmp = g_strconcat(swtpm_prg, " socket", NULL);
+                g_free(swtpm_prg);
+                swtpm_prg = tmp;
+            }
             break;
         case '_': /* --swtpm_ioctl */
             fprintf(stdout, "Warning: --swtpm_ioctl is deprecated and has no effect.");
