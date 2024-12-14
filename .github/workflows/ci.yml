@@ -1,0 +1,77 @@
+name: Check
+
+on:
+  pull_request:
+    branches: [ "master", "stable-*" ]
+
+jobs:
+  test-distcheck:
+    runs-on: ubuntu-20.04
+    env:
+      PREFIX:   "/usr"
+      CONFIG:   "--with-openssl --prefix=/usr"
+      CHECK:    "distcheck"
+      RUN_TEST: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build libtpms and swtpm and test
+        uses: ./.github/actions/test-swtpm
+
+  test-coveralls:
+    runs-on: ubuntu-22.04
+    env:
+      PREFIX:                    "/usr"
+      CONFIG:                    "--with-openssl --prefix=/usr --enable-test-coverage"
+      SUDO:                      "sudo"
+      CHECK:                     "check"
+      SWTPM_TEST_IBMTSS2:        "1"
+      SWTPM_TEST_STORE_VOLATILE: "1"
+      COVERALLS_REPO_TOKEN:      ${{ secrets.COVERALLS_REPO_TOKEN }}
+      PACKAGES:                  libtpm2-pkcs11-tools
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build libtpms and swtpm and test
+        uses: ./.github/actions/test-swtpm
+
+  test-asan-ubsan:
+    runs-on: ubuntu-20.04
+    env:
+      CFLAGS:         "-fsanitize=address,undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
+      LIBTPMS_CFLAGS: "-fsanitize=address,undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
+      LIBS:           "-lasan -lubsan"
+      ASAN_OPTIONS:   "halt_on_error=1"
+      UBSAN_OPTIONS:  "halt_on_error=1"
+      PREFIX:         "/usr"
+      CONFIG:         "--with-openssl --prefix=/usr --without-seccomp"
+      SUDO:           "sudo"
+      CHECK:          "check"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build libtpms and swtpm and test
+        uses: ./.github/actions/test-swtpm
+
+  test-asan-ubsan-non-openssl:
+    runs-on: ubuntu-20.04
+    env:
+      CFLAGS:         "-fsanitize=address,undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
+      LIBTPMS_CFLAGS: "-fsanitize=address,undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
+      LIBTPMS_CONFIG: "--disable-use-openssl-functions"
+      LIBS:           "-lasan -lubsan"
+      ASAN_OPTIONS:   "halt_on_error=1"
+      UBSAN_OPTIONS:  "halt_on_error=1"
+      PREFIX:         "/usr"
+      CONFIG:         "--with-openssl --prefix=/usr --without-seccomp"
+      SUDO:           "sudo"
+      CHECK:          "check"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build libtpms and swtpm and test
+        uses: ./.github/actions/test-swtpm
