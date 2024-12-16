@@ -23,7 +23,7 @@
 #include "swtpm_setup_utils.h"
 #include "compiler_dependencies.h"
 
-#define DISTRO_PROFILES_DIR DATAROOTDIR "swtpm/profiles"
+#define DISTRO_PROFILES_DIR DATAROOTDIR "/swtpm/profiles"
 
 
 /* Return the names of the supported profiles */
