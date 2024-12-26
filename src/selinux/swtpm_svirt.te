@@ -26,7 +26,8 @@ allow svirt_t swtpm_exec_t:file entrypoint;
 allow svirt_t user_tmp_t:sock_file { create setattr unlink };
 
 allow svirt_t virtd_t:dir search;
-allow svirt_t virtd_t:fifo_file write;
+# For passing encryption secret via pipe (see https://bugzilla.redhat.com/show_bug.cgi?id=2334271)
+allow svirt_t virtd_t:fifo_file { write read };
 allow svirt_t virtqemud_t:fifo_file write;
 allow svirt_t virt_var_run_t:dir { write add_name remove_name };
 allow svirt_t virt_var_run_t:file { create write setattr unlink };
