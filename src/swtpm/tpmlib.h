@@ -38,6 +38,8 @@
 #ifndef _SWTPM_TPMLIB_H_
 #define _SWTPM_TPMLIB_H_
 
+#include <config.h> /* ensure consistent definition of _FILE_OFFSET_BITS */
+
 #include <stdint.h>
 #include <stdbool.h>
 
