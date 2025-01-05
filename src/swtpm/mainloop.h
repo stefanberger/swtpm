@@ -68,6 +68,8 @@ struct mainLoopParams {
     bool storage_locked;
     /* whether to release the lock on outgoing migration */
     bool release_lock_outgoing;
+    /* whether to recreate the SVN base secret of the TPM 2 */
+    bool recreate_svn_base_secret;
     /* how many times to retry locking; use for fallback after releasing
        the lock on outgoing migration. */
     unsigned int locking_retries;
