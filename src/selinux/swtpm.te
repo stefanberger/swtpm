@@ -13,6 +13,7 @@ require {
 	type virtqemud_t;
 	type virtqemud_tmp_t;
 	class file map;
+	tunable virt_use_nfs;
 }
 
 attribute_role swtpm_roles;
@@ -45,3 +46,10 @@ files_read_etc_files(swtpm_t)
 auth_use_nsswitch(swtpm_t)
 
 miscfiles_read_localization(swtpm_t)
+
+tunable_policy(`virt_use_nfs',`
+	fs_manage_nfs_dirs(swtpm_t)
+	fs_manage_nfs_files(swtpm_t)
+	fs_read_nfs_symlinks(swtpm_t)
+	fs_mmap_nfs_files(swtpm_t)
+')
