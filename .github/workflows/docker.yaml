@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
   workflow_call:
   push:
-    branches: [ "master" ]
+    branches: [ "disabled" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "disabled" ]
 
 jobs:
 
