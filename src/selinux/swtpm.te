@@ -9,6 +9,7 @@ require {
 	type qemu_var_run_t;
 	type svirt_image_t;
 	type var_log_t;
+	type virt_log_t;
 	type virt_var_lib_t;
 	type virtqemud_t;
 	type virtqemud_tmp_t;
@@ -37,7 +38,7 @@ allow swtpm_t virt_var_lib_t:file { create rename setattr unlink write map };
 allow swtpm_t virtqemud_t:unix_stream_socket { read write getattr };
 allow swtpm_t virtqemud_tmp_t:file { open write };
 allow swtpm_t svirt_image_t:file { open append };  # BZ2306817
-
+allow swtpm_t virt_log_t:file open; # BZ2278123 Comment 39
 
 domain_use_interactive_fds(swtpm_t)
 
