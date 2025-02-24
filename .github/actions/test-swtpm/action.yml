@@ -4,6 +4,7 @@ runs:
     - name: Build and test
       shell: bash
       run: |
+        sudo apt-get -y update
         sudo apt-get -y install automake autoconf libtool libssl-dev sed make gawk \
           sed bash dh-exec python3-pip libfuse-dev libglib2.0-dev libjson-glib-dev \
           libgmp-dev expect libtasn1-dev socat findutils gnutls-dev gnutls-bin softhsm2 \
