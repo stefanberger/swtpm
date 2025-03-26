@@ -271,7 +271,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"profiles\": { %s}, "
          "\"version\": \"" VERSION "\" "
@@ -296,6 +296,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          is_tpm2      ? ", \"profile-opt-remove-disabled\"" : "",
          true         ? ", \"cmdarg-print-info\""      : "",
          true         ? ", \"tpmstate-opt-lock\""      : "",
+         is_tpm2      ? ", \"flags-opt-recreate-svn-base-secret\"" : "",
          profiles     ? profiles                       : ""
     );
 
