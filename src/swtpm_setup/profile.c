@@ -373,7 +373,7 @@ int profile_printall(const gchar **swtpm_prg_l,
     if (ja)
         json_object_set_array_member(jo, "local", ja);
 
-    ja = profile_gather_dir(DATAROOTDIR "swtpm/profiles");
+    ja = profile_gather_dir(DISTRO_PROFILES_DIR);
     if (ja)
         json_object_set_array_member(jo, "distro", ja);
 
