@@ -55,6 +55,7 @@ cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
 create_certs_tool=\${MY_SWTPM_LOCALCA}
 create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=${workdir}/swtpm-localca.options
+profile = {"Name": "default-v1"}
 _EOF_
 
 # We need to adapt the PATH so the correct swtpm_cert is picked
