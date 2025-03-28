@@ -1816,6 +1816,15 @@ int main(int argc, char *argv[])
         goto error;
     }
 
+    if ((flags & SETUP_RECONFIGURE_F) &&
+         (json_profile ||
+          json_profile_name ||
+          json_profile_file ||
+          json_profile_fd > 0)) {
+            logerr(gl_LOGFILE, "Reconfiguration does not accept a (new) profile.\n");
+            goto error;
+    }
+
     if (json_profile_name) {
         if (profile_name_check(json_profile_name) < 0)
             goto error;
@@ -1842,9 +1851,14 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* read default profile from swtpm_setup.conf */
+    /*
+     * Read default profile from swtpm_setup.conf;
+     * Do not read it when --reconfigure'ing
+     */
     if ((flags & SETUP_TPM2_F) != 0 &&
-        json_profile == NULL && json_profile_fd < 0) {
+        json_profile == NULL && json_profile_fd < 0 &&
+        (flags & SETUP_RECONFIGURE_F) == 0) {
+
         json_profile_fd = get_default_profile_fd(config_file_lines);
         if (json_profile_fd == -2)
             goto error;
