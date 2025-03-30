@@ -86,10 +86,12 @@ PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
 
 # Run the tests
 # @param1: The vTPM for which the certificate is created is a TPM 2
+# @param2: The key algorithm for the created TPM 2 CA
 function run_test() {
 	local vtpm_is_tpm2="$1"
+	local algorithm="$2"
 
-	local tmp params certinfo regex regexs fil i skip
+	local tmp params certinfo regex regexs fil i skip exp_certsize
 
 	rm -rf "${workdir:?}"/*
 
@@ -163,6 +165,7 @@ _EOF_
 		--outfile "${SWTPM_LOCALCA_CONF}" \
 		--group tss \
 		--tpm2 \
+		${algorithm:+--algorithm "${algorithm}"} \
 		--pid "${PID}" 2>&1)"; then
 		echo "Error: Could not create TPM CA"
 		echo "${tmp}"
@@ -219,8 +222,12 @@ _EOF_
 		echo "Error: The CA did not produce a certificate"
 		exit 1
 	fi
-	#  cert was for example 541 bytes long
-	if [ "$(get_filesize "${workdir}/ek.cert")" -lt 500 ]; then
+
+	case "${algorithm}" in
+	rsa2048)	exp_certsize=500;;	# cert should be ~541 bytes long; give some 'room'
+	ecc256)		exp_certsize=460;;	# cert should be ~476 bytes long; give some 'room'
+	esac
+	if [ "$(get_filesize "${workdir}/ek.cert")" -lt "${exp_certsize}" ]; then
 		echo "Error: The certificate's size is dubious"
 		ls -l "${workdir}/ek.cert"
 		exit 1
@@ -237,9 +244,16 @@ _EOF_
 		'^[[:space:]]+Unknown extension 2.5.29.9 \(not critical\):$'
 		'^[[:space:]]+Hexdump: 3019301706056781050210310e300c0c03322e3002010002020092$')
 	if [ "${vtpm_is_tpm2}" -ne 0 ]; then
+		local alg
+
+		case "${algorithm}" in
+		rsa2048)	alg=RSA;;
+		ecc256)		alg=ECDSA;;
+		esac
+
 		# TPM 2.0; due to ecc: Key agreement
 		regexs+=('^[[:space:]]+Key agreement\.$'
-			 '^[[:space:]]+Signature Algorithm: RSA-SHA256$')
+			 '^[[:space:]]+Signature Algorithm: '"${alg}"'-SHA256$')
 	else
 		regexs+=('^[[:space:]]+Key encipherment\.$'
 			 '^[[:space:]]+Signature Algorithm: RSA-SHA1$')
@@ -279,10 +293,13 @@ _EOF_
 	SWTPM_PID=""
 } # run_test
 
-run_test 1
+run_test 1 "rsa2048"
 echo "Test 1: OK"
 
-run_test 0
+run_test 1 "ecc256"
 echo "Test 2: OK"
+
+run_test 0
+echo "Test 3: OK"
 
 exit 0

@@ -95,6 +95,7 @@ create_localca_cert() {
 	local outfile="$3"
 	local owner="$4"
 	local pid="$5" # TPM2 parameter
+	local algorithm="$6" # RSA or EC-key signing
 
 	local cakey=${dir}/swtpm-localca-rootca-privkey.pem
 	local cacert=${dir}/swtpm-localca-rootca-cert.pem
@@ -199,7 +200,7 @@ create_localca_cert() {
 			if ! msg=$(tpm2_ptool addkey \
 				"--label=${label}" \
 				"--userpin=${userpin}" \
-				--algorithm=rsa2048 \
+				"--algorithm=${algorithm}" \
 				"--key-label=${keylabel}" \
 				--id 1 2>&1);
 			then
@@ -390,6 +391,8 @@ The following options are supported:
 --tss-tcsd-port p  The TCP port on which tcsd is listening for connections;
                    default is ${TSS_TCSD_PORT_DEFAULT}
 --tpm2             Setup a CA that uses a TPM 2.0
+--algorithm <alg>  Key algorithm for created TPM 2 CA. Default is rsa2048.
+                   Possible values are: rsa2048, rsa3072, ecc256, ecc384
 --pid <pid>        Pimary object Id used by tpm2_ptool; only valid if --tpm2
                    is used
 --help, -h, -?     Display this help screen and exit
@@ -417,6 +420,7 @@ tpmtool_supports_srk_well_known()
 main() {
 	local flags=0
 	local dir outfile owner group msg pid
+	local algorithm="rsa2048"
 
 	if tpmtool_supports_srk_well_known; then
 		flags=$((flags | FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN | FLAG_SRK_WELL_KNOWN))
@@ -469,6 +473,10 @@ main() {
 			;;
 		--tpm2)
 			flags=$((flags | FLAG_TPM2))
+			;;
+		--algorithm)
+			shift
+			algorithm="$1"
 			;;
 		--pid)
 			shift
@@ -539,7 +547,17 @@ main() {
 		return 1
 	fi
 
-	create_localca_cert "${flags}" "${dir}" "${outfile}" "${owner}" "${pid}"
+	if [ $((flags & FLAG_TPM2)) -eq 0 ] && [ "${algorithm}" != "rsa2048" ]; then
+		logerr "Unsupported key algorithms for TPM CA for a TPM 1.2 '${algorithm}'."
+		logerr "Only rsa2048 is supported."
+		return 1
+	fi
+	if ! [[ "${algorithm}" =~ ^(rsa2048|rsa3072|ecc256|ecc384)$ ]]; then
+		logerr "Unsupported key algorithm for TPM CA '${algorithm}'. See --help."
+		return 1
+	fi
+
+	create_localca_cert "${flags}" "${dir}" "${outfile}" "${owner}" "${pid}" "${algorithm}"
 	return $?
 } #main
 

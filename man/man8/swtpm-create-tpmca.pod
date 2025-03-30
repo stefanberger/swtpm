@@ -98,6 +98,11 @@ set to hold the PINs. If SWTPM_PKCS11_PIN is not set then the default PIN
 'swtpm-tpmca' will be used. SWTPM_PKCS11_SO_PIN is needed for creating the
 token and must be explicitly set as an environment variable.
 
+=item B<--algorithm algorithm>
+
+The TPM 2 CA's key algorithm. Supported values are rsa2048, rsa3072, ecc256,
+and ecc384. The default is rsa2048.
+
 =item B<--pid pimary-object-id>
 
 The primary object id that the tpm2_ptool returns upon 'init'.
