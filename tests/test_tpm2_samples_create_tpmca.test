@@ -224,8 +224,9 @@ _EOF_
 	fi
 
 	case "${algorithm}" in
-	rsa2048)	exp_certsize=500;;	# cert should be ~541 bytes long; give some 'room'
-	ecc256)		exp_certsize=460;;	# cert should be ~476 bytes long; give some 'room'
+	rsa2048)	exp_certsize=500;; # cert should be ~541 bytes long; give some 'room'
+	ecc256)		exp_certsize=460;; # cert should be ~476 bytes long;    - " -
+	secp384r1)	exp_certsize=510;; # cert should be ~519 bytes long;    - " -
 	esac
 	if [ "$(get_filesize "${workdir}/ek.cert")" -lt "${exp_certsize}" ]; then
 		echo "Error: The certificate's size is dubious"
@@ -248,7 +249,7 @@ _EOF_
 
 		case "${algorithm}" in
 		rsa2048)	alg=RSA;;
-		ecc256)		alg=ECDSA;;
+		*)		alg=ECDSA;;
 		esac
 
 		# TPM 2.0; due to ecc: Key agreement
@@ -299,7 +300,10 @@ echo "Test 1: OK"
 run_test 1 "ecc256"
 echo "Test 2: OK"
 
-run_test 0
+run_test 1 "secp384r1"
 echo "Test 3: OK"
+
+run_test 0
+echo "Test 4: OK"
 
 exit 0
