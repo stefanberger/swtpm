@@ -392,7 +392,8 @@ The following options are supported:
                    default is ${TSS_TCSD_PORT_DEFAULT}
 --tpm2             Setup a CA that uses a TPM 2.0
 --algorithm <alg>  Key algorithm for created TPM 2 CA. Default is rsa2048.
-                   Possible values are: rsa2048, rsa3072, ecc256, ecc384
+                   Possible values are: rsa2048, rsa3072, ecc256 or secp256r1,
+                                        ecc384 or secp384r1
 --pid <pid>        Pimary object Id used by tpm2_ptool; only valid if --tpm2
                    is used
 --help, -h, -?     Display this help screen and exit
@@ -551,10 +552,14 @@ main() {
 		logerr "Unsupported key algorithms for TPM CA for a TPM 1.2 '${algorithm}'."
 		logerr "Only rsa2048 is supported."
 		return 1
-	fi
-	if ! [[ "${algorithm}" =~ ^(rsa2048|rsa3072|ecc256|ecc384)$ ]]; then
+	elif ! [[ "${algorithm}" =~ ^(rsa2048|rsa3072|ecc256|ecc384|secp256r1|secp384r1)$ ]]; then
 		logerr "Unsupported key algorithm for TPM CA '${algorithm}'. See --help."
 		return 1
+	else
+		case "${algorithm}" in
+		secp256r1) algorithm=ecc256;;
+		secp384r1) algorithm=ecc384;;
+		esac
 	fi
 
 	create_localca_cert "${flags}" "${dir}" "${outfile}" "${owner}" "${pid}" "${algorithm}"
