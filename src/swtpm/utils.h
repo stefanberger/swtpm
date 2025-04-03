@@ -81,6 +81,10 @@ int json_get_map_key_value(const char *json_input,
                            const char *key, char **value);
 int json_set_map_key_value(char **json_input,
                            const char *key, const char *value);
+int json_get_array_entry_value(const char *json_input,
+                               const char *field0_name,
+                               const char *field1_name, const char *field1_value,
+                               const char *field2_name, char **value);
 
 ssize_t strv_strncmp(const gchar *const*str_array, const gchar *s, size_t n);
 
