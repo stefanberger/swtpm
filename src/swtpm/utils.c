@@ -504,6 +504,89 @@ int json_get_submap_value(const char *json_input, const char *field_name,
     return 0;
 }
 
+/*
+ * In the given JSON map select @field0_name whose value must be an array.
+ * Inside the array of maps, find a map whose @field1_name has the value
+ * @field1_value. Then select field2_name and return its value.
+ *
+ * @json_input: JSON array of maps as a string
+ * @field0_name: The name of the map entry holding the array of maps
+ * @field1_name: The name of an entry in the map
+ * @field1_value: The value of an entry in the map
+ * @field2_name: Name of entry in map whose value to return
+ * @value: Results is returned here
+ *
+ * Returns 0 in case of success, -1 otherwise.
+ */
+int json_get_array_entry_value(const char *json_input,
+                               const char *field0_name,
+                               const char *field1_name, const char *field1_value,
+                               const char *field2_name, char **value)
+{
+    g_autoptr(JsonParser) jp = NULL;
+    g_autoptr(JsonReader) jr = NULL;
+    g_autoptr(GError) error = NULL;
+    const gchar *strval;
+    JsonNode *root;
+    guint idx;
+
+    jp = json_parser_new();
+    if (!json_parser_load_from_data(jp, json_input, -1, &error)) {
+        logprintf(STDERR_FILENO,
+                  "Could not parse JSON '%s': %s\n", json_input, error->message);
+        return -1;
+    }
+
+    root = json_parser_get_root(jp);
+    if (!root) {
+        logprintf(STDERR_FILENO,
+                  "Could not get root of JSON '%s'\n", json_input);
+        return -1;
+    }
+    jr = json_reader_new(root);
+
+    if (!json_reader_read_member(jr, field0_name)) {
+        logprintf(STDERR_FILENO,
+                  "Could not find the initial field '%s'in '%s'\n",
+                  field0_name, json_input);
+        return -1;
+    }
+    for (idx = 0;; idx++) {
+        if (!json_reader_read_element(jr, idx)) {
+            logprintf(STDERR_FILENO,
+                      "Could not find an element with name '%s' and value '%s'\n",
+                      field1_name, field1_value);
+            return -1;
+        }
+        if (json_reader_read_member(jr, field1_name)) {
+            if ((strval = json_reader_get_string_value(jr)) != NULL &&
+                g_strcmp0(strval, field1_value) == 0) {
+
+                json_reader_end_member(jr);
+                if (!json_reader_read_member(jr, field2_name)) {
+                    logprintf(STDERR_FILENO,
+                              "Found map entry in '%s' but could not find field '%s'",
+                              json_input, field2_name);
+                    return -1;
+                }
+                *value = g_strdup(json_reader_get_string_value(jr));
+                if (*value == NULL) {
+                    /* value not a string */
+                    logprintf(STDERR_FILENO,
+                              "'%s' field in '%s' is not a string\n",
+                              field2_name, json_input);
+                    return -1;
+                }
+                return 0;
+            }
+            json_reader_end_member(jr);
+        }
+        json_reader_end_element(jr);
+    }
+    /* must never get here */
+    return -1;
+}
+
 ssize_t strv_strncmp(const gchar *const*str_array, const gchar *s, size_t n)
 {
     size_t i;
