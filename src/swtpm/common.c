@@ -259,6 +259,9 @@ static const OptionDesc flags_opt_desc[] = {
     }, {
         .name = "disable-auto-shutdown",
         .type = OPT_TYPE_BOOLEAN,
+    }, {
+        .name = "recreate-svn-base-secret",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -1301,7 +1304,8 @@ int handle_locality_options(const char *options, uint32_t *flags)
 }
 
 static int parse_flags_options(const char *options, bool *need_init_cmd,
-                               uint16_t *startupType, bool *disable_auto_shutdown)
+                               uint16_t *startupType, bool *disable_auto_shutdown,
+                               bool *recreate_svn_base_secret)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -1329,6 +1333,9 @@ static int parse_flags_options(const char *options, bool *need_init_cmd,
     if (*startupType != _TPM_ST_NONE)
         *need_init_cmd = false;
 
+    if (option_get_bool(ovs, "recreate-svn-base-secret", false))
+        *recreate_svn_base_secret = true;
+
     option_values_free(ovs);
 
     return 0;
@@ -1349,13 +1356,14 @@ error:
  * Returns 0 on success, -1 on failure.
  */
 int handle_flags_options(const char *options, bool *need_init_cmd,
-                         uint16_t *startupType, bool *disable_auto_shutdown)
+                         uint16_t *startupType, bool *disable_auto_shutdown,
+                         bool *recreate_svn_base_secret)
 {
     if (!options)
         return 0;
 
     if (parse_flags_options(options, need_init_cmd, startupType,
-                            disable_auto_shutdown) < 0)
+                            disable_auto_shutdown, recreate_svn_base_secret) < 0)
         return -1;
 
     return 0;
