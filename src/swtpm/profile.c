@@ -51,10 +51,12 @@ int profile_remove_fips_disabled_algorithms(char **json_profile,
         return -1;
 
     if (ret == -2) {
-        info_data = TPMLIB_GetInfo(TPMLIB_INFO_RUNTIME_ALGORITHMS);
-
-        ret = json_get_submap_value(info_data, "RuntimeAlgorithms", "Implemented",
-                                    &value);
+        info_data = TPMLIB_GetInfo(TPMLIB_INFO_AVAILABLE_PROFILES);
+        /* In the AvailableProfiles entry get the custom profile's Algorithms */
+        ret = json_get_array_entry_value(info_data,
+                                         "AvailableProfiles",
+                                         "Name", "custom", "Algorithms",
+                                         &value);
         if (ret)
             return -1;
     }
