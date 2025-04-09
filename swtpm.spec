@@ -127,7 +127,7 @@ done
 
 %postun selinux
 if [ $1 -eq  0 ]; then
-  for p in swtpm swtpm_libvirt swtpm_svirt; do
+  for p in swtpm_svirt swtpm_libvirt swtpm; do
     %selinux_modules_uninstall -s %{selinuxtype} $p
   done
 fi
