@@ -1,0 +1,29 @@
+name: Coverity Scan
+
+on:
+  push:
+    branches: ["coverity_scan"]
+
+jobs:
+  coverity:
+    runs-on: ubuntu-latest
+    env:
+      LIBTPMS_CONFIG: "--without-tpm1"
+      PREFIX:         "/usr"
+      CONFIG:         "--with-openssl --prefix=/usr"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build libtpms and swtpm
+        uses: ./.github/actions/test-swtpm
+
+      - name: Clean swtpm build to build it again
+        run: make clean
+
+      - uses: vapier/coverity-scan-action@v1
+        with:
+          command: make -j$(nproc)
+          project: swtpm
+          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
