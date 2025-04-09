@@ -190,8 +190,12 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
     while (!g_mainloop_terminate) {
 
         while (rc == 0) {
-            if (mlp->flags & MAIN_LOOP_FLAG_USE_FD)
-                connection_fd.fd = mlp->fd;
+            if (mlp->flags & MAIN_LOOP_FLAG_USE_FD) {
+                if (connection_fd.fd != mlp->fd) {
+                    SWTPM_IO_Disconnect(&connection_fd);
+                    connection_fd.fd = mlp->fd;
+                }
+            }
 
             struct pollfd pollfds[] = {
                 [DATA_CLIENT_FD] = {
