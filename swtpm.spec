@@ -115,6 +115,9 @@ make %{?_smp_mflags} check
 %make_install
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la,so}
 
+%pre selinux
+%selinux_relabel_pre -s %{selinuxtype}
+
 %post selinux
 for pp in /usr/share/selinux/packages/swtpm.pp \
           /usr/share/selinux/packages/swtpm_libvirt.pp \
