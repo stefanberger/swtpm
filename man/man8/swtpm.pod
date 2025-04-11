@@ -184,6 +184,16 @@ enabled. To avoid locking, I<lock=false> can be used.
 
 If I<backup> is specified then the TPM storage backend will make a backup
 file of the current permanent state every time the state is rewritten.
+When swtpm is started and the permanent state file is missing and the backup
+file exists, then swtpm will rename the backup file to the permanent state
+file and try to start with it. In this case the file-renaming is permanent
+even if swtpm cannot read the file contents (corrupted, wrong decryption
+key). Otherwise, it will try to start with the permanent state file first and
+if this fails, it will try to start with the backup file. If both attempts
+fail, the original state of the files will be restored.
+
+The I<backup> option is only supported by the directory-backend and has no
+effect on other storage backends.
 
 =item B<--tpm2>
 
