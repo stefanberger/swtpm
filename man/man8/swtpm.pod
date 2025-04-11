@@ -186,6 +186,17 @@ If I<backup> is specified then the TPM storage backend will make a backup of the
 permanent state file every time the state is rewritten. The backup file can be
 used to replace a corrupted permanent state file.
 
+When swtpm is started with this option and the permanent state file is missing
+but the backup file exists, then swtpm will rename the backup file to the
+permanent state file and try to start with it. In this case the file-renaming is
+permanent even if swtpm cannot read the file contents (corrupted, wrong
+decryption key). Otherwise, it will try to start with the permanent state file
+first and if this fails, it will try to start with the backup file. If both
+attempts fail, the original state of the files will be restored.
+
+The I<backup> option is only supported by the directory-backend and has no
+effect on other storage backends.
+
 =item B<--tpm2>
 
 Choose TPM 2 functionality; by default a TPM 1.2 is chosen.
