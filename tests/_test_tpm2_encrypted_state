@@ -10,6 +10,7 @@ VTPM_NAME=${VTPM_NAME:-vtpm-test-tpm2-encrypted-state}
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
 TPM_PATH="$(mktemp -d)" || exit 1
 STATE_FILE=$TPM_PATH/tpm2-00.permall
+STATE_FILE_BAK=$TPM_PATH/tpm2-00.permall.bak
 VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
 KEY=1234567890abcdef1234567890abcdef
 BINKEY='\x12\x34\x56\x78\x90\xab\xcd\xef\x12\x34\x56\x78\x90\xab\xcd\xef'
@@ -139,8 +140,9 @@ if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
 	exit 1
 fi
 
-# Start the TPM again; have the keyfile removed
-TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
+# Start the TPM again; have the keyfile removed; create state backup file
+run_swtpm "${SWTPM_INTERFACE}" \
+	--tpmstate "dir=${TPM_PATH},backup" \
 	--key "file=$binkeyfile,mode=aes-cbc,format=binary,remove" \
 	--log "file=$logfile" \
 	--tpm2
@@ -249,6 +251,189 @@ if [ ! -e "$STATE_FILE" ]; then
 	echo "TPM Logfile:"
 	cat "$logfile"
 	exit 1
+fi
+
+if [ "${SWTPM_INTERFACE}" = "socket+socket" ]; then
+	# Record hashes of permanent state file
+	if ! permall_hash=$(get_sha1_file "${STATE_FILE}") || \
+	   ! permall_bak_hash=$(get_sha1_file "${STATE_FILE_BAK}"); then
+		echo "Error: Could not get hashes of state files"
+		ls -l "${TPM_PATH}"
+		exit 1
+	fi
+
+	# Start the TPM with backup option; it will not start
+	# and must not modify files
+	${SWTPM_EXE} socket \
+		--tpmstate "dir=${TPM_PATH},backup" \
+		--log "file=$logfile" \
+		--flags not-need-init \
+		--tpm2 \
+		${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} \
+		--server "type=tcp,port=${SWTPM_SERVER_PORT}" \
+		--ctrl "type=tcp,port=${SWTPM_CTRL_PORT}" &
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		echo "Error: Could not run ${SWTPM_EXE}"
+		exit 1
+	fi
+	SWTPM_PID=$!
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not have started without key."
+		exit 1
+	fi
+
+	if [ "$(get_sha1_file "${STATE_FILE}")" != "${permall_hash}" ]; then
+		echo "Error: The ${STATE_FILE} file hash changed."
+		exit 1
+	fi
+	if [ "$(get_sha1_file "${STATE_FILE_BAK}")" != "${permall_bak_hash}" ]; then
+		echo "Error: The ${STATE_FILE_BAK} file hash changed."
+		exit 1
+	fi
+
+	rm -f "${STATE_FILE_BAK}"
+
+	# swtpm should not run; no changes to state files
+	${SWTPM_EXE} socket \
+		--tpmstate "dir=${TPM_PATH},backup" \
+		--log "file=$logfile" \
+		--flags not-need-init \
+		--tpm2 \
+		${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} \
+		--server "type=tcp,port=${SWTPM_SERVER_PORT}" \
+		--ctrl "type=tcp,port=${SWTPM_CTRL_PORT}" &
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		echo "Error: Could not run ${SWTPM_EXE}"
+		exit 1
+	fi
+	SWTPM_PID=$!
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not have started without key and without backup file."
+		cat "$logfile"
+		exit 1
+	fi
+	if [ "$(get_sha1_file "${STATE_FILE}")" != "${permall_hash}" ]; then
+		echo "Error: The ${STATE_FILE} file hash changed."
+		exit 1
+	fi
+	if [ -f "${STATE_FILE_BAK}" ]; then
+		echo "Error: The state backup file ${STATE_FILE_BAK} should not exist."
+		ls -l "${TPM_PATH}"
+		exit 1
+	fi
+
+	mv "${STATE_FILE}" "${STATE_FILE_BAK}"
+
+	${SWTPM_EXE} socket \
+		--tpmstate "dir=${TPM_PATH},backup" \
+		--log "file=$logfile" \
+		--flags not-need-init \
+		--tpm2 \
+		${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} \
+		--server "type=tcp,port=${SWTPM_SERVER_PORT}" \
+		--ctrl "type=tcp,port=${SWTPM_CTRL_PORT}" &
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		echo "Error: Could not run ${SWTPM_EXE}"
+		exit 1
+	fi
+	SWTPM_PID=$!
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not have started without key and without backup file."
+		cat "$logfile"
+		exit 1
+	fi
+
+	if [ "$(get_sha1_file "${STATE_FILE}")" != "${permall_hash}" ]; then
+		echo "Error: The ${STATE_FILE} file hash changed."
+		exit 1
+	fi
+	if [ -f "${STATE_FILE_BAK}" ]; then
+		echo "Error: The state backup file ${STATE_FILE_BAK} should not exist."
+		exit 1
+	fi
+
+	mv "${STATE_FILE}" "${STATE_FILE_BAK}"
+	touch "${STATE_FILE}"
+	if ! emptyfile_hash=$(get_sha1_file "${STATE_FILE}"); then
+		echo "Error: Could not get hash of empty state files"
+		exit 1
+	fi
+
+	${SWTPM_EXE} socket \
+		--tpmstate "dir=${TPM_PATH},backup" \
+		--log "file=$logfile" \
+		--flags not-need-init \
+		--tpm2 \
+		${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} \
+		--server "type=tcp,port=${SWTPM_SERVER_PORT}" \
+		--ctrl "type=tcp,port=${SWTPM_CTRL_PORT}" &
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		echo "Error: Could not run ${SWTPM_EXE}"
+		exit 1
+	fi
+	SWTPM_PID=$!
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not have started without key and without backup file."
+		cat "$logfile"
+		exit 1
+	fi
+
+	# .bak file was previously 'normal' state file
+	if [ "$(get_sha1_file "${STATE_FILE_BAK}")" != "${permall_hash}" ]; then
+		echo "Error: The ${STATE_FILE_BAK} file hash changed."
+		exit 1
+	fi
+	if [ "$(get_sha1_file "${STATE_FILE}")" != "${emptyfile_hash}" ]; then
+		echo "Error: The (empty) ${STATE_FILE} file hash changed."
+		exit 1
+	fi
+
+	# Have it start successfully with a corrupted permanent state file and
+	# and available backup file
+	echo -en "$BINKEY" > "${binkeyfile}"
+	rm -f "$logfile"
+
+	run_swtpm "${SWTPM_INTERFACE}" \
+		--tpmstate "dir=${TPM_PATH},backup" \
+		--key "file=$binkeyfile,mode=aes-cbc,format=binary,remove" \
+		--log "file=$logfile" \
+		--tpm2
+
+	if wait_file_gone "${binkeyfile}" 4; then
+		echo "Error: Keyfile $binkeyfile was not removed by ${SWTPM_INTERFACE} TPM."
+		echo "TPM Logfile:"
+		cat "$logfile"
+		exit 1
+	fi
+
+	# Send TPM_Init
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+		echo "Error: ${SWTPM_INTERFACE} TPM initialization failed when started with backup file."
+		echo "TPM Logfile:"
+		cat "$logfile"
+		exit 1
+	fi
+
+	# Final shut down
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+		echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM when started with backup file."
+		echo "TPM Logfile:"
+		cat "$logfile"
+		exit 1
+	fi
+
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+		echo "TPM Logfile:"
+		cat "$logfile"
+		exit 1
+	fi
+
+	echo "INFO: socket+socket interface passed backup option test"
 fi
 
 echo "OK"
