@@ -48,6 +48,7 @@
 #include <fcntl.h>
 
 #include <libtpms/tpm_error.h>
+#include <libtpms/tpm_nvfilename.h>
 
 #include "swtpm.h"
 #include "swtpm_debug.h"
@@ -362,6 +363,24 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
 }
 
 static TPM_RESULT
+SWTPM_NVRAM_CreateBackupFilename(const char *filepath,
+                                 char *bakfile,
+                                 size_t bakfile_len,
+                                 const char *suffix)
+{
+    TPM_RESULT rc = 0;
+    int        irc;
+
+    irc = snprintf(bakfile, bakfile_len, "%s.%s", filepath, suffix);
+    if ((size_t)irc > bakfile_len) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_StoreData: Name of backup file is too long\n");
+        rc = TPM_FAIL;
+    }
+    return rc;
+}
+
+static TPM_RESULT
 SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
                           uint32_t filedata_length,
                           uint32_t tpm_number,
@@ -374,8 +393,10 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     int           irc;
     char          tmpfile[FILENAME_MAX];  /* rooted temporary file path */
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
+    char          bakfile[FILENAME_MAX];  /* rooted backup file name */
     const char    *tpm_state_path = NULL;
     bool          mode_is_default = true;
+    bool          revertable_backup = false;
     mode_t        mode;
     mode_t        orig_umask = 0;
 
@@ -386,6 +407,27 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
         rc = SWTPM_NVRAM_GetFilepathForName(filepath, sizeof(filepath),
                                             tpm_number, name, false,
                                             tpm_state_path);
+    }
+
+    if (rc == 0 &&
+        tpmstate_get_make_backup() &&
+        strcmp(name, TPM_PERMANENT_ALL_NAME) == 0 &&
+        access(filepath, F_OK) == 0) {
+        /* rename current permanent state file to backup file */
+        rc = SWTPM_NVRAM_CreateBackupFilename(filepath,
+                                              bakfile, sizeof(bakfile),
+                                              "bak");
+        if (rc == 0) {
+            irc = rename(filepath, bakfile);
+            if (irc != 0) {
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_StoreData: Error (fatal) renaming to backup file: %s\n",
+                          strerror(errno));
+                rc = TPM_FAIL;
+            } else {
+                revertable_backup = true;
+            }
+        }
     }
 
     if (rc == 0) {
@@ -443,8 +485,7 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_StoreData: Error (fatal) closing file\n");
             rc = TPM_FAIL;
-        }
-        else {
+        } else {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closed file %s\n", tmpfile);
         }
     }
@@ -458,11 +499,16 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             rc = TPM_FAIL;
         } else {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Renamed file to %s\n", filepath);
+            revertable_backup = false;
         }
     }
 
     if (rc != 0 && fd >= 0) {
         unlink(tmpfile);
+    }
+
+    if (revertable_backup) {
+        rename(bakfile, filepath);
     }
 
     return rc;

@@ -51,6 +51,8 @@ mode_t tpmstate_get_mode(bool *mode_is_default);
 void tpmstate_set_locking(bool do_locking);
 bool tpmstate_get_locking(void);
 
+bool tpmstate_get_make_backup(void);
+
 void tpmstate_global_free(void);
 
 void tpmstate_set_version(TPMLIB_TPMVersion version);
