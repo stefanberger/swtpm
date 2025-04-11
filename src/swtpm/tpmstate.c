@@ -54,6 +54,7 @@ static mode_t g_tpmstate_mode = 0640;
 static bool g_tpmstate_mode_is_default = true;
 static TPMLIB_TPMVersion g_tpmstate_version = TPMLIB_TPM_VERSION_1_2;
 static bool g_tpmstate_do_locking = true; /* true: due to dir backend being default */
+static bool g_tpmstate_make_backup = false;
 
 void tpmstate_global_free(void)
 {
@@ -109,6 +110,11 @@ void tpmstate_set_locking(bool do_locking)
 bool tpmstate_get_locking(void)
 {
     return g_tpmstate_do_locking;
+}
+
+bool tpmstate_get_make_backup(void)
+{
+    return g_tpmstate_make_backup;
 }
 
 void tpmstate_set_version(TPMLIB_TPMVersion version)
