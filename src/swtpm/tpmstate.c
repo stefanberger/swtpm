@@ -112,6 +112,11 @@ bool tpmstate_get_locking(void)
     return g_tpmstate_do_locking;
 }
 
+void tpmstate_set_make_backup(bool make_backup)
+{
+    g_tpmstate_make_backup = make_backup;
+}
+
 bool tpmstate_get_make_backup(void)
 {
     return g_tpmstate_make_backup;
