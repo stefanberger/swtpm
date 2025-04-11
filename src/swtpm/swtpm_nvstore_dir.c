@@ -48,6 +48,7 @@
 #include <fcntl.h>
 
 #include <libtpms/tpm_error.h>
+#include <libtpms/tpm_nvfilename.h>
 
 #include "swtpm.h"
 #include "swtpm_debug.h"
@@ -289,6 +290,24 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
 }
 
 static TPM_RESULT
+SWTPM_NVRAM_CreateBackupFilename(const char *filepath,
+                                 char *bakfile,
+                                 size_t bakfile_len,
+                                 const char *suffix)
+{
+    TPM_RESULT rc = 0;
+    int        irc;
+
+    irc = snprintf(bakfile, bakfile_len, "%s.%s", filepath, suffix);
+    if ((size_t)irc > bakfile_len) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_StoreData: Name of backup file is too long\n");
+        rc = TPM_FAIL;
+    }
+    return rc;
+}
+
+static TPM_RESULT
 SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
                           uint32_t filedata_length,
                           uint32_t tpm_number,
@@ -297,7 +316,6 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
 {
     TPM_RESULT    rc = 0;
     int           irc;
-    char          tmpfile[FILENAME_MAX];  /* rooted temporary file path */
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
     const char    *tpm_state_path = NULL;
     bool          mode_is_default = true;
@@ -305,6 +323,7 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     ssize_t       n;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
+    mode = tpmstate_get_mode(&mode_is_default);
 
     if (rc == 0) {
         /* map name to the rooted file path */
@@ -313,33 +332,69 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
                                             tpm_state_path);
     }
 
-    if (rc == 0) {
+    if (rc == 0 &&
+        tpmstate_get_make_backup() &&
+        strcmp(name, TPM_PERMANENT_ALL_NAME) == 0) {
+        char bakfile[FILENAME_MAX];  /* rooted backup file name */
+        bool renamed = true;
+
+        rc = SWTPM_NVRAM_CreateBackupFilename(filepath,
+                                              bakfile, sizeof(bakfile),
+                                              "bak");
+
+        if (rc == 0 && access(filepath, F_OK) == 0) {
+            /* if permanent state file exists, then rename to backup file */
+            irc = rename(filepath, bakfile);   /* @1 */
+            if (irc != 0) {
+                renamed = false;
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_StoreData_Dir: Error (fatal) renaming to backup file: %s\n",
+                          strerror(errno));
+                rc = TPM_FAIL;
+            }
+        }
+
+        if (rc == 0) {
+            /* write new permanent state file */
+            n = file_write(filepath, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, mode,
+                           !mode_is_default, filedata, filedata_length);
+            if (n < 0) {
+                if (renamed)
+                    rename(bakfile, filepath);  /* revert @1 */
+
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_StoreData_Dir: Error (fatal), data write of %u bytes failed: %s\n",
+                          filedata_length, strerror(errno));
+                rc = TPM_FAIL;
+            }
+        }
+    } else if (rc == 0) {
+        char tmpfile[FILENAME_MAX];  /* rooted temporary file path */
+
         /* map name to the rooted temporary file path */
         rc = SWTPM_NVRAM_GetFilepathForName(tmpfile, sizeof(tmpfile),
                                             tpm_number, name, true,
                                             tpm_state_path);
-    }
 
-    if (rc == 0) {
-        mode = tpmstate_get_mode(&mode_is_default);
-
-        n = file_write(tmpfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, mode,
-                       !mode_is_default, filedata, filedata_length);
-        if (n < 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData_Dir: Error (fatal), data write of %u bytes failed: %s\n",
-                      filedata_length, strerror(errno));
-            rc = TPM_FAIL;
+        if (rc == 0) {
+            n = file_write(tmpfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, mode,
+                           !mode_is_default, filedata, filedata_length);
+            if (n < 0) {
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_StoreData_Dir: Error (fatal), data write of %u bytes failed: %s\n",
+                          filedata_length, strerror(errno));
+                rc = TPM_FAIL;
+            }
         }
-    }
-
-    if (rc == 0) {
-        irc = rename(tmpfile, filepath);
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData_Dir: Error (fatal) renaming file: %s\n",
-                      strerror(errno));
-            rc = TPM_FAIL;
+        if (rc == 0) {
+            irc = rename(tmpfile, filepath);
+            if (irc != 0) {
+                unlink(tmpfile);
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_StoreData_Dir: Error (fatal) renaming file: %s\n",
+                          strerror(errno));
+                rc = TPM_FAIL;
+            }
         }
     }
 
