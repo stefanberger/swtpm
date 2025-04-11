@@ -122,6 +122,9 @@ make %{?_smp_mflags} check
 %make_install
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la,so}
 
+%pre selinux
+%selinux_relabel_pre -s %{selinuxtype}
+
 %post selinux
 for pp in /usr/share/selinux/packages/swtpm.pp \
           /usr/share/selinux/packages/swtpm_libvirt.pp \
@@ -131,7 +134,7 @@ done
 
 %postun selinux
 if [ $1 -eq  0 ]; then
-  for p in swtpm swtpm_libvirt swtpm_svirt; do
+  for p in swtpm_svirt swtpm_libvirt swtpm; do
     %selinux_modules_uninstall -s %{selinuxtype} $p
   done
 fi
