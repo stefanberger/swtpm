@@ -39,6 +39,7 @@
 #ifndef _SWTPM_NVSTORE_H
 #define _SWTPM_NVSTORE_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <libtpms/tpm_types.h>
 #include <libtpms/tpm_library.h>
@@ -96,6 +97,8 @@ TPM_RESULT SWTPM_NVRAM_GetFilenameForName(char *filename,
                                           const char *name,
                                           TPM_BOOL is_tempfile);
 
+TPM_RESULT SWTPM_NVRAM_RestoreBackup(void);
+
 size_t SWTPM_NVRAM_FileKey_Size(void);
 static inline TPM_BOOL SWTPM_NVRAM_Has_FileKey(void)
 {
@@ -129,6 +132,8 @@ struct nvram_backend_ops {
     TPM_RESULT (*check_state)(const char *uri,
                               const char *name,
                               size_t *blobsize);
+    TPM_RESULT (*restore_backup_pre_start)(const char *uri);
+    TPM_RESULT (*restore_backup)(const char *uri);
     void (*cleanup)(void);
 };
 

@@ -196,6 +196,12 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
     if (rc == 0)
         rc = g_nvram_backend_ops->prepare(backend_uri);
 
+    if (rc == 0 &&
+        g_nvram_backend_ops->restore_backup_pre_start &&
+        tpmstate_get_make_backup()) {
+        rc = g_nvram_backend_ops->restore_backup_pre_start(backend_uri);
+    }
+
     return rc;
 }
 
@@ -1404,4 +1410,16 @@ int SWTPM_NVRAM_PrintJson(void)
 
 exit:
     return ret;
+}
+
+TPM_RESULT SWTPM_NVRAM_RestoreBackup(void)
+{
+    const char *backend_uri;
+
+    if (!g_nvram_backend_ops->restore_backup)
+        return TPM_FAIL;
+
+    backend_uri = tpmstate_get_backend_uri();
+
+    return g_nvram_backend_ops->restore_backup(backend_uri);
 }

@@ -157,7 +157,7 @@ The following options are support by all interfaces:
 
 =over 4
 
-=item B<--tpmstate dir=E<lt>dirE<gt>|backend-uri=E<lt>uriE<gt>[,mode=E<lt>0...E<gt>][,lock]>
+=item B<--tpmstate dir=E<lt>dirE<gt>|backend-uri=E<lt>uriE<gt>[,mode=E<lt>0...E<gt>][,lock][,backup]>
 
 Use the given path rather than using the environment variable TPM_PATH.
 
@@ -181,6 +181,19 @@ For the directory-backend the default is that locking is always enabled, and
 therefore this option parameter does not need to be given. For the file backend
 it is required since the default is that locking is not automatically
 enabled. To avoid locking, I<lock=false> can be used.
+
+If I<backup> is specified then the TPM storage backend will make a backup
+file of the current permanent state every time the state is rewritten.
+When swtpm is started and the permanent state file is missing and the backup
+file exists, then swtpm will rename the backup file to the permanent state
+file and try to start with it. In this case the file-renaming is permanent
+even if swtpm cannot read the file contents (corrupted, wrong decryption
+key). Otherwise, it will try to start with the permanent state file first and
+if this fails, it will try to start with the backup file. If both attempts
+fail, the original state of the files will be restored.
+
+The I<backup> option is only supported by the directory-backend and has no
+effect on other storage backends.
 
 =item B<--tpm2>
 
@@ -346,7 +359,8 @@ may contain the following:
         "cmdarg-print-profiles",
         "profile-opt-remove-disabled",
         "cmdarg-print-info",
-        "tpmstate-opt-lock"
+        "tpmstate-opt-lock",
+        "tpmstate-dir-backend-opt-backup"
       ],
       "version": "0.7.0"
     }
@@ -442,6 +456,11 @@ The option I<--print-info> is supported.
 =item B<tpmstate-opt-lock> (since v0.10)
 
 The option parameter I<lock> for the I<--tpmstate> option is supported.
+
+=item B<tpmstate-dir-backend-opt-backup> (since v0.11)
+
+The option parameter I<backup> for the I<--tpmstate> option is supported
+for the directory storage backend.
 
 =back
 

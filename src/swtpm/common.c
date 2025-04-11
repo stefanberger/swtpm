@@ -152,6 +152,9 @@ static const OptionDesc tpmstate_opt_desc[] = {
     }, {
         .name = "lock",
         .type = OPT_TYPE_BOOLEAN,
+    }, {
+        .name = "backup",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -668,7 +671,7 @@ handle_pid_options(const char *options)
 static int
 parse_tpmstate_options(const char *options, char **tpmstatedir, mode_t *mode,
                        bool *mode_is_default, char **tpmbackend_uri,
-                       bool *do_locking)
+                       bool *do_locking, bool *make_backup)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -686,6 +689,7 @@ parse_tpmstate_options(const char *options, char **tpmstatedir, mode_t *mode,
 
     directory = option_get_string(ovs, "dir", NULL);
     backend_uri = option_get_string(ovs, "backend-uri", NULL);
+    *make_backup = option_get_bool(ovs, "backup", false);
 
     /* Did user provide mode bits? User can only provide <= 0777 */
     *mode = option_get_mode_t(ovs, "mode", 01000);
@@ -745,13 +749,14 @@ handle_tpmstate_options(const char *options)
     mode_t mode;
     bool mode_is_default = true;
     bool do_locking = false;
+    bool make_backup = false;
 
     if (!options)
         return 0;
 
     if (parse_tpmstate_options(options, &tpmstatedir, &mode,
                                &mode_is_default, &tpmbackend_uri,
-                               &do_locking) < 0) {
+                               &do_locking, &make_backup) < 0) {
         ret = -1;
         goto error;
     }
@@ -779,6 +784,7 @@ handle_tpmstate_options(const char *options)
 
     tpmstate_set_mode(mode, mode_is_default);
     tpmstate_set_locking(do_locking);
+    tpmstate_set_make_backup(make_backup);
 
 error:
     free(tpmstatedir);
