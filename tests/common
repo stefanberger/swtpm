@@ -769,7 +769,7 @@ function get_sha1_file()
 {
 	if ! [ -r "$1" ]; then
 		echo "[file $1 does not exist]"
-		return
+		return 1
 	fi
 	case "$(uname -s)" in
 	Linux|CYGWIN*|GNU)
@@ -782,6 +782,7 @@ function get_sha1_file()
 		# OpenBSD
 		sha1 "$1" | cut -d "=" -f2 | tr -d " "
 	esac
+	return $?
 }
 
 # Display process that have the same name
