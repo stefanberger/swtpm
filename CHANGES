@@ -1,5 +1,21 @@
 CHANGES - changes for swtpm
 
+version 0.10.1:
+   - swtpm:
+     - Fix build error on 32bit systems due to inconsistent _FILE_OFFSET_BITS
+   - swtpm_setup:
+     - Use DISTRO_PROFILES_DIR when listing profiles (fix path issue)
+     - Do not pass a TPM 2 profile to swtpm when reconfiguring
+   - selinux:
+     - Add rule for swtpm to be able to read password from pipe
+     - allow to map state file
+     - add NFS permissions for swtpm_t
+     - Add rule to allow swtpm_t opening of virt_log_t files (BZ 2278123)
+   - swtpm.spec:
+     - Fix issues related to uninstallation of swtpm-related SELinux modules
+   - ci:
+     - Replace Travis with Github actions
+
 version 0.10.0:
    - swtpm:
      - Requires libtpms v0.10.0
