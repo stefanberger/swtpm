@@ -6,7 +6,7 @@ on:
 
 jobs:
   test-distcheck:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
       PREFIX:   "/usr"
       CONFIG:   "--with-openssl --prefix=/usr"
@@ -38,7 +38,7 @@ jobs:
         uses: ./.github/actions/test-swtpm
 
   test-asan-ubsan:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
       CFLAGS:         "-fsanitize=address,undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
       LIBTPMS_CFLAGS: "-fsanitize=address,undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
@@ -57,7 +57,7 @@ jobs:
         uses: ./.github/actions/test-swtpm
 
   test-asan-ubsan-non-openssl:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
       CFLAGS:         "-fsanitize=address,undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
       LIBTPMS_CFLAGS: "-fsanitize=address,undefined -g -fno-omit-frame-pointer -fno-sanitize-recover"
