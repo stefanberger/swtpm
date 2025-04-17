@@ -63,6 +63,7 @@
 #include "swtpm_utils.h"
 #include "fips.h"
 #include "check_algos.h"
+#include "tpmstate.h"
 
 /*
  * convert the blobtype integer into a string that libtpms
@@ -290,9 +291,25 @@ TPM_RESULT tpmlib_start(uint32_t flags, TPMLIB_TPMVersion tpmversion,
     }
 
     if ((res = TPMLIB_MainInit()) != TPM_SUCCESS) {
-        logprintf(STDERR_FILENO,
-                  "Error: Could not initialize libtpms.\n");
-        return res;
+        /* if wanted, try to restore the permanent state backup */
+        if (tpmstate_get_make_backup() &&
+            (res = SWTPM_NVRAM_RestoreBackup()) == TPM_SUCCESS) {
+
+            logprintf(STDOUT_FILENO,
+                      "Attempting to start with backup state file.\n");
+            res = TPMLIB_MainInit();
+
+            if (res != TPM_SUCCESS) {
+                /* 2nd call to RestoreBackup reverts file renamings */
+                SWTPM_NVRAM_RestoreBackup();
+            }
+        }
+
+        if (res != TPM_SUCCESS) {
+            logprintf(STDERR_FILENO,
+                      "Error: Could not initialize libtpms.\n");
+            return res;
+        }
     }
 
     if (json_profile != NULL && tpmversion == TPMLIB_TPM_VERSION_2 &&

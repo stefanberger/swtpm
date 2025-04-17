@@ -48,6 +48,7 @@
 #include <fcntl.h>
 
 #include <libtpms/tpm_error.h>
+#include <libtpms/tpm_nvfilename.h>
 
 #include "swtpm.h"
 #include "swtpm_debug.h"
@@ -362,6 +363,24 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
 }
 
 static TPM_RESULT
+SWTPM_NVRAM_CreateBackupFilename(const char *filepath,
+                                 char *bakfile,
+                                 size_t bakfile_len,
+                                 const char *suffix)
+{
+    TPM_RESULT rc = 0;
+    int        irc;
+
+    irc = snprintf(bakfile, bakfile_len, "%s.%s", filepath, suffix);
+    if ((size_t)irc > bakfile_len) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_StoreData: Name of backup file is too long\n");
+        rc = TPM_FAIL;
+    }
+    return rc;
+}
+
+static TPM_RESULT
 SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
                           uint32_t filedata_length,
                           uint32_t tpm_number,
@@ -370,22 +389,16 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
 {
     TPM_RESULT    rc = 0;
     int           fd = -1;
-    int           dir_fd = -1;
     uint32_t      lrc;
     int           irc;
     char          tmpfile[FILENAME_MAX];  /* rooted temporary file path */
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
+    char          bakfile[FILENAME_MAX];  /* rooted backup file name */
     const char    *tpm_state_path = NULL;
     bool          mode_is_default = true;
+    bool          revertable_backup = false;
     mode_t        mode;
     mode_t        orig_umask = 0;
-
-#if 0
-    static bool   do_dir_fsync = true; /* turn off fsync on dir if it fails,
-                                          most likely due to AppArmor */
-#endif
-    /* don't do fsync on dir since this may cause TPM command timeouts */
-    static bool   do_dir_fsync = false;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
@@ -394,6 +407,27 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
         rc = SWTPM_NVRAM_GetFilepathForName(filepath, sizeof(filepath),
                                             tpm_number, name, false,
                                             tpm_state_path);
+    }
+
+    if (rc == 0 &&
+        tpmstate_get_make_backup() &&
+        strcmp(name, TPM_PERMANENT_ALL_NAME) == 0 &&
+        access(filepath, F_OK) == 0) {
+        /* rename current permanent state file to backup file */
+        rc = SWTPM_NVRAM_CreateBackupFilename(filepath,
+                                              bakfile, sizeof(bakfile),
+                                              "bak");
+        if (rc == 0) {
+            irc = rename(filepath, bakfile);
+            if (irc != 0) {
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_StoreData: Error (fatal) renaming to backup file: %s\n",
+                          strerror(errno));
+                rc = TPM_FAIL;
+            } else {
+                revertable_backup = true;
+            }
+        }
     }
 
     if (rc == 0) {
@@ -443,20 +477,7 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             rc = TPM_FAIL;
         }
     }
-#if 0 // disabled due to triggering TPM timeouts
-    if (rc == 0 && fd >= 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing file %s\n", tmpfile);
-        irc = fsync(fd);
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) syncing file, %s\n",
-                      strerror(errno));
-            rc = TPM_FAIL;
-        } else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced file %s\n", tmpfile);
-        }
-    }
-#endif
+
     if (fd >= 0) {
         TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing file %s\n", tmpfile);
         irc = close(fd);             /* @1 */
@@ -464,8 +485,7 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_StoreData: Error (fatal) closing file\n");
             rc = TPM_FAIL;
-        }
-        else {
+        } else {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closed file %s\n", tmpfile);
         }
     }
@@ -479,52 +499,16 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             rc = TPM_FAIL;
         } else {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Renamed file to %s\n", filepath);
-        }
-    }
-
-    /*
-     * Quote from linux man 2 fsync:
-     *  Calling fsync() does not necessarily ensure that the entry in the
-     *  directory containing the file has also reached disk. For that an
-     *  explicit fsync() on a file descriptor for the directory is also needed.
-     */
-    if (rc == 0 && fd >= 0 && do_dir_fsync) {
-        TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening dir %s\n", tpm_state_path);
-        dir_fd = open(tpm_state_path, O_RDONLY);
-        if (dir_fd < 0) {
-            do_dir_fsync = false;
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error opening %s for "
-                      "fsync failed, %s. Continuing but check AppArmor profile.\n",
-                      tpm_state_path, strerror(errno));
-        }
-    }
-    if (rc == 0 && dir_fd >= 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing dir %s\n", tpm_state_path);
-        irc = fsync(dir_fd);
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) syncing dir, %s\n",
-                      strerror(errno));
-            rc = TPM_FAIL;
-        } else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced dir %s\n", tpm_state_path);
-        }
-    }
-    if (dir_fd >= 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing dir %s\n", tpm_state_path);
-        irc = close(dir_fd);
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) closing dir\n");
-            rc = TPM_FAIL;
-        } else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closed dir %s\n", tpm_state_path);
+            revertable_backup = false;
         }
     }
 
     if (rc != 0 && fd >= 0) {
         unlink(tmpfile);
+    }
+
+    if (revertable_backup) {
+        rename(bakfile, filepath);
     }
 
     return rc;
@@ -562,6 +546,130 @@ SWTPM_NVRAM_DeleteName_Dir(uint32_t tpm_number,
     return rc;
 }
 
+/*
+ * Try to restore the backup file if the 'normal' permanent state file does not
+ * exist. This function will return an error if the backup file exists and the
+ * 'normal' permanent state file does not exist but the renaming of the backup
+ * file to the 'normal' permanent state file fails.
+ * This function must be called before the state is first accessed so that no
+ * new state is created due to a missing 'normal' permanent state file.
+ */
+static TPM_RESULT
+SWTPM_NVRAM_RestoreBackupPreStart_Dir(const char *uri)
+{
+    TPM_RESULT    rc = 0;
+    int           irc;
+    char          filepath[FILENAME_MAX]; /* rooted file path from name */
+    char          bakfile[FILENAME_MAX];  /* rooted backup file name */
+    const char    *tpm_state_path;
+
+    tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
+
+    rc = SWTPM_NVRAM_GetFilepathForName(filepath, sizeof(filepath),
+                                        0, TPM_PERMANENT_ALL_NAME, false,
+                                        tpm_state_path);
+
+    if (rc == 0) {
+        irc = access(filepath, F_OK);
+        if (irc < 0 && errno == ENOENT) {
+            /* permanent state file does not exist */
+            rc = SWTPM_NVRAM_CreateBackupFilename(filepath,
+                                                  bakfile, sizeof(bakfile),
+                                                  "bak");
+            if (rc == 0 &&
+                access(bakfile, F_OK) == 0) {
+                irc = rename(bakfile, filepath);
+                if (irc < 0) {
+                    logprintf(STDERR_FILENO,
+                              "SWTPM_NVRAM_RestoreBackupPreStart_Dir: Restoring backup file failed: %s\n",
+                              strerror(errno));
+                    rc = TPM_FAIL;
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+/*
+ * Restore the permanent state backup file in such a way that the 'original'
+ * file is preserved and a 2nd call to this function will revert everything to
+ * the original state if the first call to this function succeeded. An exception
+ * is if the 'original' file did not exist. In this case the backup file will
+ * become the permanent state file.
+ *
+ * If no permanent state backup file exists or it cannot be restored for any
+ * other reason, then this function will return an error.
+ */
+static TPM_RESULT
+SWTPM_NVRAM_RestoreBackup_Dir(const char *uri)
+{
+    TPM_RESULT    rc = 0;
+    int           irc;
+    int           access_res;
+    char          filepath[FILENAME_MAX]; /* rooted file path from name */
+    char          bakfile[FILENAME_MAX];  /* rooted backup file name */
+    char          bakfile2[FILENAME_MAX];  /* rooted backup file name */
+    const char    *tpm_state_path;
+
+    tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
+
+    rc = SWTPM_NVRAM_GetFilepathForName(filepath, sizeof(filepath),
+                                        0, TPM_PERMANENT_ALL_NAME, false,
+                                        tpm_state_path);
+    if (rc == 0) {
+        rc = SWTPM_NVRAM_CreateBackupFilename(filepath,
+                                              bakfile, sizeof(bakfile),
+                                              "bak");
+    }
+
+    if (rc == 0) {
+        rc = SWTPM_NVRAM_CreateBackupFilename(filepath,
+                                              bakfile2, sizeof(bakfile2),
+                                              "tmp");
+    }
+
+    if (rc == 0 && access(bakfile, F_OK) != 0) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_RestoreBackup_Dir: Backup file cannot be restored: %s\n",
+                  strerror(errno));
+        rc = TPM_FAIL;
+    }
+
+    if (rc == 0) {
+        access_res = access(filepath, F_OK);
+        if (access_res == 0) {
+            /* rename 'original' file to bakfile2 */
+            irc = rename(filepath, bakfile2); /* @1 */
+            if (irc < 0) {
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_RestoreBackup_Dir: 'Original' file cannot be renamed.\n");
+                rc = TPM_FAIL;
+            }
+        }
+    }
+
+    if (rc == 0 && rename(bakfile, filepath) != 0) {  /* @2 */
+        /* backup file could not be renamed */
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_RestoreBackup_Dir: Error (fatal) renaming from backup file: %s\n",
+                  strerror(errno));
+        if (access_res == 0)
+            rename(bakfile2, filepath); /* revert rename @1 */
+        rc = TPM_FAIL;
+    }
+
+    if (rc == 0) {
+        irc = rename(bakfile2, bakfile);
+        if (irc < 0) {
+            rename(filepath, bakfile); /* revert @2 */
+            rename(bakfile2, filepath);/* revert @1 */
+        }
+    }
+
+    return rc;
+}
+
 struct nvram_backend_ops nvram_dir_ops = {
     .prepare = SWTPM_NVRAM_Prepare_Dir,
     .lock    = SWTPM_NVRAM_Lock_Dir,
@@ -570,5 +678,7 @@ struct nvram_backend_ops nvram_dir_ops = {
     .store   = SWTPM_NVRAM_StoreData_Dir,
     .delete  = SWTPM_NVRAM_DeleteName_Dir,
     .cleanup = SWTPM_NVRAM_Cleanup_Dir,
-    .check_state = SWTPM_NVRAM_CheckState_Dir,
+    .check_state    = SWTPM_NVRAM_CheckState_Dir,
+    .restore_backup = SWTPM_NVRAM_RestoreBackup_Dir,
+    .restore_backup_pre_start = SWTPM_NVRAM_RestoreBackupPreStart_Dir,
 };
