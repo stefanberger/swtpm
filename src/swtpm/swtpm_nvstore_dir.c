@@ -370,7 +370,6 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
 {
     TPM_RESULT    rc = 0;
     int           fd = -1;
-    int           dir_fd = -1;
     uint32_t      lrc;
     int           irc;
     char          tmpfile[FILENAME_MAX];  /* rooted temporary file path */
@@ -379,13 +378,6 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     bool          mode_is_default = true;
     mode_t        mode;
     mode_t        orig_umask = 0;
-
-#if 0
-    static bool   do_dir_fsync = true; /* turn off fsync on dir if it fails,
-                                          most likely due to AppArmor */
-#endif
-    /* don't do fsync on dir since this may cause TPM command timeouts */
-    static bool   do_dir_fsync = false;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
@@ -443,20 +435,7 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             rc = TPM_FAIL;
         }
     }
-#if 0 // disabled due to triggering TPM timeouts
-    if (rc == 0 && fd >= 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing file %s\n", tmpfile);
-        irc = fsync(fd);
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) syncing file, %s\n",
-                      strerror(errno));
-            rc = TPM_FAIL;
-        } else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced file %s\n", tmpfile);
-        }
-    }
-#endif
+
     if (fd >= 0) {
         TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing file %s\n", tmpfile);
         irc = close(fd);             /* @1 */
@@ -479,47 +458,6 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
             rc = TPM_FAIL;
         } else {
             TPM_DEBUG("  SWTPM_NVRAM_StoreData: Renamed file to %s\n", filepath);
-        }
-    }
-
-    /*
-     * Quote from linux man 2 fsync:
-     *  Calling fsync() does not necessarily ensure that the entry in the
-     *  directory containing the file has also reached disk. For that an
-     *  explicit fsync() on a file descriptor for the directory is also needed.
-     */
-    if (rc == 0 && fd >= 0 && do_dir_fsync) {
-        TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening dir %s\n", tpm_state_path);
-        dir_fd = open(tpm_state_path, O_RDONLY);
-        if (dir_fd < 0) {
-            do_dir_fsync = false;
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error opening %s for "
-                      "fsync failed, %s. Continuing but check AppArmor profile.\n",
-                      tpm_state_path, strerror(errno));
-        }
-    }
-    if (rc == 0 && dir_fd >= 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Syncing dir %s\n", tpm_state_path);
-        irc = fsync(dir_fd);
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) syncing dir, %s\n",
-                      strerror(errno));
-            rc = TPM_FAIL;
-        } else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Synced dir %s\n", tpm_state_path);
-        }
-    }
-    if (dir_fd >= 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing dir %s\n", tpm_state_path);
-        irc = close(dir_fd);
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) closing dir\n");
-            rc = TPM_FAIL;
-        } else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closed dir %s\n", tpm_state_path);
         }
     }
 
