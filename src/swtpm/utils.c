@@ -45,6 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 #if defined __APPLE__
 #include <fcntl.h>
@@ -331,6 +332,49 @@ ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt)
     free(buf);
 
     return n;
+}
+
+/*
+ * file_write: Write a buffer to a file.
+ *
+ * @filename: filename
+ * @flags: file open flags
+ * @mode: file mode bits
+ * @clear_umask: whether to clear the umask and restore it after
+ * @buffer: buffer
+ * @buflen: length of buffer
+ *
+ * Returns -1 in case an error occurred, number of bytes written otherwise.
+ */
+ssize_t file_write(const char *filename, int flags, mode_t mode,
+                   bool clear_umask, const void *buffer, size_t buflen)
+{
+    mode_t orig_umask = 0;
+    ssize_t res;
+    int fd;
+
+    if (clear_umask)
+        orig_umask = umask(0);
+
+    fd = open(filename, flags, mode);
+
+    if (clear_umask)
+        umask(orig_umask);
+
+    if (fd < 0)
+        return -1;
+
+    res = buflen;
+    if (write_full(fd, buffer, buflen) != res)
+        res = -1;
+
+    if (close(fd) < 0)
+        res = -1;
+
+    if (res < 0)
+        unlink(filename);
+
+    return res;
 }
 
 /*

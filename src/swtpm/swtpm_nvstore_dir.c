@@ -369,15 +369,13 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
                           const char *uri)
 {
     TPM_RESULT    rc = 0;
-    int           fd = -1;
-    uint32_t      lrc;
     int           irc;
     char          tmpfile[FILENAME_MAX];  /* rooted temporary file path */
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
     const char    *tpm_state_path = NULL;
     bool          mode_is_default = true;
     mode_t        mode;
-    mode_t        orig_umask = 0;
+    ssize_t       n;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
@@ -396,73 +394,26 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
     }
 
     if (rc == 0) {
-        /* open the file */
-        TPM_DEBUG(" SWTPM_NVRAM_StoreData: Opening file %s\n", tmpfile);
-
-        /*
-         * If a new file is created at this point with user-requested mode bits
-         * then use a temporary umask of 0 to have these mode bits set.
-         * In the more frequent file truncation case the mode bits will also be
-         * changed to what the user requested.
-         */
         mode = tpmstate_get_mode(&mode_is_default);
-        if (!mode_is_default)
-            orig_umask = umask(0);
 
-        fd = open(tmpfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,
-                  mode);                                       /* closed @1 */
-
-        if (!mode_is_default)
-            umask(orig_umask);
-
-        if (fd < 0) {
+        n = file_write(tmpfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, mode,
+                       !mode_is_default, filedata, filedata_length);
+        if (n < 0) {
             logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) opening %s for "
-                      "write failed, %s\n", tmpfile, strerror(errno));
+                      "SWTPM_NVRAM_StoreData_Dir: Error (fatal), data write of %u bytes failed: %s\n",
+                      filedata_length, strerror(errno));
             rc = TPM_FAIL;
         }
     }
 
-    /* write the data to the file */
     if (rc == 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Writing %u bytes of data\n",
-                  filedata_length);
-        lrc = write_full(fd, filedata, filedata_length);
-        if (lrc != filedata_length) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal), data write "
-                      "of %u only wrote %u\n", filedata_length, lrc);
-            rc = TPM_FAIL;
-        }
-    }
-
-    if (fd >= 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closing file %s\n", tmpfile);
-        irc = close(fd);             /* @1 */
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) closing file\n");
-            rc = TPM_FAIL;
-        }
-        else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Closed file %s\n", tmpfile);
-        }
-    }
-
-    if (rc == 0 && fd >= 0) {
         irc = rename(tmpfile, filepath);
         if (irc != 0) {
             logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_StoreData: Error (fatal) renaming file: %s\n",
+                      "SWTPM_NVRAM_StoreData_Dir: Error (fatal) renaming file: %s\n",
                       strerror(errno));
             rc = TPM_FAIL;
-        } else {
-            TPM_DEBUG("  SWTPM_NVRAM_StoreData: Renamed file to %s\n", filepath);
         }
-    }
-
-    if (rc != 0 && fd >= 0) {
-        unlink(tmpfile);
     }
 
     return rc;
