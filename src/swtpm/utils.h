@@ -76,6 +76,8 @@ ssize_t file_write(const char *filename, int flags, mode_t mode,
                    bool clear_umask, const void *buffer, size_t buflen);
 
 ssize_t read_eintr(int fd, void *buffer, size_t buflen);
+ssize_t file_read(const char *filename, void **buffer,
+                  bool do_chmod, mode_t mode);
 
 int json_get_submap_value(const char *json_input, const char *field_name,
                           const char *field_name2, char **value);

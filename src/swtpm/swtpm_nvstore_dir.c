@@ -251,15 +251,11 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
                          const char *uri)
 {
     TPM_RESULT    rc = 0;
-    int           irc;
-    size_t        src;
-    int           fd = -1;
     char          filepath[FILENAME_MAX]; /* rooted file path from name */
-    struct stat   statbuf;
-    const char    *tpm_state_path = NULL;
+    const char    *tpm_state_path;
     bool          mode_is_default = false;
-    bool          do_chmod;
     mode_t        mode;
+    ssize_t       datalen;
 
     tpm_state_path = SWTPM_NVRAM_Uri_to_Dir(uri);
 
@@ -270,91 +266,22 @@ SWTPM_NVRAM_LoadData_Dir(unsigned char **data,
                                             tpm_state_path);
     }
 
-    /* open the file */
-    if (rc == 0) {
-        TPM_DEBUG("  SWTPM_NVRAM_LoadData: Opening file %s\n", filepath);
-        fd = open(filepath, O_RDONLY);                          /* closed @1 */
-        if (fd < 0) {     /* if failure, determine cause */
-            if (errno == ENOENT) {
-                TPM_DEBUG("SWTPM_NVRAM_LoadData: No such file %s\n",
-                         filepath);
-                rc = TPM_RETRY;         /* first time start up */
-            }
-            else {
-                logprintf(STDERR_FILENO,
-                          "SWTPM_NVRAM_LoadData: Error (fatal) opening "
-                          "%s for read, %s\n", filepath, strerror(errno));
-                rc = TPM_FAIL;
-            }
-        }
-    }
-
-    /* determine the file length */
-    if (rc == 0) {
-        irc = fstat(fd, &statbuf);
-        if (irc == -1L) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_LoadData: Error (fatal) fstat'ing %s, %s\n",
-                      filepath, strerror(errno));
-            rc = TPM_FAIL;
-        }
-    }
-    if (rc == 0) {
-        *length = statbuf.st_size;              /* save the length */
-    }
-    /* allocate a buffer for the actual data */
-    if ((rc == 0) && *length != 0) {
-        TPM_DEBUG(" SWTPM_NVRAM_LoadData: Reading %u bytes of data\n", *length);
-        *data = malloc(*length);
-        if (!*data) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_LoadData: Error (fatal) allocating %u "
-                      "bytes\n", *length);
-            rc = TPM_FAIL;
-        }
-    }
-    /* read the contents of the file into the data buffer */
-    if ((rc == 0) && *length != 0) {
-        src = read(fd, *data, *length);
-        if (src != *length) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_LoadData: Error (fatal), data read of %u "
-                      "only read %lu\n", *length, (unsigned long)src);
-            rc = TPM_FAIL;
-        }
-    }
-
+    /* read the file */
     if (rc == 0) {
         mode = tpmstate_get_mode(&mode_is_default);
-        /*
-         * Make sure the file can be written to when state needs to be written.
-         * Do not touch user-provided flags.
-         */
-        do_chmod = !mode_is_default;
-        if (mode_is_default && (statbuf.st_mode & 0200) == 0) {
-           mode |= 0200;
-           do_chmod = true;
-        }
-        if (do_chmod && fchmod(fd, mode) < 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_LoadData: Could not fchmod %s : %s\n",
-                      filepath, strerror(errno));
-            rc = TPM_FAIL;
-        }
-    }
 
-    /* close the file */
-    if (fd >= 0) {
-        TPM_DEBUG(" SWTPM_NVRAM_LoadData: Closing file %s\n", filepath);
-        irc = close(fd);               /* @1 */
-        if (irc != 0) {
-            logprintf(STDERR_FILENO,
-                      "SWTPM_NVRAM_LoadData: Error (fatal) closing file %s\n",
-                      filepath);
-            rc = TPM_FAIL;
-        }
-        else {
-            TPM_DEBUG(" SWTPM_NVRAM_LoadData: Closed file %s\n", filepath);
+        datalen = file_read(filepath, (void **)data, !mode_is_default, mode);
+        if (datalen < 0) {
+            if (errno == ENOENT) {
+                rc = TPM_RETRY;
+            } else {
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_LoadData_Dir: Error (fatal) reading %s: %s\n",
+                          filepath, strerror(errno));
+                rc = TPM_FAIL;
+            }
+        } else {
+            *length = datalen;
         }
     }
 
