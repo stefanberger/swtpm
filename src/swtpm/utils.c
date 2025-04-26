@@ -61,6 +61,11 @@
 #include "tpmlib.h"
 #include "swtpm_debug.h"
 
+/* sys/stat.h does not always define ACCESSPERMS */
+#ifndef ACCESSPERMS
+# define ACCESSPERMS (S_IRWXU|S_IRWXG|S_IRWXO)
+#endif
+
 void uninstall_sighandlers()
 {
     if (signal(SIGTERM, SIG_DFL) == SIG_ERR)
