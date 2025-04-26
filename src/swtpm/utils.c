@@ -403,6 +403,66 @@ ssize_t read_eintr(int fd, void *buffer, size_t buflen)
 }
 
 /*
+ * file_read: Read contents of file and adjust mode bits
+ *
+ * @filename: filename
+ * @buffer: pointer to buffer pointer to allocate memory for file contents
+ * @do_chmod: whether to change the file's mode bits
+ * @mode: the mode bits
+ *
+ * Read the contents of the file into a buffer allocated by this function.
+ * Adjust the file mode bits if @do_chmod is set or if file is not writable.
+ * Returns -1 on error with errno set, number of bytes read (= size of
+ * allocated buffer) otherwise.
+ */
+ssize_t file_read(const char *filename, void **buffer,
+                  bool do_chmod, mode_t mode)
+{
+    struct stat statbuf;
+    ssize_t ret = -1;
+    size_t buflen;
+    int n, fd;
+
+    fd = open(filename, O_RDONLY);
+    if (fd < 0)
+        return -1;
+
+    n = fstat(fd, &statbuf);
+    if (n < 0)
+        goto err_close;
+
+    buflen = statbuf.st_size;
+    *buffer = malloc(buflen);
+    if (!*buffer) {
+        errno = ENOMEM;
+        goto err_close;
+    }
+
+    ret = read_eintr(fd, *buffer, buflen);
+    if (ret < 0 || (size_t)ret != buflen)
+        goto err_close;
+
+    /* make sure file is always writable */
+    if (!do_chmod && (statbuf.st_mode & 0200) == 0) {
+        mode |= 0200;
+        do_chmod = true;
+    } else if (do_chmod && (statbuf.st_mode & ACCESSPERMS) == mode) {
+        do_chmod = false;
+    }
+
+    if (do_chmod && fchmod(fd, mode) < 0)
+        goto err_close;
+
+    ret = buflen;
+
+err_close:
+    if (close(fd) < 0)
+        ret = -1;
+
+    return ret;
+}
+
+/*
  * Get the value of a map's key.
  *
  * Returns:
