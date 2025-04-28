@@ -23,6 +23,10 @@
 #include <sys/ioccom.h>
 #endif
 
+#ifdef __gnu_hurd__
+#include <mach/x86_64/ioccom.h>
+#endif
+
 /*
  * Every response from a command involving a TPM command execution must hold
  * the ptm_res as the first element.
@@ -293,7 +297,7 @@ typedef struct ptm_lockstorage ptm_lockstorage;
 #define PTM_CAP_SEND_COMMAND_HEADER (1 << 15)
 #define PTM_CAP_LOCK_STORAGE       (1 << 16)
 
-#if !defined(_WIN32) && !defined(__GNU__)
+#if !defined(_WIN32)
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
     PTM_INIT               = _IOWR('P', 1, ptm_init),

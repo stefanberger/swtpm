@@ -7,7 +7,9 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-#include <sys/mount.h>
+#ifndef __gnu_hurd__
+# include <sys/mount.h>
+#endif
 #include <fcntl.h>
 
 #include <libtpms/tpm_types.h>
