@@ -13,6 +13,10 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#ifdef __gnu_hurd__
+# define PATH_MAX 4096 /* no limit on GNU/Hurd systems */
+#endif
+
 #include "swtpm.h"
 #include "swtpm_utils.h"
 
