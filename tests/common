@@ -715,7 +715,7 @@ function run_swtpm_bios()
 # @1: filename
 function get_filesize()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-|GNU) ]]; then
 		stat -c%s "$1"
 	else
 		# OpenBSD
@@ -741,7 +741,7 @@ function get_filemode()
 # @1: filename
 function get_fileowner()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-|GNU) ]]; then
 		stat -c"%u %g" "$1"
 	else
 		# BSDs
@@ -754,7 +754,7 @@ function get_fileowner()
 # @1: filename
 function get_fileowner_names()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-|GNU) ]]; then
 		stat -c"%U %G" "$1"
 	else
 		# BSDs
@@ -772,7 +772,7 @@ function get_sha1_file()
 		return
 	fi
 	case "$(uname -s)" in
-	Linux|CYGWIN*)
+	Linux|CYGWIN*|GNU)
 		sha1sum "$1" | cut -f1 -d" "
 		;;
 	Darwin)
