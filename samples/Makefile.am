@@ -36,4 +36,7 @@ EXTRA_DIST= \
 
 .PHONY: syntax-check
 syntax-check:
-	shellcheck swtpm-create-tpmca
+	shellcheck \
+		swtpm-create-tpmca \
+		swtpm-create-user-config-files.in \
+		swtpm-localca.in

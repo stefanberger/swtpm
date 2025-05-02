@@ -23,15 +23,15 @@ function main() {
 		--overwrite) flags="${flags},overwrite";;
 		--root) flags="${flags},root";;
 		--skip-if-exist) flags="${flags},skip-if-exist";;
-		--help|-h|-?) help $0; exit 0;;
-		*) echo -e "Unknown option $1\n" >&2; help $0; exit 1;;
+		--help|-h|-?) help "$0"; exit 0;;
+		*) echo -e "Unknown option $1\n" >&2; help "$0"; exit 1;;
 		esac
 		shift
 	done
 
 	[ "${flags:0:1}" = "," ] && flags=${flags:1}
 
-	@BINDIR@/swtpm_setup --create-config-files ${flags}
+	@BINDIR@/swtpm_setup --create-config-files ${flags:+${flags}}
 	exit $?
 }
 
