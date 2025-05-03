@@ -125,6 +125,9 @@ static bool g_storage_locked;
 /* whether to release the lock on outgoing migration */
 static bool g_release_lock_outgoing;
 
+/* whether to recreate the SVN base secret of a TPM 2 */
+static bool g_recreate_svn_base_secret;
+
 /* how many times to retry locking; use for fallback after releasing
    the lock on outgoing migration. */
 static unsigned int g_locking_retries;
@@ -255,12 +258,13 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                       mode allows a user to set the file mode bits of the state\n"
     "                       files; the default mode is 0640;\n"
     "                       lock enables file-locking by the storage backend;\n"
-    "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none][,disable-auto-shutdown]\n"
+    "--flags [not-need-init][,startup-clear|startup-state|startup-deactivated|startup-none][,disable-auto-shutdown][,recreate-svn-base-secret]\n"
     "                    :  not-need-init: commands can be sent without needing to\n"
     "                       send an INIT via control channel;\n"
     "                       startup-...: send Startup command with this type;\n"
     "                       disable-auto-shutdown disables automatic sending of\n"
     "                       TPM2_Shutdown before TPM 2 reset or swtpm termination;\n"
+    "                       recreate-svn-base-secret recreates the SVN base secret;\n"
     "-r|--runas <user>   :  after creating the CUSE device, change to the given\n"
     "                       user\n"
     "-R|--chroot <path>  :  chroot to the given directory at startup\n"
@@ -515,7 +519,8 @@ static void worker_thread(gpointer data, gpointer user_data SWTPM_ATTR_UNUSED)
  * @res: the result from starting the TPM
  */
 static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
-                     const char *json_profile, TPM_RESULT *res)
+                     const char *json_profile, TPM_RESULT *res,
+                     bool *recreate_svn_base_secret)
 {
     DIR *dir;
     const char *uri = tpmstate_get_backend_uri();
@@ -556,7 +561,8 @@ static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
 
     g_storage_locked = !g_incoming_migration;
 
-    *res = tpmlib_start(flags, l_tpmversion, g_storage_locked, json_profile);
+    *res = tpmlib_start(flags, l_tpmversion, g_storage_locked, json_profile,
+                        recreate_svn_base_secret);
     if (*res != TPM_SUCCESS)
         goto error_del_pool;
 
@@ -1191,7 +1197,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
             tpm_running = false;
             if (tpm_start(init_p->u.req.init_flags, tpmversion,
-                          g_json_profile, &res) < 0) {
+                          g_json_profile, &res, &g_recreate_svn_base_secret) < 0) {
                 logprintf(STDERR_FILENO,
                           "Error: Could not initialize the TPM.\n");
             } else {
@@ -1868,7 +1874,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         handle_seccomp_options(param.seccompdata, &param.seccomp_action) < 0 ||
         handle_locality_options(param.localitydata, &locality_flags) < 0 ||
         handle_flags_options(param.flagsdata, &need_init_cmd,
-                             &param.startupType, &g_disable_auto_shutdown) < 0 ||
+                             &param.startupType, &g_disable_auto_shutdown,
+                             &g_recreate_svn_base_secret) < 0 ||
         handle_migration_options(param.migrationdata, &g_incoming_migration,
                                  &g_release_lock_outgoing) < 0 ||
         handle_profile_options(param.profiledata, &g_json_profile) < 0) {
@@ -1919,7 +1926,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     g_mutex_lock(FILE_OPS_LOCK);
 
     if (!need_init_cmd || (infoflags && tpmstate_get_backend_uri())) {
-        if (tpm_start(0, tpmversion, g_json_profile, &res) < 0) {
+        if (tpm_start(0, tpmversion, g_json_profile, &res,
+                      &g_recreate_svn_base_secret) < 0) {
             ret = -1;
             goto err_unlock;
         }
