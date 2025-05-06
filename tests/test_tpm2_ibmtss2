@@ -39,6 +39,7 @@ WORKDIR="$(mktemp -d)" || exit 1
 
 REGLOG=${WORKDIR}/reglog
 
+OPENSSL_ENABLE_SHA1_SIGNATURES=1 \
 SWTPM_SERVER_NO_DISCONNECT="1" run_swtpm "${SWTPM_INTERFACE}" \
 	--tpm2 \
 	--tpmstate "dir=${WORKDIR}" \
