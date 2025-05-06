@@ -1,0 +1,24 @@
+From aa2bab326ce5af6dbcf6e83c93e16150e1642d80 Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.ibm.com>
+Date: Tue, 6 May 2025 14:53:08 -0400
+Subject: [PATCH] Remove unnecessary include of openssl/engine.h
+
+---
+ utils/tsscrypto.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/utils/tsscrypto.c b/utils/tsscrypto.c
+index 23d3b6e..2b5ea50 100644
+--- a/utils/tsscrypto.c
++++ b/utils/tsscrypto.c
+@@ -57,7 +57,6 @@
+ #include <openssl/rsa.h>
+ #endif
+ #include <openssl/rand.h>
+-#include <openssl/engine.h>
+ 
+ #include <ibmtss/tssresponsecode.h>
+ #include <ibmtss/tssutils.h>
+-- 
+2.49.0
+
