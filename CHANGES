@@ -1,5 +1,9 @@
 CHANGES - changes for swtpm
 
+Note: Use swtpm >= 0.10.0 since it handles signing of SHA1 better.
+      This version of swtpm requires OPENSSL_ENABLE_SHA1_SIGNATURES=1 env.
+      variable to be set to be allowed to sign a SHA1!
+
 version 0.9.0:
   Note: The SElinux policy for swtpm was completely redone. For systems
         with an SELinux policy the same policy (>= 40.17) as used in
