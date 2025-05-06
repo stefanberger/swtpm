@@ -107,6 +107,7 @@ fi
 
 if openssl version | grep -q -E "^OpenSSL 3"; then
 	git am < "${PATCHESDIR}/0010-Adjust-test-cases-for-OpenSSL-3.patch"
+	git am < "${PATCHESDIR}/0011-Remove-unnecessary-include-of-openssl-engine.h.patch"
 fi
 
 autoreconf --force --install
