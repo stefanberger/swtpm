@@ -190,11 +190,12 @@ This option is deprecated and has no effect (since v0.4).
 
 =item B<--rsa-keysize <keysize>> (since v0.4)
 
-This option allows to pass the size of a TPM 2 RSA EK key, such as 2048
-or 3072. The supported keysizes for a TPM 2 can be queried for using
+This option allows to pass the size of a TPM 2 RSA EK key, such as 2048,
+3072, or 4096. The supported keysizes for a TPM 2 can be queried for using
 the I<--print-capabilities> option. The default size is 2048 bits for
 both TPM 1.2 and TPM 2. If 'max' is passed, the largest possible key
-size is used.
+size is used. It may be necessary to choose an approriate profile that
+supports this key size, such as 'default-v2' for RSA-4096 keys.
 
 =item B<--reconfigure> (since v0.7)
 
@@ -304,6 +305,7 @@ The output may contain the following:
         "cmdarg-reconfigure-pcr-banks",
         "tpm2-rsa-keysize-2048",
         "tpm2-rsa-keysize-3072",
+        "tpm2-rsa-keysize-4096",
         "cmdarg-profile",
         "cmdarg-profile-remove-disabled"
       ],

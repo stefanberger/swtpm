@@ -440,6 +440,8 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_NV_INDEX_RSA2048_EKTEMPLATE     0x01c00004
 #define TPM2_NV_INDEX_RSA3072_HI_EKCERT      0x01c0001c
 #define TPM2_NV_INDEX_RSA3072_HI_EKTEMPLATE  0x01c0001d
+#define TPM2_NV_INDEX_RSA4096_HI_EKCERT      0x01c0001e
+#define TPM2_NV_INDEX_RSA4096_HI_EKTEMPLATE  0x01c0001f
 // For ECC follow "TCG EK Credential Profile For TPM Family 2.0; Level 0"
 // Specification Version 2.1; Revision 13; 10 December 2018
 #define TPM2_NV_INDEX_PLATFORMCERT           0x01c08000
@@ -449,6 +451,7 @@ static const struct swtpm_cops swtpm_cops = {
 
 #define TPM2_EK_RSA_HANDLE           0x81010001
 #define TPM2_EK_RSA3072_HANDLE       0x8101001c
+#define TPM2_EK_RSA4096_HANDLE       0x8101001e
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_SPK_HANDLE              0x81000001
 
@@ -481,6 +484,7 @@ struct tpm2_authblock {
 static const unsigned char NONCE_EMPTY[2] = {AS2BE(0)};
 static const unsigned char NONCE_RSA2048[2+0x100] = {AS2BE(0x100), 0, };
 static const unsigned char NONCE_RSA3072[2+0x180] = {AS2BE(0x180), 0, };
+static const unsigned char NONCE_RSA4096[2+0x200] = {AS2BE(0x200), 0, };
 static const unsigned char NONCE_ECC_384[2+0x30] = {AS2BE(0x30), 0, };
 
 static const struct bank_to_name {
@@ -801,7 +805,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
         symkeylen = 128;
         havenonce = TRUE;
         addlen = 0;
-    } else if (rsa_keysize == 3072) {
+    } else if (rsa_keysize == 3072 || rsa_keysize == 4096) {
         authpolicy_len = 48;
         memcpy(authpolicy, ((unsigned char []){
             0xB2, 0x6E, 0x7D, 0x28, 0xD1, 0x1A, 0x50, 0xBC, 0x53, 0xD8, 0x82, 0xBC,
@@ -809,7 +813,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
             0xCB, 0x1C, 0x0A, 0xD9, 0xBD, 0xE4, 0x19, 0xCA, 0xCB, 0x47, 0xBA, 0x09,
             0x69, 0x96, 0x46, 0x15, 0x0F, 0x9F, 0xC0, 0x00, 0xF3, 0xF8, 0x0E, 0x12
         }), authpolicy_len);
-        keyflags = 0x40;
+        keyflags = 0x40; // userWithAuth
         symkeylen = 256;
         havenonce = FALSE;
         addlen = 16;
@@ -894,6 +898,17 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
         hashalg = TPM2_ALG_SHA384;
         if (key_description)
             *key_description = "rsa3072";
+    } else if (rsa_keysize == 4096) {
+        if (!havenonce) {
+           nonce = NONCE_EMPTY;
+           nonce_len = sizeof(NONCE_EMPTY);
+        } else {
+           nonce = NONCE_RSA4096;
+           nonce_len = sizeof(NONCE_RSA4096);
+        }
+        hashalg = TPM2_ALG_SHA384;
+        if (key_description)
+            *key_description = "rsa4096";
     } else {
         logerr(self->logfile, "Internal error in %s: unsupported RSA keysize %d.\n",
                __func__, rsa_keysize);
@@ -1139,7 +1154,7 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
 
     if (rsa_keysize == 2048)
         symkeylen = 128;
-    else if (rsa_keysize == 3072)
+    else if (rsa_keysize == 3072 || rsa_keysize == 4096)
         symkeylen = 256;
 
     symkeydata_len = 6;
@@ -1269,6 +1284,10 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, gboolean isecc, unsigned int
             tpm2_ek_handle = TPM2_EK_RSA3072_HANDLE;
             keytype = "RSA 3072";
             nvindex = TPM2_NV_INDEX_RSA3072_HI_EKTEMPLATE;
+        } else if (rsa_keysize == 4096) {
+            tpm2_ek_handle = TPM2_EK_RSA4096_HANDLE;
+            keytype = "RSA 4096";
+            nvindex = TPM2_NV_INDEX_RSA4096_HI_EKTEMPLATE;
         } else {
             logerr(self->logfile, "Internal error: Unsupported RSA keysize %u.\n", rsa_keysize);
             return 1;
@@ -1481,6 +1500,8 @@ static int swtpm_tpm2_write_ek_cert_nvram(struct swtpm *self, gboolean isecc,
             nvindex = TPM2_NV_INDEX_RSA2048_EKCERT;
         else if (rsa_keysize == 3072)
             nvindex = TPM2_NV_INDEX_RSA3072_HI_EKCERT;
+        else if (rsa_keysize == 4096)
+            nvindex = TPM2_NV_INDEX_RSA4096_HI_EKCERT;
         keytype = g_strdup_printf("RSA %d ", rsa_keysize);
     } else {
         nvindex = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT;

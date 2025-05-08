@@ -1012,8 +1012,8 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   Default: %s\n"
         "\n"
         "--rsa-keysize <keysize>\n"
-        "                 : The RSA key size of the EK key; 3072 bits may be supported\n"
-        "                   if libtpms supports it.\n"
+        "                 : The RSA key size of the EK key; 3072 and 4096 bits may be\n"
+        "                   supported if libtpms supports it.\n"
         "                   Default: %u\n"
         "\n"
         "--write-ek-cert-files <directory>\n"
@@ -1124,7 +1124,7 @@ static int get_supported_tpm_versions(const gchar **swtpm_prg_l, gboolean *swtpm
 
 /* Get the support RSA key sizes.
  *  This function returns an array of ints like the following
- *  - [ 1024, 2048, 3072 ]
+ *  - [ 1024, 2048, 3072, 4096 ]
  *  - [] (empty array, indicating only 2048 bit RSA keys are supported)
  */
 static int get_rsa_keysizes(unsigned long flags, const gchar **swtpm_prg_l,
@@ -1934,7 +1934,9 @@ int main(int argc, char *argv[])
         }
         g_free(keysizes);
     }
-    if (strcmp(rsa_keysize_str, "2048") == 0 || strcmp(rsa_keysize_str, "3072") == 0) {
+    if (strcmp(rsa_keysize_str, "2048") == 0 ||
+        strcmp(rsa_keysize_str, "3072") == 0 ||
+        strcmp(rsa_keysize_str, "4096") == 0) {
         unsigned int *keysizes = NULL;
         size_t n_keysizes;
         gboolean found = FALSE;
