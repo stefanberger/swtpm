@@ -342,6 +342,7 @@ may contain the following:
         "rsa-keysize-1024",
         "rsa-keysize-2048",
         "rsa-keysize-3072",
+        "rsa-keysize-4096",
         "cmdarg-profile",
         "cmdarg-print-profiles",
         "profile-opt-remove-disabled",
