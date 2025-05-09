@@ -57,7 +57,7 @@ function build_ibmtss2() {
 
 	pushd ibmtpm20tss-tss &>/dev/null || exit 1
 
-	if ! git checkout tags/v2.4.0; then
+	if ! git checkout tags/v2.4.1; then
 		echo "'Git checkout' failed."
 		exit 1
 	fi
