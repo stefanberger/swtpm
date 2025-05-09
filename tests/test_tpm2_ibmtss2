@@ -87,9 +87,10 @@ function build_ibmtss2() {
 	# Disable 'Events' test
 	git am < "${PATCHESDIR}/0005-Disable-tests-related-to-events.patch"
 
-	if openssl version | grep -q -E "^OpenSSL 3"; then
-		git am < "${PATCHESDIR}/0010-Adjust-test-cases-for-OpenSSL-3.patch"
-	fi
+	# FIXME: Seems fixed in OpenSSL 3.2.4; can be removed entirely at some point
+	#if openssl version | grep -q -E "^OpenSSL 3"; then
+	#	git am < "${PATCHESDIR}/0010-Adjust-test-cases-for-OpenSSL-3.patch"
+	#fi
 
 	autoreconf --force --install
 	unset CFLAGS LDFLAGS LIBS
