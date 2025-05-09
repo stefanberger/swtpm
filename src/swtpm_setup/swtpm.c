@@ -261,6 +261,12 @@ static int transfer(struct swtpm *self, void *buffer, size_t buffer_len,
     struct pollfd fds = {
         .events = POLLIN | POLLERR | POLLHUP,
     };
+    size_t respbuffer_size = 0;
+
+    if (respbuffer_len) {
+        respbuffer_size = *respbuffer_len;
+        *respbuffer_len = 0; /* nothing returned in most error cases */
+    }
 
     if (use_ctrl) {
         sockfd = self->ctrl_fds[0];
@@ -309,17 +315,18 @@ static int transfer(struct swtpm *self, void *buffer, size_t buffer_len,
         return 1;
     }
 
+    if (respbuffer) {
+        /* give caller response even if command failed */
+        *respbuffer_len = min((size_t)resplen, respbuffer_size);
+        memcpy(respbuffer, resp, *respbuffer_len);
+    }
+
     memcpy(&returncode, &resp[offset], sizeof(returncode));
     returncode = be32toh(returncode);
     if (returncode != 0) {
         logerr(self->logfile,
                "%s failed: 0x%x\n", cmdname, returncode);
         return 1;
-    }
-
-    if (respbuffer) {
-        *respbuffer_len = min((size_t)resplen, *respbuffer_len);
-        memcpy(respbuffer, resp, *respbuffer_len);
     }
 
     return 0;
@@ -959,8 +966,19 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
 
     ret = transfer(self, createprimary, createprimary_len, "TPM2_CreatePrimary(RSA)", FALSE,
                    tpmresp, &tpmresp_len, TPM2_DURATION_LONG);
-    if (ret != 0)
+    if (ret != 0) {
+        if (tpmresp_len >= sizeof(struct tpm_resp_header) &&
+            be32toh(((struct tpm_resp_header *)tpmresp)->errcode) == 0x2c4) {
+            /*
+             * Error may appear when key size is not supported by profile:
+             * value is out of range or is not correct for the context Parameter number 2
+             */
+            logerr(self->logfile,
+                   ">> Is RSA-%u supported by the profile? RSA-4096 needs 'default-v2'.<<\n",
+                   rsa_keysize);
+        }
         return 1;
+    }
 
     if (curr_handle) {
         if (tpmresp_len < 10 + sizeof(*curr_handle))
