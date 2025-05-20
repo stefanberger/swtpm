@@ -695,14 +695,16 @@ int ctrlchannel_process_fd(int fd,
 
     case CMD_HASH_DATA:
         if (!*tpm_running)
-             goto err_not_running;
+            goto err_not_running;
 
         if (n < (ssize_t)offsetof(ptm_hdata, u.req.data)) /* rw */
-             goto err_bad_input;
+            goto err_bad_input;
 
         data = (ptm_hdata *)&input.body;
-        remain = htobe32(data->u.req.length);
+        remain = be32toh(data->u.req.length);
         n -= sizeof(data->u.req.length);
+        if (remain < n)
+            goto err_bad_input;
         /* n has the available number of bytes to hash */
 
         while (true) {
