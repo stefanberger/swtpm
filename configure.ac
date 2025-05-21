@@ -200,10 +200,10 @@ AC_ARG_WITH([cuse],
 )
 
 if test "$with_cuse" != "no"; then
-    LIBFUSE_CFLAGS=$(pkg-config fuse --cflags 2>/dev/null)
+    LIBFUSE_CFLAGS="$(pkg-config fuse3 --cflags 2>/dev/null)  -DFUSE_USE_VERSION=35"
     if test $? -ne 0; then
         if test "$with_cuse" = "yes"; then
-            AC_MSG_ERROR("Is fuse-devel installed? -- could not get cflags for libfuse")
+            AC_MSG_ERROR("Is fuse3-devel installed? -- could not get cflags for libfuse3")
         else
             with_cuse=no
         fi
@@ -214,9 +214,9 @@ fi
 
 dnl with_cuse is now yes or no
 if test "$with_cuse" != "no"; then
-    LIBFUSE_LIBS=$(pkg-config fuse --libs)
+    LIBFUSE_LIBS=$(pkg-config fuse3 --libs)
     if test $? -ne 0; then
-        AC_MSG_ERROR("Is fuse-devel installed? -- could not get libs for libfuse")
+        AC_MSG_ERROR("Is fuse3-devel installed? -- could not get libs for libfuse3")
     fi
     AC_SUBST([LIBFUSE_CFLAGS])
     AC_SUBST([LIBFUSE_LIBS])

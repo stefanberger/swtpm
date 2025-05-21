@@ -54,7 +54,7 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 
-#include <fuse/cuse_lowlevel.h>
+#include <fuse3/cuse_lowlevel.h>
 
 #include <glib.h>
 
@@ -1581,7 +1581,7 @@ ptm_cuse_lowlevel_main(int argc, char *argv[], const struct cuse_info *ci,
         return 1;
 
     if (param->seccomp_action == SWTPM_SECCOMP_ACTION_NONE && mt)
-        ret = fuse_session_loop_mt(ptm_fuse_session);
+        ret = fuse_session_loop_mt(ptm_fuse_session, NULL);
     else
         ret = fuse_session_loop(ptm_fuse_session);
 
