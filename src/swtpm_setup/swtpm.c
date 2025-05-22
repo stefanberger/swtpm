@@ -315,7 +315,7 @@ static int transfer(struct swtpm *self, void *buffer, size_t buffer_len,
         return 1;
     }
 
-    if (respbuffer) {
+    if (respbuffer && respbuffer_len) {
         /* give caller response even if command failed */
         *respbuffer_len = min((size_t)resplen, respbuffer_size);
         memcpy(respbuffer, resp, *respbuffer_len);
