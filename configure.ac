@@ -200,24 +200,24 @@ AC_ARG_WITH([cuse],
 )
 
 if test "$with_cuse" != "no"; then
-    LIBFUSE_CFLAGS=$(pkg-config fuse --cflags 2>/dev/null)
-    if test $? -ne 0; then
-        if test "$with_cuse" = "yes"; then
-            AC_MSG_ERROR("Is fuse-devel installed? -- could not get cflags for libfuse")
-        else
-            with_cuse=no
-        fi
-    else
+    if pkg-config fuse3; then
+        LIBFUSE_CFLAGS=$(pkg-config fuse3 --cflags)
+        LIBFUSE_LIBS=$(pkg-config fuse3 --libs)
         with_cuse=yes
+    elif pkg-config fuse; then
+        LIBFUSE_CFLAGS="$(pkg-config fuse --cflags) -DWITH_FUSE2"
+        LIBFUSE_LIBS=$(pkg-config fuse --libs)
+        with_cuse=yes
+    else
+        if test "$with_cuse" = "yes"; then
+            AC_MSG_ERROR("Is fuse3-devel or fuse-devel installed? -- could not found libfuse3 or libfuse")
+        fi
+        with_cuse=no
     fi
 fi
 
 dnl with_cuse is now yes or no
-if test "$with_cuse" != "no"; then
-    LIBFUSE_LIBS=$(pkg-config fuse --libs)
-    if test $? -ne 0; then
-        AC_MSG_ERROR("Is fuse-devel installed? -- could not get libs for libfuse")
-    fi
+if test "$with_cuse" = "yes"; then
     AC_SUBST([LIBFUSE_CFLAGS])
     AC_SUBST([LIBFUSE_LIBS])
     AC_DEFINE_UNQUOTED([WITH_CUSE], 1,
@@ -229,6 +229,7 @@ if test "$with_cuse" != "no"; then
     fi
     AC_SUBST([GTHREAD_LIBS])
 fi
+
 AM_CONDITIONAL([WITH_CUSE],[test "$with_cuse" = "yes"])
 AC_MSG_RESULT($with_cuse)
 
@@ -675,6 +676,8 @@ echo "        GLIB_LIBS = $GLIB_LIBS"
 echo "      GNUTLS_LIBS = $GNUTLS_LIBS"
 echo "         GMP_LIBS = $GMP_LIBS"
 echo "       GMP_CFLAGS = $GMP_CFLAGS"
+echo "   LIBFUSE_CFLAGS = $LIBFUSE_CFLAGS"
+echo "     LIBFUSE_LIBS = $LIBFUSE_LIBS"
 echo
 echo "TSS_USER=$TSS_USER"
 echo "TSS_GROUP=$TSS_GROUP"
