@@ -363,7 +363,7 @@ if [ "${SWTPM_INTERFACE}" = "socket+socket" ]; then
 	fi
 
 	${SWTPM_EXE} socket \
-		--tpmstate "dir=${TPM_PATH},backup" \
+		--tpmstate "dir=${TPM_PATH},backup,fsync" \
 		--log "file=$logfile" \
 		--flags not-need-init \
 		--tpm2 \
@@ -398,7 +398,7 @@ if [ "${SWTPM_INTERFACE}" = "socket+socket" ]; then
 	rm -f "$logfile"
 
 	run_swtpm "${SWTPM_INTERFACE}" \
-		--tpmstate "dir=${TPM_PATH},backup" \
+		--tpmstate "dir=${TPM_PATH},backup,fsync" \
 		--key "file=$binkeyfile,mode=aes-cbc,format=binary,remove" \
 		--log "file=$logfile" \
 		--tpm2
