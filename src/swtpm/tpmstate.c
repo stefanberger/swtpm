@@ -123,6 +123,11 @@ bool tpmstate_get_make_backup(void)
     return g_tpmstate_make_backup;
 }
 
+void tpmstate_set_do_fsync(bool do_fsync)
+{
+    g_tpmstate_do_fsync = do_fsync;
+}
+
 bool tpmstate_get_do_fsync(void)
 {
     return g_tpmstate_do_fsync;

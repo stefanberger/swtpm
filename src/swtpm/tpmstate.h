@@ -54,6 +54,7 @@ bool tpmstate_get_locking(void);
 void tpmstate_set_make_backup(bool make_backup);
 bool tpmstate_get_make_backup(void);
 
+void tpmstate_set_do_fsync(bool do_fsync);
 bool tpmstate_get_do_fsync(void);
 
 void tpmstate_global_free(void);
