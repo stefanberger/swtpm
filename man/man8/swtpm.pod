@@ -157,7 +157,7 @@ The following options are support by all interfaces:
 
 =over 4
 
-=item B<--tpmstate dir=E<lt>dirE<gt>|backend-uri=E<lt>uriE<gt>[,mode=E<lt>0...E<gt>][,lock][,backup]>
+=item B<--tpmstate dir=E<lt>dirE<gt>|backend-uri=E<lt>uriE<gt>[,mode=E<lt>0...E<gt>][,lock][,backup][,fsync]>
 
 Use the given path rather than using the environment variable TPM_PATH.
 
@@ -196,6 +196,19 @@ attempts fail, the original state of the files will be restored.
 
 The I<backup> option is only supported by the directory-backend and has no
 effect on other storage backends.
+
+If I<fsync> is specified then the directory storage backend will call fsync
+on the file and the directory of the file whenever state is written to disk.
+This option ensures that all data have been successfully written to physical
+storage before the TPM processes the next command. Using this option lowers
+the probability of TPM state file corruption in case of a power loss. Please
+also see the man page for fsync.
+
+Note that this option may have an impact on the performance of the TPM for
+any command that requires that the TPM's state be written.
+
+The I<fsync> option can be combined with the I<backup> option or can be used
+as an alternative to the I<backup> option.
 
 =item B<--tpm2>
 
@@ -363,7 +376,8 @@ may contain the following:
         "profile-opt-remove-disabled",
         "cmdarg-print-info",
         "tpmstate-opt-lock",
-        "tpmstate-dir-backend-opt-backup"
+        "tpmstate-dir-backend-opt-backup",
+        "tpmstate-dir-backend-opt-fsync"
       ],
       "version": "0.7.0"
     }
@@ -463,6 +477,11 @@ The option parameter I<lock> for the I<--tpmstate> option is supported.
 =item B<tpmstate-dir-backend-opt-backup> (since v0.11)
 
 The option parameter I<backup> for the I<--tpmstate> option is supported
+for the directory storage backend.
+
+=item B<tpmstate-dir-backend-opt-fsync> (since v0.11)
+
+The option parameter I<fsync> for the I<--tpmstate> option is supported
 for the directory storage backend.
 
 =back

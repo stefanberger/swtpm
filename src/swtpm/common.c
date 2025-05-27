@@ -155,6 +155,9 @@ static const OptionDesc tpmstate_opt_desc[] = {
     }, {
         .name = "backup",
         .type = OPT_TYPE_BOOLEAN,
+    }, {
+        .name = "fsync",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -665,13 +668,15 @@ handle_pid_options(const char *options)
  * @mode_is_default: true if user did not provide mode bits but using default
  * @tpmbackend_uri: Point to pointer for backend URI
  * @do_locking: whether the backend should file-lock the storage
+ * @make_backup: whether a backup file should be created
+ * @do_fsync: whether to call fsync on the file and its directory
  *
  * Returns 0 on success, -1 on failure.
  */
 static int
 parse_tpmstate_options(const char *options, char **tpmstatedir, mode_t *mode,
                        bool *mode_is_default, char **tpmbackend_uri,
-                       bool *do_locking, bool *make_backup)
+                       bool *do_locking, bool *make_backup, bool *do_fsync)
 {
     OptionValues *ovs = NULL;
     char *error = NULL;
@@ -690,6 +695,7 @@ parse_tpmstate_options(const char *options, char **tpmstatedir, mode_t *mode,
     directory = option_get_string(ovs, "dir", NULL);
     backend_uri = option_get_string(ovs, "backend-uri", NULL);
     *make_backup = option_get_bool(ovs, "backup", false);
+    *do_fsync = option_get_bool(ovs, "fsync", false);
 
     /* Did user provide mode bits? User can only provide <= 0777 */
     *mode = option_get_mode_t(ovs, "mode", 01000);
@@ -750,13 +756,14 @@ handle_tpmstate_options(const char *options)
     bool mode_is_default = true;
     bool do_locking = false;
     bool make_backup = false;
+    bool do_fsync = false;
 
     if (!options)
         return 0;
 
     if (parse_tpmstate_options(options, &tpmstatedir, &mode,
                                &mode_is_default, &tpmbackend_uri,
-                               &do_locking, &make_backup) < 0) {
+                               &do_locking, &make_backup, &do_fsync) < 0) {
         ret = -1;
         goto error;
     }
@@ -785,6 +792,7 @@ handle_tpmstate_options(const char *options)
     tpmstate_set_mode(mode, mode_is_default);
     tpmstate_set_locking(do_locking);
     tpmstate_set_make_backup(make_backup);
+    tpmstate_set_do_fsync(do_fsync);
 
 error:
     free(tpmstatedir);
