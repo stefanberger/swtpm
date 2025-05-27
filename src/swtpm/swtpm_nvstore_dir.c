@@ -312,7 +312,8 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
                           uint32_t filedata_length,
                           uint32_t tpm_number,
                           const char *name,
-                          const char *uri)
+                          const char *uri,
+                          TPM_BOOL do_fsync)
 {
     TPM_RESULT    rc = 0;
     int           irc;
@@ -357,7 +358,8 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
         if (rc == 0) {
             /* write new permanent state file */
             n = file_write(filepath, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, mode,
-                           !mode_is_default, filedata, filedata_length);
+                           !mode_is_default, filedata, filedata_length,
+                           do_fsync, tpm_state_path);
             if (n < 0) {
                 if (renamed)
                     rename(bakfile, filepath);  /* revert @1 */
@@ -378,7 +380,8 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
 
         if (rc == 0) {
             n = file_write(tmpfile, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, mode,
-                           !mode_is_default, filedata, filedata_length);
+                           !mode_is_default, filedata, filedata_length,
+                           do_fsync, tpm_state_path);
             if (n < 0) {
                 logprintf(STDERR_FILENO,
                           "SWTPM_NVRAM_StoreData_Dir: Error (fatal), data write of %u bytes failed: %s\n",
