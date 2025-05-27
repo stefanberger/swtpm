@@ -73,7 +73,8 @@ char *fd_to_filename(int fd);
 ssize_t write_full(int fd, const void *buffer, size_t buflen);
 ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt);
 ssize_t file_write(const char *filename, int flags, mode_t mode,
-                   bool clear_umask, const void *buffer, size_t buflen);
+                   bool clear_umask, const void *buffer, size_t buflen,
+                   bool do_fsync, const char *fsync_dir);
 
 ssize_t read_eintr(int fd, void *buffer, size_t buflen);
 ssize_t file_read(const char *filename, void **buffer,

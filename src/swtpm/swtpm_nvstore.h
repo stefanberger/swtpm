@@ -124,7 +124,8 @@ struct nvram_backend_ops {
                         uint32_t data_length,
                         uint32_t tpm_number,
                         const char *name,
-                        const char *uri);
+                        const char *uri,
+                        TPM_BOOL do_fsync);
     TPM_RESULT (*delete)(uint32_t tpm_number,
                          const char *name,
                          TPM_BOOL mustExist,

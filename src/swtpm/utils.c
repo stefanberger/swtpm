@@ -340,6 +340,53 @@ ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt)
 }
 
 /*
+ * fsync_eintr: fsync and handle EINTR
+ *
+ * @fd: file descriptor to fsync on
+ *
+ * Returns -1 in case an error occurred, 0 otherwise.
+ */
+static int fsync_eintr(int fd)
+{
+    int n;
+
+    while (true) {
+        n = fsync(fd);
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+        return n;
+    }
+}
+
+/*
+ * fsync_on_dir: Call fsync() on a directory
+ *
+ * @fsync_dir: name of the directory to fsync on
+ *
+ * Returns -1 on error with errno set, 0 otherwise.
+ */
+static int fsync_on_dir(const char *fsync_dir)
+{
+    int dir_fd;
+    int res = 0;
+
+    dir_fd = open(fsync_dir, O_RDONLY);
+    if (dir_fd < 0)
+        return -1;
+
+    if (fsync_eintr(dir_fd) < 0)
+        res = -1;
+
+    if (close(dir_fd) < 0)
+        res = -1;
+
+    return res;
+}
+
+/*
  * file_write: Write a buffer to a file.
  *
  * @filename: filename
@@ -348,11 +395,14 @@ ssize_t writev_full(int fd, const struct iovec *iov, int iovcnt)
  * @clear_umask: whether to clear the umask and restore it after
  * @buffer: buffer
  * @buflen: length of buffer
+ * @do_fsync: whether to call fsync on the file and directory
+ * @fsync_dir: the directory to call fsync on; may be NULL
  *
  * Returns -1 in case an error occurred, number of bytes written otherwise.
  */
 ssize_t file_write(const char *filename, int flags, mode_t mode,
-                   bool clear_umask, const void *buffer, size_t buflen)
+                   bool clear_umask, const void *buffer, size_t buflen,
+                   bool do_fsync, const char *fsync_dir)
 {
     mode_t orig_umask = 0;
     ssize_t res;
@@ -373,8 +423,14 @@ ssize_t file_write(const char *filename, int flags, mode_t mode,
     if (write_full(fd, buffer, buflen) != res)
         res = -1;
 
+    if (do_fsync && fsync_eintr(fd) < 0)
+        res = -1;
+
     if (close(fd) < 0)
         res = -1;
+
+    if (do_fsync && fsync_dir)
+        res = fsync_on_dir(fsync_dir);
 
     if (res < 0)
         unlink(filename);

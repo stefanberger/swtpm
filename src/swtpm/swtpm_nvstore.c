@@ -418,7 +418,7 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
     if (rc == 0) {
         backend_uri = tpmstate_get_backend_uri();
         rc = g_nvram_backend_ops->store(filedata, filedata_length, tpm_number, name,
-                                        backend_uri);
+                                        backend_uri, tpmstate_get_do_fsync());
     }
 
     tlv_data_free(td, td_len);

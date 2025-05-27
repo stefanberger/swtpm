@@ -355,7 +355,8 @@ SWTPM_NVRAM_StoreData_Linear(unsigned char *filedata,
                              uint32_t filedata_length,
                              uint32_t tpm_number SWTPM_ATTR_UNUSED,
                              const char *name,
-                             const char *uri)
+                             const char *uri,
+                             TPM_BOOL do_fsync)
 {
     TPM_RESULT rc = 0;
     TPM_BOOL needs_hdr_flush = FALSE;
