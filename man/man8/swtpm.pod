@@ -194,8 +194,8 @@ decryption key). Otherwise, it will try to start with the permanent state file
 first and if this fails, it will try to start with the backup file. If both
 attempts fail, the original state of the files will be restored.
 
-The I<backup> option is only supported by the directory-backend and has no
-effect on other storage backends.
+The I<backup> option is only supported by the directory-backend and is
+rejected by other storage backends.
 
 If I<fsync> is specified then the directory storage backend will call fsync
 on the file and the directory of the file whenever state is written to disk.

@@ -13,6 +13,7 @@
 #include "swtpm_debug.h"
 #include "swtpm_nvstore.h"
 #include "swtpm_nvstore_linear.h"
+#include "tpmstate.h"
 #include "logging.h"
 #include "utils.h"
 
@@ -229,6 +230,12 @@ SWTPM_NVRAM_Prepare_Linear(const char *uri)
     TPM_RESULT rc = 0;
 
     TPM_DEBUG("SWTPM_NVRAM_Prepare_Linear: uri='%s'\n", uri);
+
+    if (tpmstate_get_make_backup()) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_PrepareLinear: The backup option is not supported with this storage backend\n");
+        return TPM_FAIL;
+    }
 
     if (state.initialized) {
         if (strcmp(state.loaded_uri, uri) == 0) {
