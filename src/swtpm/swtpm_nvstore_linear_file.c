@@ -1,6 +1,7 @@
 #include "config.h"
 
 #define _GNU_SOURCE
+#include <limits.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -230,13 +231,24 @@ SWTPM_NVRAM_LinearFile_Flush(const char* uri SWTPM_ATTR_UNUSED,
         logprintf(STDERR_FILENO, "%s: sysconf failed: %s\n",
                   __func__, strerror(errno));
         return TPM_FAIL;
+    } else if (pagesize == 0) {
+        logprintf(STDERR_FILENO, "%s: sysconf returned bad value vor _SC_PAGESIZE: %u\n",
+                  __func__, pagesize);
+        return TPM_FAIL;
     }
     msync_offset = mmap_state.ptr + (offset & ~(pagesize - 1));
 #if defined(__CYGWIN__)
     /* Cygwin uses Win API FlushViewOfFile, which we call with len = 0 */
     msync_count = 0;
 #else
-    msync_count = (count + (pagesize - 1)) & ~(pagesize - 1);
+    /* msync_count = count + (pagesize - 1) & ~(pagesize - 1); */
+    if (__builtin_add_overflow(count, pagesize - 1, &msync_count)) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_LinearFile_Flush: Integer overflow with count %u and pagesize %u\n",
+                  count, pagesize);
+        return TPM_FAIL;
+    }
+    msync_count &= ~(pagesize - 1);
 #endif
 
     TPM_DEBUG("SWTPM_NVRAM_LinearFile_Flush: msync %d@0x%x\n",
