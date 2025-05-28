@@ -361,8 +361,13 @@ SWTPM_NVRAM_StoreData_Dir(unsigned char *filedata,
                            !mode_is_default, filedata, filedata_length,
                            do_fsync, tpm_state_path);
             if (n < 0) {
-                if (renamed)
-                    rename(bakfile, filepath);  /* revert @1 */
+                if (renamed) {
+                    if (rename(bakfile, filepath) < 0) {  /* revert @1 */
+                        logprintf(STDERR_FILENO,
+                                  "SWTPM_NVRAM_StoreData_Dir: Failed to revert file renaming: %s\n",
+                                  strerror(errno));
+                    }
+                }
 
                 logprintf(STDERR_FILENO,
                           "SWTPM_NVRAM_StoreData_Dir: Error (fatal), data write of %u bytes failed: %s\n",
@@ -545,15 +550,23 @@ SWTPM_NVRAM_RestoreBackup_Dir(const char *uri)
                   "SWTPM_NVRAM_RestoreBackup_Dir: Error (fatal) renaming from backup file: %s\n",
                   strerror(errno));
         if (access_res == 0)
-            rename(bakfile2, filepath); /* revert rename @1 */
+            if (rename(bakfile2, filepath) < 0) { /* revert rename @1 */
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_RestoreBackup_Dir: Failed to revert file renaming: %s\n",
+                          strerror(errno));
+            }
         rc = TPM_FAIL;
     }
 
     if (rc == 0) {
         irc = rename(bakfile2, bakfile);
         if (irc < 0) {
-            rename(filepath, bakfile); /* revert @2 */
-            rename(bakfile2, filepath);/* revert @1 */
+            if (rename(filepath, bakfile) < 0 || /* revert @2 */
+                rename(bakfile2, filepath) < 0) {/* revert @1 */
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_RestoreBackup_Dir: Failed to revert file renaming(s): %s\n",
+                          strerror(errno));
+            }
         }
     }
 
