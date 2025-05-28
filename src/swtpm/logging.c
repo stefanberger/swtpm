@@ -231,10 +231,10 @@ void log_global_free(void)
  *
  * Returns the number of bytes written on success, a value < 0 on error.
  */
-static int _logprintf(int fd, const char *format, va_list ap, bool check_indent)
+static ssize_t _logprintf(int fd, const char *format, va_list ap, bool check_indent)
 {
     char *buf = NULL;
-    int ret = 0, len = 0;
+    ssize_t ret = 0, len = 0;
 
     if (logfd == SUPPRESS_LOGGING)
         return 0;
@@ -256,7 +256,12 @@ static int _logprintf(int fd, const char *format, va_list ap, bool check_indent)
         ret = write_full(fd, buf, strlen(buf));
         if (ret < 0)
             goto err_exit;
-        ret += len;
+
+        /* ret += len; overflow will never happen */
+        if (__builtin_add_overflow(ret, len, &ret)) {
+            ret = -1;
+            errno = EOVERFLOW;
+        }
     } else
         ret = 0;
 err_exit:
@@ -275,9 +280,9 @@ cleanup:
  *
  * Returns the number of bytes written on success, a value < 0 on error.
  */
-int logprintf(int fd, const char *format, ...)
+ssize_t logprintf(int fd, const char *format, ...)
 {
-    int ret;
+    ssize_t ret;
     va_list ap;
 
     va_start(ap, format);
@@ -299,9 +304,9 @@ int logprintf(int fd, const char *format, ...)
  *
  * Returns the number of bytes written on success, a value < 0 on error.
  */
-int logprintfA(int fd, unsigned int indent, const char *format, ...)
+ssize_t logprintfA(int fd, unsigned int indent, const char *format, ...)
 {
-    int ret;
+    ssize_t ret;
     va_list ap;
     char spaces[20];
 
