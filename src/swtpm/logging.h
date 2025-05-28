@@ -44,8 +44,8 @@
 int log_init(const char *filename, bool truncate);
 int log_init_fd(int fd);
 int log_set_level(unsigned int level);
-int logprintf(int fd, const char *format, ...);
-int logprintfA(int fd, unsigned int indent, const char *format, ...);
+ssize_t logprintf(int fd, const char *format, ...);
+ssize_t logprintfA(int fd, unsigned int indent, const char *format, ...);
 int log_check_string(const char *);
 int log_set_prefix(const char *);
 void log_global_free(void);
