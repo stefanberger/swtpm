@@ -353,7 +353,11 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
                            buffer_len - recvd);
         if (n <= 0)
             return n;
-        recvd += n;
+        /* recvd += n; will never overflow due to buffer_len upper bound */
+        if (__builtin_add_overflow(recvd, n, &recvd)) {
+            errno = EOVERFLOW;
+            return -1;
+        }
         /* we need to at least see the cmd */
         if (recvd < offsetof(struct input, body))
             goto wait_chunk;
