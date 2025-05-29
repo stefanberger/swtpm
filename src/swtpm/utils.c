@@ -281,7 +281,11 @@ ssize_t write_full(int fd, const void *buffer, size_t buflen)
                 continue;
             return -1;
         }
-        written += n;
+        /* written += n; will never overflow */
+        if (__builtin_add_overflow(written, n, &written)) {
+            errno = EOVERFLOW;
+            return 1;
+        }
         buffer = (const char *)buffer + n;
     }
     return written;
