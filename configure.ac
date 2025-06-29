@@ -174,16 +174,8 @@ esac
 
 PKG_CHECK_MODULES([LIBTASN1],[libtasn1])
 
-PKG_CHECK_MODULES(
-	[LIBTPMS],
-	[libtpms >= 0.10],
-	,
-	AC_MSG_ERROR("libtpms >= 0.10 required or no libtpms.pc found; please set PKG_CONFIG_PATH to the directory where libtpms.pc is located")
-)
-LDFLAGS="$LDFLAGS $LIBTPMS_LIBS"
-CFLAGS="$CFLAGS $LIBTPMS_CFLAGS"
+PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.10])
 
-AC_SUBST([LIBTPMS_LIBS])
 
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
 AC_SUBST([LIBRT_LIBS])
