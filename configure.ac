@@ -544,22 +544,20 @@ AS_IF([test x"$libtpms_cryptolib" != x"$cryptolib"],
 )
 
 with_vtpm_proxy=no
-case $host_os in
-linux-*)
-  with_vtpm_proxy=yes
-  AC_DEFINE_UNQUOTED([WITH_VTPM_PROXY], 1,
+AS_CASE([$host_os],
+    [linux-*],
+    [with_vtpm_proxy=yes
+    AC_DEFINE_UNQUOTED([WITH_VTPM_PROXY], 1,
                      [whether to build in vTPM proxy support (Linux only)])
-esac
+    ]
+)
 
 dnl Seccomp profile using -lseccomp (Linux only)
-case $host_os in
-linux-*)
-  with_seccomp_default=yes
-  ;;
-*)
-  with_seccomp_default=no
-  ;;
-esac
+AS_CASE([$host_os],
+    [linux-*],
+    [with_seccomp_default=yes],
+    [with_seccomp_default=no]
+)
 
 AC_MSG_CHECKING([for whether to build with seccomp profile])
 AC_ARG_WITH([seccomp],
@@ -569,19 +567,12 @@ AC_ARG_WITH([seccomp],
   AC_MSG_RESULT([$with_seccomp])
 )
 
-if test "$with_seccomp" != "no"; then
-  LIBSECCOMP_CFLAGS=$(pkg-config libseccomp --cflags 2>/dev/null)
-  if test $? -ne 0; then
-    AC_MSG_ERROR("Is libseccomp-devel installed? -- could not get cflags for libseccomp")
-  else
-    with_libseccomp=yes
-  fi
-  LIBSECCOMP_LIBS=$(pkg-config --libs libseccomp)
-  AC_SUBST([LIBSECCOMP_LIBS])
-  AC_SUBST([LIBSECCOMP_CFLAGS])
-  AC_DEFINE_UNQUOTED([WITH_SECCOMP], 1,
-                     [whether to build in seccomp profile (Linux only)])
-fi
+AS_IF([test "x$with_seccomp" != "xno"],
+    [PKG_CHECK_MODULES([LIBSECCOMP],[libseccomp])
+    AC_DEFINE_UNQUOTED([WITH_SECCOMP], 1,
+        [whether to build in seccomp profile (Linux only)])
+    ]
+)
 
 MY_CFLAGS="$CFLAGS"
 MY_LDFLAGS="$LDFLAGS"
