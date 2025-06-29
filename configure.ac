@@ -214,20 +214,7 @@ PKG_CHECK_MODULES([JSON_GLIB], [json-glib-1.0])
 
 PKG_CHECK_MODULES([GLIB], [glib-2.0])
 
-
-GMP_CFLAGS=$(pkg-config --cflags gmp)
-if test $? -ne 0; then
-   dnl Older gmp development packages did not provide pkg-config file
-   AC_MSG_WARN("Is libgmp-dev/gmp-devel installed? -- could not get cflags; assuming it is installed")
-fi
-AC_SUBST([GMP_CFLAGS])
-
-GMP_LIBS=$(pkg-config --libs gmp)
-if test $? -ne 0; then
-   AC_MSG_WARN("Is libgmp-dev/gmp-devel installed? -- could not get libs; assuming -lgmp")
-   GMP_LIBS="-lgmp"
-fi
-AC_SUBST([GMP_LIBS])
+PKG_CHECK_MODULES([GMP], [gmp])
 
 AC_MSG_CHECKING([for whether to build with chardev interface])
 
