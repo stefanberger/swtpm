@@ -458,10 +458,11 @@ dnl Check linker for 'relro' and 'now'
 AC_ARG_ENABLE([test-coverage],
   AS_HELP_STRING([--enable-test-coverage], [Enable test coverage flags]))
 
-if test "x$enable_test_coverage" = "xyes"; then
-	COVERAGE_CFLAGS="-fprofile-arcs -ftest-coverage"
-	COVERAGE_LDFLAGS="-fprofile-arcs"
-fi
+AS_IF([test "x$enable_test_coverage" = "xyes"],
+    [COVERAGE_CFLAGS="-fprofile-arcs -ftest-coverage"
+    COVERAGE_LDFLAGS="-fprofile-arcs"
+    ]
+)
 
 AC_ARG_ENABLE([sanitizers],
   AS_HELP_STRING([--enable-sanitizers], [Enable address/undefined sanitizers]))
