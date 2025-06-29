@@ -221,17 +221,9 @@ fi
 AM_CONDITIONAL([WITH_CUSE],[test "$with_cuse" = "yes"])
 AC_MSG_RESULT($with_cuse)
 
-JSON_GLIB_CFLAGS=$(pkg-config --cflags json-glib-1.0)
-if test $? -ne 0; then
-   AC_MSG_ERROR("Is libjson-glib-dev/json-glib-devel installed? -- could not get cflags")
-fi
-AC_SUBST([JSON_GLIB_CFLAGS])
+PKG_CHECK_MODULES([JSON_GLIB], [json-glib-1.0])
 
-JSON_GLIB_LIBS=$(pkg-config --libs json-glib-1.0)
-if test $? -ne 0; then
-   AC_MSG_ERROR("Is libjson-glib-dev/json-glib-devel installed? -- could not get libs")
-fi
-AC_SUBST([JSON_GLIB_LIBS])
+
 
 GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
 if test $? -ne 0; then
