@@ -236,68 +236,30 @@ AC_ARG_WITH([gnutls],
             [with_gnutls=check]
 )
 
-if test "x$with_gnutls" != "xno"; then
-    GNUTLS_LDFLAGS=$(pkg-config --libs gnutls)
-    if test $? -ne 0; then
-        if test "x$with_gnutls" = "xyes"; then
-            AC_MSG_ERROR("Is gnutls installed? -- could not get libs for gnutls")
-        else
-            with_gnutls=no
-        fi
-    fi
-fi
+dnl certtool changed how it takes private key passwords
+dnl 3.3.29 is too old (RHEL 7); we need at least gnutls 3.4.0
 
-if test "x$with_gnutls" != "xno"; then
+AS_IF([test "x$with_gnutls" != "xno"],
+    [PKG_CHECK_MODULES([GNUTLS],
+        [gnutls >= 3.4.0],
+        [],
+        [AS_IF([test "x$with_gnutls" = "xyes"],
+            [AC_MSG_ERROR("Is gnutls installed? -- could not get libs for gnutls")],
+            [with_gnutls=no]
+        )]
+    )
     AC_PATH_PROG([GNUTLS_CERTTOOL], certtool)
-    if test "x$GNUTLS_CERTTOOL" = "x"; then
-        if test "x$with_gnutls" = "xyes"; then
-            AC_MSG_ERROR("Could not find certtool. Is gnutls-utils/gnutls-bin installed?")
-        else
-            with_gnutls=no
-        fi
-    fi
-    dnl certtool changed how it takes private key passwords
-    dnl 3.3.29 is too old (RHEL 7); we need at least gnutls 3.4.0
-    AC_MSG_CHECKING([for gnutls 3.4.0 or later])
-    $(pkg-config gnutls --atleast-version=3.4.0)
-    if test $? -ne 0; then
-        AC_MSG_ERROR([gnutls 3.4.0 is required])
-    fi
-    AC_MSG_RESULT([yes])
-fi
+    AS_IF([test "x$GNUTLS_CERTTOOL" = "x" && test "x$with_gnutls" = "xyes"],
+        [AC_MSG_ERROR("Could not find certtool. Is gnutls-utils/gnutls-bin installed?")],
+        [test "x$GNUTLS_CERTTOOL" = "x"],
+        [with_gnutls=no]
+    )
+    AS_IF([test "x$with_gnutls" != "xno"],[with_gnutls="yes"])
+    ]
+)
 
-if test "x$with_gnutls" != "xno"; then
-    ORIG_CFLAGS="$CFLAGS"
-    GNUTLS_CFLAGS=$(pkg-config gnutls --cflags)
-    CFLAGS="$CFLAGS $GNUTLS_CFLAGS $GNUTLS_LDFLAGS"
-    AC_CHECK_LIB([gnutls], [gnutls_load_file], [
-                 GNUTLS_LIBS=$(pkg-config gnutls --libs)
-             ],
-             [if test "x$with_gnutls" = "xyes"; then
-                 AC_MSG_ERROR([GNUTLS >= 3.1.0 library not found: libgnutls.so])
-              else
-                 with_gnutls="no"
-              fi])
-    CFLAGS="$ORIG_CFLAGS"
-fi
-
-if test "x$with_gnutls" != "xno"; then
-    ORIG_CFLAGS="$CFLAGS"
-    CFLAGS="$CFLAGS $GNUTLS_CFLAGS"
-    AC_CHECK_HEADER(gnutls/abstract.h, [], \
-             [if test "x$with_gnutls" = "xyes"; then
-                 AC_MSG_ERROR([GNUTLS >= 3.1.0 library header not found: gnutls/abstract.h])
-              else
-                 with_gnutls="no"
-              fi])
-    CFLAGS="$ORIG_CFLAGS"
-fi
-
-if test "x$with_gnutls" != "xno"; then
-    with_gnutls="yes"
-fi
 AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" = "xyes"])
-AC_SUBST([GNUTLS_LIBS])
+
 
 DEFAULT_PCR_BANKS="sha256"
 AC_ARG_ENABLE([default-pcr-banks],
