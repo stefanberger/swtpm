@@ -354,60 +354,63 @@ AC_SUBST([DEFAULT_PCR_BANKS])
 
 dnl tests and tools needed for tests
 AC_ARG_ENABLE([tests],
-	AS_HELP_STRING([--disable-tests], [Disable test; tools only needed for tests need not be installed]),
-	[case "${enableval}" in
-	yes) enable_tests=yes;;
-	no)  enable_tests=no;;
-	*) AC_MSG_ERROR([bad value ${enableval} for --disable-tests])
-	esac], [
-		enable_tests=yes
-	]
+    [AS_HELP_STRING([--disable-tests], [Disable test; tools only needed for tests need not be installed])],
+    [AS_CASE([$enableval],
+        [yes],
+        [enable_tests=yes],
+        [no],
+        [enable_tests=no],
+        [AC_MSG_ERROR([bad value ${enableval} for --disable-tests])]
+    )],
+    [enable_tests=yes]
 )
 AM_CONDITIONAL(ENABLE_TESTS, [test x$enable_tests = xyes])
 
 have_tcsd=no
-AS_IF([test "$enable_tests" = "yes"],[
-	dnl We either need netstat (more common across systems) or 'ss' for test cases
-	AC_PATH_PROG([NETSTAT], [netstat])
-	if test "x$NETSTAT" = "x"; then
-		AC_PATH_PROG([SS], [ss])
-		if test "x$SS" = "x"; then
-			AC_MSG_ERROR(['netstat' and 'ss' tools are missing for tests: net-tools OR iproute/iproute2 package])
-		fi
-	fi
+AS_IF([test "x$enable_tests" = "xyes"],[
+    dnl We either need netstat (more common across systems) or 'ss' for test cases
+    AC_PATH_PROG([NETSTAT], [netstat])
 
-	AC_PATH_PROG([TCSD], tcsd)
-	if test "x$TCSD" = "x"; then
-		have_tcsd=no
-		AC_MSG_WARN([tcsd could not be found; typically need it for tss user account and tests])
-	else
-		have_tcsd=yes
-	fi
+    AS_IF([test "x$NETSTAT" = "x"],
+        [AC_PATH_PROG([SS], [ss])
+        AS_IF([test "x$SS" = "x"],
+            [AC_MSG_ERROR(['netstat' and 'ss' tools are missing for tests: net-tools OR iproute/iproute2 package])]
+        )
+        ]
+    )
 
-	AC_PATH_PROG([EXPECT], expect)
-	if test "x$EXPECT" = "x"; then
-		AC_MSG_ERROR([expect is required: expect package])
-	fi
+    AC_PATH_PROG([TCSD], tcsd)
+    AS_IF([test "x$TCSD" = "x"],
+        [have_tcsd=no,
+        AC_MSG_WARN([tcsd could not be found; typically need it for tss user account and tests])
+        ],
+        [have_tcsd=yes]
+    )
 
-	AC_PATH_PROG([GAWK], gawk)
-	if test "x$GAWK" = "x"; then
-		AC_MSG_ERROR([gawk is required: gawk package])
-	fi
+    AC_PATH_PROG([EXPECT], expect)
+    AS_IF([test "x$EXPECT" = "x"],
+        AC_MSG_ERROR([expect is required: expect package])
+    )
 
-	AC_PATH_PROG([SOCAT], socat)
-	if test "x$SOCAT" = "x"; then
-		AC_MSG_ERROR([socat is required: socat package])
-	fi
+    AC_PATH_PROG([GAWK], gawk)
+    AS_IF([test "x$GAWK" = "x"],
+        AC_MSG_ERROR([gawk is required: gawk package])
+    )
 
-	AC_PATH_PROG([BASE64], base64)
-	if test "x$BASE64" = "x"; then
-		AC_MSG_ERROR([base64 is required: base64 package])
-	fi
+    AC_PATH_PROG([SOCAT], socat)
+    AS_IF([test "x$SOCAT" = "x"],
+        AC_MSG_ERROR([socat is required: socat package])
+    )
 
-	AC_PATH_PROG([CP], cp)
-	if test "x$CP" = "x"; then
-		AC_MSG_ERROR([cp is required])
-	fi
+    AC_PATH_PROG([BASE64], base64)
+    AS_IF([test "x$BASE64" = "x"],
+        AC_MSG_ERROR([base64 is required: base64 package])
+    )
+
+    AC_PATH_PROG([CP], cp)
+    AS_IF([test "x$CP" = "x"],
+	AC_MSG_ERROR([cp is required])
+    )
 ])
 AM_CONDITIONAL([HAVE_TCSD], test "$have_tcsd" != "no")
 
