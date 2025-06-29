@@ -419,44 +419,41 @@ AM_PATH_PYTHON([3.3])
 AC_ARG_ENABLE([hardening],
   AS_HELP_STRING([--disable-hardening], [Disable hardening flags]))
 
-if test "x$enable_hardening" != "xno"; then
-	# Some versions of gcc fail with -Wstack-protector,
-	# some with -Wstack-protector-strong enabled
-	if ! $CC -fstack-protector-strong -Wstack-protector $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null; then
-		if $CC -fstack-protector -Wstack-protector $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null; then
-			HARDENING_CFLAGS="-fstack-protector -Wstack-protector"
-		fi
-	else
-		HARDENING_CFLAGS="-fstack-protector-strong -Wstack-protector"
-	fi
-
-	dnl Only support -D_FORTIFY_SOURCE=2 and have higher levels passed in by user
-	dnl since they may create more overhead
-	if $CC $CFLAGS -Werror -D_FORTIFY_SOURCE=2 $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null; then
-		HARDENING_CFLAGS="$HARDENING_CFLAGS -D_FORTIFY_SOURCE=2"
-	fi
-	dnl Check linker for 'relro' and 'now'
-	save_CFLAGS="$CFLAGS"
-	CFLAGS="-Wl,-z,relro -Werror"
-	AC_MSG_CHECKING([whether linker supports -Wl,-z,relro])
-	AC_LINK_IFELSE(
-		[AC_LANG_SOURCE([[int main() { return 0; }]])],
-		[HARDENING_LDFLAGS="$HARDENING_LDFLAGS -Wl,-z,relro"
-		 AC_MSG_RESULT(yes)],
-		[AC_MSG_RESULT(no)]
-	)
-	CFLAGS="-Wl,-z,now -Werror"
-	AC_MSG_CHECKING([whether linker supports -Wl,-z,now])
-	AC_LINK_IFELSE(
-		[AC_LANG_SOURCE([[int main() { return 0; }]])],
-		[HARDENING_LDFLAGS="$HARDENING_LDFLAGS -Wl,-z,now"
-		 AC_MSG_RESULT(yes)],
-		[AC_MSG_RESULT(no)]
-	)
-	CFLAGS="$save_CFLAGS"
-	AC_SUBST([HARDENING_CFLAGS])
-	AC_SUBST([HARDENING_LDFLAGS])
-fi
+AS_IF([test "x$enable_hardening" != "xno"],
+dnl Some versions of gcc fail with -Wstack-protector,
+dnl some with -Wstack-protector-strong enabled
+    [AS_IF([! $CC -fstack-protector-strong -Wstack-protector $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null],
+        [AS_IF([ $CC -fstack-protector -Wstack-protector $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null],
+            [HARDENING_CFLAGS="-fstack-protector -Wstack-protector"])],
+        [HARDENING_CFLAGS="-fstack-protector-strong -Wstack-protector"])
+dnl Only support -D_FORTIFY_SOURCE=2 and have higher levels passed in by user
+dnl since they may create more overhead
+    AS_IF([$CC $CFLAGS -Werror -D_FORTIFY_SOURCE=2 $srcdir/include/swtpm/tpm_ioctl.h 2>/dev/null],
+        [HARDENING_CFLAGS="$HARDENING_CFLAGS -D_FORTIFY_SOURCE=2"])
+dnl Check linker for 'relro' and 'now'
+    save_CFLAGS="$CFLAGS"
+    CFLAGS="-Wl,-z,relro -Werror"
+    AC_MSG_CHECKING([whether linker supports -Wl,-z,relro])
+    AC_LINK_IFELSE(
+        [AC_LANG_SOURCE([[int main() { return 0; }]])],
+        [HARDENING_LDFLAGS="$HARDENING_LDFLAGS -Wl,-z,relro"
+        AC_MSG_RESULT(yes)
+        ],
+        [AC_MSG_RESULT(no)]
+    )
+    CFLAGS="-Wl,-z,now -Werror"
+    AC_MSG_CHECKING([whether linker supports -Wl,-z,now])
+    AC_LINK_IFELSE(
+        [AC_LANG_SOURCE([[int main() { return 0; }]])],
+        [HARDENING_LDFLAGS="$HARDENING_LDFLAGS -Wl,-z,now"
+        AC_MSG_RESULT(yes)],
+        [AC_MSG_RESULT(no)]
+    )
+    CFLAGS="$save_CFLAGS"
+    AC_SUBST([HARDENING_CFLAGS])
+    AC_SUBST([HARDENING_LDFLAGS])
+    ]
+)
 
 AC_ARG_ENABLE([test-coverage],
   AS_HELP_STRING([--enable-test-coverage], [Enable test coverage flags]))
