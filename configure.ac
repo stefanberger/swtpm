@@ -223,19 +223,8 @@ AC_MSG_RESULT($with_cuse)
 
 PKG_CHECK_MODULES([JSON_GLIB], [json-glib-1.0])
 
+PKG_CHECK_MODULES([GLIB], [glib-2.0])
 
-
-GLIB_CFLAGS=$(pkg-config --cflags glib-2.0)
-if test $? -ne 0; then
-   AC_MSG_ERROR("Is libglib-2.0-dev/glib2-devel installed? -- could not get cflags")
-fi
-AC_SUBST([GLIB_CFLAGS])
-
-GLIB_LIBS=$(pkg-config --libs glib-2.0)
-if test $? -ne 0; then
-   AC_MSG_ERROR("Is libglib-2.0-dev/glib2-devel installed? -- could not get libs")
-fi
-AC_SUBST([GLIB_LIBS])
 
 GMP_CFLAGS=$(pkg-config --cflags gmp)
 if test $? -ne 0; then
