@@ -97,11 +97,11 @@ dnl Check for SELinux policy support
 
 AS_IF([test "x$with_selinux" != "xno"],
     [AC_PATH_PROG([SEMODULE], semodule)
-     AS_IF([test -f /usr/share/selinux/devel/Makefile && test "x$SEMODULE" != "x"],
+    AS_IF([test -f /usr/share/selinux/devel/Makefile && test "x$SEMODULE" != "x"],
         [with_selinux="yes"],
         [test "x$with_selinux" = "xyes"],
         [AC_MSG_ERROR(["Is selinux-policy-devel installed?"])]
-     )
+    )
     ]
 )
 
@@ -139,28 +139,28 @@ AC_ARG_WITH([openssl],
             [],
             [])
 
-case "$cryptolib" in
-openssl)
-	AC_CHECK_LIB(crypto,
-		      [AES_set_encrypt_key],
-		      [true],
-		      AC_MSG_ERROR(Faulty openssl crypto library))
-	AC_CHECK_HEADERS([openssl/aes.h],[],
-			 AC_MSG_ERROR(Is openssl-devel/libssl-dev installed?))
-	AC_MSG_RESULT([Building with openssl crypto library])
-	LIBCRYPTO_LIBS=$(pkg-config --libs libcrypto)
-	AC_SUBST([LIBCRYPTO_LIBS])
-	AC_CHECK_HEADERS([openssl/fips.h],
-	                 [AC_DEFINE_UNQUOTED([HAVE_OPENSSL_FIPS_H], 1,
-	                                     [whether openssl/fips.h is available])]
-	                 )
-	AC_CHECK_LIB(crypto,
-		     [FIPS_mode_set],
-		     [AC_DEFINE_UNQUOTED([HAVE_OPENSSL_FIPS_MODE_SET_API], 1,
-		                         [whether FIPS_mode_set API is available])]
-		     )
-	;;
-esac
+AS_CASE([$cryptolib],[openssl],
+    [PKG_CHECK_MODULES([LIBCRYPTO],[libcrypto])
+     AC_CHECK_LIB(crypto,
+        [AES_set_encrypt_key],
+        [true],
+        AC_MSG_ERROR(Faulty openssl crypto library)
+     )
+    AC_CHECK_HEADERS([openssl/aes.h],[],
+        AC_MSG_ERROR(Is openssl-devel/libssl-dev installed?))
+    AC_MSG_RESULT([Building with openssl crypto library])
+
+    AC_CHECK_HEADERS([openssl/fips.h],
+        [AC_DEFINE_UNQUOTED([HAVE_OPENSSL_FIPS_H], 1,
+            [whether openssl/fips.h is available])]
+    )
+    AC_CHECK_LIB(crypto,
+        [FIPS_mode_set],
+        [AC_DEFINE_UNQUOTED([HAVE_OPENSSL_FIPS_MODE_SET_API], 1,
+            [whether FIPS_mode_set API is available])]
+    )
+    ],
+)
 
 PKG_CHECK_MODULES([LIBTASN1],[libtasn1])
 
