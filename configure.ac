@@ -87,34 +87,24 @@ AC_PROG_INSTALL
 AC_PROG_MKDIR_P
 
 AC_ARG_WITH([selinux],
-   AS_HELP_STRING([--with-selinux],
-      [add SELinux policy extensions @<:@default=check@:>@]))
-m4_divert_text([DEFAULTS], [with_selinux=check])
+    [AS_HELP_STRING([--with-selinux],
+       [add SELinux policy extensions @<:@default=check@:>@])],
+    [],
+    [with_selinux="check"]
+)
 
 dnl Check for SELinux policy support
 
-if test "$with_selinux" != "no"; then
-    if test "$with_selinux" = "check" || test "$with_selinux" = "yes"; then
-        if ! test -f /usr/share/selinux/devel/Makefile; then
-            if test "$with_selinux" = "yes"; then
-                AC_MSG_ERROR("Is selinux-policy-devel installed?")
-            else
-                with_selinux="no"
-            fi
-        fi
-        AC_PATH_PROG([SEMODULE], semodule)
-        if test "x$SEMODULE" = "x"; then
-            if test "$with_selinux" = "yes"; then
-	        AC_MSG_ERROR("Is selinux-policy-devel installed?")
-	    else
-	        with_selinux="no"
-	    fi
-        fi
-        if test "$with_selinux" = "check"; then
-            with_selinux="yes"
-        fi
-    fi
-fi
+AS_IF([test "x$with_selinux" != "xno"],
+    [AC_PATH_PROG([SEMODULE], semodule)
+     AS_IF([test -f /usr/share/selinux/devel/Makefile && test "x$SEMODULE" != "x"],
+        [with_selinux="yes"],
+        [test "x$with_selinux" = "xyes"],
+        [AC_MSG_ERROR(["Is selinux-policy-devel installed?"])]
+     )
+    ]
+)
+
 AM_CONDITIONAL([WITH_SELINUX], [test "x$with_selinux" = "xyes"])
 
 if test "$prefix" = "/usr" && test "$sysconfdir" = '${prefix}/etc'; then
