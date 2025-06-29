@@ -456,7 +456,7 @@ dnl Check linker for 'relro' and 'now'
 )
 
 AC_ARG_ENABLE([test-coverage],
-  AS_HELP_STRING([--enable-test-coverage], [Enable test coverage flags]))
+    AS_HELP_STRING([--enable-test-coverage], [Enable test coverage flags]))
 
 AS_IF([test "x$enable_test_coverage" = "xyes"],
     [COVERAGE_CFLAGS="-fprofile-arcs -ftest-coverage"
@@ -465,21 +465,23 @@ AS_IF([test "x$enable_test_coverage" = "xyes"],
 )
 
 AC_ARG_ENABLE([sanitizers],
-  AS_HELP_STRING([--enable-sanitizers], [Enable address/undefined sanitizers]))
+    AS_HELP_STRING([--enable-sanitizers], [Enable address/undefined sanitizers]))
 
-if test "x$enable_sanitizers" = "xyes"; then
-	save_CFLAGS="$CFLAGS"
-	CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
-	AC_MSG_CHECKING([whether linker supports sanitizer])
-	AC_LINK_IFELSE(
-		[AC_LANG_SOURCE([[int main() { return 0; }]])],
-		[SANITIZER_CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
-		 SANITIZER_LDFLAGS="-fsanitize=address,undefined"
-		 AC_MSG_RESULT(yes)],
-		[AC_MSG_RESULT(no)]
-	)
-	CFLAGS="$save_CFLAGS"
-fi
+AS_IF([test "x$enable_sanitizers" = "xyes"],
+    [save_CFLAGS="$CFLAGS"
+    CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+    AC_MSG_CHECKING([whether linker supports sanitizer])
+    AC_LINK_IFELSE(
+        [AC_LANG_SOURCE([[int main() { return 0; }]])],
+        [SANITIZER_CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+        SANITIZER_LDFLAGS="-fsanitize=address,undefined"
+        AC_MSG_RESULT(yes)
+        ],
+        [AC_MSG_RESULT(no)]
+    )
+    CFLAGS="$save_CFLAGS"
+    ]
+)
 
 AC_ARG_WITH([tss-user],
             AS_HELP_STRING([--with-tss-user=TSS_USER],[The tss user to use]),
