@@ -241,15 +241,16 @@ fi
 AC_SUBST([GMP_LIBS])
 
 AC_MSG_CHECKING([for whether to build with chardev interface])
-case $host_os in
-linux-*)
-    with_chardev=yes
+
+AS_CASE([$host_os],
+    [linux-*],
+    [with_chardev=yes
     AC_DEFINE_UNQUOTED([WITH_CHARDEV], 1,
-                       [whether to build with chardev interface])
-    ;;
-*)
-    with_chardev=no
-esac
+        [whether to build with chardev interface])
+    ],
+    [with_chardev=no]
+)
+
 AM_CONDITIONAL([WITH_CHARDEV],[test "$with_chardev" = "yes"])
 AC_MSG_RESULT($with_chardev)
 
