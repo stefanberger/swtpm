@@ -172,11 +172,7 @@ openssl)
 	;;
 esac
 
-LIBTASN1_LIBS=$(pkg-config --libs libtasn1)
-if test $? -ne 0; then
-	AC_MSG_ERROR("Is libtasn1-devel installed? -- could not get libs for libtasn1")
-fi
-AC_SUBST([LIBTASN1_LIBS])
+PKG_CHECK_MODULES([LIBTASN1],[libtasn1])
 
 PKG_CHECK_MODULES(
 	[LIBTPMS],
