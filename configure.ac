@@ -527,22 +527,21 @@ dnl PKG_CHECK_VAR([libtpms_cryptolib], [libtpms], [cryptolib],
 dnl  [], AC_MSG_ERROR([Could not determine libtpms crypto library.]))
 PKG_PROG_PKG_CONFIG
 
-AC_MSG_CHECKING([Checking the crypto library libtpms is linked to])
-libtpms_cryptolib=`$PKG_CONFIG --variable cryptolib libtpms`
-if test "x$libtpms_cryptolib" = "x"; then
-  AC_MSG_WARN([Could not determine the crypto library libtpms is using, assuming ${cryptolib}])
-  libtpms_cryptolib=${cryptolib}
-fi
-AC_MSG_RESULT($libtpms_cryptolib)
+PKG_CHECK_VAR([libtpms_cryptolib],
+    [libtpms],
+    [cryptolib],
+    [],
+    [AC_MSG_ERROR([Could not determine libtpms crypto library.])]
+)
 
-if test "$libtpms_cryptolib" != "$cryptolib"; then
-  echo "libtpms is using $libtpms_cryptolib; we have to use the same"
-  if test "$cryptolib" = "openssl"; then
-    AC_MSG_ERROR([do not use --with-openssl])
-  else
-    AC_MSG_ERROR([use --with-openssl])
-  fi
-fi
+AS_IF([test x"$libtpms_cryptolib" != x"$cryptolib"],
+    [AC_MSG_NOTICE([libtpms is using $libtpms_cryptolib; we have to use the same])
+    AS_IF([test "$cryptolib" = "openssl"],
+        [AC_MSG_ERROR([do not use --with-openssl])],
+        [AC_MSG_ERROR([use --with-openssl])]
+    )
+    ]
+)
 
 with_vtpm_proxy=no
 case $host_os in
