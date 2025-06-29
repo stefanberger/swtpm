@@ -1,27 +1,27 @@
-#
-# configure.ac
-#
-#       The Initial Developer of the Original Code is International
-#       Business Machines Corporation. Portions created by IBM
-#       Corporation are Copyright (C) 2014 International Business
-#       Machines Corporation. All Rights Reserved.
-#
-#       This program is free software; you can redistribute it and/or modify
-#       it under the terms of the Common Public License as published by
-#       IBM Corporation; either version 1 of the License, or (at your option)
-#       any later version.
-#
-#       This program is distributed in the hope that it will be useful,
-#       but WITHOUT ANY WARRANTY; without even the implied warranty of
-#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#       Common Public License for more details.
-#
-#       You should have received a copy of the Common Public License
-#       along with this program; if not, a copy can be viewed at
-#       http://www.opensource.org/licenses/cpl1.0.php.
-#
-#       This file is derived from tpm-tool's configure.in.
-#
+dnl
+dnl configure.ac
+dnl
+dnl       The Initial Developer of the Original Code is International
+dnl       Business Machines Corporation. Portions created by IBM
+dnl       Corporation are Copyright (C) 2014 International Business
+dnl       Machines Corporation. All Rights Reserved.
+dnl
+dnl       This program is free software; you can redistribute it and/or modify
+dnl       it under the terms of the Common Public License as published by
+dnl       IBM Corporation; either version 1 of the License, or (at your option)
+dnl       any later version.
+dnl
+dnl       This program is distributed in the hope that it will be useful,
+dnl       but WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+dnl       Common Public License for more details.
+dnl
+dnl       You should have received a copy of the Common Public License
+dnl       along with this program; if not, a copy can be viewed at
+dnl       http://www.opensource.org/licenses/cpl1.0.php.
+dnl
+dnl       This file is derived from tpm-tool's configure.in.
+dnl
 
 AC_INIT([swtpm],[0.11.0])
 AC_PREREQ([2.69])
@@ -48,8 +48,8 @@ AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([foreign 1.6])
 AM_SILENT_RULES([yes])
 
-# Allow 64-bit file API on 32-bit systems. Without the change even small
-# files will fail to stat any files on filesystems with 64-bit inodes.
+dnl Allow 64-bit file API on 32-bit systems. Without the change even small
+dnl files will fail to stat any files on filesystems with 64-bit inodes.
 AC_SYS_LARGEFILE
 
 DEBUG=""
@@ -65,7 +65,7 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[create a debug build]),
   [DEBUG="no",
    AC_MSG_RESULT([no])])
 
-# If the user has not set CFLAGS, do something appropriate
+dnl If the user has not set CFLAGS, do something appropriate
 test_CFLAGS=${CFLAGS+set}
 if test "$test_CFLAGS" != set; then
 	if test "$DEBUG" = "yes"; then
