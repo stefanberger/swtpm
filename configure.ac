@@ -52,31 +52,6 @@ dnl Allow 64-bit file API on 32-bit systems. Without the change even small
 dnl files will fail to stat any files on filesystems with 64-bit inodes.
 AC_SYS_LARGEFILE
 
-DEBUG=""
-AC_MSG_CHECKING([for debug-enabled build])
-AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[create a debug build]),
-  [if test "$enableval" = "yes"; then
-     DEBUG="yes"
-     AC_MSG_RESULT([yes])
-   else
-     DEBUG="no"
-     AC_MSG_RESULT([no])
-   fi],
-  [DEBUG="no",
-   AC_MSG_RESULT([no])])
-
-dnl If the user has not set CFLAGS, do something appropriate
-test_CFLAGS=${CFLAGS+set}
-if test "$test_CFLAGS" != set; then
-	if test "$DEBUG" = "yes"; then
-		CFLAGS="-O0 -g -DDEBUG"
-	else
-		CFLAGS="-g -O2"
-	fi
-elif test "$DEBUG" = "yes"; then
-	CFLAGS="$CFLAGS -O0 -g -DDEBUG"
-fi
-
 AC_C_CONST
 AC_C_INLINE
 
