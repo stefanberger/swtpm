@@ -82,21 +82,21 @@ AS_IF([test "x$with_selinux" != "xno"],
 
 AM_CONDITIONAL([WITH_SELINUX], [test "x$with_selinux" = "xyes"])
 
-if test "$prefix" = "/usr" && test "$sysconfdir" = '${prefix}/etc'; then
-	sysconfdir="/etc"
-fi
-if test "$prefix" = "" && test "$datarootdir" = '${prefix}/share'; then
-	datarootdir="/usr/share"
-fi
-if test "$prefix" = "/usr" && test "$localstatedir" = '${prefix}/var'; then
-	localstatedir="/var"
-fi
-if test "x$prefix" = "xNONE"; then
-	prefix="/usr/local"
-fi
-if test "x$exec_prefix" = "xNONE"; then
-	exec_prefix=$prefix
-fi
+AS_IF([test "$prefix" = "/usr" && test "$sysconfdir" = '${prefix}/etc'],
+    [sysconfdir="/etc"]
+)
+AS_IF([test "$prefix" = "" && test "$datarootdir" = '${prefix}/share'],
+    [datarootdir="/usr/share"]
+)
+AS_IF([test "$prefix" = "/usr" && test "$localstatedir" = '${prefix}/var'],
+    [localstatedir="/var"]
+)
+AS_IF([test "x$prefix" = "xNONE"],
+    [prefix="/usr/local"]
+)
+AS_IF([test "x$exec_prefix" = "xNONE"],
+    [exec_prefix=$prefix]
+)
 SYSCONFDIR=`eval echo $sysconfdir`
 DATAROOTDIR=`eval echo $datarootdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
