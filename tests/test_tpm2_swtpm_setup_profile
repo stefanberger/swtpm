@@ -42,6 +42,16 @@ function cleanup()
 	fi
 }
 
+PROFILE_V2=""
+if ${SWTPM_SETUP} \
+	--tpm2 \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--print-capabilities \
+	| grep -q '"default-v2"' ; then
+	PROFILE_V2="default-v2"
+fi
+
+
 test_swtpm_setup_profile()
 {
 	local workdir="${1}"
@@ -310,7 +320,7 @@ exp_response="\{\"ActiveProfile\":\{\"Name\":\"custom:test\",.*,\"Algorithms\":\
 test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
 
 # --profile-remove-disabled must not have any effect on other profiles
-for p in null default-v1; do
+for p in null default-v1 ${PROFILE_V2}; do
 	profile="{\"Name\":\"${p}\"} --profile-remove-disabled fips-host"
 	exp_response="\{\"ActiveProfile\":\{\"Name\":\"${p}\",.*,\"Algorithms\":\".*,rsa-min-size=1024,.*,ecc-min-size=192,.*\",.*\}\}"
 	test_swtpm_setup_profile "${workdir}" "${profile}" "${exp_response}" "" "" "" "0"
