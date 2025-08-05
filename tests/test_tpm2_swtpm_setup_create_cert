@@ -51,24 +51,36 @@ _EOF_
 
 export MY_SWTPM_LOCALCA="${SWTPM_LOCALCA}"
 
+profile="default-v1"
+if ${SWTPM_SETUP} \
+	--tpm2 \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--print-capabilities \
+	| grep '"default-v2"'; then
+	profile="default-v2"
+fi
+
 cat <<_EOF_ > "${workdir}/swtpm_setup.conf"
 create_certs_tool=\${MY_SWTPM_LOCALCA}
 create_certs_tool_config=${workdir}/swtpm-localca.conf
 create_certs_tool_options=${workdir}/swtpm-localca.options
-profile = {"Name": "default-v1"}
+profile = {"Name": "${profile}"}
 _EOF_
 
 # We need to adapt the PATH so the correct swtpm_cert is picked
 export PATH=${TOPBUILD}/src/swtpm_cert:${PATH}
 
 keysizes="2048"
-if ${SWTPM_SETUP} \
-	--tpm2 \
-	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
-	--print-capabilities |
-     grep -q tpm2-rsa-keysize-3072; then
-	keysizes+=" 3072"
-fi
+
+for keysize in 3072 4096; do
+	if ${SWTPM_SETUP} \
+		--tpm2 \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--print-capabilities |
+	     grep -q "tpm2-rsa-keysize-${keysize}"; then
+		keysizes+=" ${keysize}"
+	fi
+done
 
 for keysize in ${keysizes}; do
 	echo "Testing with RSA keysize $keysize"

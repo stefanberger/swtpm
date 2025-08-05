@@ -133,6 +133,23 @@ exp_response_default=$(echo "^\{\"ActiveProfile\":\{" \
                "\}\}\$"| tr -d " ")
 test_swtpm_setup_profile "${workdir}" "builtin:default-v1" "${exp_response_default}" "0"
 
+if ${SWTPM_SETUP} \
+	--tpm2 \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+	--print-capabilities \
+	| grep '"default-v2"'; then
+	# default-v2 is available
+	exp_response_default_v2=$(echo "^\{\"ActiveProfile\":\{" \
+               "\"Name\":\"default-v2\"," \
+               "\"StateFormatLevel\":[0-9]+,"\
+               "\"Commands\":\"[,x[:xdigit:]-]+\","\
+               "\"Algorithms\":\"[,=[:alnum:]-]+\","\
+               "(\"Attributes\":\"[,=[:alnum:]-]+\",)?"\
+               "\"Description\":\"This${SP}profile${SP}enables${SP}all${SP}[[:print:]]+\""\
+               "\}\}\$"| tr -d " ")
+	test_swtpm_setup_profile "${workdir}" "builtin:default-v2" "${exp_response_default_v2}" "0"
+fi
+
 # No local profile must be found
 output=$($SWTPM_SETUP \
 		--tpm2 \

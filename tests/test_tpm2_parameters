@@ -54,6 +54,16 @@ PARAMETERS_3072=(
 	"--createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram --rsa-keysize 3072"
 )
 
+# Tests for 4096 bit RSA keys to be appended to above array if RSA 4096 keys are supported
+PARAMETERS_4096=(
+	"--createek --rsa-keysize 4096 --profile-name default-v2"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --rsa-keysize 4096 --profile-name default-v2"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile.txt --rsa-keysize 4096 --profile-name default-v2"
+	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --rsa-keysize 4096 --profile-name default-v2"
+	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc --rsa-keysize 4096 --profile-name default-v2"
+	"--createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram --rsa-keysize 4096 --profile-name default-v2"
+)
+
 # Open read-only file descriptors referenced in test cases
 exec 100<"${TESTDIR}/data/keyfile256bit.txt"
 exec 101<"${TESTDIR}/data/pwdfile.txt"
@@ -76,6 +86,9 @@ function cleanup()
 
 if $TPMAUTHORING --tpm2 --print-capabilities | grep -q tpm2-rsa-keysize-3072; then
 	PARAMETERS+=( "${PARAMETERS_3072[@]}" )
+fi
+if $TPMAUTHORING --tpm2 --print-capabilities | grep -q tpm2-rsa-keysize-4096; then
+	PARAMETERS+=( "${PARAMETERS_4096[@]}" )
 fi
 
 # swtpm_setup.conf points to the local create_certs.sh
