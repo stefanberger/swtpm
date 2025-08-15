@@ -135,6 +135,7 @@ swtpm_LDADD = \
 swtpm_cuse_DEPENDENCIES = $(privlib_LTLIBRARIES)
 
 swtpm_cuse_SOURCES = \
+	daemonize.c \
 	cuse_tpm.c
 
 swtpm_cuse_CFLAGS = \
