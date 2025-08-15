@@ -84,6 +84,7 @@
 #include "options.h"
 #include "capabilities.h"
 #include "swtpm_utils.h"
+#include "daemonize.h"
 
 /* maximum size of request buffer */
 #define TPM_REQ_MAX 4096
@@ -1521,6 +1522,8 @@ static void ptm_init_done(void *userdata)
     struct cuse_param *param = userdata;
     int ret;
 
+    daemonize_finish();
+
     /* at this point the entry in /dev/ is available */
     if (pidfile_write(getpid()) < 0) {
         ret = -13;
@@ -1653,6 +1656,10 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     bool printprofiles = false;
     bool need_init_cmd = true;
     TPM_RESULT res;
+    char *cuse_argv[2] = {
+        "",
+        "-f", /* foreground; required for storage locking to work */
+    };
 
     memset(&cinfo, 0, sizeof(cinfo));
     memset(&param, 0, sizeof(param));
@@ -1915,6 +1922,13 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         goto exit;
     }
 
+    if (daemonize_prep() == -1) {
+        logprintf(STDERR_FILENO,
+                  "Could not prepare to daemonize: %s\n", strerror(errno));
+        ret = -1;
+        goto exit;
+    }
+
     if (tpmlib_register_callbacks(&cbs) != TPM_SUCCESS) {
         ret = -1;
         goto exit;
@@ -1952,7 +1966,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
 
     g_mutex_unlock(FILE_OPS_LOCK);
 
-    ret = ptm_cuse_lowlevel_main(1, argv, &cinfo, &clops, &param);
+    ret = ptm_cuse_lowlevel_main(2, (char **)&cuse_argv, &cinfo, &clops, &param);
 
 exit:
     free(g_json_profile);
