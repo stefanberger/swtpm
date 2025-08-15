@@ -581,6 +581,18 @@ error_del_pool:
     return -1;
 }
 
+static void tpm_end(void)
+{
+    worker_thread_end();
+
+    if (tpm_running && !g_disable_auto_shutdown)
+        tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
+
+    TPMLIB_Terminate();
+
+    tpm_running = false;
+}
+
 /*
  * ptm_write_fatal_error_response: Write fatal error response
  *
@@ -1190,15 +1202,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         } else {
             init_p = (ptm_init *)in_buf;
 
-            worker_thread_end();
+            tpm_end();
 
-            if (tpm_running && !g_disable_auto_shutdown)
-                tpmlib_maybe_send_tpm2_shutdown(tpmversion,
-                                                &g_lastCommand);
-
-            TPMLIB_Terminate();
-
-            tpm_running = false;
             if (tpm_start(init_p->u.req.init_flags, tpmversion,
                           g_json_profile, &res) < 0) {
                 logprintf(STDERR_FILENO,
@@ -1213,15 +1218,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         break;
 
     case PTM_STOP:
-        worker_thread_end();
-
-        if (tpm_running && !g_disable_auto_shutdown)
-            tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
+        tpm_end();
 
         res = TPM_SUCCESS;
-        TPMLIB_Terminate();
-
-        tpm_running = false;
 
         free(ptm_response);
         ptm_response = NULL;
@@ -1231,15 +1230,9 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         break;
 
     case PTM_SHUTDOWN:
-        worker_thread_end();
-
-        if (tpm_running && !g_disable_auto_shutdown)
-            tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
+        tpm_end();
 
         res = TPM_SUCCESS;
-        TPMLIB_Terminate();
-
-        tpm_running = false;
 
         free(ptm_response);
         ptm_response = NULL;
