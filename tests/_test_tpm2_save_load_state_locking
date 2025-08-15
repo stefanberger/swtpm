@@ -17,11 +17,15 @@ MY_SAVESTATE_STATE_FILE="$TPM_PATH/my.savestate"
 SWTPM_INTERFACE="${SWTPM_INTERFACE:-cuse}"
 SWTPM_CMD_UNIX_PATH="${TPM_PATH}/unix-cmd.sock"
 SWTPM_CTRL_UNIX_PATH="${TPM_PATH}/unix-ctrl.sock"
+LOGFILE="${TPM_PATH}/logfile"
 
 function cleanup()
 {
 	if [ -n "${SWTPM_PID}" ]; then
 		kill_quiet -9 "${SWTPM_PID}"
+	fi
+	if [ -n "${SWTPM2_PID}" ]; then
+		kill_quiet -9 "${SWTPM2_PID}"
 	fi
 	rm -rf "$TPM_PATH"
 }
@@ -53,6 +57,34 @@ if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
 	echo "Error: ${SWTPM_INTERFACE} TPM not running anymore after INIT."
 	exit 1
 fi
+
+# Try to start a 2nd TPM: It must not start due to the locked storage
+SWTPM_PID_SAVE=${SWTPM_PID}
+rm -f "${LOGFILE}"
+
+SWTPM_DEV_NAME="${VTPM_NAME}-2nd" \
+	SWTPM_SERVER_PORT=65484 SWTPM_CTRL_PORT=65485 \
+	SWTPM_CMD_UNIX_PATH="$TPM_PATH/2nd-cmd.sock" \
+	SWTPM_CTRL_UNIX_PATH="$TPM_PATH/2nd-ctrl.sock" \
+	SWTPM_RUN_SWTPM_WONT_START=1 \
+	run_swtpm "${SWTPM_INTERFACE}" \
+	--tpm2 \
+	--tpmstate "dir=$TPM_PATH" \
+	--log "file=${LOGFILE}" \
+	--flags not-need-init
+SWTPM2_PID="${SWTPM_PID}"
+SWTPM_PID=${SWTPM_PID_SAVE}
+
+if wait_process_gone "${SWTPM_PID2}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+if ! grep -q "SWTPM_NVRAM_Lock_Dir: Could not lock access to lockfile" "${LOGFILE}"; then
+	echo "Error: Did not find expected error string in 2nd TPM that could not start"
+	exit 1
+fi
+
 
 # Startup the TPM
 RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')

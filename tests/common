@@ -336,6 +336,9 @@ function run_swtpm_ioctl()
 #
 # @param1: type of interface
 # @param2.. : parameters to pass to 'swtpm'
+#
+# If SWTPM_RUN_SWTPM_WONT_START is set then a start failure is expected
+# and exit will not be called.
 function run_swtpm()
 {
 	local iface=$1; shift
@@ -363,12 +366,16 @@ function run_swtpm()
 			-n "${SWTPM_DEV_NAME##*/}"
 		rc=$?
 		if [ $rc -ne 0 ]; then
-			echo "Could not run ${SWTPM_EXE} using ${iface}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Could not run ${SWTPM_EXE} using ${iface}"
+				exit 1
+			fi
 		fi
 		if wait_for_chardev "${SWTPM_DEV_NAME}" 2; then
-			echo "$SWTPM_DEV_NAME did not appear"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "$SWTPM_DEV_NAME did not appear"
+				exit 1
+			fi
 		fi
 
 		SWTPM_PID=$(ps aux |
@@ -403,19 +410,24 @@ function run_swtpm()
 			--ctrl "type=tcp,port=${SWTPM_CTRL_PORT}" &
 		rc=$?
 		if [ $rc -ne 0 ]; then
+			# Due to '&' above, an error means SWTPM_EXE is bad
 			echo "Could not run ${SWTPM_EXE} using ${iface}"
 			exit 1
 		fi
 		SWTPM_PID=$!
 		if wait_for_serversocket "${SWTPM_SERVER_PORT}" 127.0.0.1 2; then
-			echo "Server did not open port ${SWTPM_SERVER_PORT}"
-			kill -9 "${SWTPM_PID}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Server did not open port ${SWTPM_SERVER_PORT}"
+				kill -9 "${SWTPM_PID}"
+				exit 1
+			fi
 		fi
 		if wait_for_serversocket "${SWTPM_CTRL_PORT}" 127.0.0.1 1; then
-			echo "Server did not open port ${SWTPM_CTRL_PORT}"
-			kill -9 "${SWTPM_PID}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Server did not open port ${SWTPM_CTRL_PORT}"
+				kill -9 "${SWTPM_PID}"
+				exit 1
+			fi
 		fi
 		return 0
 		;;
@@ -444,20 +456,25 @@ function run_swtpm()
 			--ctrl "type=unixio,path=${SWTPM_CTRL_UNIX_PATH}" &
 		rc=$?
 		if [ $rc -ne 0 ]; then
+			# Due to '&' above, an error means SWTPM_EXE is bad
 			echo "Could not run ${SWTPM_EXE} using ${iface}"
 			exit 1
 		fi
 		[ $rc -ne 0 ] && return $rc
 		SWTPM_PID=$!
 		if wait_for_serversocket "${SWTPM_SERVER_PORT}" 127.0.0.1 2; then
-			echo "Server did not open port ${SWTPM_SERVER_PORT}"
-			kill -9 "${SWTPM_PID}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Server did not open port ${SWTPM_SERVER_PORT}"
+				kill -9 "${SWTPM_PID}"
+				exit 1
+			fi
 		fi
 		if wait_for_socketfile "${SWTPM_CTRL_UNIX_PATH}" 1; then
-			echo "Server did not create UnixIO socket ${SWTPM_CTRL_UNIX_PATH}"
-			kill -9 "${SWTPM_PID}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Server did not create UnixIO socket ${SWTPM_CTRL_UNIX_PATH}"
+				kill -9 "${SWTPM_PID}"
+				exit 1
+			fi
 		fi
 		return 0
 		;;
@@ -486,19 +503,24 @@ function run_swtpm()
 			--ctrl "type=tcp,port=${SWTPM_CTRL_PORT}" &
 		rc=$?
 		if [ $rc -ne 0 ]; then
+			# Due to '&' above, an error means SWTPM_EXE is bad
 			echo "Could not run ${SWTPM_EXE} using ${iface}"
 			exit 1
 		fi
 		SWTPM_PID=$!
 		if wait_for_socketfile "${SWTPM_CMD_UNIX_PATH}" 2; then
-			echo "Server did not create UnixIO socket ${SWTPM_CMD_UNIX_PATH}"
-			kill -9 "${SWTPM_PID}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Server did not create UnixIO socket ${SWTPM_CMD_UNIX_PATH}"
+				kill -9 "${SWTPM_PID}"
+				exit 1
+			fi
 		fi
 		if wait_for_serversocket "${SWTPM_CTRL_PORT}" 127.0.0.1 1; then
-			echo "Server did not open port ${SWTPM_CTRL_PORT}"
-			kill -9 "${SWTPM_PID}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Server did not open port ${SWTPM_CTRL_PORT}"
+				kill -9 "${SWTPM_PID}"
+				exit 1
+			fi
 		fi
 		return 0
 		;;
@@ -527,19 +549,24 @@ function run_swtpm()
 			--ctrl "type=unixio,path=${SWTPM_CTRL_UNIX_PATH}" &
 		rc=$?
 		if [ $rc -ne 0 ]; then
+			# Due to '&' above, an error means SWTPM_EXE is bad
 			echo "Could not run ${SWTPM_EXE} using ${iface}"
 			exit 1
 		fi
 		SWTPM_PID=$!
 		if wait_for_socketfile "${SWTPM_CMD_UNIX_PATH}" 2; then
-			echo "Server did not create UnixIO socket ${SWTPM_CMD_UNIX_PATH}"
-			kill -9 "${SWTPM_PID}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Server did not create UnixIO socket ${SWTPM_CMD_UNIX_PATH}"
+				kill -9 "${SWTPM_PID}"
+				exit 1
+			fi
 		fi
 		if wait_for_socketfile "${SWTPM_CTRL_UNIX_PATH}" 1; then
-			echo "Server did not create UnixIO socket ${SWTPM_CTRL_UNIX_PATH}"
-			kill -9 "${SWTPM_PID}"
-			exit 1
+			if [ -z "${SWTPM_RUN_SWTPM_WONT_START}" ]; then
+				echo "Server did not create UnixIO socket ${SWTPM_CTRL_UNIX_PATH}"
+				kill -9 "${SWTPM_PID}"
+				exit 1
+			fi
 		fi
 		return 0
 		;;
