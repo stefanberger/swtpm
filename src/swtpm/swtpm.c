@@ -586,6 +586,9 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         goto error_no_tpm;
 
     if (!need_init_cmd || (infoflags && tpmstate_get_backend_uri())) {
+        if (infoflags)
+            log_init_fd(SUPPRESS_INFO_LOGGING);
+
         mlp.storage_locked = !mlp.incoming_migration;
 
         if ((rc = tpmlib_start(0, mlp.tpmversion, mlp.storage_locked,

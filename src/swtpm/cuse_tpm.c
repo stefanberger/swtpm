@@ -1925,6 +1925,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
     g_mutex_lock(FILE_OPS_LOCK);
 
     if (!need_init_cmd || (infoflags && tpmstate_get_backend_uri())) {
+        if (infoflags)
+            log_init_fd(SUPPRESS_INFO_LOGGING);
+
         if (tpm_start(0, tpmversion, g_json_profile, &res) < 0) {
             ret = -1;
             goto err_unlock;
