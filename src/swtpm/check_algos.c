@@ -577,7 +577,7 @@ _check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
             if (rc) {
                 fix_flags |= ossl_config_disabled_algos[i].fix_flags;
 
-                logprintf(STDERR_FILENO,
+                logprintf(STDOUT_FILENO,
                           "Warning%s: Profile-enabled algorithms contain disabled '%s'\n",
                           disabled_type & DISABLED_BY_FIPS ? "(FIPS)" : "",
                           display);
@@ -595,14 +595,14 @@ _check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
                 if (j >= 0) {
                     v = strtoul(&(algorithms[j][l]), NULL, 10);
                     if (v < key_sizes[i].min_size) {
-                        logprintf(STDERR_FILENO,
+                        logprintf(STDOUT_FILENO,
                                   "Warning(FIPS): Enabled key sizes %s%lu is smaller than required %u.\n",
                                   key_sizes[i].keyword, v, key_sizes[i].min_size);
                         fix_flags |= FIX_DISABLE_FIPS;
                         break;
                     }
                 } else {
-                    logprintf(STDERR_FILENO,
+                    logprintf(STDOUT_FILENO,
                               "Warning(FIPS): Missing statement '%s%u' to restrict key size.\n",
                               key_sizes[i].keyword, key_sizes[i].min_size);
                 }
