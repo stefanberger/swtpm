@@ -56,7 +56,6 @@
 #include <libtpms/tpm_library.h>
 
 #define CONSOLE_LOGGING   2 /* stderr */
-#define SUPPRESS_LOGGING -1
 
 static int logfd = CONSOLE_LOGGING;
 static unsigned int log_level = 1;
@@ -113,7 +112,8 @@ int log_init_fd(int fd)
 {
     int flags;
 
-    close(logfd);
+    if (logfd != STDERR_FILENO && logfd != STDOUT_FILENO)
+        close(logfd);
     logfd = fd;
 
     if (logfd >= 0) {
@@ -237,6 +237,9 @@ static ssize_t _logprintf(int fd, const char *format, va_list ap, bool check_ind
     ssize_t ret = 0, len = 0;
 
     if (logfd == SUPPRESS_LOGGING)
+        return 0;
+
+    if (logfd == SUPPRESS_INFO_LOGGING && fd == STDOUT_FILENO)
         return 0;
 
     if (logfd > 0)

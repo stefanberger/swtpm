@@ -41,6 +41,9 @@
 #include <unistd.h> /* STD???_FILENO */
 #include <stdbool.h>
 
+#define SUPPRESS_LOGGING       -1 /* suppress all logging */
+#define SUPPRESS_INFO_LOGGING  -2 /* suppress only info and warning messages */
+
 int log_init(const char *filename, bool truncate);
 int log_init_fd(int fd);
 int log_set_level(unsigned int level);
