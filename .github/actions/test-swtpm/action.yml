@@ -32,6 +32,25 @@ runs:
           for f in swtpm/tests/*.log; do echo ">>>>>>> $f <<<<<<<"; tail -n 50 $f; done
           exit 1
         fi
+
+        # Check for ASAN and UBSAN reports
+        sanerror=0
+        for log in tests/*.log; do
+          if grep -q "SUMMARY: AddressSanitizer" "${log}"; then
+            echo "ASAN report in ${log}:"
+            cat "${log}"
+            sanerror=1
+          elif grep -q ": runtime error: " "${log}"; then
+            echo "UBSAN report in ${log}:"
+            cat "${log}"
+            sanerror=1
+          fi
+        done
+        if [ "${sanerror}" -eq 1 ]; then
+          echo "Above logs show issues reported by ASAN and/or UBSAN."
+          exit 1
+        fi
+
         set -e
         if [ -n "${COVERALLS_REPO_TOKEN}" ]; then
           uidgid="$(id -nu):$(id -ng)"
