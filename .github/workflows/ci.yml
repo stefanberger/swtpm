@@ -19,6 +19,15 @@ jobs:
       - name: Build libtpms and swtpm and test
         uses: ./.github/actions/test-swtpm
 
+  test-meson:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build libtpms and swtpm and test
+        uses: ./.github/actions/test-meson
+
   test-coveralls:
     runs-on: ubuntu-22.04
     env:
