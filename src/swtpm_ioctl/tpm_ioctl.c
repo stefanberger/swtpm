@@ -91,7 +91,7 @@
 #endif
 
 /* poll timeout that takes into account a busy swtpm creating a key */
-#define DEFAULT_POLL_TIMEOUT 10000 /* ms */
+#define DEFAULT_POLL_TIMEOUT 20000 /* ms */
 
 static unsigned long ioctl_to_cmd(unsigned long ioctlnum)
 {
