@@ -7,6 +7,8 @@ cat <<_EOF_
 /usr/bin/swtpm_ioctl
 /usr/bin/swtpm_localca
 /usr/bin/swtpm_setup
+/usr/lib/tmpfiles.d/swtpm-tmpfiles.conf
+/usr/lib/sysusers.d/swtpm-sysusers.conf
 /usr/share/man/man8/swtpm-create-tpmca.8*
 /usr/share/man/man8/swtpm-localca.8*
 /usr/share/man/man5/swtpm-localca.conf.5*
