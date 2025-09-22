@@ -18,3 +18,5 @@ man3_MANS = \
 		--section=3 $< > $@
 
 EXTRA_DIST = $(man3_MANS) $(man3_PODS)
+
+CLEANFILES = $(man3_MANS)
