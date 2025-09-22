@@ -8,3 +8,5 @@ swtpmincludedir = $(includedir)/swtpm
 
 swtpminclude_HEADERS = \
 	tpm_ioctl.h
+
+CLEANFILES = tpm_ioctl.h.gch

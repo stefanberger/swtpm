@@ -22,3 +22,5 @@ man5_MANS = \
 		--section=5 $< > $@
 
 EXTRA_DIST = $(man5_MANS) $(man5_PODS)
+
+CLEANFILES = $(man5_MANS)
