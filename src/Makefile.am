@@ -17,3 +17,13 @@ if WITH_SELINUX
 SUBDIRS += \
 	selinux
 endif
+
+sysusersdir = $(prefix)/lib/sysusers.d
+sysusers_DATA = swtpm-sysusers.conf
+
+tmpfilesdir = $(prefix)/lib/tmpfiles.d
+tmpfiles_DATA = swtpm-tmpfiles.conf
+
+EXTRA_DIST = \
+	swtpm-sysusers.conf \
+	swtpm-tmpfiles.conf

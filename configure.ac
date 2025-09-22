@@ -502,6 +502,8 @@ AC_CONFIG_FILES([Makefile                   \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_localca/Makefile  \
 		src/swtpm_setup/Makefile    \
+		src/swtpm-sysusers.conf     \
+		src/swtpm-tmpfiles.conf     \
 		src/utils/Makefile          \
 		src/utils/swtpm_conf.h      \
 		man/Makefile                \

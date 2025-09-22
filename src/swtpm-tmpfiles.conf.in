@@ -1,0 +1,1 @@
+d @LOCALSTATEDIR@/lib/swtpm-localca 0750 @TSS_USER@ root
