@@ -79,5 +79,4 @@ tests/test_config
 /debian/swtpm-dev
 /debian/swtpm-libs
 /debian/swtpm-tools
-/debian/swtpm-tools.postinst
 /debian/tmp
