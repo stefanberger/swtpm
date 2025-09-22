@@ -97,25 +97,25 @@ Valid PCR bank names are sha1, sha256, sha384, and sha512.
 
 =item B<rsa_keysize> (since v0.10)
 
-This keyword allows to specify the default RSA keysize to be used if it is
-not provided with a command line option to swtpm_setup. Any value
+This keyword allows the user to specify the default RSA keysize to be used
+if it is not provided with a command line option to swtpm_setup. Any value
 that can be passed to swtpm_setup is also valid here, such as 2048, or
 'max'. The supported key sizes depend on the version of libtpms.
 
 =item B<profile> (since v0.10)
 
-This keyword allows to specify either the name of a profile or a JSON
-map describing the profile, such as 'profile = {"Name": "default-v1"}'.
+This keyword allows the user to specify either the name of a profile or a
+JSON map describing the profile, such as 'profile = {"Name": "default-v1"}'.
 Please also refer to the description of the I<--profile> option for
 swtpm_setup.
 
 =item B<profile_file> (since v0.10)
 
-This keyword allows to specify a default profile file.
+This keyword allows the user to specify a default profile file.
 
 =item B<local_profiles_dir> (since v0.10)
 
-This keyword allows to set a profile directory that contains profiles written
+This keyword allows the user to set a profile directory that contains profiles written
 by users of the system.
 
 =item B<>
