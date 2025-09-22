@@ -63,6 +63,8 @@ Makefile
 /src/swtpm_ioctl/swtpm_ioctl
 /src/swtpm_localca/swtpm_localca
 /src/swtpm_setup/swtpm_setup
+/src/swtpm-sysusers.conf
+/src/swtpm-tmpfiles.conf
 /src/utils/swtpm_conf.h
 /test-driver
 tests/*.log
