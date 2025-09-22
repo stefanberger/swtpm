@@ -488,7 +488,7 @@ for the directory storage backend.
 
 =item B<--print-states> (since v0.7)
 
-This option allows to print out the TPM 1.2 or TPM 2 state blobs
+This option allows the user to print out the TPM 1.2 or TPM 2 state blobs
 that are currently stored in a storage backend. This option requires
 that the storage backend be specified using the I<--tpmstate> option
 and if TPM 2 state blobs are supposed to be shown, the I<--tpm2>
@@ -512,7 +512,7 @@ the 'permall' and 'volatile' states are available.
 
 =item B<--migration [incoming][,release-lock-outgoing]>
 
-This option allows to control the locking of the NVRAM storage
+This option allows the user to control the locking of the NVRAM storage
 for the purpose of supporting migration between hosts that have
 shared storage setup for the swtpm's state directory and if
 locking is supported by the storage backend. The directory storage
@@ -530,11 +530,11 @@ blob.
 =item B<--profile
 name=E<lt>profile-nameE<gt>|profile=E<lt>json-profileE<gt>|file=E<lt>filenameE<gt>|fd=E<lt>fdE<gt>[,remove-disabled=check|fips-host]> (since v0.10)
 
-This option allows to set a profile for a TPM 2. A built-in profile can be
+This option allows the user to set a profile for a TPM 2. A built-in profile can be
 selected by its name using the option parameter I<name=>. With the I<profile=>
 option parameter a JSON-formatted profile can be passed directly. With
 the I<file=> option parameter a JSON-formatted profile will be read from a file.
-The I<fd=> option parameter allows to read it from a file descriptor.
+The I<fd=> option parameter allows the user to read it from a file descriptor.
 
 Profiles must reference the name of a built-in profile. Note that only the
 'custom' profile, or profiles whose name starts with 'custom:', may be modified
