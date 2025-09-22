@@ -90,4 +90,4 @@ EXTRA_DIST = \
 	swtpmcuse.if \
 	swtpmcuse.te
 
-CLEANFILES = *.pp *.pp.bz2 *.if *.te *.fc
+CLEANFILES = *.pp *.pp.bz2 swtpm_libvirt.if swtpm_svirt.if *.fc
