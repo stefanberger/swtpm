@@ -707,7 +707,7 @@ int ctrlchannel_process_fd(int fd,
         data = (ptm_hdata *)&input.body;
         remain = be32toh(data->u.req.length);
         n -= sizeof(data->u.req.length);
-        if (remain < n)
+        if (n < 0 || remain < (uint32_t)n)
             goto err_bad_input;
         /* n has the available number of bytes to hash */
 
