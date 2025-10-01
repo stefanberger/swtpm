@@ -75,7 +75,7 @@ SWTPM_DEV_NAME="${VTPM_NAME}-2nd" \
 SWTPM2_PID="${SWTPM_PID}"
 SWTPM_PID=${SWTPM_PID_SAVE}
 
-if wait_process_gone "${SWTPM_PID2}" 4; then
+if wait_process_gone "${SWTPM2_PID}" 4; then
 	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
 	exit 1
 fi
