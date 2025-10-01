@@ -230,6 +230,13 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
                                 "--dir", certsdir,
                                 NULL
                             }, NULL, FALSE);
+
+        if (flags & SETUP_ALLOW_SIGNING_F) {
+            cmd = concat_arrays(cmd, (const gchar*[]){"--allow-signing", NULL}, TRUE);
+            /* once --allow-signing is passed we need to pass --decryption also */
+            if (flags & SETUP_DECRYPTION_F)
+                cmd = concat_arrays(cmd, (const gchar*[]){"--decryption", NULL}, TRUE);
+        }
         if (gl_LOGFILE != NULL)
             cmd = concat_arrays(cmd, (const gchar*[]){"--logfile", gl_LOGFILE, NULL}, TRUE);
         if (vmid != NULL)
