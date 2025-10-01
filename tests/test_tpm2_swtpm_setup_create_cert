@@ -137,6 +137,12 @@ for keysize in ${keysizes}; do
 		$CERTTOOL --inder --infile "${certfile}" -i
 		exit 1
 	fi
+	if ! $CERTTOOL --inder --infile "${certfile}" -i | grep "Key Usage" -A1 | \
+		grep -q "Digital signature."; then
+		echo "Error: EK file '${certfile}' does not have key usage flag 'Digitial signature' set."
+		$CERTTOOL --inder --infile "${certfile}" -i
+		exit 1
+	fi
 
 	rm -rf "${SIGNINGKEY}" "${ISSUERCERT}" "${CERTSERIAL}" "${USER_CERTSDIR}"/ek-*.crt
 done
