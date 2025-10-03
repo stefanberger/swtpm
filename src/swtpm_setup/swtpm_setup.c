@@ -864,6 +864,7 @@ static int check_state_overwrite(const gchar **swtpm_prg_l, unsigned int flags,
     g_autofree const gchar **my_argv = NULL;
 
     my_argv = concat_arrays((const gchar*[]) {
+                                "socket",
                                 "--print-states",
                                 "--tpmstate",
                                 statearg,
@@ -1080,7 +1081,7 @@ static void usage(const char *prgname, const char *default_config_file)
 static int get_swtpm_capabilities(const gchar **swtpm_prg_l, gboolean is_tpm2,
                                   gchar **standard_output)
 {
-    const gchar *my_argv[] = { "--print-capabilities", is_tpm2 ? "--tpm2" : NULL, NULL };
+    const gchar *my_argv[] = { "socket", "--print-capabilities", is_tpm2 ? "--tpm2" : NULL, NULL };
     g_autofree gchar *standard_error = NULL;
     g_autofree gchar *logop = NULL;
     g_autoptr(GError) error = NULL;

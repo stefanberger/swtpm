@@ -104,6 +104,7 @@ static int swtpm_start(struct swtpm *self)
 
     argv = concat_arrays((const char **)self->swtpm_exec_l,
                          (const gchar*[]){
+                           "socket",
                               "--flags", "not-need-init,startup-clear",
                               "--tpmstate", tpmstate,
                               "--pid", pidfile_arg,
