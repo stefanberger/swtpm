@@ -33,6 +33,8 @@ profile swtpm /usr/bin/swtpm {
   /usr/share/swtpm/profiles/*.json r,  # distro profiles
   /etc/swtpm/profiles/*.json r,        # local profiles
   /tmp/** rwk,
+  # For mkosi integration https://github.com/systemd/mkosi
+  /work/tmp/** rwk,
 
   owner /dev/vtpmx rw,
   owner /etc/nsswitch.conf r,
