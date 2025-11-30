@@ -825,7 +825,7 @@ static int unixio_open_socket(const char *path, mode_t perm,
         return -1;
     }
     if (n >= (int)len) {
-        logprintf(STDERR_FILENO, "Path for UnioIO socket is too long\n");
+        logprintf(STDERR_FILENO, "Path for UnixIO socket is too long\n");
         return -1;
     }
 
