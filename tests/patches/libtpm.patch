@@ -1,6 +1,20 @@
-Patch for TPM 1.2 test suite to support recent OpenSSL versions.
---- lib/hmac.c.old	2017-07-28 15:44:50.000000000 -0400
-+++ lib/hmac.c	2019-03-28 15:48:46.564254873 -0400
+From ead78dc6991a2bbbfb49e57196a11221e7e0a578 Mon Sep 17 00:00:00 2001
+From: Stefan Berger <stefanb@linux.ibm.com>
+Date: Wed, 11 Feb 2026 17:21:04 -0500
+Subject: [PATCH] Patch for TPM 1.2 test suite to support recent gcc & OpenSSL
+ versions.
+
+---
+ lib/hmac.c             | 38 ++++++++++++++++++++++++++++++--------
+ lib/keys.c             |  4 ++++
+ utils/delegatemanage.c | 12 ++++++------
+ utils/test_console.sh  |  4 ++--
+ 4 files changed, 42 insertions(+), 16 deletions(-)
+
+diff --git a/lib/hmac.c b/lib/hmac.c
+index fb92d4e..f9ee343 100644
+--- a/lib/hmac.c
++++ b/lib/hmac.c
 @@ -3,7 +3,7 @@
  /*			     	TPM HMAC routines				*/
  /*			     Written by J. Kravitz				*/
@@ -10,7 +24,7 @@ Patch for TPM 1.2 test suite to support recent OpenSSL versions.
  /*										*/
  /* (c) Copyright IBM Corporation 2006, 2010.					*/
  /*										*/
-@@ -381,16 +381,29 @@
+@@ -381,16 +381,29 @@ uint32_t TSS_authhmac(unsigned char *digest, unsigned char *key, unsigned int ke
  /****************************************************************************/
  uint32_t TSS_rawhmac(unsigned char *digest, const unsigned char *key, unsigned int keylen, ...)
     {
@@ -43,7 +57,7 @@ Patch for TPM 1.2 test suite to support recent OpenSSL versions.
     va_start(argp,keylen);
     for (;;)
        {
-@@ -398,14 +411,23 @@
+@@ -398,14 +411,23 @@ uint32_t TSS_rawhmac(unsigned char *digest, const unsigned char *key, unsigned i
        if (dlen == 0) break;
        data = (unsigned char *)va_arg(argp,unsigned char *);
        if (data == NULL) return ERR_NULL_ARG;
@@ -71,9 +85,11 @@ Patch for TPM 1.2 test suite to support recent OpenSSL versions.
  #endif
     va_end(argp);
     return 0;
---- lib/keys.c.old	2019-03-28 15:47:22.627805826 -0400
-+++ lib/keys.c	2019-03-28 15:48:42.665280466 -0400
-@@ -1316,8 +1316,12 @@
+diff --git a/lib/keys.c b/lib/keys.c
+index de5171d..8cff4a6 100644
+--- a/lib/keys.c
++++ b/lib/keys.c
+@@ -1316,8 +1316,12 @@ RSA *TSS_convpubkey(pubkeydata *k)
                  exp);
     }
     /* set up the RSA public key structure */
@@ -85,10 +101,60 @@ Patch for TPM 1.2 test suite to support recent OpenSSL versions.
 +#endif
     return rsa;
     }
-
---- utils/test_console.sh.old	2019-03-29 16:34:47.014890971 -0400
-+++ utils/test_console.sh	2019-03-29 16:35:16.181691631 -0400
-@@ -61,7 +61,7 @@
+ 
+diff --git a/utils/delegatemanage.c b/utils/delegatemanage.c
+index 0f7d0de..8ba9bea 100644
+--- a/utils/delegatemanage.c
++++ b/utils/delegatemanage.c
+@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
+     const char *ownerAuthFilename = NULL;
+     unsigned char ownerAuth[TPM_HASH_SIZE];
+     unsigned char *ownerAuthPtr = NULL;
+-    TPM_BOOL bool = TRUE;
++    TPM_BOOL mybool = TRUE;
+     int mode = -1;
+     STACK_TPM_BUFFER(buffer);
+     uint32_t len;
+@@ -158,10 +158,10 @@ int main(int argc, char *argv[])
+ 		    usage();
+ 		}
+ 		if (x == 0) {
+-		    bool = 0;
++		    mybool = 0;
+ 		}
+ 		else {
+-		    bool = 1;
++		    mybool = 1;
+ 		}
+ 	    } else {
+ 		printf("Missing parameter for -enable.\n");
+@@ -178,10 +178,10 @@ int main(int argc, char *argv[])
+ 		    usage();
+ 		}
+ 		if (x == 0) {
+-		    bool = 0;
++		    mybool = 0;
+ 		}
+ 		else {
+-		    bool = 1;
++		    mybool = 1;
+ 		}
+ 	    } else {
+ 		printf("Missing parameter for -admin.\n");
+@@ -264,7 +264,7 @@ int main(int argc, char *argv[])
+       case TPM_FAMILY_ADMIN:
+ 	ret = TPM_Delegate_Manage(familyID,
+ 				  mode,
+-				  &bool, sizeof(TPM_BOOL),
++				  &mybool, sizeof(TPM_BOOL),
+ 				  ownerAuthPtr,
+ 				  retbuffer, &retbufferlen);
+ 	break;
+diff --git a/utils/test_console.sh b/utils/test_console.sh
+index 3aabcb7..821da0f 100755
+--- a/utils/test_console.sh
++++ b/utils/test_console.sh
+@@ -61,7 +61,7 @@ USE_OWNERCLEAR="1"
  USE_HWTPM="0"
  export TPM_SERVER_NAME
  export TPM_SERVER_PORT
@@ -97,7 +163,7 @@ Patch for TPM 1.2 test suite to support recent OpenSSL versions.
  export TPM_TRANSPORT_EK
  export TPM_TRANSPORT_EKP
  export TPM_TRANSPORT_SK
-@@ -71,7 +71,7 @@
+@@ -71,7 +71,7 @@ export TPM_TRANSPORT_HANDLE
  export TPM_TRANSPORT_ENONCE
  export TPM_TRANSPORT_ENC
  export LOADKEY_VERSION=""
@@ -106,3 +172,6 @@ Patch for TPM 1.2 test suite to support recent OpenSSL versions.
  export TPM_IS_FIPS="0"
  export TPM_ET_ENCRYPT_AES="0"
  export NO_SRK_PASSWORD=0
+-- 
+2.52.0
+
