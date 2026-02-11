@@ -78,8 +78,7 @@ tar -xzf tpm4769tar.gz
 
 pushd libtpm &>/dev/null
 
-patch -p0 < ${TESTDIR}/patches/libtpm.patch
-if [ $? -ne 0 ]; then
+if ! patch -p1 < "${TESTDIR}/patches/libtpm.patch"; then
 	echo "Error: Patching failed."
 	exit 1
 fi
