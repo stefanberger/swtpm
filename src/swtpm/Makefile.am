@@ -12,6 +12,7 @@ noinst_HEADERS = \
 	check_algos.h \
 	common.h \
 	ctrlchannel.h \
+	daemonize.h \
 	fips.h \
 	key.h \
 	locality.h \
@@ -19,7 +20,7 @@ noinst_HEADERS = \
 	main.h \
 	mainloop.h \
 	options.h \
-	daemonize.h \
+	pcap.h \
 	pidfile.h \
 	profile.h \
 	seccomp_profile.h \
@@ -49,6 +50,7 @@ libswtpm_libtpms_la_SOURCES = \
 	logging.c \
 	mainloop.c \
 	options.c \
+	pcap.c \
 	pidfile.c \
 	profile.c \
 	seccomp_profile.c \
