@@ -781,6 +781,27 @@ or'ed (or added) together to get information about all of them in one query.
 
 =back
 
+=item B<--pcap file=<path>|fd=<file descriptor>[,truncate][,mode=E<lt>0...E<gt>][,checksums]>
+
+This option allows writing TPM command and response exchanges to a
+pcapng-formatted file. If truncate is passed, then an existing file is
+truncated otherwise the new data will be appended. The mode option allows
+to choose the file mode bits. The default file mode bits are 0640.
+When the checksum parameter is passed, then IP and TCP headers will carry
+correct checksum. By default the checksums in the headers are set to zero.
+
+Swtpm will write a simulated TCP message exchange to the pcap file. The TPM's
+port is 2321 and the source port is a random port in the range [50000 .. 55000].
+The destination port of 2321 will enable TPM packet decoding in Wireshark for
+example.
+
+Swtpm will also write packets that are not explicitly sent to the TPM by the
+user, but those that are sent internally, such as for example a I<TPM2_Startup>
+when I<--flags startup-clear> is used.
+
+Note that swtpm will silently ignore errors related to the writing to the
+pcap file, such as when no space is available.
+
 =item B<-h|--help>
 
 Display usage info.
