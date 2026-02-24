@@ -43,6 +43,8 @@
 #ifndef _SWTPM_MAINLOOP_H_
 #define _SWTPM_MAINLOOP_H_
 
+#include "pcap.h"
+
 #include <libtpms/tpm_library.h>
 
 extern bool g_mainloop_terminate;
@@ -74,6 +76,8 @@ struct mainLoopParams {
 #define DEFAULT_LOCKING_RETRIES  300 /* 300 * 10ms */
     /* TPM 2 profile on JSON format */
     char *json_profile;
+    /* PCAP state */
+    struct pcap_state ps;
 };
 
 int mainLoop(struct mainLoopParams *mlp,

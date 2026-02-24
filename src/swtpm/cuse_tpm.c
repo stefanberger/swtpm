@@ -85,6 +85,7 @@
 #include "capabilities.h"
 #include "swtpm_utils.h"
 #include "daemonize.h"
+#include "pcap.h"
 
 /* maximum size of request buffer */
 #define TPM_REQ_MAX 4096
@@ -139,6 +140,11 @@ static unsigned int g_locking_retries;
 /* the JSON profile for the TPM 2 */
 static char *g_json_profile;
 
+/* the PCAP state */
+static struct pcap_state g_ps = {
+    .fd = -1,
+};
+
 #if GLIB_MAJOR_VERSION >= 2
 # if GLIB_MINOR_VERSION >= 32
 
@@ -169,6 +175,7 @@ struct cuse_param {
     char *seccompdata;
     char *migrationdata;
     char *profiledata;
+    char *pcapdata;
     unsigned int seccomp_action;
     char *flagsdata;
     uint16_t startupType;
@@ -299,6 +306,13 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                    : print all profiles supported by libtpms\n"
     "--print-info <info flags>\n"
     "                    : print information about the TPM and profiles and exit\n"
+    "--pcap file=<path>|fd=<filedescriptor>[,truncate][,mode=0...][,checksums]\n"
+    "                    : Write TPM command and responses into a pcapng-formatted;\n"
+    "                      file; truncate allows to truncate an existing file;\n"
+    "                      mode allows a user to set the file mode bits of the pcap;\n"
+    "                      file; the default mode is 0640\n"
+    "                      checksums enables calculation of IP and TCP checksums;\n"
+    "                      the default is that no checksums are calculated;\n"
     "-h|--help           : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -587,7 +601,7 @@ static void tpm_end(void)
     worker_thread_end();
 
     if (tpm_running && !g_disable_auto_shutdown)
-        tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
+        tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand, &g_ps);
 
     TPMLIB_Terminate();
 
@@ -1551,6 +1565,7 @@ error_exit:
 
 static void ptm_cleanup(void)
 {
+    pcap_state_fd_close(&g_ps);
     pidfile_remove();
     log_global_free();
     tpmstate_global_free();
@@ -1636,6 +1651,7 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         {"profile"       , required_argument, 0, 'I'},
         {"print-profiles",       no_argument, 0, 'N'},
         {"print-info"    , required_argument, 0, 'x'},
+        {"pcap"          , required_argument, 0, 'A'},
         {NULL            , 0                , 0, 0  },
     };
     struct cuse_info cinfo;
@@ -1764,6 +1780,9 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
         case 'I': /* --profile */
             param.profiledata = optarg;
             break;
+        case 'A': /* --pcap */
+            param.pcapdata = optarg;
+            break;
         case 'h': /* help */
             usage(stdout, prgname, iface);
             goto exit;
@@ -1884,7 +1903,8 @@ int swtpm_cuse_main(int argc, char **argv, const char *prgname, const char *ifac
                              &param.startupType, &g_disable_auto_shutdown) < 0 ||
         handle_migration_options(param.migrationdata, &g_incoming_migration,
                                  &g_release_lock_outgoing) < 0 ||
-        handle_profile_options(param.profiledata, &g_json_profile) < 0) {
+        handle_profile_options(param.profiledata, &g_json_profile) < 0 ||
+        handle_pcap_options(param.pcapdata, &g_ps) < 0) {
         ret = -3;
         goto exit;
     }

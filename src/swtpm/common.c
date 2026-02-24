@@ -51,6 +51,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#include <fcntl.h>
 
 #ifdef WITH_SECCOMP
 # include <seccomp.h>
@@ -71,6 +72,7 @@
 #include "seccomp_profile.h"
 #include "tpmlib.h"
 #include "mainloop.h"
+#include "pcap.h"
 #include "profile.h"
 #include "swtpm_utils.h"
 #include "utils.h"
@@ -306,6 +308,27 @@ static const OptionDesc profile_opt_desc[] = {
     }, {
         .name = "remove-disabled",
         .type = OPT_TYPE_STRING,
+    },
+    END_OPTION_DESC
+};
+
+/* --pcap */
+static const OptionDesc pcap_opt_desc[] = {
+    {
+        .name = "file",
+        .type = OPT_TYPE_STRING,
+    }, {
+        .name = "mode",
+        .type = OPT_TYPE_MODE_T,
+    }, {
+        .name = "fd",
+        .type = OPT_TYPE_INT,
+    }, {
+        .name = "truncate",
+        .type = OPT_TYPE_BOOLEAN,
+    }, {
+        .name = "checksums",
+        .type = OPT_TYPE_BOOLEAN,
     },
     END_OPTION_DESC
 };
@@ -1592,7 +1615,7 @@ int handle_migration_options(const char *options, bool *incoming_migration,
  * handle_profile_options:
  * Parse the 'profile' options.
  *
- * @options: the porfile options to parse
+ * @options: the profile options to parse
  * @json_profile: pointer to a buffer for the profile rules to pass to libtpms
  *
  * Returns 0 on success, -1 on failure.
@@ -1605,6 +1628,124 @@ int handle_profile_options(const char *options, char **json_profile)
         return 0;
 
     if (parse_profile_options(options, json_profile) < 0)
+        return -1;
+
+    return 0;
+}
+
+static int parse_pcap_options(const char *options, struct pcap_state *ps)
+{
+    unsigned int pcap_flags = 0;
+    OptionValues *ovs = NULL;
+    const char *filename;
+    char *error = NULL;
+    bool checksums;
+    bool truncate;
+    mode_t mode;
+    int whence;
+    int flags;
+    int fd;
+
+    ovs = options_parse(options, pcap_opt_desc, &error);
+    if (!ovs) {
+        logprintf(STDERR_FILENO, "Error parsing pcap options: %s\n", error);
+        goto error;
+    }
+
+    filename = option_get_string(ovs, "file", NULL);
+    mode = option_get_mode_t(ovs, "mode", 0640);
+    truncate = option_get_bool(ovs, "truncate", false);
+    fd = option_get_int(ovs, "fd", -1);
+    checksums = option_get_int(ovs, "checksums", false);
+
+    if (filename) {
+        flags = O_CREAT|O_WRONLY|O_NONBLOCK;
+
+        if (truncate)
+            flags |= O_TRUNC;
+        else
+            flags |= O_APPEND;
+        fd = open(filename, flags, mode);
+        if (fd < 0) {
+            logprintf(STDERR_FILENO,
+                      "Could not open pcap file for writing: %s\n",
+                      strerror(errno));
+            return -1;
+        }
+    } else if (fd >= 0) {
+        whence = SEEK_END;
+        if (truncate)
+            whence = SEEK_SET;
+
+        if (lseek(fd, 0, whence) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Could not seek to desired position in pcap file: %s\n",
+                      strerror(errno));
+            return -1;
+        }
+        if (truncate && ftruncate(fd, 0) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Could not ftruncate the pcap file: %s\n",
+                      strerror(errno));
+            return -1;
+        }
+        if ((flags = fcntl(fd, F_GETFL, 0)) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Could not get file descriptor flags for pcap file: %s\n",
+                      strerror(errno));
+            return -1;
+        }
+        if ((flags & O_NONBLOCK) == 0 &&
+            fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+            logprintf(STDERR_FILENO,
+                      "Could not set O_NONBLOCK on pcap file file descriptor: %s\n",
+                      strerror(errno));
+            return -1;
+        }
+    }
+
+    if (fchmod(fd, mode) < 0) {
+        logprintf(STDERR_FILENO,
+                  "Could not chmod the pcap file: %s\n",
+                  strerror(errno));
+        return -1;
+    }
+
+    if (checksums)
+        pcap_flags |= PCAP_CHECKSUMS_F;
+
+    pcap_state_flags_set(ps, pcap_flags);
+    pcap_state_fd_set(ps, fd);
+    pcap_file_new(ps);
+
+    option_values_free(ovs);
+
+    return 0;
+
+error:
+    option_values_free(ovs);
+    free(error);
+
+    return -1;
+}
+
+/*
+ * handle_pcap_options:
+ * Parse the 'pcap' options.
+ *
+ * @options: the pcap options to parse
+ * @ps: Pointer to a pcpa_state structure
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+int handle_pcap_options(const char *options, struct pcap_state *ps)
+{
+    pcap_state_init(ps);
+
+    if (!options)
+        return 0;
+
+    if (parse_pcap_options(options, ps) < 0)
         return -1;
 
     return 0;

@@ -175,9 +175,13 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
                                   mlp->tpmversion,
                                   command, max_command_length);
         if (command_length > 0) {
+            pcap_packet_record_write(&mlp->ps, command, command_length, true);
+
             mlp->lastCommand = tpmlib_get_cmd_ordinal(command, command_length);
             rc = TPMLIB_Process(&rbuffer, &rlength, &rTotal,
                                 command, command_length);
+
+            pcap_packet_record_write(&mlp->ps, rbuffer, rlength, false);
         }
 
         if (rc || command_length == 0) {
@@ -293,7 +297,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
             /* Read the command.  The number of bytes is determined by 'paramSize' in the stream */
             if (rc == 0) {
                 rc = SWTPM_IO_Read(&connection_fd, command, &command_length,
-                                   max_command_length);
+                                   max_command_length, &mlp->ps);
                 if (rc != 0) {
                     /* connection broke */
                     SWTPM_IO_Disconnect(&connection_fd);
@@ -363,7 +367,8 @@ skip_process:
                 iov[1].iov_base = rbuffer;
                 iov[1].iov_len  = rlength;
 
-                SWTPM_IO_Write(&connection_fd, iov, ARRAY_LEN(iov));
+                SWTPM_IO_Write(&connection_fd, iov, ARRAY_LEN(iov),
+                               &mlp->ps);
             }
 
             if (!(mlp->flags & MAIN_LOOP_FLAG_KEEP_CONNECTION)) {
@@ -380,7 +385,8 @@ skip_process:
     }
 
     if (tpm_running && !mlp->disable_auto_shutdown)
-        tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion, &mlp->lastCommand);
+        tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion, &mlp->lastCommand,
+                                        &mlp->ps);
 
     free(rbuffer);
     free(command);

@@ -569,7 +569,7 @@ int ctrlchannel_process_fd(int fd,
 
         if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
-                                            &mlp->lastCommand);
+                                            &mlp->lastCommand, &mlp->ps);
 
         init_p = (ptm_init *)input.body;
 
@@ -600,7 +600,8 @@ int ctrlchannel_process_fd(int fd,
 
         if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
-                                            &mlp->lastCommand);
+                                            &mlp->lastCommand,
+                                            &mlp->ps);
 
         TPMLIB_Terminate();
 
@@ -616,7 +617,8 @@ int ctrlchannel_process_fd(int fd,
 
         if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
-                                            &mlp->lastCommand);
+                                            &mlp->lastCommand,
+                                            &mlp->ps);
 
         TPMLIB_Terminate();
 

@@ -70,4 +70,7 @@ int handle_migration_options(const char *options, bool *incoming_migration,
 
 int handle_profile_options(const char *options, char **json_profile);
 
+struct pcap_state;
+int handle_pcap_options(const char *options, struct pcap_state *ps);
+
 #endif /* _SWTPM_COMMON_H_ */
