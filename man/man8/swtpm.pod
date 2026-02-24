@@ -377,9 +377,10 @@ may contain the following:
         "cmdarg-print-info",
         "tpmstate-opt-lock",
         "tpmstate-dir-backend-opt-backup",
-        "tpmstate-dir-backend-opt-fsync"
+        "tpmstate-dir-backend-opt-fsync",
+        "cmdarg-pcap",
       ],
-      "version": "0.7.0"
+      "version": "0.11.0"
     }
 
 The version field is available since v0.7.
@@ -483,6 +484,11 @@ for the directory storage backend.
 
 The option parameter I<fsync> for the I<--tpmstate> option is supported
 for the directory storage backend.
+
+=item B<cmdarg-pcap> (since v0.11)
+
+The option I<--pcap> is supported to write TPM command and response exchanges
+into a pcapng-formatted file.
 
 =back
 

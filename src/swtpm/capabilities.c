@@ -271,7 +271,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"profiles\": { %s}, "
          "\"version\": \"" VERSION "\" "
@@ -298,6 +298,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          true         ? ", \"tpmstate-opt-lock\""      : "",
          true         ? ", \"tpmstate-dir-backend-opt-backup\""    : "",
          true         ? ", \"tpmstate-dir-backend-opt-fsync\""     : "",
+         true         ? ", \"cmdarg-pcap\""            : "",
          profiles     ? profiles                       : ""
     );
 
