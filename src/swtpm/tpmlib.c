@@ -679,7 +679,8 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
  * not TPM2_Shutdown. If the command fails, send TPM2_Shutdown(SU_CLEAR).
  */
 void tpmlib_maybe_send_tpm2_shutdown(TPMLIB_TPMVersion tpmversion,
-                                     uint32_t *lastCommand)
+                                     uint32_t *lastCommand,
+                                     struct pcap_state *ps)
 {
     TPM_RESULT res;
     unsigned char *rbuffer = NULL;
@@ -720,10 +721,13 @@ void tpmlib_maybe_send_tpm2_shutdown(TPMLIB_TPMVersion tpmversion,
                   *lastCommand);
 #endif
         tpm2_shutdown.shutdownType = htobe16(shutdownTypes[i]);
+        pcap_packet_record_write(ps, &tpm2_shutdown, sizeof(tpm2_shutdown), true);
 
         res = TPMLIB_Process(&rbuffer, &rlength, &rTotal,
                              (unsigned char *)&tpm2_shutdown,
                              sizeof(tpm2_shutdown));
+
+        pcap_packet_record_write(ps, rbuffer, rlength, false);
 
         if (res || rlength < sizeof(struct tpm_resp_header))
             continue;

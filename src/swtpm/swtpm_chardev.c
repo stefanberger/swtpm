@@ -233,6 +233,13 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : print all profiles supported by libtpms\n"
     "--print-info <info flags>\n"
     "                 : print information about the TPM and profiles and exit\n"
+    "--pcap file=<path>|fd=<filedescriptor>[,truncate][,mode=0...][,checksums]\n"
+    "                 : Write TPM command and responses into a pcapng-formatted file;\n"
+    "                   truncate allows to truncate an existing file;\n"
+    "                   mode allows a user to set the file mode bits of the pcap file;\n"
+    "                   the default mode is 0640\n"
+    "                   checksums enables calculation of IP and TCP checksums;\n"
+    "                   the default is that no checksums are calculated;\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -240,6 +247,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
 
 static void swtpm_cleanup(struct mainLoopParams *mlp)
 {
+    pcap_state_fd_close(&mlp->ps);
     free(mlp->json_profile);
     pidfile_remove();
     ctrlchannel_free(mlp->cc);
@@ -303,6 +311,9 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         .disable_auto_shutdown = false,
         .incoming_migration = false,
         .storage_locked = false,
+        .ps = {
+            .fd = -1,
+        },
     };
     g_autofree gchar *jsoninfo = NULL;
     unsigned long val;
@@ -320,6 +331,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     char *runas = NULL;
     char *chroot = NULL;
     char *profiledata = NULL;
+    char *pcapdata = NULL;
 #ifdef WITH_VTPM_PROXY
     bool use_vtpm_proxy = false;
 #endif
@@ -362,6 +374,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"profile"   , required_argument, 0, 'I'},
         {"print-profiles",   no_argument, 0, 'N'},
         {"print-info", required_argument, 0, 'x'},
+        {"pcap"      , required_argument, 0, 'A'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -503,6 +516,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             profiledata = optarg;
             break;
 
+        case 'A': /* --pcap */
+            pcapdata = optarg;
+            break;
+
         case 'N': /* --print-profiles */
             printprofiles = true;
             break;
@@ -613,7 +630,8 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                              &mlp.startupType, &mlp.disable_auto_shutdown) < 0 ||
         handle_migration_options(migrationdata, &mlp.incoming_migration,
                                  &mlp.release_lock_outgoing) < 0 ||
-        handle_profile_options(profiledata, &mlp.json_profile) < 0) {
+        handle_profile_options(profiledata, &mlp.json_profile) < 0 ||
+        handle_pcap_options(pcapdata, &mlp.ps) < 0) {
         goto exit_failure;
     }
 

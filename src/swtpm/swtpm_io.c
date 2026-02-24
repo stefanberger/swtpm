@@ -67,6 +67,7 @@
 #include "swtpm_io.h"
 #include "tpmlib.h"
 #include "utils.h"
+#include "pcap.h"
 
 /*
   global variables
@@ -89,7 +90,8 @@ static int      sock_fd = -1;
 TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file descriptor */
                          unsigned char *buffer,   /* output: command stream */
                          uint32_t *bufferLength,  /* output: command stream length */
-                         uint32_t bufferSize)     /* input: max size of output buffer */
+                         uint32_t bufferSize,
+                         struct pcap_state *ps)     /* input: max size of output buffer */
 {
     ssize_t   n;
     uint32_t  offset = 0;
@@ -122,6 +124,8 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
 
     *bufferLength = offset;
     SWTPM_PrintAll(" SWTPM_IO_Read:", " ", buffer, *bufferLength);
+
+    pcap_packet_record_write(ps, buffer, *bufferLength, true);
 
     return 0;
 }
@@ -213,7 +217,8 @@ TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write 
 
 TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write file descriptor */
                           const struct iovec *iovec,
-                          int iovcnt)
+                          int iovcnt,
+                          struct pcap_state *ps)
 {
     ssize_t     nwritten = 0;
     size_t      totlen = 0;
@@ -221,6 +226,8 @@ TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,       /* read/write 
 
     SWTPM_PrintAll(" SWTPM_IO_Write:", " ",
                    iovec[1].iov_base, iovec[1].iov_len);
+
+    pcap_packet_record_write(ps, iovec[1].iov_base, iovec[1].iov_len, false);
 
     /* test that connection is open to write */
     if (connection_fd->fd < 0) {

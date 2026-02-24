@@ -44,16 +44,20 @@ typedef struct TPM_CONNECTION_FD {
     int fd;     /* for socket, just an int */
 } TPM_CONNECTION_FD;
 
+struct pcap_state;
+
 TPM_RESULT SWTPM_IO_Init(void);
 TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,
                             int notify_fd);
 TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,
                          unsigned char *buffer,
                          uint32_t *paramSize,
-                         uint32_t buffer_size);
+                         uint32_t buffer_size,
+                         struct pcap_state *ps);
 TPM_RESULT SWTPM_IO_Write(TPM_CONNECTION_FD *connection_fd,
                           const struct iovec *iovec,
-                          int iovcnt);
+                          int iovcnt,
+                          struct pcap_state *ps);
 TPM_RESULT SWTPM_IO_Disconnect(TPM_CONNECTION_FD *connection_fd);
 TPM_RESULT SWTPM_IO_SetSocketFD(int fd);
 int SWTPM_IO_GetSocketFD(void);
