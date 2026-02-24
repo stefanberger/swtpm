@@ -71,6 +71,9 @@ void uninstall_sighandlers()
     if (signal(SIGTERM, SIG_DFL) == SIG_ERR)
         logprintf(STDERR_FILENO, "Could not uninstall signal handler for SIGTERM.\n");
 
+    if (signal(SIGINT, SIG_DFL) == SIG_ERR)
+        logprintf(STDERR_FILENO, "Could not uninstall signal handler for SIGINT.\n");
+
     if (signal(SIGPIPE, SIG_DFL) == SIG_ERR)
         logprintf(STDERR_FILENO, "Could not uninstall signal handler for SIGPIPE.\n");
 }
@@ -84,6 +87,11 @@ int install_sighandlers(int pipefd[2], sighandler_t handler)
 
     if (signal(SIGTERM, handler) == SIG_ERR) {
         logprintf(STDERR_FILENO, "Could not install signal handler for SIGTERM.\n");
+        goto err_close_pipe;
+    }
+
+    if (signal(SIGINT, handler) == SIG_ERR) {
+        logprintf(STDERR_FILENO, "Could not install signal handler for SIGINT.\n");
         goto err_close_pipe;
     }
 
