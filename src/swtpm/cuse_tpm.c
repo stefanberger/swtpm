@@ -639,11 +639,15 @@ static int ptm_send_startup(uint16_t startupType,
                                tpmversion,
                                command, max_command_length);
     if (command_length > 0) {
+        pcap_packet_record_write(&g_ps, command, command_length, true);
+
         g_lastCommand = tpmlib_get_cmd_ordinal(command, command_length);
 
         rc = TPMLIB_Process(&ptm_response, &ptm_res_len, &ptm_res_tot,
                            (unsigned char *)command, command_length);
         ptm_read_offset = 0;
+
+        pcap_packet_record_write(&g_ps, ptm_response, ptm_res_len, false);
     }
 
     if (rc || command_length == 0) {
@@ -1027,6 +1031,8 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
             goto skip_process;
         }
 
+        pcap_packet_record_write(&g_ps, (char *)buf, ptm_req_len, true);
+
         lastCommand = tpmlib_get_cmd_ordinal((unsigned char *)buf, ptm_req_len);
         if (lastCommand != TPM_ORDINAL_NONE)
             g_lastCommand = lastCommand;
@@ -1048,6 +1054,8 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
                            (unsigned char *)buf, ptm_req_len);
             ptm_read_offset = 0;
         }
+
+        pcap_packet_record_write(&g_ps, ptm_response, ptm_res_len, false);
     } else {
         /* TPM not initialized; return error */
         ptm_write_fatal_error_response(l_tpmversion);
