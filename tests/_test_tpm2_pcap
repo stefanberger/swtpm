@@ -1,0 +1,211 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+VTPM_NAME="${VTPM_NAME:-vtpm-tpm2-test-save-load-state}"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+TPM_PATH="$(mktemp -d)" || exit 1
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+PCAP_FILE=${TPM_PATH}/tpm.pcap
+LOGFILE=${TPM_PATH}/tpm.log
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill_quiet -9 "$pid"
+	fi
+	rm -rf "$TPM_PATH"
+}
+
+trap "cleanup" EXIT
+
+source "${TESTDIR}/common"
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+
+mode=0654
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
+	--log "file=${LOGFILE},level=20" \
+	--pcap "file=${PCAP_FILE},mode=${mode}" \
+	--tpm2
+
+if ! kill_quiet -0 "${SWTPM_PID}"; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+# Init the TPM
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+exp=${mode:1}
+[[ "$(uname -s)" =~ CYGWIN_NT- ]] && exp=754  # User bits depend on group bits
+act=$(get_filemode "${PCAP_FILE}")
+if [ "${act}" != "${exp}" ]; then
+	echo "Error: The initial PCAP file has mode bits $act but expected $exp"
+	exit 1
+fi
+
+exp=312
+act=$(get_filesize "${PCAP_FILE}")
+if [ "${act}" != "${exp}" ]; then
+	echo "Error: The initial PCAP file has size $act but expected $exp"
+	exit 1
+fi
+
+# Startup the TPM
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+exp=' 80 01 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_Startup(ST_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+
+exp=508
+act=$(get_filesize "${PCAP_FILE}")
+if [ "${act}" != "${exp}" ]; then
+	echo "Error: The PCAP file after TPM2_Shutdown has size $act but expected $exp"
+	exit 1
+fi
+
+# Shut down
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+echo "OK"
+
+# Append to existing pcap file; change mode bits; check acceptance
+# of checksums parameter
+mode=0633
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
+	--log "file=${LOGFILE},level=20" \
+	--pcap "file=${PCAP_FILE},mode=${mode},checksums" \
+	--tpm2
+
+if ! kill_quiet -0 "${SWTPM_PID}"; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+# Init the TPM
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+exp=${mode:1}
+[[ "$(uname -s)" =~ CYGWIN_NT- ]] && exp=733
+act=$(get_filemode "${PCAP_FILE}")
+if [ "${act}" != "${exp}" ]; then
+	echo "Error: The PCAP file has mode bits $act but expected $exp"
+	exit 1
+fi
+
+exp=1280
+act=$(get_filesize "${PCAP_FILE}")
+if [ "${act}" != "${exp}" ]; then
+	echo "Error: The PCAP file has size $act but expected $exp"
+	exit 1
+fi
+
+# Shut down
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+echo "OK"
+
+# File descriptor passing; tTruncate existing pcap file; change mode bits
+exec 100<>"${PCAP_FILE}"
+mode=0765
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" \
+	--log "file=${LOGFILE},level=20" \
+	--pcap "fd=100,mode=${mode},truncate" \
+	--tpm2
+
+if ! kill_quiet -0 "${SWTPM_PID}"; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+# Init the TPM
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+exp=${mode:1}
+act=$(get_filemode "${PCAP_FILE}")
+if [ "${act}" != "${exp}" ]; then
+	echo "Error: The PCAP file has mode bits $act but expected $exp"
+	exit 1
+fi
+
+exp=312
+act=$(get_filesize "${PCAP_FILE}")
+if [ "${act}" != "${exp}" ]; then
+	echo "Error: The PCAP file has size $act but expected $exp"
+	exit 1
+fi
+
+# Final shut down
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	echo "TPM Logfile:"
+	cat "${LOGFILE}"
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

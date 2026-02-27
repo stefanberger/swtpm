@@ -65,6 +65,7 @@ TESTS += \
 	test_tpm2_hashing3 \
 	test_tpm2_migration_key \
 	test_tpm2_partial_reads \
+	test_tpm2_pcap \
 	test_tpm2_print_capabilities \
 	test_tpm2_print_states \
 	test_tpm2_resume_volatile \
@@ -211,6 +212,7 @@ EXTRA_DIST = \
 	_test_tpm2_init \
 	_test_tpm2_locality \
 	_test_tpm2_migration_key \
+	_test_tpm2_pcap \
 	_test_tpm2_print_capabilities \
 	_test_tpm2_print_states \
 	_test_tpm2_probe \
