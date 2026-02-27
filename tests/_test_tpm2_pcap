@@ -6,7 +6,7 @@
 ROOT=${abs_top_builddir:-$(pwd)/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 
-VTPM_NAME="${VTPM_NAME:-vtpm-tpm2-test-save-load-state}"
+VTPM_NAME="${VTPM_NAME:-vtpm-tpm2-pcap}"
 SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
 TPM_PATH="$(mktemp -d)" || exit 1
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
@@ -78,7 +78,7 @@ fi
 exp=508
 act=$(get_filesize "${PCAP_FILE}")
 if [ "${act}" != "${exp}" ]; then
-	echo "Error: The PCAP file after TPM2_Shutdown has size $act but expected $exp"
+	echo "Error: The PCAP file after TPM2_Startup has size $act but expected $exp"
 	exit 1
 fi
 
