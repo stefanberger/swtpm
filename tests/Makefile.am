@@ -257,7 +257,7 @@ check-display:
 syntax-check:
 # SC2009: Consider using pgrep instead of grepping ps output.
 # SC2317: (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
-	shellcheck -e SC2009,SC2317 \
+	shellcheck -e SC2009,SC2317,SC2329 \
 		$(TESTS) $(TEST_UTILS) $(filter _test_%,$(EXTRA_DIST)) softhsm_setup installed-runner.sh
 
 check: check-am check-display
