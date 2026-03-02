@@ -1670,7 +1670,7 @@ static int parse_pcap_options(const char *options, struct pcap_state *ps)
             logprintf(STDERR_FILENO,
                       "Could not open pcap file for writing: %s\n",
                       strerror(errno));
-            return -1;
+            goto error;
         }
     } else if (fd >= 0) {
         whence = SEEK_END;
@@ -1681,34 +1681,33 @@ static int parse_pcap_options(const char *options, struct pcap_state *ps)
             logprintf(STDERR_FILENO,
                       "Could not seek to desired position in pcap file: %s\n",
                       strerror(errno));
-            return -1;
+            goto error;
         }
         if (truncate && ftruncate(fd, 0) < 0) {
             logprintf(STDERR_FILENO,
                       "Could not ftruncate the pcap file: %s\n",
                       strerror(errno));
-            return -1;
+            goto error;
         }
         if ((flags = fcntl(fd, F_GETFL, 0)) < 0) {
             logprintf(STDERR_FILENO,
                       "Could not get file descriptor flags for pcap file: %s\n",
                       strerror(errno));
-            return -1;
+            goto error;
         }
         if ((flags & O_NONBLOCK) == 0 &&
             fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
             logprintf(STDERR_FILENO,
                       "Could not set O_NONBLOCK on pcap file file descriptor: %s\n",
                       strerror(errno));
-            return -1;
+            goto error;
         }
     }
 
     if (fchmod(fd, mode) < 0) {
         logprintf(STDERR_FILENO,
-                  "Could not chmod the pcap file: %s\n",
-                  strerror(errno));
-        return -1;
+                  "Could not chmod the pcap file: %s\n", strerror(errno));
+        goto error;
     }
 
     if (checksums)
