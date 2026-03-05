@@ -51,9 +51,11 @@ struct ptm_est {
         struct {
             ptm_res tpm_result;
             unsigned char bit; /* TPM established bit */
+            unsigned char pad[3]; /* for m68k */
         } resp; /* response */
     } u;
 };
+_Static_assert(sizeof(struct ptm_est) == 8);
 
 /* PTM_RESET_TPMESTABLISHED: reset establishment bit */
 struct ptm_reset_est {
