@@ -40,12 +40,13 @@
 #include "swtpm_utils.h"
 #include "tpm_ioctl.h"
 #include "sys_dependencies.h"
+#include "arch_specifics.h"
 
 #define AS2BE(VAL) (((VAL) >> 8) & 0xff), ((VAL) & 0xff)
 #define AS4BE(VAL) AS2BE((VAL) >> 16), AS2BE(VAL)
 #define AS8BE(VAL) AS4BE((VAL) >> 32), AS4BE(VAL)
 
-#define CMD_DURATION_SHORT  2000 /* ms */
+#define CMD_DURATION_SHORT  (2000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
 
 struct tpm_req_header {
     uint16_t tag;
@@ -462,9 +463,9 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_SPK_HANDLE              0x81000001
 
-#define TPM2_DURATION_SHORT     2000 /* ms */
-#define TPM2_DURATION_MEDIUM    7500 /* ms */
-#define TPM2_DURATION_LONG     15000 /* ms */
+#define TPM2_DURATION_SHORT  ( 2000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
+#define TPM2_DURATION_MEDIUM ( 7500 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
+#define TPM2_DURATION_LONG   (15000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
 
 #define TPM_REQ_HEADER_INITIALIZER(TAG, SIZE, ORD) \
     { \
@@ -1618,9 +1619,9 @@ static const struct swtpm2_ops swtpm_tpm2_ops = {
 
 #define TPM_KH_EK    0x40000006
 
-#define TPM_DURATION_SHORT     2000  /* ms */
-#define TPM_DURATION_MEDIUM    7500  /* ms */
-#define TPM_DURATION_LONG     15000  /* ms */
+#define TPM_DURATION_SHORT  ( 2000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
+#define TPM_DURATION_MEDIUM ( 7500 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
+#define TPM_DURATION_LONG   (15000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
 
 static int swtpm_tpm12_tsc_physicalpresence(struct swtpm *self, uint16_t physicalpresence)
 {

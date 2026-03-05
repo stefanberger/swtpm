@@ -73,6 +73,7 @@
 #include <libtpms/tpm_error.h>
 
 #include "sys_dependencies.h"
+#include "arch_specifics.h"
 #include "swtpm.h"
 
 #define DEFAULT_TCP_PORT 6546
@@ -91,7 +92,7 @@
 #endif
 
 /* poll timeout that takes into account a busy swtpm creating a key */
-#define DEFAULT_POLL_TIMEOUT 20000 /* ms */
+#define DEFAULT_POLL_TIMEOUT (20000/* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
 
 static unsigned long ioctl_to_cmd(unsigned long ioctlnum)
 {
