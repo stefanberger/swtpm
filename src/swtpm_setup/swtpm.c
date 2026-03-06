@@ -464,9 +464,10 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_SPK_HANDLE              0x81000001
 
-#define TPM2_DURATION_SHORT  ( 2000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
-#define TPM2_DURATION_MEDIUM ( 7500 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
-#define TPM2_DURATION_LONG   (15000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
+#define TPM2_DURATION_SHORT      ( 2000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
+#define TPM2_DURATION_MEDIUM     ( 7500 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
+#define TPM2_DURATION_LONG       (15000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
+#define TPM2_DURATION_EXTRA_LONG (30000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
 
 #define TPM_REQ_HEADER_INITIALIZER(TAG, SIZE, ORD) \
     { \
@@ -884,6 +885,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
     g_autofree unsigned char *public = NULL;
     ssize_t public_len;
     g_autofree unsigned char *createprimary = NULL;
+    int duration = TPM2_DURATION_LONG;
     ssize_t createprimary_len;
     int ret;
     unsigned char tpmresp[2048];
@@ -918,6 +920,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
         hashalg = TPM2_ALG_SHA384;
         if (key_description)
             *key_description = "rsa4096";
+        duration = TPM2_DURATION_EXTRA_LONG;
     } else {
         logerr(self->logfile, "Internal error in %s: unsupported RSA keysize %d.\n",
                __func__, rsa_keysize);
@@ -967,7 +970,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
     ((struct tpm_req_header *)createprimary)->size = htobe32(createprimary_len);
 
     ret = transfer(self, createprimary, createprimary_len, "TPM2_CreatePrimary(RSA)", FALSE,
-                   tpmresp, &tpmresp_len, TPM2_DURATION_LONG);
+                   tpmresp, &tpmresp_len, duration);
     if (ret != 0) {
         if (tpmresp_len >= sizeof(struct tpm_resp_header) &&
             be32toh(((struct tpm_resp_header *)tpmresp)->errcode) == 0x2c4) {
