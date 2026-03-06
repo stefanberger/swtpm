@@ -293,7 +293,8 @@ static int transfer(struct swtpm *self, void *buffer, size_t buffer_len,
     n = poll(&fds, 1, timeout_ms);
     if (n != 1 || (fds.revents & POLLIN) == 0) {
         logerr(self->logfile, "Could not receive response to %s from swtpm: %s\n",
-               cmdname, strerror(errno));
+               cmdname,
+               n < 0 ? strerror(errno) : "timeout");
         return 1;
     }
 
