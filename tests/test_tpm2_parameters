@@ -87,8 +87,10 @@ function cleanup()
 if $TPMAUTHORING --tpm2 --print-capabilities | grep -q tpm2-rsa-keysize-3072; then
 	PARAMETERS+=( "${PARAMETERS_3072[@]}" )
 fi
-if $TPMAUTHORING --tpm2 --print-capabilities | grep -q tpm2-rsa-keysize-4096; then
-	PARAMETERS+=( "${PARAMETERS_4096[@]}" )
+if [ "${SWTPM_TEST_EXPENSIVE:-0}" -ne 0 ]; then
+	if $TPMAUTHORING --tpm2 --print-capabilities | grep -q tpm2-rsa-keysize-4096; then
+		PARAMETERS+=( "${PARAMETERS_4096[@]}" )
+	fi
 fi
 
 # swtpm_setup.conf points to the local create_certs.sh

@@ -83,6 +83,10 @@ for keysize in 3072 4096; do
 done
 
 for keysize in ${keysizes}; do
+	if [ "${keysize}" -ge 4096 ] && [ "${SWTPM_TEST_EXPENSIVE:-0}" -eq 0 ]; then
+		continue
+	fi
+
 	echo "Testing with RSA keysize $keysize"
 	# we need to create at least one cert: --create-ek-cert
 	if ! ${SWTPM_SETUP} \
