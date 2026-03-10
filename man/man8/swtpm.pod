@@ -379,6 +379,7 @@ may contain the following:
         "tpmstate-dir-backend-opt-backup",
         "tpmstate-dir-backend-opt-fsync",
         "cmdarg-pcap",
+        "systemd-notify",
       ],
       "version": "0.11.0"
     }
@@ -489,6 +490,10 @@ for the directory storage backend.
 
 The option I<--pcap> is supported to write TPM command and response exchanges
 into a pcapng-formatted file.
+
+=item B<systemd-notify> (since v0.11)
+
+systemd's readiness notification protocol is supported, see below.
 
 =back
 
