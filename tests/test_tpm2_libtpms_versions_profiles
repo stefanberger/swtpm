@@ -146,7 +146,7 @@ function create_tpm_state()
 	local contextfile="${workdir}/context.bin"
 	local aespub="${workdir}/aespub.bin"
 	local aespriv="${workdir}/aespriv.bin"
-	local cc rsasize ecdsaparam
+	local cc rsasize ecdsaparam sz_hi sz_lo sz i j
 
 	echo "input" > "${inputfile}"
 
@@ -293,6 +293,94 @@ function create_tpm_state()
 		done
 	fi
 
+	# Add new test here before NVRAM fill-up
+
+
+	echo -n "INFO: Filling up NVRAM with persistent keys: 0x81001000 .. "
+	if ! nv_savetofile 01000001 "${contextfile}"; then
+		return 1
+	fi
+	if ! tsscontextload -if "${contextfile}" 1>/dev/null; then
+		return 1
+	fi
+	for ((i = 0x81001000; i < 0x81001050; i++)); do
+		tssevictcontrol \
+			-hi o \
+			-ho 80000000 \
+			-hp "$(printf "%x" "$i")" &>/dev/null || break
+	done
+	echo "0x$(printf "%08x" "$((i-1))")"
+
+	# Flush the key
+	if ! tssflushcontext -ha 80000000; then
+		return 1
+	fi
+
+	echo -n "INFO: Filling up NVRAM with 2kb indices: "
+	for ((i = 0x01000100; i < 0x01000200; i++)); do
+		tssnvdefinespace \
+			-ha "$(printf "0x%08x" "$i")" \
+			-hi o \
+			-sz 2048 1>/dev/null || break
+	done
+	if [ "${i}" != $((0x01000100)) ]; then
+		echo "0x01000100 .. 0x$(printf "%08x" "$((i-1))")"
+	else
+		echo "(no space for 2kb indices)"
+	fi
+
+	echo -n "INFO: Filling up last NVRAM index: "
+
+	# bisect to quickly find approximate size; max. 12 steps for 2048 bytes
+	sz_hi=2048
+	sz_lo=0
+	for ((j = 0; j < 12; j++)); do
+		sz=$(((sz_hi + sz_lo) / 2))
+		if ! tssnvdefinespace -ha "$(printf "0x%08x" "$i")" -hi o -sz "${sz}" 1>/dev/null; then
+			sz_hi=${sz}
+		else
+			sz_lo=${sz}
+			tssnvundefinespace -ha "$(printf "0x%08x" "$i")" -hi o
+		fi
+	done
+	# ... this should find it quickly now
+	for ((sz = $((sz_hi+1)); sz > 0; sz--)); do
+		tssnvdefinespace \
+			-ha "$(printf "0x%08x" "$i")" \
+			-hi o \
+			-sz "${sz}" 1>/dev/null && break
+	done
+	if [ "${sz}" -gt 0 ]; then
+		echo "0x$(printf "%08x" "$i") size: ${sz}"
+	else
+		echo "(no space to create it)"
+	fi
+
+	return 0
+}
+
+# Find the last handle in 'a sequence of handles' given the first one
+# @first: First handle; must start with '0x'
+function find_last_handle()
+{
+	local first="$1"
+
+	local last tmp
+
+	first=$(tssgetcapability -cap 1 -pr "${first}" |
+		grep "${first:2}" |
+		head -n1 |
+		sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+	last="0x${first}"
+	while :; do
+		tmp=$(tssgetcapability -cap 1 -pr "${last}" -pc 128 | \
+			tail -n1 |
+			sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+		[[ "0x${tmp}" = "${last}" ]] && break
+		last="0x${tmp}"
+	done
+
+	echo "${last}"
 	return 0
 }
 
@@ -308,7 +396,7 @@ function check_tpm_state()
 	local contextfile="${workdir}/context.bin"
 	local aespub="${workdir}/aespub.bin"
 	local aespriv="${workdir}/aespriv.bin"
-	local cc rsasize
+	local cc rsasize first last tmp
 
 	echo "input" > "${inputfile}"
 
@@ -503,6 +591,30 @@ function check_tpm_state()
 			echo "INFO: Verified audited commands"
 		fi
 	fi
+
+	# Find which persisted keys there are:
+	first="0x81001000"
+	last="$(find_last_handle "${first}")"
+	echo "INFO: Found persistent keys indices: ${first} .. ${last}"
+
+	# Check signature with persisted keys
+	if ! nv_savetofile 01000000 "${signature}"; then
+		return 1
+	fi
+	for ((i="${first}"; i <= "${last}"; i++)); do
+		if ! tssverifysignature -hk "$(printf "0x%08x" "${i}")" -if "${inputfile}" -is "${signature}"; then
+			echo "Error: Key at 0x$(printf "%08x" "$i") failed to verify signature"
+			return 1
+		fi
+	done
+	echo "INFO: All persisted keys verified signature successfully"
+
+	first="0x01000100"
+	last="$(find_last_handle "$first")"
+	echo "INFO: Found NVRAM indices: ${first} ... ${last}"
+
+	tmp=$(tssnvreadpublic -ha "${last}" | sed -n 's/.*data size //p')
+	echo "INFO: Last NVRAM index size: ${tmp}"
 
 	return 0
 }
