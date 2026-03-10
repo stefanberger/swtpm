@@ -619,6 +619,13 @@ function check_tpm_state()
 	return 0
 }
 
+# Build swtpm
+#
+# @param1: The directory where to do the git checkout into
+# @param2: CFLAGS to use for the build
+# @param3: Where to copy the executables to
+# @param4: The git version to tag to build; if it does not exist (yet), fall
+#          back to using 'master'
 function build_swtpm()
 {
 	local srcdir="$1"
@@ -636,7 +643,10 @@ function build_swtpm()
 		# Travis needs this
 		git remote add upstream "${SWTPM_URL}"
 		git fetch upstream "${swtpm_git_version}"
-		git checkout "upstream/${swtpm_git_version}"
+		if ! git checkout "upstream/${swtpm_git_version}"; then
+			echo "WARN: Could not checkout swtpm's ${swtpm_git_version}. Falling back to 'master'."
+			git checkout upstream/master
+		fi
 	fi
 	PKG_CONFIG_PATH="${destdir}" CFLAGS="${cflags}" \
 		./autogen.sh --without-cuse --without-selinux --without-seccomp
@@ -674,7 +684,7 @@ function build_libtpms_and_swtpm()
 {
 	local workdir="$1"
 
-	local tmp major maj min
+	local tmp major maj min swtpm_branch
 	local libtpmsdir="${workdir}/libtpms"
 
 	pushd "${workdir}" 2>&1 || return 1
@@ -718,11 +728,19 @@ function build_libtpms_and_swtpm()
 
 			copy_libtpms "${workdir}" "${maj}.${min}"
 
+			# Based on libtpms version select swtpm branch
+			case "${maj}.${min}" in
+			"0.9")  swtpm_branch="stable-0.9";;
+			"0.10") swtpm_branch="stable-0.10";;
+			"0.11") swtpm_branch="stable-0.11";; # will fall back to master
+			*)      swtpm_branch="master";;
+			esac
+
 			if ! build_swtpm \
 				"${workdir}/swtpm" \
 				"-I${libtpmsdir}/include -L${workdir}/libtpms-${maj}.${min}" \
 				"${workdir}/libtpms-${maj}.${min}" \
-				stable-0.9; then
+				"${swtpm_branch}"; then
 				echo "Error: Could not build swtpm"
 				return 1
 			fi
