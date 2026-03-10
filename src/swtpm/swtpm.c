@@ -70,6 +70,7 @@
 #include "tpmstate.h"
 #include "sys_dependencies.h"
 #include "daemonize.h"
+#include "sd-notify.h"
 #include "seccomp_profile.h"
 #include "options.h"
 #include "capabilities.h"
@@ -632,6 +633,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (daemonize) {
         daemonize_finish();
     }
+
+    sd_notify(0, "READY=1");
 
     rc = mainLoop(&mlp, notify_fd[0], tpm_running);
 

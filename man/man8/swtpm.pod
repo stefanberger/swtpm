@@ -20,7 +20,7 @@ or it can listen for commands on a character device, or create a CUSE
 Unless corresponding command line parameters are used, the
 B<swtpm> socket version requires that the environment variable I<TPM_PORT>
 be set to the TCP/IP port the process is supposed to listen on for TPM
-request messages. 
+request messages.
 
 Similarly, the environment variable I<TPM_PATH> can be set and
 contain the name of a directory where the TPM can store its persistent
@@ -815,6 +815,12 @@ Display usage info.
 =back
 
 =head1 NOTES
+
+B<swtpm> supports systemd's readiness notification protocol. If the
+I<NOTIFY_SOCKET> environment variable is set, B<swtpm> will send a
+readiness notification (C<READY=1>) to it once it is ready to accept
+commands. This allows the use of C<Type=notify> in systemd service unit
+files. Both filesystem and abstract AF_UNIX sockets are supported.
 
 If a TPM 2 is used, the user is typically required to send a TPM2_Shutdown()
 command to a TPM 2 to avoid possibly increasing the TPM_PT_LOCKOUT_COUNTER

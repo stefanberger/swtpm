@@ -80,6 +80,7 @@
 #include "main.h"
 #include "utils.h"
 #include "threadpool.h"
+#include "sd-notify.h"
 #include "seccomp_profile.h"
 #include "options.h"
 #include "capabilities.h"
@@ -1562,6 +1563,8 @@ static void ptm_init_done(void *userdata)
         ret = -14;
         goto error_exit;
     }
+
+    sd_notify(0, "READY=1");
 
     return;
 
