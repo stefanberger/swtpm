@@ -685,7 +685,7 @@ function build_libtpms_and_swtpm()
 
 	git checkout "${LIBTPMS_INITIAL_BRANCH}"
 
-	echo -e "\nBuilding libtpms ${INITIAL_BRANCH} ..."
+	echo -e "\nBuilding libtpms ${LIBTPMS_INITIAL_BRANCH} ..."
 	CFLAGS="-g -O2" ./autogen.sh --with-tpm2 --without-tpm1
 	make -j "$(nproc)" || return 1
 
@@ -790,7 +790,8 @@ function swtpm_setup_create_profile_state()
 			echo
 			PATH="${workdir}/${libtpmsdir}" \
 				swtpm -v
-			echo "state dir:$statedir, libtpms dir:$libtpmsdir, profile: $profile"
+			printf "state dir:%-28s  libtpms dir:%-15s  profile: %s\n" \
+				"${statedir}" "${libtpmsdir}" "${profile}"
 
 			if ! PATH="${workdir}/${libtpmsdir}" \
 			     "./${libtpmsdir}/swtpm_setup" \
