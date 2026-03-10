@@ -34,7 +34,7 @@ exp='\{ "type": "swtpm", '\
 '(, "rsa-keysize-4096")?, "cmdarg-profile", '\
 '"cmdarg-print-profiles", "profile-opt-remove-disabled", "cmdarg-print-info", '\
 '"tpmstate-opt-lock", "tpmstate-dir-backend-opt-backup", '\
-'"tpmstate-dir-backend-opt-fsync", "cmdarg-pcap" \], '\
+'"tpmstate-dir-backend-opt-fsync", "cmdarg-pcap", "systemd-notify" \], '\
 '"profiles": \{ "names": \[ [^]]*\], "algorithms": \{ [^\}]*\}, "commands": \{ [^\}]*\} }, '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then

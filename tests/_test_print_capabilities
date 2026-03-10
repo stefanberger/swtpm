@@ -30,7 +30,7 @@ exp='\{ "type": "swtpm", '\
 '"cmdarg-pwd-fd", "cmdarg-print-states", "cmdarg-chroot", "cmdarg-migration", '\
 '"nvram-backend-dir", "nvram-backend-file", "cmdarg-print-info", '\
 '"tpmstate-opt-lock", "tpmstate-dir-backend-opt-backup", '\
-'"tpmstate-dir-backend-opt-fsync", "cmdarg-pcap" \], '\
+'"tpmstate-dir-backend-opt-fsync", "cmdarg-pcap", "systemd-notify" \], '\
 '"profiles": \{ \}, '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
