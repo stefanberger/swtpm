@@ -868,22 +868,31 @@ function swtpm_setup_create_profile_state()
 	return "${err}"
 }
 
-# This function tests that the NULL profile state, that was created by a certain
-# version of libtpms, can be used by swtpm with libtpms v0.9 and others.
-function swtpm_run_with_null_profile_state()
+# This function tests that a profile state can be used by swtpm with other
+# versions of libtpms. A given regular expression allows to skip versions
+# of libtpms that did not support this profile.
+#
+# @param1: The workdir
+# @param2: The name of the profile
+# @param3: A regular expression for libtpms versions to skip since this libtpms
+#          did not support the given profile
+function swtpm_run_with_profile_state()
 {
 	local workdir="$1"
+	local profile="$2"
+	local skip_regex="$3"
 
 	local statedir branch libtpmsbranch resp exp fsize err=0
 
-	echo "INFO: Running with NULL profile states using different version of libtpms"
+	echo "INFO: Running with ${profile} profile states using different version of libtpms"
 
 	pushd "${workdir}" &>/dev/null || return 1
 
-	for statedir in state--*--null; do
+	for statedir in state--*--"${profile}"; do
 		branch=$(echo "${statedir}" | sed -n 's/.*--\(.*\)--.*/\1/p')
 		for libtpmsdir in libtpms-master libtpms-*.*; do
 			libtpmsbranch=$(echo "${libtpmsdir}" | sed -n 's/.*-//p')
+			[[ ${libtpmsbranch} =~ ${skip_regex} ]] && continue
 			fsize=$(get_filesize "${workdir}/${statedir}/tpm2-00.permall")
 
 			export LD_LIBRARY_PATH="${workdir}/${libtpmsdir}"
@@ -897,7 +906,7 @@ function swtpm_run_with_null_profile_state()
 					--tpm2 \
 					--tpmstate "dir=${workdir}/${statedir}" \
 					--flags not-need-init,startup-clear; then
-				echo "Error: Could not start swtpm with null profile state and libtpms version '${libtpmsbranch}'."
+				echo "Error: Could not start swtpm with ${profile} profile state and libtpms version '${libtpmsbranch}'."
 				err=1
 				break
 			fi
@@ -911,19 +920,21 @@ function swtpm_run_with_null_profile_state()
 				err=1
 				break
 			fi
-			echo " PCR 10 is good:  profile: null   libtpms: ${libtpmsbranch}   state written by: ${branch}"
+			printf " PCR 10 is good: profile: %-11s libtpms: %-8s state written by: %s\n" \
+				"${profile}" "${libtpmsbranch}" "${branch}"
 
 			if [ "$(get_filesize "${workdir}/${statedir}/tpm2-00.permall")" != "${fsize}" ]; then
 				echo "Error: Size of tpm2 state file has changed"
 				echo "expected: ${fsize}"
 				echo "actual  : $(get_filesize "${workdir}/${statedir}/tpm2-00.permall")"
+				echo "State in ${workdir}/${statedir}:"
 				ls -l "${workdir}/${statedir}/"
 				err=1
 				break
 			fi
 
 			if ! check_tpm_state "${workdir}" 0; then
-				echo "Error: Checking TPM-internal state failed: profile: null   libtpms: ${libtpmsbranch}  state written by: ${branch}"
+				echo "Error: Checking TPM-internal state failed: profile: ${profile}   libtpms: ${libtpmsbranch}  state written by: ${branch}"
 				err=1
 				break
 			fi
@@ -941,7 +952,7 @@ function swtpm_run_with_null_profile_state()
 			echo "INFO: Successfully restored permanent and volatile state from ${workdir}/${statedir}/"
 
 			if ! check_tpm_state "${workdir}" 1; then
-				echo "Error: Checking TPM-internal state failed (after resume): profile: null   libtpms: ${libtpmsbranch}  state written by: ${branch}"
+				echo "Error: Checking TPM-internal state failed (after resume): profile: ${profile}   libtpms: ${libtpmsbranch}  state written by: ${branch}"
 				err=1
 				break
 			fi
@@ -949,7 +960,6 @@ function swtpm_run_with_null_profile_state()
 
 			kill_quiet -9 "${SWTPM_PID}"
 			echo " INFO: Passed with libtpms ${libtpmsbranch}"
-
 		done
 		if [ ${err} -ne 0 ]; then
 			kill_quiet -9 "${SWTPM_PID}"
@@ -961,14 +971,14 @@ function swtpm_run_with_null_profile_state()
 
 	popd &>/dev/null || return 1
 
-	echo -e "INFO: Done running with NULL profile states using different version of libtpms\n\n"
+	echo -e "INFO: Done running with ${profile} profile states using different version of libtpms\n\n"
 
 	return "${err}"
 }
 
 # This function tests that a default profile state with 'stateFormatLevel = 2' can be used
 # and remains at this level.
-function swtpm_run_with_default_profile_state()
+function swtpm_run_with_default_profile_state_sfl2()
 {
 	local workdir="$1"
 	local statefile="$2"
@@ -1040,11 +1050,19 @@ if ! swtpm_setup_create_profile_state "${workdir}"; then
 	exit 1
 fi
 
-if ! swtpm_run_with_null_profile_state "${workdir}"; then
+if ! swtpm_run_with_profile_state "${workdir}" "null" "^()$"; then
 	exit 1
 fi
 
-if ! swtpm_run_with_default_profile_state "${workdir}" "${TESTDIR}/data/tpm2state7/tpm2-00.permall"; then
+if ! swtpm_run_with_profile_state "${workdir}" "default-v1" "^(0\.9)$"; then
+	exit 1
+fi
+
+if ! swtpm_run_with_profile_state "${workdir}" "default-v2" "^(0\.9|0\.10)$"; then
+	exit 1
+fi
+
+if ! swtpm_run_with_default_profile_state_sfl2 "${workdir}" "${TESTDIR}/data/tpm2state7/tpm2-00.permall"; then
 	exit 1
 fi
 
