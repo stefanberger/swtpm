@@ -13,6 +13,7 @@ noinst_HEADERS = \
 	common.h \
 	ctrlchannel.h \
 	daemonize.h \
+	sd-notify.h \
 	fips.h \
 	key.h \
 	locality.h \
@@ -106,6 +107,7 @@ swtpm_DEPENDENCIES = $(privlib_LTLIBRARIES)
 swtpm_SOURCES = \
 		main.c \
 		daemonize.c \
+		sd-notify.c \
 		swtpm.c \
 		swtpm_chardev.c
 if WITH_CUSE
@@ -138,6 +140,7 @@ swtpm_cuse_DEPENDENCIES = $(privlib_LTLIBRARIES)
 
 swtpm_cuse_SOURCES = \
 	daemonize.c \
+	sd-notify.c \
 	cuse_tpm.c
 
 swtpm_cuse_CFLAGS = \
