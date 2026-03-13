@@ -41,6 +41,8 @@
  *       in section 3.5
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -984,6 +986,26 @@ readfd:
     return result;
 }
 
+/*
+ * Get the hash algorithm for signing. TPM 1.2 used SHA1 and TPM 2 SHA256.
+ * For an ML-DSA signing key only shake-256 is allowed.
+ */
+static int get_signing_hashalgo(int flags, gnutls_x509_privkey_t sigkey)
+{
+    if (flags & CERT_TYPE_TPM2_F) {
+#ifdef GNUTLS_SUPPORTS_MLDSA
+        int keyalgo = gnutls_x509_privkey_get_pk_algorithm2(sigkey, NULL);
+
+        if (keyalgo == GNUTLS_PK_MLDSA44 ||
+            keyalgo == GNUTLS_PK_MLDSA65 ||
+            keyalgo == GNUTLS_PK_MLDSA87)
+            return GNUTLS_DIG_SHAKE_256;
+#endif
+        return GNUTLS_DIG_SHA256;
+    }
+    return GNUTLS_DIG_SHA1;
+}
+
 static void capabilities_print_json(void)
 {
     fprintf(stdout,
@@ -1018,7 +1040,7 @@ main(int argc, char *argv[])
     int ecc_y_len = 0;
     const char *ecc_curveid = NULL;
     gnutls_datum_t datum = { NULL, 0},  out = { NULL, 0};
-    gnutls_digest_algorithm_t hashAlgo = GNUTLS_DIG_SHA1;
+    gnutls_digest_algorithm_t hashAlgo;
     mpz_t serial;
     time_t now;
     int err;
@@ -1260,9 +1282,6 @@ main(int argc, char *argv[])
             exit(1);
         }
     }
-
-    if (flags & CERT_TYPE_TPM2_F)
-        hashAlgo = GNUTLS_DIG_SHA256;
 
     if ((mpz_sizeinbase(serial, 2) + 7) / 8 > sizeof(ser_number) - 1) {
         fprintf(stderr, "Serial number is too large.\n");
@@ -1703,6 +1722,8 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     err = gnutls_x509_crt_set_pubkey(crt, pubkey);
     CHECK_GNUTLS_ERROR(err, "Could not set public EK on CRT: %s\n",
                        gnutls_strerror(err))
+
+    hashAlgo = get_signing_hashalgo(flags, sigkey);
 
     /* sign cert */
     if (sigkey) {
