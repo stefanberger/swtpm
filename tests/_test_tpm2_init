@@ -14,12 +14,16 @@ VOLATILE_STATE_FILE=$TPM_PATH/tpm2-00.volatilestate
 SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
 SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
 SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+NOTIFY_SOCKET=${TPM_PATH}/notify.sock
+NOTIFY_MSG=${TPM_PATH}/notify.msg
 
 function cleanup()
 {
-	pid=${SWTPM_PID}
-	if [ -n "$pid" ]; then
-		kill_quiet -9 "$pid"
+	if [ -n "${SWTPM_PID}" ]; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+	if [ -n "${SOCAT_PID}" ]; then
+		kill_quiet -9 "${SOCAT_PID}"
 	fi
 	rm -rf "$TPM_PATH"
 }
@@ -35,7 +39,13 @@ if has_seccomp_support "${SWTPM_EXE}"; then
 	SWTPM_TEST_SECCOMP_OPT="--seccomp action=none"
 fi
 
-TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
+if socat -h | grep -q UNIX-RECVFROM; then
+	socat "UNIX-RECVFROM:${NOTIFY_SOCKET}" "OPEN:${NOTIFY_MSG},creat" &
+	SOCAT_PID=$!
+fi
+
+TPM_PATH=$TPM_PATH NOTIFY_SOCKET=$NOTIFY_SOCKET \
+  run_swtpm "${SWTPM_INTERFACE}" --tpm2
 
 display_processes_by_name "swtpm"
 
@@ -48,6 +58,18 @@ fi
 if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
 	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
 	exit 1
+fi
+
+if [ -n "${SOCAT_PID}" ]; then
+	exp="READY=1"
+	act="$(cat "${NOTIFY_MSG}")"
+	if [ "${act}" != "${exp}" ]; then
+		echo "Error: Did not receive expected message on NOTIFY_SOCKET"
+		echo "expected: ${exp}"
+		echo "actual  : ${act}"
+		exit 1
+	fi
+	echo "INFO: Received '${act}' on NOTIFY_SOCKET"
 fi
 
 if ! kill_quiet -0 "${SWTPM_PID}" 2>/dev/null; then
