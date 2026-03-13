@@ -135,6 +135,9 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
     uint32_t            ack = htobe32(0);
     struct tpm2_resp_prefix respprefix;
     uint32_t            lastCommand;
+    enum TPMLIB_TPMProperty prop = (mlp->tpmversion == TPMLIB_TPM_VERSION_1_2)
+        ? TPMPROP_TPM_BUFFER_MAX
+        : TPMPROP_TPM2_BUFFER_MAX;
 
     /* poolfd[] indexes */
     enum {
@@ -147,7 +150,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
 
     TPM_DEBUG("mainLoop:\n");
 
-    max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX) +
+    max_command_length = tpmlib_get_tpm_property(prop) +
                          sizeof(struct tpm2_send_command_prefix);
 
     command = malloc(max_command_length);
