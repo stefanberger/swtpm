@@ -103,7 +103,7 @@ token and must be explicitly set as an environment variable.
 The TPM 2 CA's key algorithm. Supported values are rsa2048, rsa3072, ecc256,
 and ecc384. The default is rsa2048.
 
-=item B<--pid pimary-object-id>
+=item B<--pid primary-object-id>
 
 The primary object id that the tpm2_ptool returns upon 'init'.
 
