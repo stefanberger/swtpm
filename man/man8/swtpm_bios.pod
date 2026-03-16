@@ -98,7 +98,7 @@ Only send the startup command and nothing else.
 =item B<-ea>
 
 Make sure that the TPM is activated; if the TPM requires a reset, the program
-will exist and return a return code of 129.
+will exit and return a return code of 129.
 
 =item B<-cs>
 

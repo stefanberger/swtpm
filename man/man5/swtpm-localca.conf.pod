@@ -23,7 +23,7 @@ The following configuration variables are supported:
 The name of a directory where to store data into. A lock will be created
 in this directory.
 
-=item B<signinkey>
+=item B<signingkey>
 
 The file containing the key used for signing the certificates. Provide
 a key in PEM format or a pkcs11 URI.
