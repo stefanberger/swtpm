@@ -394,6 +394,7 @@ gchar *str_replace(const char *in, const char *torep, const char *rep)
     size_t rep_len;
     size_t ctr = 0;
     size_t off = 0;
+    size_t res_len;
 
     if (in == NULL || torep == NULL || rep == NULL)
         return NULL;
@@ -410,7 +411,8 @@ gchar *str_replace(const char *in, const char *torep, const char *rep)
         ctr++;
     }
 
-    res = g_malloc(strlen(in) - ctr * torep_len + ctr * rep_len + 1);
+    res_len = strlen(in) - ctr * torep_len + ctr * rep_len;
+    res = g_malloc(res_len + 1);
 
     b = s = in;
     while ((s = strstr(s, torep)) != NULL) {
@@ -418,10 +420,11 @@ gchar *str_replace(const char *in, const char *torep, const char *rep)
         off += (s - b);
         s += torep_len;
         b = s;
-        strcpy(&res[off], rep);
+        strncpy(&res[off], rep, res_len - off);
         off += rep_len;
     }
-    strcpy(&res[off], b);
+    strncpy(&res[off], b, res_len - off);
+    res[res_len] = 0;
 
     return res;
 }
