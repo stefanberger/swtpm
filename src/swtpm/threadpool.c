@@ -99,7 +99,7 @@ void worker_thread_wait_done(void)
 }
 
 /*
- * worker_thread_mark_busy: mark the workder thread as busy
+ * worker_thread_mark_busy: mark the worker thread as busy
  */
 void worker_thread_mark_busy(void)
 {

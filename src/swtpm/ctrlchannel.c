@@ -226,7 +226,7 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
     blob = malloc(blob_length);
     if (!blob) {
         logprintf(STDERR_FILENO,
-                  "Could not allocated %u bytes.\n", blob_length);
+                  "Could not allocate %u bytes.\n", blob_length);
         res = TPM_FAIL;
         goto err_send_resp;
     }

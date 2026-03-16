@@ -451,8 +451,8 @@ ssize_t file_write(const char *filename, int flags, mode_t mode,
 }
 
 /*
- * read_einter: Read bytes from a file descriptor into a buffer
- *              and handle EINTR. Perform one read().
+ * read_eintr: Read bytes from a file descriptor into a buffer
+ *             and handle EINTR. Perform one read().
  *
  * @fd: file descriptor to read from
  * @buffer: buffer
