@@ -120,7 +120,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
         *encrypt_data = malloc(*encrypt_length);
         if (!*encrypt_data) {
             logprintf(STDERR_FILENO,
-                      "Could not allocated %u bytes.\n", *encrypt_length);
+                      "Could not allocate %u bytes.\n", *encrypt_length);
             rc = TPM_SIZE;
         }
     }
@@ -129,7 +129,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
         decrypt_data_pad = malloc(*encrypt_length);
         if (!decrypt_data_pad) {
             logprintf(STDERR_FILENO,
-                      "Could not allocated %u bytes.\n", *encrypt_length);
+                      "Could not allocate %u bytes.\n", *encrypt_length);
             rc = TPM_SIZE;
         }
     }
@@ -232,7 +232,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
         *decrypt_data = malloc(encrypt_length);
         if (!*decrypt_data) {
             logprintf(STDERR_FILENO,
-                      "Could not allocated %u bytes.\n", encrypt_length);
+                      "Could not allocate %u bytes.\n", encrypt_length);
             rc = TPM_SIZE;
         }
     }

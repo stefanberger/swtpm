@@ -230,7 +230,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
                 }
             };
 
-            /* only listend for clients if we don't have one */
+            /* only listen for clients if we don't have one */
             if (connection_fd.fd < 0)
                 pollfds[DATA_SERVER_FD].fd = sockfd;
             if (ctrlclntfd < 0)
