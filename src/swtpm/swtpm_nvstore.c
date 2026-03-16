@@ -797,22 +797,28 @@ SWTPM_CheckHMAC(tlv_data *hmac, tlv_data *encrypted_data,
 }
 
 /*
- * SWTPM_CheckHash:
+ * SWTPM_CheckHash: sha256-hash the data in a buffer and check it against its leading
+ *                  sha256; on success return the data in an allocated buffer
  *
- * @in: input buffer
+ * @in: input buffer that has a sha256 in the first few bytes followed by data
+ *      that will be sha256-hashed; the hash of the data must be equal to the
+ *      leading hash in the buffer
  * @in_length: input buffer length
- * @out: output buffer
- * @out_length: output buffer length
+ * @out: pointer to pointer for output buffer; will be allocated by function
+ * @out_length: pointer to output buffer length; will be set by function
+ *
+ * Returns TPM_FAIL on failure, TPM_SUCCESS otherwise.
  */
 static TPM_RESULT
 SWTPM_CheckHash(const unsigned char *in, uint32_t in_length,
                 unsigned char **out, uint32_t *out_length)
 {
-    TPM_RESULT rc = 0;
-    unsigned char *dest = NULL;
     unsigned char hashbuf[SHA256_DIGEST_LENGTH];
     const unsigned char *data = &in[sizeof(hashbuf)];
     uint32_t data_length = in_length - sizeof(hashbuf);
+
+    if (in_length < sizeof(hashbuf))
+        return TPM_FAIL;
 
     /* hash the data */
     SHA256(data, data_length, hashbuf);
@@ -820,23 +826,20 @@ SWTPM_CheckHash(const unsigned char *in, uint32_t in_length,
     if (memcmp(in, hashbuf, sizeof(hashbuf))) {
         logprintf(STDOUT_FILENO, "Verification of hash failed. "
                   "Data integrity is compromised\n");
-        rc = TPM_FAIL;
+        return TPM_FAIL;
     }
 
-    if (rc == 0) {
-        dest = malloc(data_length);
-        if (dest) {
-            *out = dest;
-            *out_length = data_length;
-            memcpy(dest, data, data_length);
-        } else {
-            logprintf(STDOUT_FILENO,
-                      "Could not allocated %u bytes.\n", data_length);
-            rc = TPM_FAIL;
-        }
+    *out = malloc(data_length);
+    if (*out == NULL) {
+        logprintf(STDOUT_FILENO,
+                  "Could not allocated %u bytes.\n", data_length);
+        return TPM_FAIL;
     }
 
-    return rc;
+    *out_length = data_length;
+    memcpy(*out, data, data_length);
+
+    return TPM_SUCCESS;
 }
 
 static TPM_RESULT
