@@ -216,6 +216,13 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
     uint32_t flags = be32toh(pss->u.req.state_flags);
     TPM_BOOL is_encrypted = (flags & PTM_STATE_FLAG_ENCRYPTED) != 0;
 
+    if (blob_length > 512 * 1024) {
+        logprintf(STDERR_FILENO,
+                  "Unreasonable large state of %u bytes.\n", blob_length);
+        res = TPM_FAIL;
+        goto err_send_resp;
+    }
+
     blob = malloc(blob_length);
     if (!blob) {
         logprintf(STDERR_FILENO,
