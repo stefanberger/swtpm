@@ -144,7 +144,7 @@ AS_IF([test "$OPENSSL_CLITOOL" != "yes"],
 
 PKG_CHECK_MODULES([LIBTASN1],[libtasn1])
 
-PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.10])
+PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.11])
 
 
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
