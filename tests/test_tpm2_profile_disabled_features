@@ -1,0 +1,579 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+if [ "${SWTPM_TEST_IBMTSS2:-0}" -eq 0 ]; then
+	echo "SWTPM_TEST_IBMTSS2 must be set to run this test."
+	exit 77
+fi
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+source "${TESTDIR}/common"
+skip_test_no_tpm20 "${SWTPM_EXE}"
+
+TPMDIR="$(mktemp -d)" || exit 1
+PID_FILE="${TPMDIR}/swtpm.pid"
+OUT_FILE="${TPMDIR}/output"
+CAP_FILE="${TPMDIR}/caps.txt"
+SWTPM_SERVER_PORT=65488
+SWTPM_CTRL_PORT=65489
+SWTPM_SERVER_NAME=127.0.0.1
+SWTPM_INTERFACE="socket+socket"
+
+# For ibmtss2 tools
+export TPM_COMMAND_PORT=${SWTPM_SERVER_PORT}
+export TPM_SERVER_NAME=${SWTPM_SERVER_NAME}
+export TPM_INTERFACE_TYPE=socsim
+export TPM_SERVER_TYPE=raw
+
+function cleanup()
+{
+	if kill_quiet -0 "${SWTPM_PID}"; then
+		kill_quiet -9 "${SWTPM_PID}"
+	fi
+	rm -rf "${TPMDIR}"
+}
+trap "cleanup" SIGTERM EXIT
+
+function test_custom_profile_disabled_algos()
+{
+	local canbedisabled implemented algo profile_algos profile exp_ret grepstr
+	local num_tests exp_num_tests_min tot_num_tests
+
+	implemented=$(
+		${SWTPM_EXE} socket \
+			--tpm2 \
+			--print-info 0x8 |
+		sed -n 's/.*"Implemented":"\([^"]*\)".*/\1/p'
+	)
+
+	canbedisabled=",$(
+		${SWTPM_EXE} socket \
+			--tpm2 \
+			--print-info 0x8 |
+		sed -n 's/.*"CanBeDisabled":"\([^"]*\)".*/\1/p'
+	),"
+
+	IFS=',' read -ra implemented <<< "${implemented}"
+	for algo in "${implemented[@]}"; do
+		if ! grep -q ",${algo}," <<< "${canbedisabled}"; then
+			profile_algos="${profile_algos},${algo}"
+		fi
+	done
+	profile="{\"Name\":\"custom:test\",\"Algorithms\":\"${profile_algos:1}\"}"
+	run_swtpm "${SWTPM_INTERFACE}" \
+		--tpm2 \
+		--profile profile="${profile}" \
+		--flags not-need-init,startup-clear \
+		--tpmstate dir="${TPMDIR}" \
+		--pid "file=${PID_FILE}"
+
+	if wait_for_file "${PID_FILE}" 3; then
+                echo "Error: Socket TPM did not write pidfile."
+                exit 1
+        fi
+
+	# Test disabled algorithms that they cannot be used
+	tot_num_tests=7
+	exp_num_tests_min=3   # some test may not run
+	num_tests=0
+	IFS=',' read -ra canbedisabled <<< "${canbedisabled}"
+	for algo in "${canbedisabled[@]}"; do
+		rc=none
+		case "${algo}" in
+		tdes)	# no test
+			;;
+		sha1)
+			tsshashsequencestart -halg sha1 &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=02c3
+			;;
+		sha512)
+			# older tools did not support sha512
+			if tsshashsequencestart -? | grep -q sha512; then
+				tsshashsequencestart -halg sha512 &>"${OUT_FILE}"
+				rc=$?
+				exp_ret=02c3
+			fi
+			;;
+		rsassa)
+			tsscreateprimary -sir &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=02c4
+			;;
+		rsaes)
+			if tsscreateprimary -? | grep -q -E "\-dee"; then
+				tsscreateprimary -dee &>"${OUT_FILE}"
+				rc=$?
+				exp_ret=02c4
+			fi
+			;;
+		rsapss)
+			if tsssign -? | grep -q -E "\-salg" ; then
+				if ! tsscreateprimary -si &>/dev/null; then
+					echo "Error: tsscreateprimary -si failed"
+					exit 1
+				fi
+				tsssign -hk 80000000 -if "${PID_FILE}" \
+					-salg rsa -scheme rsapss &>"${OUT_FILE}"
+				rc=$?
+				exp_ret=02d2
+				tssflushcontext -ha 80000000
+			fi
+			;;
+		ecdaa)
+			tsscreateprimary -ecc nistp256 -dau &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=02d2
+			;;
+		sm2)	# no test
+			;;
+		ecschnorr)
+			# no test
+			;;
+		ecmqv)
+			# no test
+			;;
+		ecc-nist)
+			# no test possible; shortcut
+			;;
+		ecc-bn)
+			# no test possible; shortcut
+			;;
+		ecc-nist-p192)
+			# curve not supported by tsscreateprimary
+			;;
+		ecc-nist-p224)
+			# curve not supported by tsscreateprimary
+			;;
+		ecc-nist-p521)
+			# curve not supported by tsscreateprimary
+			;;
+		ecc-bn-p256)
+			# Something is wrong with createprimary with bnp256 with
+			# older tss tools (at time of missing -dee)
+			if tsscreateprimary -? | grep -q -E "\-dee"; then
+				tsscreateprimary -ecc bnp256 &>"${OUT_FILE}"
+				rc=$?
+				exp_ret=02e6
+			fi
+			;;
+		ecc-bn-p638)
+			# curve not supported by tsscreateprimary
+			;;
+		ecc-sm2-p256)
+			# curve not supported by tsscreateprimary
+			;;
+		camellia)
+			# no test
+			;;
+		cmac)
+			# no test
+			;;
+		ctr)
+			# no test
+			;;
+		ofb)
+			# no test
+			;;
+		cbc)
+			# no test
+			;;
+		ecb)
+			# no test
+			;;
+		mlkem)
+			# no test
+			;;
+		ml-kem)
+			# no test
+			;;
+		ml-kem-512)
+			# no test
+			;;
+		ml-kem-768)
+			# no test
+			;;
+		ml-kem-1024)
+			# no test
+			;;
+		mldsa)
+			# no test
+			;;
+		ml-dsa)
+			# no test
+			;;
+		ml-dsa-44)
+			# no test
+			;;
+		ml-dsa-65)
+			# no test
+			;;
+		ml-dsa-87)
+			# no test
+			;;
+		"")
+			;;
+		*)	echo "Unhandled algo: ${algo}";;
+		esac
+
+		# Check the return code
+		case "${rc}" in
+		0)
+			echo "Error: Unexpected success testing disabled algorithm '${algo}'."
+			exit 1
+			;;
+		none)	# no test
+			;;
+		*)	# presumably tool failed
+			if ! grep -q -i "${exp_ret}" "${OUT_FILE}"; then
+				echo "WARN: Could not find expected error '${exp_ret}' in output."
+				cat "${OUT_FILE}"
+			fi
+			num_tests=$((num_tests+1))
+			;;
+		esac
+	done
+	if [ "${exp_num_tests_min}" -gt "${num_tests}" ]; then
+		echo "Error: Expected to run at least ${exp_num_tests_min} but ran ${num_tests}."
+		exit 1
+	fi
+	echo "Test of disabled algorithms (command tests): Ok  (tests: ${num_tests}/${tot_num_tests} min: ${exp_num_tests_min})"
+
+	# Check that disabled curves are not shown as capabilities
+	tssgetcapability -cap 8 > "${CAP_FILE}"
+	tot_num_tests=6
+	exp_num_tests_min=6
+	num_tests=0
+	for algo in "${canbedisabled[@]}"; do
+		case "${algo}" in
+		ecc-nist-p192)	grepstr="NIST_P192";;
+		ecc-nist-p224)	grepstr="NIST_P224";;
+		ecc-nist-p521)	grepstr="NIST_P521";;
+		ecc-bn-p256)	grepstr="BN_P256";;
+		ecc-bn-p638)	grepstr="BN_P638";;
+		ecc-sm2-p256)	grepstr="SM2_P256";;
+		*)		grepstr="";;
+		esac
+		if [ -n "${grepstr}" ]; then
+			if grep -q "${grepstr}" "${CAP_FILE}"; then
+				echo "Error: Found ${grepstr} as enabled curve"
+				cat "${CAP_FILE}"
+				exit 1
+			fi
+			num_tests=$((num_tests+1))
+		fi
+	done
+	if [ "${exp_num_tests_min}" -gt "${num_tests}" ]; then
+		echo "Error: Expected to run at least ${exp_num_tests_min} but ran ${num_tests}."
+		exit 1
+	fi
+	echo "Test of disabled curves (tssgetcapability): Ok  (tests: ${num_tests}/${tot_num_tests} min: ${exp_num_tests_min})"
+
+	# Check that disabled algorithms are not shown as capabilities
+	tssgetcapability -cap 0 > "${CAP_FILE}"
+	#cat "${CAP_FILE}"
+	tot_num_tests=18
+	exp_num_tests_min=16
+	num_tests=0
+	for algo in "${canbedisabled[@]}"; do
+		case "${algo}" in
+		tdes)		grepstr="TPM_ALG_TDES";;
+		sha1)		grepstr="TPM_ALG_SHA1";;
+		sha512)		grepstr="TPM_ALG_SHA512";;
+		rsassa)		grepstr="TPM_ALG_RSASS";;
+		rsaes)		grepstr="TPM_ALG_RSAES";;
+		rsapss)		grepstr="TPM_ALG_RSAPSS";;
+		ecdaa)		grepstr="TPM_ALG_ECDAA";;
+		sm2)		grepstr="TPM_ALG_SM2";;
+		ecschnorr)	grepstr="TPM_ALG_ECSCHNORR";;
+		ecmqv)		grepstr="TPM_ALG_ECMQV";;
+		camellia)	grepstr="TPM_ALG_CAMELLIA";;
+		cmac)		grepstr="TPM_ALG_CMAC";;
+		ctr)		grepstr="TPM_ALG_CTR";;
+		ofb)		grepstr="TPM_ALG_OFB";;
+		cbc)		grepstr="TPM_ALG_CBC";;
+		ecb)		grepstr="TPM_ALG_ECB";;
+		mlkem)		grepstr="TPM_ALG_MLKEM";; # libtpms v0.11
+		mldsa)		grepstr="TPM_ALG_MLDSA";; # libtpms v0.11
+		*)		grepstr="";;
+		esac
+		if [ -n "${grepstr}" ]; then
+			if grep -q "${grepstr}" "${CAP_FILE}"; then
+				echo "Error: Found ${grepstr} as enabled curve"
+				cat "${CAP_FILE}"
+				exit 1
+			fi
+			num_tests=$((num_tests+1))
+		fi
+	done
+	if [ "${exp_num_tests_min}" -gt "${num_tests}" ]; then
+		echo "Error: Expected to run at least ${exp_num_tests_min} but ran ${num_tests}."
+		exit 1
+	fi
+	echo "Test of disabled algorithms (tssgetcapability): Ok  (tests: ${num_tests}/${tot_num_tests} min: ${exp_num_tests_min})"
+
+	kill -SIGTERM "${SWTPM_PID}"
+	if wait_process_gone "${SWTPM_PID}" 4; then
+	        echo "Error: TPM should not be running anymore."
+	        exit 1
+	fi
+
+	# clean up state
+	rm -f "${TPMDIR}"/*
+}
+
+function expand_range()
+{
+	local range="$1"
+
+	local lo hi cc
+
+	lo=$(cut -d"-" -f1 <<< "${range}")
+	hi=$(cut -d"-" -f2 <<< "${range}")
+	[ -z "${hi}" ] && hi="${lo}"
+	for ((cc=lo; cc<=hi; cc++)); do
+		printf "0x%x," "${cc}"
+	done
+}
+
+function expand_cmd_codes()
+{
+	local codes="$1"
+
+	local range
+
+	IFS=',' read -ra codes <<< "${codes}"
+	for range in "${codes[@]}"; do
+		expand_range "${range}"
+	done
+}
+
+function test_custom_profile_disabled_commands()
+{
+	local canbedisabled implemented cc profile_ccs profile exp_ret grepstr
+	local num_tests exp_num_tests_min tot_num_tests
+
+	implemented=$(
+		${SWTPM_EXE} socket \
+			--tpm2 \
+			--print-info 0x10 |
+		sed -n 's/.*"Implemented":"\([^"]*\)".*/\1/p'
+	)
+
+	canbedisabled="$(
+		${SWTPM_EXE} socket \
+			--tpm2 \
+			--print-info 0x10 |
+		sed -n 's/.*"CanBeDisabled":"\([^"]*\)".*/\1/p'
+	)"
+
+	implemented=$(expand_cmd_codes "${implemented}")
+	IFS=',' read -ra implemented <<< "${implemented}"
+
+	canbedisabled=$(expand_cmd_codes "${canbedisabled}")
+
+	for cc in "${implemented[@]}"; do
+		if ! grep -q "${cc}" <<< "${canbedisabled}"; then
+			profile_ccs="${profile_ccs},${cc}"
+		fi
+	done
+	profile="{\"Name\":\"custom:test\",\"Commands\":\"${profile_ccs:1}\"}"
+	run_swtpm "${SWTPM_INTERFACE}" \
+		--tpm2 \
+		--profile profile="${profile}" \
+		--flags not-need-init,startup-clear \
+		--tpmstate dir="${TPMDIR}" \
+		--pid "file=${PID_FILE}"
+
+	if wait_for_file "${PID_FILE}" 3; then
+                echo "Error: Socket TPM did not write pidfile."
+                exit 1
+	fi
+
+	# Test a few commands that they have been disabled
+	tot_num_tests=2
+	exp_num_tests_min=2
+	num_tests=0
+	IFS=',' read -ra canbedisabled <<< "${canbedisabled}"
+	for cc in "${canbedisabled[@]}"; do
+		rc=none
+		case "${cc}" in
+		0x124)
+			tsschangeeps &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=143
+			;;
+		0x125)
+			tsschangepps &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=143
+			;;
+		*)	;;
+		esac
+
+		# Check the return code
+		case "${rc}" in
+		0)
+			echo "Error: Unexpected success testing disabled command '${cc}'."
+			exit 1
+			;;
+		none)	# no test
+			;;
+		*)	# presumably tool failed
+			if ! grep -q -i "${exp_ret}" "${OUT_FILE}"; then
+				echo "WARN: Could not find expected error '${exp_ret}' in output."
+				cat "${OUT_FILE}"
+			fi
+			num_tests=$((num_tests+1))
+			;;
+		esac
+	done
+	if [ "${exp_num_tests_min}" -gt "${num_tests}" ]; then
+		echo "Error: Expected to run at least ${exp_num_tests_min} but ran ${num_tests}."
+		exit 1
+	fi
+	echo "Test of disabled commands (command tests): Ok  (tests: ${num_tests}/${tot_num_tests} min: ${exp_num_tests_min})"
+
+	# Check that disabled commands are not showing as capabilities
+	tssgetcapability -cap 2 -pc 150 > "${CAP_FILE}"
+	#cat "${CAP_FILE}"
+	for cc in "${canbedisabled[@]}"; do
+		if grep -q -i "00${cc}" "${CAP_FILE}"; then
+			echo "Error: Found ${cc} in list of enabled commands"
+			cat "${CAP_FILE}"
+			exit 1
+		fi
+	done
+	echo "Test of disabled commands (tssgetcapability): Ok"
+
+	kill -SIGTERM "${SWTPM_PID}"
+	if wait_process_gone "${SWTPM_PID}" 4; then
+	        echo "Error: TPM should not be running anymore."
+	        exit 1
+	fi
+
+	# clean up state
+	rm -f "${TPMDIR}"/*
+}
+
+test_custom_profile_enabled_attributes()
+{
+	local implemented profile exp_ret attr
+	local num_tests exp_num_tests_min tot_num_tests
+
+	implemented=$(
+		${SWTPM_EXE} socket \
+			--tpm2 \
+			--print-info 0x80 |
+		sed -n 's/.*"Implemented":"\([^"]*\)".*/\1/p'
+	)
+
+	profile="{\"Name\":\"custom:test\",\"Attributes\":\"${implemented}\"}"
+	run_swtpm "${SWTPM_INTERFACE}" \
+		--tpm2 \
+		--profile profile="${profile}" \
+		--flags not-need-init,startup-clear \
+		--tpmstate dir="${TPMDIR}" \
+		--pid "file=${PID_FILE}"
+
+	if wait_for_file "${PID_FILE}" 3; then
+                echo "Error: Socket TPM did not write pidfile."
+                exit 1
+	fi
+
+	# Check that the enabled attributes are working
+	tot_num_tests=4
+	exp_num_tests_min=4
+	num_tests=0
+	IFS=',' read -ra implemented <<< "${implemented}"
+	for attr in "${implemented[@]}"; do
+		rc=none
+		case "${attr}" in
+		no-unpadded-encryption)
+			;;
+		no-sha1-signing)
+			tsscreateprimary -si &>/dev/null
+			tsssign -hk 80000000 -if "${PID_FILE}" -halg sha1 &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=0083
+			tssflushcontext -ha 80000000
+			;;
+		no-sha1-verification)
+			;;
+		no-sha1-hmac-creation)
+			tsscreateprimary &>/dev/null
+			tsscreateloaded -hp 80000000 -kh -halg sha1 &>/dev/null
+			tsshmac -hk 80000001 -if "${PID_FILE}" -halg sha1 &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=2c3
+			tssflushcontext -ha 80000001
+			tssflushcontext -ha 80000000
+			;;
+		no-sha1-hmac)
+			# A variant of the above
+			tsscreateprimary &>/dev/null
+			tsscreateloaded -hp 80000000 -kh -halg sha1 &>/dev/null
+			tsshmacstart -hk 80000001 -halg sha1 &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=2c3
+			tssflushcontext -ha 80000001
+			tssflushcontext -ha 80000000
+			;;
+		fips-host)	# combination of multiple attributes; need not test here
+			;;
+		drbg-continous-test)	# cannot test
+			;;
+		pct)	# cannot test
+			;;
+		no-ecc-key-derivation)
+			tsscreateprimary -dp &>/dev/null
+			tsscreateloaded -hp 80000000 -der -ecc nistp256 -den -kt f -kt p &>"${OUT_FILE}"
+			rc=$?
+			exp_ret=2ca
+			tssflushcontext -ha 80000000
+			;;
+		*)
+			;;
+		esac
+
+		# Check the return code
+		case "${rc}" in
+		0)
+			echo "Error: Unexpected success testing disabled command '${attr}'."
+			exit 1
+			;;
+		none)	# no test
+			;;
+		*)	# presumably tool failed
+			if ! grep -q -i "${exp_ret}" "${OUT_FILE}"; then
+				echo "WARN: Could not find expected error '${exp_ret}' in output."
+				cat "${OUT_FILE}"
+			fi
+			num_tests=$((num_tests+1))
+			;;
+		esac
+	done
+
+	if [ "${exp_num_tests_min}" -gt "${num_tests}" ]; then
+		echo "Error: Expected to run at least ${exp_num_tests_min} but ran ${num_tests}"
+		exit 1
+	fi
+	echo "Test of enabled attributes (command tests): Ok  (tests: ${num_tests}/${tot_num_tests} min: ${exp_num_tests_min})"
+
+	kill -SIGTERM "${SWTPM_PID}"
+	if wait_process_gone "${SWTPM_PID}" 4; then
+	        echo "Error: TPM should not be running anymore."
+	        exit 1
+	fi
+
+	# clean up state
+	rm -f "${TPMDIR}"/*
+}
+
+test_custom_profile_disabled_algos
+test_custom_profile_disabled_commands
+test_custom_profile_enabled_attributes
