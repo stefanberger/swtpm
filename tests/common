@@ -36,15 +36,16 @@ export CERTTOOL
 
 # Note: Do not use file descriptors above 127 due to OpenBSD.
 
-# Kill a process quietly
-# @1: signal, e.g. -9
+# Send a signal to a process and suppress the output if for example a process
+# with the given PID is not running.
+# @1: signal, e.g. -9, -SIGTERM
 # @2: pid
 function kill_quiet()
 {
   local sig="$1"
   local pid="$2"
 
-  bash -c "kill $sig $pid &>/dev/null"
+  kill "$sig" "$pid" &>/dev/null
   return $?
 }
 
