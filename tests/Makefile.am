@@ -82,6 +82,7 @@ TESTS += \
 	test_tpm2_volatilestate \
 	test_tpm2_wrongorder \
 	test_tpm2_probe \
+	test_tpm2_profile_disabled_features \
 	\
 	test_tpm2_swtpm_bios \
 	\
