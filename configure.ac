@@ -139,7 +139,7 @@ AS_CASE([$cryptolib],[openssl],
 
 PKG_CHECK_MODULES([LIBTASN1],[libtasn1])
 
-PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.10])
+PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.11])
 
 
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
@@ -220,6 +220,25 @@ AS_IF([test "x$with_gnutls" != "xno"],
         [with_gnutls=no]
     )
     AS_IF([test "x$with_gnutls" != "xno"],[with_gnutls="yes"])
+    AS_IF([test "x$with_gnutls" = "xyes"],
+          [AC_COMPILE_IFELSE(
+            [AC_LANG_PROGRAM(
+              [[
+                #include <gnutls/gnutls.h>
+                #include <stdio.h>
+              ]],
+              [[
+                printf("%d", GNUTLS_PK_MLDSA44);
+              ]]
+            )],
+            [
+             AC_MSG_RESULT("GnuTLS has ML-DSA support")
+             AC_DEFINE_UNQUOTED([GNUTLS_SUPPORTS_MLDSA], 1,
+                [whether GnuTLS support ML-DSA signing algorithm])
+            ],
+            [AC_MSG_RESULT("GnuTLS has no ML-DSA support")],
+          )]
+         )
     ]
 )
 
