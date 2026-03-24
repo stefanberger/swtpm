@@ -141,6 +141,9 @@ struct nvram_backend_ops {
 /* backend interfaces */
 extern struct nvram_backend_ops nvram_dir_ops;
 extern struct nvram_backend_ops nvram_linear_ops;
+#ifdef WITH_PLUGINBACKEND
+extern struct nvram_backend_ops nvram_plugin_ops;
+#endif
 
 
 int SWTPM_NVRAM_PrintJson(void);
