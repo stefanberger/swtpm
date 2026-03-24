@@ -145,6 +145,34 @@ PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.10])
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")
 AC_SUBST([LIBRT_LIBS])
 
+AC_ARG_WITH([pluginbackend],
+            [AS_HELP_STRING([--with-pluginbackend],
+                            [build with plugin backend @<:@default=check@:>@])],
+            [],
+            [with_pluginbackend=check])
+
+AS_IF([test "x$with_pluginbackend" != "xno"], [
+    AC_CHECK_HEADERS([dlfcn.h], [have_dlfcn_h=yes], [have_dlfcn_h=no])
+    AC_SEARCH_LIBS([dlopen], [dl], [LIBDL_LIBS="$ac_cv_search_dlopen"], [LIBDL_LIBS=""])
+    AS_IF([test "x$LIBDL_LIBS" = "xnone required"], [LIBDL_LIBS=""])
+
+    AS_IF([test "x$have_dlfcn_h" = "xyes" && test "x$ac_cv_search_dlopen" != "xno"], [
+        with_pluginbackend=yes
+        AC_DEFINE_UNQUOTED([WITH_PLUGINBACKEND], 1,
+            [whether to build with plugin backend])
+    ], [
+        AS_IF([test "x$with_pluginbackend" = "xyes"],
+              [AC_MSG_ERROR([plugin backend requested but dlfcn.h/dlopen are unavailable])],
+              [with_pluginbackend=no])
+    ])
+], [
+    with_pluginbackend=no
+    LIBDL_LIBS=""
+])
+
+AM_CONDITIONAL([WITH_PLUGINBACKEND], [test "x$with_pluginbackend" = "xyes"])
+AC_SUBST([LIBDL_LIBS])
+
 AC_ARG_WITH([cuse],
             AS_HELP_STRING([--with-cuse],[build with CUSE interface]),
             [],
@@ -517,13 +545,14 @@ AC_CONFIG_FILES([samples/swtpm-localca],
 AC_OUTPUT
 
 echo
-printf "with_gnutls     : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
-printf "with_selinux    : %5s  (no = SELinux policy extensions will NOT be built)\n" $with_selinux
-printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
-printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
-printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
-printf "with_seccomp    : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
-printf "enable_tests    : %5s  (no = no tests will run)\n" $enable_tests
+printf "with_gnutls         : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
+printf "with_selinux        : %5s  (no = SELinux policy extensions will NOT be built)\n" $with_selinux
+printf "with_cuse           : %5s  (no = no CUSE interface)\n" $with_cuse
+printf "with_pluginbackend  : %5s  (no = no plugin backend support)\n" $with_pluginbackend
+printf "with_chardev        : %5s  (no = no chardev interface)\n" $with_chardev
+printf "with_vtpm_proxy     : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
+printf "with_seccomp        : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
+printf "enable_tests        : %5s  (no = no tests will run)\n" $enable_tests
 printf "\n"
 printf "active PCR banks      : %s\n" $DEFAULT_PCR_BANKS
 printf "TPM 2 profile support : yes\n"
@@ -538,6 +567,7 @@ echo "       MY_LDFLAGS = $MY_LDFLAGS"
 echo "  LIBSECCOMP_LIBS = $LIBSECCOMP_LIBS"
 echo " JSON_GLIB_CFLAGS = $JSON_GLIB_CFLAGS"
 echo "   JSON_GLIB_LIBS = $JSON_GLIB_LIBS"
+echo "      LIBDL_LIBS = $LIBDL_LIBS"
 echo "      GLIB_CFLAGS = $GLIB_CFLAGS"
 echo "        GLIB_LIBS = $GLIB_LIBS"
 echo "      GNUTLS_LIBS = $GNUTLS_LIBS"

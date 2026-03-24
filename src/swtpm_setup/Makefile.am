@@ -41,6 +41,12 @@ swtpm_setup_LDFLAGS = \
 	$(JSON_GLIB_LIBS) \
 	$(LIBCRYPTO_LIBS)
 
+if WITH_PLUGINBACKEND
+swtpm_setup_LDFLAGS += \
+	-rdynamic \
+	$(LIBDL_LIBS)
+endif
+
 swtpm_setup_CFLAGS = \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include \
@@ -54,6 +60,8 @@ swtpm_setup_CFLAGS = \
 	$(JSON_GLIB_CFLAGS)
 
 EXTRA_DIST = \
+	swtpm_backend_plugin.c.inc \
+	swtpm_backend_plugin_stub.c.inc \
 	README
 
 CLEANFILES = *.gcno *.gcda *.gcov

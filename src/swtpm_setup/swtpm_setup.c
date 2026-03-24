@@ -38,6 +38,12 @@
 #include "swtpm_utils.h"
 #include "swtpm_setup_utils.h"
 
+#ifdef WITH_PLUGINBACKEND
+#include "swtpm_backend_plugin.c.inc"
+#else
+#include "swtpm_backend_plugin_stub.c.inc"
+#endif
+
 #include <openssl/sha.h>
 
 /* default values for passwords */
@@ -926,7 +932,11 @@ static void usage(const char *prgname, const char *default_config_file)
         "\n"
         "--tpm-state <dir>: Path where the TPM's state will be written to;\n"
         "                   this is a mandatory argument. Prefix with dir:// to\n"
-        "                   use directory backend, or file:// to use linear file.\n"
+        "                   use directory backend, file:// for linear file,\n"
+#ifdef WITH_PLUGINBACKEND
+        "                   plugin://absolute/path/to/plugin.so[?<options>] for pluggable backend\n"
+        "                   (requires dlopen; unsupported on Windows).\n"
+#endif
         "\n"
         "--tpmstate <dir> : This is an alias for --tpm-state <dir>.\n"
         "\n"
@@ -1471,6 +1481,15 @@ int main(int argc, char *argv[])
             } else if (strncmp(optarg, "file://", 7) == 0) {
                 tpm_state_path = g_strdup(optarg);
                 backend_ops = &swtpm_backend_file;
+            } else if (strncmp(optarg, "plugin://", 9) == 0) {
+#ifdef WITH_PLUGINBACKEND
+                tpm_state_path = g_strdup(optarg);
+                backend_ops = &swtpm_backend_plugin;
+#else
+                logerr(gl_LOGFILE,
+                       "plugin backend is disabled at build time.\n");
+                goto error;
+#endif
             } else {
                 /* always prefix with dir:// so we can pass verbatim to swtpm */
                 tpm_state_path = g_strconcat("dir://", optarg, NULL);
