@@ -47,6 +47,11 @@ TESTS += \
 	test_swtpm_setup_file_backend \
 	test_swtpm_setup_misc
 
+if WITH_PLUGINBACKEND
+TESTS += \
+	test_tpm2_swtpm_setup_plugin_backend
+endif
+
 TESTS += \
 	test_tpm2_avoid_da_lockout \
 	test_tpm2_chroot_socket \
@@ -92,6 +97,11 @@ TESTS += \
 	test_tpm2_swtpm_setup_profile_name \
 	test_tpm2_libtpms_versions_profiles
 
+if WITH_PLUGINBACKEND
+TESTS += \
+	test_tpm2_save_load_state_2_plugin
+endif
+
 if WITH_GNUTLS
 TESTS += \
 	test_samples_create_tpmca \
@@ -120,6 +130,11 @@ TEST_UTILS = \
 	test_common \
 	test_cuse
 
+if WITH_PLUGINBACKEND
+TEST_UTILS += \
+	build_pluginbackend
+endif
+
 EXTRA_DIST = \
 	$(TESTS) \
 	$(TEST_UTILS) \
@@ -133,6 +148,7 @@ EXTRA_DIST = \
 	data/signkey-encrypted.pem \
 	data/keyfile.txt \
 	data/keyfile256bit.txt \
+	data/pluginbackend_wrapper.c \
 	data/pwdfile.txt \
 	data/migkey1/tpm2-volatilestate.bin \
 	data/migkey1/volatilestate.bin \

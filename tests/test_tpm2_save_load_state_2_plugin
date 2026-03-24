@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+if [ "${SWTPM_TEST_PLUGINBACKEND:-0}" -eq 0 ]; then
+	echo "Skipping test_tpm2_save_load_state_2_plugin: SWTPM_TEST_PLUGINBACKEND is not set"
+	exit 77
+fi
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+source "${TESTDIR}/build_pluginbackend"
+
+workdir="$(mktemp -d)" || exit 1
+plugin_dir="${workdir}/plugins"
+mkdir -p "${plugin_dir}" || exit 1
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf "${workdir}"
+}
+
+build_dir_plugin_so "${plugin_dir}"
+plugin_so="${plugin_dir}/swtpm_nvram_backend_dir.so"
+
+export SWTPM_TEST_PLUGINBACKEND_SO_PATH="${plugin_so}"
+export TPM_COMMAND_PORT=65463
+
+# don't exec so cleanup removes temporary plugin files
+"$(dirname "$0")/test_tpm2_save_load_state_2"
