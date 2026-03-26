@@ -31,7 +31,10 @@ SIGFILE=$TPMDIR/sigfile
 STATEFILE=${STATEFILE:-$TPMDIR/state}
 
 STORE_PARAM="dir=$TPMDIR"
-if [ "${SWTPM_TEST_LINEAR_FILE:-0}" -ne 0 ]; then
+if [ -n "${SWTPM_TEST_PLUGINBACKEND_SO_PATH:-}" ]; then
+	echo "Testing with plugin backend plugin://${SWTPM_TEST_PLUGINBACKEND_SO_PATH}?path=$TPMDIR"
+	STORE_PARAM="backend-uri=plugin://${SWTPM_TEST_PLUGINBACKEND_SO_PATH}?path=$TPMDIR"
+elif [ "${SWTPM_TEST_LINEAR_FILE:-0}" -ne 0 ]; then
 	echo "Testing with linear file backend ($STATEFILE)"
 	STORE_PARAM="backend-uri=file://$STATEFILE"
 fi

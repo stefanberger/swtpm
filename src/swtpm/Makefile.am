@@ -129,12 +129,22 @@ swtpm_LDFLAGS = \
 	$(MY_LDFLAGS) \
 	$(HARDENING_LDFLAGS)
 
+if WITH_PLUGINBACKEND
+swtpm_LDFLAGS += \
+	-rdynamic
+endif
+
 swtpm_LDADD = \
 	libswtpm_libtpms.la \
 	$(LIBFUSE_LIBS) \
 	$(GLIB_LIBS) \
 	$(GTHREAD_LIBS) \
 	$(LIBTPMS_LIBS)
+
+if WITH_PLUGINBACKEND
+swtpm_LDADD += \
+	$(LIBDL_LIBS)
+endif
 
 swtpm_cuse_DEPENDENCIES = $(privlib_LTLIBRARIES)
 
@@ -157,6 +167,11 @@ swtpm_cuse_LDFLAGS = \
 	$(MY_LDFLAGS) \
 	$(HARDENING_LDFLAGS)
 
+if WITH_PLUGINBACKEND
+swtpm_cuse_LDFLAGS += \
+	-rdynamic
+endif
+
 swtpm_cuse_LDADD = \
 	libswtpm_libtpms.la \
 	$(LIBFUSE_LIBS) \
@@ -164,7 +179,16 @@ swtpm_cuse_LDADD = \
 	$(GTHREAD_LIBS) \
 	$(LIBTPMS_LIBS)
 
+if WITH_PLUGINBACKEND
+swtpm_cuse_LDADD += \
+	$(LIBDL_LIBS)
+endif
+
 AM_CPPFLAGS   = 
 LDADD         = -ltpms
+
+EXTRA_DIST = \
+	swtpm_nvstore_plugin.c.inc \
+	swtpm_nvstore_plugin_stub.c.inc
 
 CLEANFILES = *.gcno *.gcda *.gcov

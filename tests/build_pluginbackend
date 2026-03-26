@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+function build_dir_plugin_so()
+{
+	local outdir="$1"
+	local top_src="${abs_top_srcdir:-}"
+	if [ -z "${top_src}" ]; then
+		top_src="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+	fi
+	local plugin_so="${outdir}/swtpm_nvram_backend_dir.so"
+	local wrapper_c="${TESTDIR}/data/pluginbackend_wrapper.c"
+	local setup_dir_src="${top_src}/src/swtpm_setup/swtpm_backend_dir.c"
+	local swtpm_dir_src="${top_src}/src/swtpm/swtpm_nvstore_dir.c"
+	local cc="${CC:-$(type -P gcc)}"
+	local -a pkg_cflags
+
+	if [ -z "${cc}" ]; then
+		echo "Skipping test: gcc is missing."
+		exit 77
+	fi
+
+	if [ -z "$(type -P pkg-config)" ]; then
+		echo "Skipping test: pkg-config is missing."
+		exit 77
+	fi
+
+	if ! pkg-config --exists glib-2.0 libtpms; then
+		echo "Skipping test: one or more development packages are missing (glib-2.0, libtpms)."
+		exit 77
+	fi
+
+	read -r -a pkg_cflags < <(pkg-config --cflags glib-2.0 libtpms)
+
+	if ! "${cc}" -fPIC -shared -o "${plugin_so}" \
+		"${setup_dir_src}" \
+		"${swtpm_dir_src}" \
+		"${wrapper_c}" \
+		-I"${ROOT}" \
+		-I"${ROOT}/include" \
+		-I"${ROOT}/src/swtpm" \
+		-I"${ROOT}/src/swtpm_setup" \
+		-I"${ROOT}/src/utils" \
+		-I"${top_src}/include" \
+		-I"${top_src}/src/swtpm" \
+		-I"${top_src}/src/swtpm_setup" \
+		-I"${top_src}/src/utils" \
+		"${pkg_cflags[@]}";
+	then
+		echo "Skipping test: could not compile plugin test plugin."
+		exit 77
+	fi
+}

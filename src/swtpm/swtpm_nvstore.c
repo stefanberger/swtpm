@@ -96,6 +96,12 @@
 #include "utils.h"
 #include "compiler_dependencies.h"
 
+#ifdef WITH_PLUGINBACKEND
+#include "swtpm_nvstore_plugin.c.inc"
+#else
+#include "swtpm_nvstore_plugin_stub.c.inc"
+#endif
+
 /* local structures */
 typedef struct {
     uint8_t  version;
@@ -187,6 +193,14 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
         g_nvram_backend_ops = &nvram_dir_ops;
     } else if (strncmp(backend_uri, "file://", 7) == 0) {
         g_nvram_backend_ops = &nvram_linear_ops;
+    } else if (strncmp(backend_uri, "plugin://", 9) == 0) {
+#ifdef WITH_PLUGINBACKEND
+        g_nvram_backend_ops = &nvram_plugin_ops;
+#else
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_Init: plugin backend is disabled at build time.\n");
+        rc = TPM_FAIL;
+#endif
     } else {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_Init: Unsupported backend.\n");

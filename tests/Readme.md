@@ -6,7 +6,7 @@ tests using the following command line:
 
 ```
 SWTPM_TEST_PROFILE='{"Name":"default-v1"}' \
-SWTPM_TEST_EXPENSIVE=1 SWTPM_TEST_STORE_VOLATILE=1 SWTPM_TEST_IBMTSS2=1 make check
+SWTPM_TEST_EXPENSIVE=1 SWTPM_TEST_STORE_VOLATILE=1 SWTPM_TEST_IBMTSS2=1 SWTPM_TEST_PLUGINBACKEND=1 make check
 ```
 
 You may omit the environment variables if you don't want to run
@@ -29,6 +29,10 @@ variable only has an effect if `SWTPM_TEST_EXPENSIVE=1` is set.
 `SWTPM_TEST_PROFILE` allows to set a profile for the following tests:
  - test_tpm2_ibmtss2
 
+ `SWTPM_TEST_PLUGINBACKEND=1` enables the following tests
+ - test_tpm2_save_load_state_2_plugin
+ - test_tpm2_swtpm_setup_plugin_backend
+
 Note: The test suite will terminate with an error if the profile disables an
 algorithm that it requires.
 
@@ -42,5 +46,5 @@ and the vTPM proxy device. To run these and all the other ones you
 can use the following command line:
 
 ```
-sudo bash -c "SWTPM_TEST_EXPENSIVE=1 SWTPM_TEST_STORE_VOLATILE=1 SWTPM_TEST_IBMTSS2=1 make check"
+sudo bash -c "SWTPM_TEST_EXPENSIVE=1 SWTPM_TEST_STORE_VOLATILE=1 SWTPM_TEST_PLUGINBACKEND=1 SWTPM_TEST_IBMTSS2=1 make check"
 ```
