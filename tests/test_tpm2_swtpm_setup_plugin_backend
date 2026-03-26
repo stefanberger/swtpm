@@ -7,24 +7,25 @@ if [ "${SWTPM_TEST_PLUGINBACKEND:-0}" -eq 0 ]; then
 	exit 77
 fi
 
-if [ "$(id -u)" -ne 0 ]; then
-	echo "Skipping test_tpm2_swtpm_setup_plugin_backend: Must be run as root."
-	exit 77
-fi
-
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
-# Determine a test user and group
-if ! id -u tss &>/dev/null; then
-	echo "Could not find suitable user/group for plugin backend testing."
-	exit 77
-fi
-TESTUSER=tss
-TESTGROUP="$(getent group "$(id -g "${TESTUSER}")" | cut -d':' -f1)"
 
-if [ -z "${TESTUSER}" ] || [ -z "${TESTGROUP}" ]; then
-	echo "Could not find suitable user/group for plugin backend testing."
-	exit 77
+if [ "$(id -u)" -eq 0 ]; then
+	# Determine a test user and group
+	if ! id -u tss &>/dev/null; then
+		echo "Could not find suitable user/group for plugin backend testing."
+		exit 77
+	fi
+	TESTUSER=tss
+	TESTGROUP="$(getent group "$(id -g "${TESTUSER}")" | cut -d':' -f1)"
+
+	if [ -z "${TESTUSER}" ] || [ -z "${TESTGROUP}" ]; then
+		echo "Could not find suitable user/group for plugin backend testing."
+		exit 77
+	fi
+	RUNAS="--runas ${TESTUSER}"
+else
+	RUNAS=""
 fi
 
 source "${TESTDIR}/common"
@@ -54,14 +55,19 @@ function make_backend_uri()
 plugin_dir="$(mktemp -d)" || exit 1
 build_dir_plugin_so "${plugin_dir}"
 plugin_so="${plugin_dir}/swtpm_nvram_backend_dir.so"
-chown -R "${TESTUSER}:${TESTGROUP}" "${plugin_dir}"
+
+if [ -n "${RUNAS}" ]; then
+	chown -R "${TESTUSER}:${TESTGROUP}" "${plugin_dir}"
+fi
 
 # Test 1: --not-overwrite with dummy state file
 workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/${STATEBASENAME}"
 logfile="${workdir}/logfile" && touch "${logfile}"
 dummydata="DUMMY" && echo "$dummydata" > "${statefile}"
-chown -R "${TESTUSER}:${TESTGROUP}" "${workdir}" || exit 1
+if [ -n "${RUNAS}" ]; then
+	chown -R "${TESTUSER}:${TESTGROUP}" "${workdir}" || exit 1
+fi
 backend_uri="$(make_backend_uri "${workdir}")"
 if ! $SWTPM_SETUP \
 	--tpm2 \
@@ -69,7 +75,7 @@ if ! $SWTPM_SETUP \
 	--tpm-state "${backend_uri}" \
 	--config "${SWTPM_SETUP_CONF}" \
 	--logfile "${logfile}" \
-	--runas ${TESTUSER} \
+	${RUNAS:+${RUNAS}} \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
 then
 	echo "Test 1 failed: Error: Could not run $SWTPM_SETUP."
@@ -95,7 +101,9 @@ statefile="${workdir}/${STATEBASENAME}"
 logfile="${workdir}/logfile"
 dummydata="DUMMY" && echo "$dummydata" > "${statefile}"
 logfile="${workdir}/logfile" && touch "${logfile}"
-chown -R "${TESTUSER}:${TESTGROUP}" "${workdir}" || exit 1
+if [ -n "${RUNAS}" ]; then
+	chown -R "${TESTUSER}:${TESTGROUP}" "${workdir}" || exit 1
+fi
 backend_uri="$(make_backend_uri "${workdir}")"
 if ! $SWTPM_SETUP \
 	--tpm2 \
@@ -103,7 +111,7 @@ if ! $SWTPM_SETUP \
 	--tpm-state "${backend_uri}" \
 	--config "${SWTPM_SETUP_CONF}" \
 	--logfile "${logfile}" \
-	--runas ${TESTUSER} \
+	${RUNAS:+${RUNAS}} \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
 then
 	echo "Test 2 failed: Error: Could not run $SWTPM_SETUP."
@@ -128,7 +136,9 @@ workdir="$(mktemp -d)" || exit 1
 statefile="${workdir}/${STATEBASENAME}"
 dummydata="DUMMY" && echo "$dummydata" > "${statefile}"
 logfile="${workdir}/logfile" && touch "${logfile}"
-chown -R "${TESTUSER}:${TESTGROUP}" "${workdir}" || exit 1
+if [ -n "${RUNAS}" ]; then
+	chown -R "${TESTUSER}:${TESTGROUP}" "${workdir}" || exit 1
+fi
 backend_uri="$(make_backend_uri "${workdir}")"
 
 if $SWTPM_SETUP \
@@ -136,7 +146,7 @@ if $SWTPM_SETUP \
 	--tpm-state "${backend_uri}" \
 	--config "${SWTPM_SETUP_CONF}" \
 	--logfile "${logfile}" \
-	--runas ${TESTUSER} \
+	${RUNAS:+${RUNAS}} \
 	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
 then
 	echo "Test 3 failed: Error: $SWTPM_SETUP did not exit with exit code 1."
@@ -155,32 +165,35 @@ fi
 echo "Test 3 passed"
 
 # Test 4: Root execution must reject plugin backend loading.
-workdir="$(mktemp -d)" || exit 1
-backend_uri="$(make_backend_uri "${workdir}")"
-if $SWTPM_SETUP \
-	--tpm2 \
-	--overwrite \
-	--tpm-state "${backend_uri}" \
-	--config "${SWTPM_SETUP_CONF}" \
-	--logfile "${workdir}/logfile" \
-	--runas root \
-	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
-then
-	echo "Test 4 failed: Error: $SWTPM_SETUP did not exit with exit code 1."
-	echo "Setup Logfile:"
-	cat "${workdir}/logfile"
-	exit 1
-fi
+if [ "$(id -u)" -eq 0 ]; then
+	workdir="$(mktemp -d)" || exit 1
+	backend_uri="$(make_backend_uri "${workdir}")"
+	if $SWTPM_SETUP \
+		--tpm2 \
+		--overwrite \
+		--tpm-state "${backend_uri}" \
+		--config "${SWTPM_SETUP_CONF}" \
+		--logfile "${workdir}/logfile" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+	then
+		echo "Test 4 failed: Error: $SWTPM_SETUP did not exit with exit code 1."
+		echo "Setup Logfile:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
 
-if ! grep -q "Refusing plugin backend " "${workdir}/logfile" ||
-   ! grep -q "while running as root" "${workdir}/logfile"; then
-	echo "Test 4 failed: expected root-rejection message is missing."
-	echo "Setup Logfile:"
-	cat "${workdir}/logfile"
-	exit 1
-fi
+	if ! grep -q "Refusing plugin backend " "${workdir}/logfile" ||
+	   ! grep -q "while running as root" "${workdir}/logfile"; then
+		echo "Test 4 failed: expected root-rejection message is missing."
+		echo "Setup Logfile:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
 
-echo "Test 4 passed"
+	echo "Test 4 passed"
+else
+	echo "Test 4 skipped (not running as root)"
+fi
 
 cleanup_all
 exit 0
