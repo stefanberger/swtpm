@@ -28,6 +28,7 @@ jobs:
       CHECK:                     "check"
       SWTPM_TEST_IBMTSS2:        "1"
       SWTPM_TEST_STORE_VOLATILE: "1"
+      SWTPM_TEST_PLUGINBACKEND:  "1"
       COVERALLS_REPO_TOKEN:      ${{ secrets.COVERALLS_REPO_TOKEN }}
       PACKAGES:                  libtpm2-pkcs11-tools
     steps:
