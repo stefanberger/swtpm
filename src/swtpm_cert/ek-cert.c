@@ -1124,8 +1124,20 @@ static void capabilities_print_json(void)
             "}\n");
 }
 
-int
-main(int argc, char *argv[])
+static bool check_keychoice(const char **keychoice, const char *kc)
+{
+    if (*keychoice && strcmp(*keychoice, kc) != 0) {
+        fprintf(stderr,
+                "Already found options for keytype '%s'; cannot switch to '%s'.\n",
+                *keychoice, kc);
+        return false;
+    }
+    *keychoice = kc;
+    return true;
+}
+
+
+int main(int argc, char *argv[])
 {
     int ret = 1;
     EVP_PKEY *pubkey = NULL;
@@ -1182,6 +1194,7 @@ main(int argc, char *argv[])
     long int spec_revision = ~0;
     int flags = 0;
     bool is_ecc = false;
+    const char *keychoice = NULL;
     static struct option long_options[] = {
         {"pubkey", required_argument, NULL, 'p'},
         {"modulus", required_argument, NULL, 'm'},
@@ -1234,30 +1247,42 @@ main(int argc, char *argv[])
 #endif
         switch (opt) {
         case 'p': /* --pubkey */
+            if (!check_keychoice(&keychoice, "read from file"))
+                goto cleanup;
             pubkey_filename = optarg;
             break;
         case 'm': /* --modulus */
             free(modulus_bin);
+            if (!check_keychoice(&keychoice, "RSA"))
+                goto cleanup;
             if (!(modulus_bin = hex_str_to_bin(optarg, &modulus_len))) {
                 goto cleanup;
             }
             break;
         case 'x': /* --ecc-x */
             free(ecc_x_bin);
+            if (!check_keychoice(&keychoice, "EC"))
+                goto cleanup;
             if (!(ecc_x_bin = hex_str_to_bin(optarg, &ecc_x_len))) {
                 goto cleanup;
             }
             break;
         case 'y': /* --ecc-y */
             free(ecc_y_bin);
+            if (!check_keychoice(&keychoice, "EC"))
+                goto cleanup;
             if (!(ecc_y_bin = hex_str_to_bin(optarg, &ecc_y_len))) {
                 goto cleanup;
             }
             break;
         case 'z': /* --ecc-curveid */
+            if (!check_keychoice(&keychoice, "EC"))
+                goto cleanup;
             ecc_curveid = optarg;
             break;
         case 'e': /* --exponent */
+            if (!check_keychoice(&keychoice, "RSA"))
+                goto cleanup;
             exponent = strtol(optarg, NULL, 0);
             if (exponent == 0) {
                 fprintf(stderr, "Exponent is wrong and cannot be 0.\n");
@@ -1409,9 +1434,8 @@ main(int argc, char *argv[])
         ser_number_len++;
     }
 
-    if (modulus_bin && (ecc_x_bin || ecc_y_bin)) {
-        fprintf(stderr, "RSA modulus and ECC parameters cannot both be "
-                "given.\n");
+    if (keychoice == NULL) {
+        fprintf(stderr, "No parameters for a public key were given.\n");
         goto cleanup;
     }
 
