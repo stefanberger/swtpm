@@ -1,1 +1,2 @@
 /usr/lib/*/swtpm/*.so.*
+/usr/lib/*/swtpm/storage_plugins/*.so

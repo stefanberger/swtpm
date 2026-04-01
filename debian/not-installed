@@ -1,1 +1,2 @@
 /usr/lib/*/swtpm/*.la
+/usr/lib/*/swtpm/storage_plugins/*.la
