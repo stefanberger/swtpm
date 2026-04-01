@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+if [ "${SWTPM_TEST_STORAGE_PLUGIN:-1}" = "0" ]; then
+	echo "Skipping: SWTPM_TEST_STORAGE_PLUGIN=0"
+	exit 77
+fi
+
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+source "${TESTDIR}/storage_plugin_common"
+
+workdir="$(mktemp -d)" || exit 1
+plugin_dir="${workdir}/plugins"
+mkdir -p "${plugin_dir}" || exit 1
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf "${workdir}"
+}
+
+build_dir_wrapper_plugin_so "${plugin_dir}"
+plugin_so="${plugin_dir}/swtpm_storage_plugin_dir_wrapper.so"
+
+export SWTPM_TEST_STORAGE_PLUGIN_SO_PATH="${plugin_so}"
+export TPM_COMMAND_PORT=65463
+
+"$(dirname "$0")/test_tpm2_save_load_state_2"
