@@ -841,7 +841,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // adminWithPolicy, sign, decrypt
+        // adminWithPolicy, sign, decrypt; restricted CANNOT be set
         keyflags |= 0x000600b2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
@@ -849,7 +849,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
         off = 72 + addlen;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // adminWithPolicy, sign
+        // adminWithPolicy, sign; restricted CANNOT be set
         keyflags |= 0x000400b2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
@@ -1245,7 +1245,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // userWithAuth, adminWithPolicy, sign, decrypt
+        // userWithAuth, adminWithPolicy, sign, decrypt; restricted CANNOT be set
         keyflags = 0x000600f2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
@@ -1253,7 +1253,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         off = 86;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // userWithAuth, adminWithPolicy, sign
+        // userWithAuth, adminWithPolicy, sign; restricted CANNOT be set
         keyflags = 0x000400f2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
