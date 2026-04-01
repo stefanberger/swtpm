@@ -80,7 +80,7 @@ if [ -x "$(type -P "$(echo "${SWTPM_CERT}" | cut -d" " -f1)" )" ]; then
 
 	exp='\{ "type": "swtpm_cert", "features": '\
 '\[ "cmdarg-signkey-pwd", "cmdarg-tpm-serial-num", '\
-'"supports-iak-idevid" \], '\
+'"supports-iak-idevid", "cmdarg-public", "cmdarg-keyalgo" \], '\
 '"version": "[^"]*" \}'
 	if ! [[ "${msg}" =~ ${exp} ]]; then
 		echo "Unexpected response from ${SWTPM_CERT} to --print-capabilities:"
