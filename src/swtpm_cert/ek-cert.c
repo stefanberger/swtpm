@@ -179,6 +179,8 @@ static void usage(const char *prg)
         "--ecc-y <hex string>      : ECC key y component\n"
         "--ecc-curveid <id>        : ECC curve id; secp256r1, secp384r1, secp521r1\n"
         "                            default: secp256r1\n"
+        "--public <hex string>     : Public key component for ML-KEM key\n"
+        "--keytype <name>          : ml-kem-512,ml-kem-768, or ml-kem-1024\n"
         "--serial <serial number>  : The certificate serial number\n"
         "--days <number>           : Number of days the cert is valid;\n"
         "                            -1 for no expiration\n"
@@ -366,6 +368,39 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
         EVP_PKEY_fromdata_init(ctx) != 1 ||
         EVP_PKEY_fromdata(ctx, &pubkey, EVP_PKEY_PUBLIC_KEY, params) != 1) {
         fprintf(stderr, "Could not create %s key\n", curve);
+    }
+cleanup:
+    OSSL_PARAM_BLD_free(bld);
+    OSSL_PARAM_free(params);
+    EVP_PKEY_CTX_free(ctx);
+
+    return pubkey;
+}
+
+static EVP_PKEY *create_pubkey(unsigned char *public_bin, size_t public_len,
+                               const char *keytype)
+{
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(NULL, keytype, NULL);
+    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+    EVP_PKEY *pubkey = NULL;
+    OSSL_PARAM *params = NULL;
+
+    CHECK_OSSL_NULLPTR(ctx, "Could not create pkey context for %s key.\n",
+                       keytype);
+    if (!bld) {
+        fprintf(stderr, "Out of memory\n");
+        goto cleanup;
+    }
+
+    OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY,
+                                     public_bin, public_len);
+
+    if ((params = OSSL_PARAM_BLD_to_param(bld)) == NULL ||
+        EVP_PKEY_fromdata_init(ctx) != 1 ||
+        EVP_PKEY_fromdata(ctx, &pubkey,
+                          EVP_PKEY_PUBLIC_KEY, params) != 1) {
+        fprintf(stderr, "Could not create %s public key.\n", keytype);
+        ERR_print_errors_fp(stderr);
     }
 cleanup:
     OSSL_PARAM_BLD_free(bld);
@@ -1166,6 +1201,8 @@ int main(int argc, char *argv[])
     unsigned char *ecc_y_bin = NULL;
     int ecc_y_len = 0;
     const char *ecc_curveid = NULL;
+    unsigned char *public_bin = NULL;
+    int public_len;
     datum_t datum = { NULL, 0},  out = { NULL, 0};
     mpz_t serial;
     time_t now;
@@ -1195,6 +1232,7 @@ int main(int argc, char *argv[])
     int flags = 0;
     bool is_ecc = false;
     const char *keychoice = NULL;
+    const char *keytype = NULL;
     static struct option long_options[] = {
         {"pubkey", required_argument, NULL, 'p'},
         {"modulus", required_argument, NULL, 'm'},
@@ -1202,6 +1240,8 @@ int main(int argc, char *argv[])
         {"ecc-y", required_argument, NULL, 'y'},
         {"ecc-curveid", required_argument, NULL, 'z'},
         {"exponent", required_argument, NULL, 'e'},
+        {"public", required_argument, NULL, 'q'},
+        {"keytype", required_argument, NULL, 'R'},
         {"signkey", required_argument, NULL, 's'},
         {"signkey-password", required_argument, NULL, 'S'},
         {"signkey-pwd", required_argument, NULL, 'T'},
@@ -1290,6 +1330,29 @@ int main(int argc, char *argv[])
             }
             if ((unsigned long int)exponent > UINT_MAX) {
                 fprintf(stderr, "Exponent must fit into 32bits.\n");
+                goto cleanup;
+            }
+            break;
+        case 'q': /* --public */
+            free(public_bin);
+            if (keychoice != NULL &&
+                !check_keychoice(&keychoice, "ML-KEM"))
+                goto cleanup;
+            keychoice = "ML-KEM";
+            if (!(public_bin = hex_str_to_bin(optarg, &public_len))) {
+                goto cleanup;
+            }
+            break;
+        case 'R': /* --keytype */
+            if (strcmp(optarg, "ml-kem-512") == 0 ||
+                strcmp(optarg, "ml-kem-768") == 0 ||
+                strcmp(optarg, "ml-kem-1024") == 0) {
+                if (!check_keychoice(&keychoice, "ML-KEM"))
+                    goto cleanup;
+                keychoice = "ML-KEM";
+                keytype = optarg;
+            } else {
+                fprintf(stderr, "Unsupported key type '%s'.\n", optarg);
                 goto cleanup;
             }
             break;
@@ -1516,6 +1579,12 @@ int main(int argc, char *argv[])
             ecc_y_bin = NULL;
 
             is_ecc = true;
+        } else if (public_bin) {
+            if (strncmp(keytype, "ml-kem-", 7) == 0) {
+                pubkey = create_pubkey(public_bin, public_len, keytype);
+            }
+            free(public_bin);
+            public_bin = NULL;
         }
 
         if (pubkey == NULL)
@@ -1921,6 +1990,7 @@ cleanup:
     free(modulus_bin);
     free(ecc_x_bin);
     free(ecc_y_bin);
+    free(public_bin);
     asn_free();
 
     return ret;
