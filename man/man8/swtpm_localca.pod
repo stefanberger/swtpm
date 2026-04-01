@@ -56,6 +56,10 @@ have the format --ek x=<hex digits>,y=<hex digits>,id=<curve id>. The
 id=<curve id> part is optional and only necessary for ECC curves other
 than secp256r1.
 
+In case ML-DSA or ML-KEM keys are used, the parameter must have the format
+--ek pubkey=<hex digits>,algo=<algorithm>. Valid algorithms are for example
+ml-kem-512, ml-kem-768, ml-kem-1024, ml-dsa-44, ml-dsa-65, and ml-dsa-87.
+
 =item B<--vmid ID>
 
 This parameter indicates the ID of the VM for which to create the certificate.
