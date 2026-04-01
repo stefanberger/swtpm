@@ -1362,11 +1362,25 @@ static struct swtpm_backend_ops *load_swtpm_backend_ops(void **plugin_handle, /*
     const char *opened_desc = NULL; /* plugin_path, or basename if loaded via LD_LIBRARY_PATH */
     struct swtpm_backend_ops *ops;
     swtpm_plugin_get_setup_backend_ops_t get_ops;
+    bool is_external_plugin = FALSE;
 
     if (strncmp(backend_uri, "dir://", 6) == 0) {
         plugin_name = SWTPM_DIR_STORAGE_PLUGIN_NAME;
+        plugin_path = g_build_filename(DEFAULT_STORAGE_PLUGIN_DIR, plugin_name, NULL);
     } else if (strncmp(backend_uri, "file://", 7) == 0) {
         plugin_name = SWTPM_FILE_STORAGE_PLUGIN_NAME;
+        plugin_path = g_build_filename(DEFAULT_STORAGE_PLUGIN_DIR, plugin_name, NULL);
+    } else if (strncmp(backend_uri, "plugin://", 9) == 0) {
+        plugin_path = parse_uri_path(backend_uri);
+        if (!plugin_path) {
+            logerr(gl_LOGFILE,
+                   "Invalid external plugin URI '%s'. Expected "
+                   "plugin://absolute/path/to/plugin.so[?arg1=value1...]\n",
+                   backend_uri);
+            return NULL;
+        }
+
+        is_external_plugin = TRUE;
     } else {
         logerr(gl_LOGFILE, "Unsupported backend URI: %s\n", backend_uri);
         return NULL;
@@ -1377,19 +1391,26 @@ static struct swtpm_backend_ops *load_swtpm_backend_ops(void **plugin_handle, /*
         *plugin_handle = NULL;
     }
 
-    plugin_path = g_build_filename(DEFAULT_STORAGE_PLUGIN_DIR, plugin_name, NULL);
+    if (is_external_plugin && getuid() == 0) {
+        logerr(gl_LOGFILE,
+            "The external storage plugin %s can not be loaded by high-privileged user.\n",
+            plugin_path);
+
+        return NULL;
+    }
+
     *plugin_handle = dlopen(plugin_path, RTLD_NOW | RTLD_LOCAL);
     if (*plugin_handle) {
         opened_desc = plugin_path;
-    } else {
-        /* try to load the plugin from LD_LIBRARY_PATH */
+    } else if (plugin_name) {
+        /* try to load the plugin from LD_LIBRARY_PATH  for dir and file backends*/
         *plugin_handle = dlopen(plugin_name, RTLD_NOW | RTLD_LOCAL);
-        if (!*plugin_handle) {
-            logerr(gl_LOGFILE, "Could not load storage plugin %s (%s): %s. Falling back to built-in backend.\n",
-                   plugin_name, plugin_path, dlerror());
-            return NULL;
-        }
         opened_desc = plugin_name;
+    }
+    if (!*plugin_handle) {
+        logerr(gl_LOGFILE, "Could not load storage plugin %s: %s.\n",
+               plugin_path, dlerror());
+        return NULL;
     }
 
     get_ops = (swtpm_plugin_get_setup_backend_ops_t)dlsym(*plugin_handle, SWTPM_DIR_STORAGE_PLUGIN_SETUP_SYMBOL);
@@ -1408,7 +1429,7 @@ static struct swtpm_backend_ops *load_swtpm_backend_ops(void **plugin_handle, /*
         goto error;
     }
 
-    logit(gl_LOGFILE, "Loaded storage plugin %s\n", plugin_name);
+    logit(gl_LOGFILE, "Loaded storage plugin %s\n", opened_desc);
 
     return ops;
 
@@ -1546,6 +1567,8 @@ int main(int argc, char *argv[])
             } else if (strncmp(optarg, "file://", 7) == 0) {
                 tpm_state_path = g_strdup(optarg);
                 backend_ops = &swtpm_backend_file;
+            } else if (strncmp(optarg, "plugin://", 9) == 0) {
+                tpm_state_path = g_strdup(optarg);
             } else {
                 /* always prefix with dir:// so we can pass verbatim to swtpm */
                 tpm_state_path = g_strconcat("dir://", optarg, NULL);
@@ -1819,7 +1842,12 @@ int main(int argc, char *argv[])
 #ifdef WITH_STORAGE_PLUGIN
     plugin_backend_ops = load_swtpm_backend_ops(&storage_plugin_handle, tpm_state_path);
     if (plugin_backend_ops)
-            backend_ops = plugin_backend_ops;
+        backend_ops = plugin_backend_ops;
+
+    if (!plugin_backend_ops && strncmp(tpm_state_path, "plugin://", 9) == 0) {
+        logerr(gl_LOGFILE, "Failed to load external storage plugin %s.\n", tpm_state_path);
+        goto error;
+    }
 #endif
 
     backend_state = backend_ops->parse_backend(tpm_state_path);

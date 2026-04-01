@@ -200,8 +200,11 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
 #ifdef WITH_STORAGE_PLUGIN
     if (!g_nvram_backend_ops) 
         g_nvram_backend_ops = SWTPM_NVRAM_LoadStoragePluginOps(backend_uri);
-    
-    // fall back to built-in backend
+
+    if (!g_nvram_backend_ops && strncmp(backend_uri, "plugin://", 9) == 0) {
+        logprintf(STDERR_FILENO, "Failed to load external storage plugin %s.\n", backend_uri);
+        return TPM_FAIL;
+    }
 #endif
     if (!g_nvram_backend_ops) {
         if (strncmp(backend_uri, "dir://", 6) == 0) {
@@ -1474,24 +1477,32 @@ static struct nvram_backend_ops *SWTPM_NVRAM_LoadStoragePluginOps(const char *ba
 
     if (strncmp(backend_uri, "dir://", 6) == 0) {
         plugin_name = SWTPM_DIR_STORAGE_PLUGIN_NAME;
+        plugin_path = g_build_filename(DEFAULT_STORAGE_PLUGIN_DIR, plugin_name, NULL);
     } else if (strncmp(backend_uri, "file://", 7) == 0) {
         plugin_name = SWTPM_FILE_STORAGE_PLUGIN_NAME;
+        plugin_path = g_build_filename(DEFAULT_STORAGE_PLUGIN_DIR, plugin_name, NULL);
+    } else if (strncmp(backend_uri, "plugin://", 9) == 0) {
+        plugin_path = parse_uri_path(backend_uri);
+        if (!plugin_path) {
+            logprintf(STDERR_FILENO, "Invalid external plugin URI: %s\n", backend_uri);
+            return NULL;
+        }
+
     } else {
         logprintf(STDERR_FILENO, "Unsupported backend URI: %s\n", backend_uri);
         return NULL;
     }
 
-    plugin_path = g_build_filename(DEFAULT_STORAGE_PLUGIN_DIR, plugin_name, NULL);
     handle = dlopen(plugin_path, RTLD_NOW | RTLD_LOCAL);
     if (handle) {
         opened_desc = plugin_path;
-    } else {
+    } else if (plugin_name) {
         handle = dlopen(plugin_name, RTLD_NOW | RTLD_LOCAL);
-        if (!handle) {
-            logprintf(STDERR_FILENO, "Failed to load plugin %s: %s\n", plugin_name, dlerror());
-            return NULL;
-        }
         opened_desc = plugin_name;
+    }
+    if (!handle) {
+        logprintf(STDERR_FILENO, "Failed to load plugin %s: %s\n", plugin_path, dlerror());
+        return NULL;
     }
 
     get_ops = (swtpm_plugin_get_nvram_backend_ops_t)dlsym(handle, SWTPM_DIR_STORAGE_PLUGIN_NVRAM_SYMBOL);

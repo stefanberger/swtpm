@@ -43,7 +43,7 @@ then
 	exit 1
 fi
 
-if ! grep -q "Falling back to built-in backend" "${workdir}/logfile" 2>/dev/null; then
+if ! grep -q "Failed to load plugin " "${workdir}/logfile" 2>/dev/null; then
 	echo "Test 1 failed: fallback message missing"
 	echo "Setup Logfile:"
 	cat "${workdir}/logfile"
@@ -75,7 +75,7 @@ then
 	exit 1
 fi
 
-if ! grep -q "Falling back to built-in backend" "${workdir}/logfile" 2>/dev/null; then
+if ! grep -q "Failed to load plugin " "${workdir}/logfile" 2>/dev/null; then
 	echo "Test 2 failed: fallback message missing"
 	echo "Setup Logfile:"
 	cat "${workdir}/logfile"
