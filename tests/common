@@ -12,7 +12,7 @@ if [ -n "${SWTPM_TEST_UNINSTALLED}" ]; then
     SWTPM_LOCALCA=${SWTPM_LOCALCA:-${ROOT}/src/swtpm_localca/swtpm_localca}
     SWTPM_SETUP_CONF="${ROOT}/samples/swtpm_setup.conf"
 
-	if [ -n "${SWTPM_TEST_STORAGE_PLUGIN:-1}" ]; then
+	if "${SWTPM_SETUP}" --help | grep -q "plugin://"; then
 		export LD_LIBRARY_PATH="${ROOT}/src/swtpm_storage_plugin/.libs:${LD_LIBRARY_PATH}"
 	fi
 else
@@ -967,22 +967,37 @@ function skip_test_no_chardev()
 }
 
 # Check whether swtpm links with ASAN
+function is_built_with_asan()
+{
+	local swtpm_exe="$1"
+	local act_exe
+
+	if ! file "${swtpm_exe}" | grep -q ELF; then
+		act_exe="$(dirname "${swtpm_exe}")"/.libs/"$(basename "${swtpm_exe}")"
+	else
+		act_exe="${swtpm_exe}"
+	fi
+
+	if nm "${act_exe}" | grep -q "__asan_"; then
+		return 0
+	fi
+
+	return 1
+}
+
 function skip_test_linked_with_asan()
 {
 	local swtpm_exe="$1"
-
 	local act_exe
 
-	if [[ "$(uname -s)" =~ Linux ]]; then
+	if is_built_with_asan "${swtpm_exe}"; then
 		if ! file "${swtpm_exe}" | grep -q ELF; then
 			act_exe="$(dirname "${swtpm_exe}")"/.libs/"$(basename "${swtpm_exe}")"
 		else
 			act_exe="${swtpm_exe}"
 		fi
-		if nm "${act_exe}" | grep -q "__asan_"; then
-			echo "${act_exe} is built with ASAN"
-			exit 77
-		fi
+		echo "${act_exe} is built with ASAN"
+		exit 77
 	fi
 }
 
@@ -1070,4 +1085,28 @@ function get_centos_version()
 {
 	sed -n 's/CentOS Stream release \([0-9]*\).*/\1/p' /etc/redhat-release |
 		gawk '{print $0*100}'
+}
+
+function has_storage_plugin_support()
+{
+	local swtpm_setup_exec="$1"
+
+	local tmp
+
+	tmp=$(${swtpm_setup_exec} --help | grep -E "plugin://")
+	[ -n "${tmp}" ] && return 0
+	return 1
+}
+
+
+function skip_no_storage_plugin_support()
+{
+	local swtpm_setup_exec="$1"
+
+	local tmp
+
+	if ! has_storage_plugin_support "${swtpm_setup_exec}"; then
+		echo "Skipping: the storage plugin is disabled in this build"
+		exit 77
+	fi
 }

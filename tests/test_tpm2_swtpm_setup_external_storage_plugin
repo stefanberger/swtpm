@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+# TPM2 swtpm_setup external storage plugin tests.
+#
+# SWTPM_TEST_STORAGE_PLUGIN: set to 0 to skip this test; otherwise it runs.
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+SWTPM_TEST_STORAGE_PLUGIN_DIR="$(dirname "$0")/data/.libs"
+
+source "${TESTDIR}/common"
+skip_test_no_tpm20 "${SWTPM_EXE}"
+skip_no_storage_plugin_support "${SWTPM_SETUP}"
+
+if [ "$(id -u)" -eq 0 ]; then
+	# Determine a test user/group for running swtpm_setup unprivileged.
+	if ! id -u nobody &>/dev/null; then
+		echo "Could not find suitable user/group for external storage plugin testing."
+		exit 77
+	fi
+	TESTUSER=nobody
+	TESTGROUP="$(getent group "$(id -g "${TESTUSER}")" | cut -d':' -f1)"
+
+	if [ -z "${TESTUSER}" ] || [ -z "${TESTGROUP}" ]; then
+		echo "Could not find suitable user/group for external storage plugin testing."
+		exit 77
+	fi
+	RUNAS="--runas ${TESTUSER}"
+
+else
+	RUNAS=""
+fi
+
+function cleanup_workdir()
+{
+	rm -rf "${workdir}"
+}
+
+function make_backend_uri()
+{
+	local state_dir="$1"
+	echo "plugin://${plugin_so}?path=${state_dir}"
+}
+
+function prepare_swtpm_for_test_user()
+{
+	# We need to copy swtpm and libswtpm_libtpms.so to the workdir
+	# so that swtpm_setup can access it as TESTUSER
+	if ! file "${SWTPM_EXE}" | grep -q ELF; then
+		directory="$(dirname "${SWTPM_EXE}")/.libs"
+		if [ -d "${directory}" ]; then
+			cp "${directory}/swtpm" "${workdir}"
+			cp "${directory}"/libswtpm_libtpms.so* "${workdir}"
+		else
+			echo "Could not find .libs directory to copy swtpm from."
+			exit 77
+		fi
+
+		MY_SWTPM_EXE="${workdir}/swtpm"
+		SWTPM_LD_LIBRARY_PATH="${workdir}:${LD_LIBRARY_PATH:-}"
+	else
+		MY_SWTPM_EXE="${SWTPM_EXE}"
+		SWTPM_LD_LIBRARY_PATH=""
+	fi
+
+	# Make a copy of the config file in the workdir
+	cp "${SWTPM_SETUP_CONF}" "${workdir}/swtpm_setup.conf" || exit 1
+	chmod 0644 "${workdir}/swtpm_setup.conf" || exit 1
+	if [ -n "${RUNAS}" ]; then
+		chown "${TESTUSER}:${TESTGROUP}" "${workdir}/swtpm_setup.conf" || exit 1
+	fi
+	test_swtpm_setup_conf="${workdir}/swtpm_setup.conf"
+
+	# Make a copy of the plugin (so) file in the workdir
+	cp "${source_plugin_so}" "${workdir}/swtpm_storage_plugin_dir_wrapper.so" || exit 1
+	chmod 0755 "${workdir}/swtpm_storage_plugin_dir_wrapper.so" || exit 1
+	if [ -n "${RUNAS}" ]; then
+		chown "${TESTUSER}:${TESTGROUP}" "${workdir}/swtpm_storage_plugin_dir_wrapper.so" || exit 1
+	fi
+	plugin_so="${workdir}/swtpm_storage_plugin_dir_wrapper.so"
+
+	chown -R "${TESTUSER}:${TESTGROUP}" "${workdir}" || exit 1
+}
+
+source_plugin_so="${SWTPM_TEST_STORAGE_PLUGIN_DIR}/swtpm_storage_plugin_dir_wrapper.so"
+plugin_so="${source_plugin_so}"
+test_swtpm_setup_conf="${SWTPM_SETUP_CONF}"
+if [ -n "${SWTPM_TEST_UNINSTALLED}" ]; then
+	"${TESTDIR}/storage_plugin_common" build_dir_wrapper_plugin_so "${SWTPM_TEST_STORAGE_PLUGIN_DIR}"
+fi
+
+MY_SWTPM_EXE="${SWTPM_EXE}"
+SWTPM_LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+
+if [ -n "${RUNAS}" ]; then
+	chown -R "${TESTUSER}:${TESTGROUP}" "${SWTPM_TEST_STORAGE_PLUGIN_DIR}" || exit 1
+fi
+
+# Test 1: external storage plugin loads and initializes TPM state.
+if is_built_with_asan "${SWTPM_EXE}" || is_built_with_asan "${SWTPM_SETUP}"; then
+	# ASAN/LSAN + --runas can fatal or non-zero exit at teardown though setup succeeded.
+	echo "Test 1 skipped (swtpm/swtpm_setup built with ASAN)"
+else
+	workdir="$(mktemp -d)" || exit 1
+	logfile="${workdir}/logfile"
+	touch "${logfile}"
+	if [ -n "${RUNAS}" ]; then
+		prepare_swtpm_for_test_user
+	fi
+	# plugin_so is updated inside prepare_swtpm_for_test_user; URI must be built after that.
+	backend_uri="$(make_backend_uri "${workdir}")"
+
+	if ! LD_LIBRARY_PATH="${SWTPM_LD_LIBRARY_PATH}" ${SWTPM_SETUP} \
+		--tpm2 \
+		--overwrite \
+		--tpm-state "${backend_uri}" \
+		--config "${test_swtpm_setup_conf}" \
+		--logfile "${logfile}" \
+		${RUNAS:+${RUNAS}} \
+		--tpm "${MY_SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+	then
+		echo "Test 1 failed: Error: Could not run $SWTPM_SETUP."
+		echo "Setup Logfile:"
+		cat "${logfile}"
+		exit 1
+	fi
+
+	if ! grep -q "Loaded storage plugin" "${logfile}"; then
+		echo "Test 1 failed: expected external storage plugin load message."
+		echo "Setup Logfile:"
+		cat "${logfile}"
+		exit 1
+	fi
+
+	if ! ls "${workdir}"/tpm2-00.* >/dev/null 2>&1; then
+		echo "Test 1 failed: expected TPM2 state files in ${workdir}."
+		echo "Setup Logfile:"
+		cat "${logfile}"
+		exit 1
+	fi
+
+	echo "Test 1 passed"
+	cleanup_workdir
+fi
+
+# Test 2: running as root without --runas must reject custom plugin loading.
+if [ "$(id -u)" -eq 0 ]; then
+	workdir="$(mktemp -d)" || exit 1
+	logfile="${workdir}/logfile"
+	touch "${logfile}"
+	backend_uri="$(make_backend_uri "${workdir}")"
+
+	if $SWTPM_SETUP \
+		--tpm2 \
+		--overwrite \
+		--tpm-state "${backend_uri}" \
+		--config "${SWTPM_SETUP_CONF}" \
+		--logfile "${logfile}" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+	then
+		echo "Test 2 failed: Error: $SWTPM_SETUP did not exit with exit code 1."
+		echo "Setup Logfile:"
+		cat "${logfile}"
+		exit 1
+	fi
+
+	if ! grep -q "external storage plugin .* can not be loaded by high-privileged user" "${logfile}"; then
+		echo "Test 2 failed: expected root-rejection message is missing."
+		echo "Setup Logfile:"
+		cat "${logfile}"
+		exit 1
+	fi
+
+	echo "Test 2 passed"
+else
+	echo "Test 2 skipped (not running as root)"
+fi
+
+cleanup_workdir
+exit 0

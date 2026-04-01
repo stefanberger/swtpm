@@ -105,7 +105,9 @@ TESTS += \
 
 if WITH_STORAGE_PLUGIN
 TESTS += \
-	test_tpm2_swtpm_setup_storage_plugin 
+	test_tpm2_swtpm_setup_storage_plugin \
+	test_tpm2_swtpm_setup_external_storage_plugin \
+	test_tpm2_save_load_state_2_external_storage_plugin
 endif
 
 if HAVE_TCSD
@@ -123,6 +125,10 @@ TEST_UTILS = \
 	load_vtpm_proxy \
 	test_common \
 	test_cuse
+
+if WITH_STORAGE_PLUGIN
+TEST_UTILS += storage_plugin_common
+endif
 
 EXTRA_DIST = \
 	$(TESTS) \
@@ -235,6 +241,12 @@ EXTRA_DIST = \
 	_test_wrongorder \
 	installed-runner.sh
 
+if WITH_STORAGE_PLUGIN
+EXTRA_DIST += \
+	data/swtpm_storage_plugin_dir_wrapper.c \
+	data/storage_plugin_dlopen_shim.c
+endif
+
 testdir = $(libexecdir)/installed-tests/$(PACKAGE)
 
 install-data-hook:
@@ -242,13 +254,17 @@ install-data-hook:
 	cd $(srcdir) && for file in test_config $(EXTRA_DIST); do ./fileinstall "$$file" "$(DESTDIR)$(testdir)/$$file" ; done
 if WITH_STORAGE_PLUGIN
 	mkdir -p $(DESTDIR)$(testdir)/data/.libs
-	cd $(srcdir) && ./storage_plugin_common build_all $(DESTDIR)$(testdir)/data/.libs
+	cd $(srcdir) && abs_top_builddir='$(abs_top_builddir)' abs_top_srcdir='$(abs_top_srcdir)' \
+		./storage_plugin_common build_all $(DESTDIR)$(testdir)/data/.libs
 endif
 	echo "$(TESTS)" > $(DESTDIR)$(testdir)/tests
 	$(srcdir)/sed-inplace '/SWTPM_TEST_UNINSTALLED=1/d' $(DESTDIR)$(testdir)/common
 
 uninstall-hook:
 	cd $(DESTDIR)$(testdir) && rm -f $(EXTRA_DIST) tests
+if WITH_STORAGE_PLUGIN
+	cd $(DESTDIR)$(testdir) && rm -rf data/.libs
+endif
 
 if WITH_STORAGE_PLUGIN
 distclean-local:
