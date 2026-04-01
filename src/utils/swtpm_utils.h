@@ -103,4 +103,34 @@ static inline gboolean spawn_async(const gchar          *working_directory,
                 child_pid, NULL, NULL, NULL, error);
 }
 
+/*
+ * Parse URI in the form:
+ *   scheme://path[?query]
+ * Returns a newly allocated path (without query), or NULL on parse failure.
+ */
+ static inline gchar *parse_uri_path(const gchar *uri)
+ {
+     const gchar *path;
+     const gchar *query_start;
+     const gchar *scheme_sep;
+ 
+     if (!uri)
+         return NULL;
+ 
+     scheme_sep = g_strstr_len(uri, -1, "://");
+     if (!scheme_sep || scheme_sep == uri)
+         return NULL;
+     path = scheme_sep + 3;
+ 
+     if (*path == '\0' || *path == '?')
+         return NULL;
+ 
+     query_start = g_strstr_len(path, -1, "?");
+     if (!query_start)
+         return g_strdup(path);
+ 
+     return g_strndup(path, (gsize)(query_start - path));
+ }
+ 
+
 #endif /* SWTPM_UTILS_H */
