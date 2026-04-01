@@ -95,6 +95,10 @@
 #include "tlv.h"
 #include "utils.h"
 #include "compiler_dependencies.h"
+#ifdef WITH_STORAGE_PLUGIN
+#include "swtpm_storage_plugin.h"
+#include <dlfcn.h>
+#endif
 
 /* local structures */
 typedef struct {
@@ -134,6 +138,9 @@ static encryptionkey migrationkey = {
 static uint32_t g_ivec_length;
 static unsigned char *g_ivec;
 static struct nvram_backend_ops *g_nvram_backend_ops;
+#ifdef WITH_STORAGE_PLUGIN
+static void *g_nvram_backend_handle;
+#endif
 
 /* local prototypes */
 
@@ -167,6 +174,11 @@ static TPM_RESULT SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
                                           uint8_t *hdrversion,
                                           bool quiet);
 
+#ifdef WITH_STORAGE_PLUGIN
+static void SWTPM_NVRAM_CloseStoragePlugin(void);
+static struct nvram_backend_ops *SWTPM_NVRAM_LoadStoragePluginOps(const char *backend_uri);
+#endif
+
 /* SWTPM_NVRAM_Init() is called once at startup.  It does any NVRAM required initialization.
 
    This function sets some static variables that are used by all TPM's.
@@ -182,15 +194,25 @@ TPM_RESULT SWTPM_NVRAM_Init(void)
     if (!backend_uri) {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_Init: Missing backend URI.\n");
-        rc = TPM_FAIL;
-    } else if (strncmp(backend_uri, "dir://", 6) == 0) {
-        g_nvram_backend_ops = &nvram_dir_ops;
-    } else if (strncmp(backend_uri, "file://", 7) == 0) {
-        g_nvram_backend_ops = &nvram_linear_ops;
-    } else {
-        logprintf(STDERR_FILENO,
-                  "SWTPM_NVRAM_Init: Unsupported backend.\n");
-        rc = TPM_FAIL;
+        return TPM_FAIL;
+    }
+
+#ifdef WITH_STORAGE_PLUGIN
+    if (!g_nvram_backend_ops) 
+        g_nvram_backend_ops = SWTPM_NVRAM_LoadStoragePluginOps(backend_uri);
+    
+    // fall back to built-in backend
+#endif
+    if (!g_nvram_backend_ops) {
+        if (strncmp(backend_uri, "dir://", 6) == 0) {
+            g_nvram_backend_ops = &nvram_dir_ops;
+        } else if (strncmp(backend_uri, "file://", 7) == 0) {
+            g_nvram_backend_ops = &nvram_linear_ops;
+        } else {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_Init: Unsupported backend.\n");
+            rc = TPM_FAIL;
+        }
     }
 
     if (rc == 0)
@@ -211,6 +233,10 @@ void SWTPM_NVRAM_Shutdown(void)
         g_nvram_backend_ops->cleanup();
     memset(&filekey, 0, sizeof(filekey));
     memset(&migrationkey, 0, sizeof(migrationkey));
+
+#ifdef WITH_STORAGE_PLUGIN
+    SWTPM_NVRAM_CloseStoragePlugin();
+#endif
 }
 
 TPM_RESULT SWTPM_NVRAM_Lock_Storage(unsigned int retries)
@@ -1426,3 +1452,72 @@ TPM_RESULT SWTPM_NVRAM_RestoreBackup(void)
 
     return g_nvram_backend_ops->restore_backup(backend_uri);
 }
+
+
+#ifdef WITH_STORAGE_PLUGIN
+static void SWTPM_NVRAM_CloseStoragePlugin(void)
+{
+    if (g_nvram_backend_handle) {
+        dlclose(g_nvram_backend_handle);
+        g_nvram_backend_handle = NULL;
+    }
+}
+
+static struct nvram_backend_ops *SWTPM_NVRAM_LoadStoragePluginOps(const char *backend_uri)
+{
+    const char *plugin_name = NULL;
+    const char *opened_desc = NULL;
+    g_autofree gchar *plugin_path = NULL;
+    void *handle = NULL;
+    struct nvram_backend_ops *ops = NULL;
+    swtpm_plugin_get_nvram_backend_ops_t get_ops;
+
+    if (strncmp(backend_uri, "dir://", 6) == 0) {
+        plugin_name = SWTPM_DIR_STORAGE_PLUGIN_NAME;
+    } else if (strncmp(backend_uri, "file://", 7) == 0) {
+        plugin_name = SWTPM_FILE_STORAGE_PLUGIN_NAME;
+    } else {
+        logprintf(STDERR_FILENO, "Unsupported backend URI: %s\n", backend_uri);
+        return NULL;
+    }
+
+    plugin_path = g_build_filename(DEFAULT_STORAGE_PLUGIN_DIR, plugin_name, NULL);
+    handle = dlopen(plugin_path, RTLD_NOW | RTLD_LOCAL);
+    if (handle) {
+        opened_desc = plugin_path;
+    } else {
+        handle = dlopen(plugin_name, RTLD_NOW | RTLD_LOCAL);
+        if (!handle) {
+            logprintf(STDERR_FILENO, "Failed to load plugin %s: %s\n", plugin_name, dlerror());
+            return NULL;
+        }
+        opened_desc = plugin_name;
+    }
+
+    get_ops = (swtpm_plugin_get_nvram_backend_ops_t)dlsym(handle, SWTPM_DIR_STORAGE_PLUGIN_NVRAM_SYMBOL);
+    if (!get_ops) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_Init: could not resolve '%s' in plugin opened as %s: %s\n",
+                  SWTPM_DIR_STORAGE_PLUGIN_NVRAM_SYMBOL, opened_desc, dlerror());
+        goto error;
+    }
+
+    ops = get_ops();
+    if (!ops || !ops->prepare || !ops->lock || !ops->unlock ||
+        !ops->load || !ops->store || !ops->delete ||
+        !ops->check_state || !ops->cleanup) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_Init: plugin opened as %s is incomplete; falling back to built-in backend.\n",
+                  opened_desc);
+        goto error;
+    }
+
+    g_nvram_backend_handle = handle;
+    return ops;
+error:
+    if (handle)
+        dlclose(handle);
+
+    return NULL;
+}
+#endif

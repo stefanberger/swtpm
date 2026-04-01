@@ -104,6 +104,11 @@ TESTS += \
 	test_tpm2_swtpm_localca_pkcs11.test \
 	test_tpm2_swtpm_setup_create_cert
 
+if WITH_STORAGE_PLUGIN
+TESTS += \
+	test_tpm2_swtpm_setup_storage_plugin 
+endif
+
 if HAVE_TCSD
 TESTS += \
 	test_tpm2_samples_create_tpmca.test

@@ -11,6 +11,10 @@ if [ -n "${SWTPM_TEST_UNINSTALLED}" ]; then
     SWTPM_CERT=${SWTPM_CERT:-${ROOT}/src/swtpm_cert/swtpm_cert}
     SWTPM_LOCALCA=${SWTPM_LOCALCA:-${ROOT}/src/swtpm_localca/swtpm_localca}
     SWTPM_SETUP_CONF="${ROOT}/samples/swtpm_setup.conf"
+
+	if [ -n "${SWTPM_TEST_STORAGE_PLUGIN:-1}" ]; then
+		export LD_LIBRARY_PATH="${ROOT}/src/swtpm_storage_plugin/.libs:${LD_LIBRARY_PATH}"
+	fi
 else
     SWTPM_EXE=${SWTPM_EXE:-$(type -P swtpm)}
     SWTPM_IOCTL=${SWTPM_IOCTL:-$(type -P swtpm_ioctl)}
