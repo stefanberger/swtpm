@@ -26,6 +26,7 @@ runs:
         export SWTPM_TEST_EXPENSIVE=${SWTPM_TEST_EXPENSIVE:-1}
         export SWTPM_TEST_IBMTSS2=${SWTPM_TEST_IBMTSS2:-0}
         export SWTPM_TEST_STORE_VOLATILE=${SWTPM_TEST_STORE_VOLATILE:-0}
+        export SWTPM_TEST_STORAGE_PLUGIN=${SWTPM_TEST_STORAGE_PLUGIN:-1}
         set +e
         ${SUDO:+${SUDO} -E} make -j$(${NPROC:-nproc}) ${CHECK} VERBOSE=1
         if [ $? -ne 0 ]; then
