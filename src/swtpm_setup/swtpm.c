@@ -839,16 +839,16 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // adminWithPolicy, sign, decrypt
-        keyflags |= 0x000600b2;
+        // adminWithPolicy, restricted, sign, decrypt
+        keyflags |= 0x000700b2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
         memcpy(symkeydata, ((unsigned char[]) {AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
         off = 72 + addlen;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // adminWithPolicy, sign
-        keyflags |= 0x000400b2;
+        // adminWithPolicy, restricted, sign
+        keyflags |= 0x000500b2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
         memcpy(symkeydata, ((unsigned char[]) {AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
@@ -1243,16 +1243,16 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // userWithAuth, adminWithPolicy, sign, decrypt
-        keyflags = 0x000600f2;
+        // userWithAuth, adminWithPolicy, restricted, sign, decrypt
+        keyflags = 0x000700f2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
         memcpy(symkeydata, ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
         off = 86;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // userWithAuth, adminWithPolicy, sign
-        keyflags = 0x000400f2;
+        // userWithAuth, adminWithPolicy, restricted, sign
+        keyflags = 0x000500f2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
         memcpy(symkeydata, ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
