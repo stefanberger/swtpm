@@ -85,6 +85,11 @@ libswtpm_libtpms_la_CFLAGS = \
 	$(JSON_GLIB_CFLAGS) \
 	$(LIBSECCOMP_CFLAGS)
 
+if WITH_STORAGE_PLUGIN
+libswtpm_libtpms_la_CFLAGS += \
+	-I$(top_srcdir)/src/swtpm_storage_plugin
+endif
+
 libswtpm_libtpms_la_LDFLAGS = \
 	$(MY_LDFLAGS) \
 	$(HARDENING_LDFLAGS)
@@ -96,6 +101,11 @@ libswtpm_libtpms_la_LIBADD = \
 	$(LIBRT_LIBS) \
 	$(LIBSECCOMP_LIBS) \
 	$(LIBCRYPTO_LIBS)
+
+if WITH_STORAGE_PLUGIN
+libswtpm_libtpms_la_LIBADD += \
+	$(LIBDL_LIBS)
+endif
 
 bin_PROGRAMS = swtpm
 if WITH_CUSE
