@@ -87,3 +87,20 @@ jobs:
 
       - name: Build libtpms and swtpm and test
         uses: ./.github/actions/test-swtpm
+  
+  test-no-storage-plugin:
+    runs-on: ubuntu-24.04
+    env:
+      PREFIX:                    "/usr"
+      CONFIG:                    "--with-openssl --prefix=/usr --with-storage-plugin=no"
+      SUDO:                      "sudo"
+      CHECK:                     "check"
+      SWTPM_TEST_IBMTSS2:        "1"
+      SWTPM_TEST_STORE_VOLATILE: "1"
+      PACKAGES:                  libtpm2-pkcs11-tools pkcs11-provider
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build libtpms and swtpm and test
+        uses: ./.github/actions/test-swtpm
