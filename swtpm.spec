@@ -1,5 +1,6 @@
 # spec file for RHEL/CentOS and Fedora
 %bcond_without gnutls
+%bcond_without storage_plugin
 
 # Macros needed by SELinux
 %global selinuxtype targeted
@@ -109,7 +110,13 @@ NOCONFIGURE=1 ./autogen.sh
 %if %{with gnutls}
         --with-gnutls \
 %endif
+%if %{with storage_plugin}
+        --with-storage-plugin \
+%else
+        --without-storage-plugin \
+%endif
         --without-cuse
+
 
 %make_build
 
@@ -120,6 +127,7 @@ make %{?_smp_mflags} check
 
 %make_install
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la,so}
+rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/storage_plugins/*.{a,la}
 
 %pre selinux
 %selinux_relabel_pre -s %{selinuxtype}
@@ -162,6 +170,10 @@ fi
 %dir %{_libdir}/%{name}
 %{_libdir}/%{name}/libswtpm_libtpms.so.0
 %{_libdir}/%{name}/libswtpm_libtpms.so.0.0.0
+%if %{with storage_plugin}
+%dir %{_libdir}/%{name}/storage_plugins
+%{_libdir}/%{name}/storage_plugins/*.so
+%endif
 
 %files devel
 %dir %{_includedir}/%{name}
