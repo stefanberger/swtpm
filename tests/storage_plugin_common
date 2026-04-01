@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+# Helpers to compile test-only storage plugin shared objects from source when
+# SWTPM_TEST_UNINSTALLED is set (no Automake-built .libs in tree).
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
+
+function build_dlopen_shim_so()
+{
+	local outdir="$1"
+	local cc="${CC:-cc}"
+	local shim_src="${SRCDIR}/tests/data/storage_plugin_dlopen_shim.c"
+	local outfile="${outdir}/storage_plugin_dlopen_shim.so"
+
+	if [ -z "${outdir}" ]; then
+		echo "build_dlopen_shim_so: missing outdir"
+		return 1
+	fi
+
+	if [ ! -r "${shim_src}" ]; then
+		echo "Skipping: could not find ${shim_src}"
+		return 1
+	fi
+
+	mkdir -p "${outdir}" || return 1
+
+	if ! "${cc}" -shared -fPIC -O2 -Wall -Werror \
+		-o "${outfile}" "${shim_src}" \
+		-I"${SRCDIR}/include" \
+		-I"${ROOT}/include" \
+		-ldl; then
+		echo "Skipping: could not build dlopen shim"
+		return 1
+	fi
+}
+
+action="$1"
+outdir="$2"
+
+case "${action}" in
+	"build_dlopen_shim_so")
+		build_dlopen_shim_so "${outdir}"
+		;;
+	"build_all")
+		build_dlopen_shim_so "${outdir}" || exit 1
+		;;
+	*)
+		echo "Usage: $0 <build_dir_wrapper_plugin_so|build_dlopen_shim_so|build_all> <outdir>"
+		exit 1
+		;;
+esac
