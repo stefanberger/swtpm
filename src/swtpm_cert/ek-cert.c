@@ -52,11 +52,22 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <sys/stat.h>
+#include <ctype.h>
 
 #include <arpa/inet.h>
 
-#include <gnutls/abstract.h>
-#include <gnutls/gnutls.h>
+#include <glib.h>
+
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#include <openssl/x509v3.h>
+#include <openssl/err.h>
+#include <openssl/provider.h>
+#include <openssl/ui.h>
+#include <openssl/store.h>
 
 #include <gmp.h>
 
@@ -64,6 +75,18 @@
 #include "tpm_asn1.h"
 #include "swtpm.h"
 #include "compiler_dependencies.h"
+
+typedef struct datum {
+    unsigned char *data;
+    unsigned int size;
+} datum_t;
+
+static void free_datum(struct datum *d)
+{
+    free(d->data);
+    d->data = NULL;
+    d->size = 0;
+}
 
 enum cert_type_t {
     CERT_TYPE_EK = 1,
@@ -94,16 +117,45 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
 #define TCG_TAG_PCCLIENT_STORED_CERT 0x1001
 #define TCG_TAG_PCCLIENT_FULL_CERT 0x1002
 
-static void
-versioninfo(void)
+#define FCLOSE(filp)	\
+    do {		\
+        fclose(filp);	\
+        filp = NULL;	\
+    } while (0);
+
+/*
+ * All errors from OpenSSL lead to display of error message and a
+ * jump to cleanup.
+ */
+#define CHECK_OSSL_NULLPTR1(ptr, _msg)	\
+    if (!ptr) {				\
+        fprintf(stderr, _msg);		\
+        ERR_print_errors_fp(stderr);	\
+        goto cleanup;			\
+    }
+
+#define CHECK_OSSL_NULLPTR(ptr, _msg, ...)	\
+    if (!ptr) {					\
+        fprintf(stderr, _msg, __VA_ARGS__);	\
+        ERR_print_errors_fp(stderr);		\
+        goto cleanup;				\
+    }
+
+#define CHECK_OSSL_RETURN1(TEST, _msg)	\
+    if (TEST) {				\
+        fprintf(stderr, _msg);		\
+        ERR_print_errors_fp(stderr);	\
+        goto cleanup;			\
+    }
+
+static void versioninfo(void)
 {
     fprintf(stdout,
         "TPM certificate tool version %d.%d.%d, Copyright (c) 2015 IBM Corp.\n"
         ,SWTPM_VER_MAJOR, SWTPM_VER_MINOR, SWTPM_VER_MICRO);
 }
 
-static void
-usage(const char *prg)
+static void usage(const char *prg)
 {
     versioninfo();
     fprintf(stdout,
@@ -123,8 +175,8 @@ usage(const char *prg)
         "--out-cert <filename>     : Filename for certificate\n"
         "--modulus <hex string>    : The modulus of the public key\n"
         "--exponent <exponent>     : The exponent of the public key\n"
-        "--ecc-x                   : ECC key x component\n"
-        "--ecc-y                   : ECC key y component\n"
+        "--ecc-x <hex string>      : ECC key x component\n"
+        "--ecc-y <hex string>      : ECC key y component\n"
         "--ecc-curveid <id>        : ECC curve id; secp256r1, secp384r1, secp521r1\n"
         "                            default: secp256r1\n"
         "--serial <serial number>  : The certificate serial number\n"
@@ -167,8 +219,8 @@ usage(const char *prg)
         , prg);
 }
 
-static char
-hex_to_str(char digit) {
+static char hex_to_str(char digit)
+{
     char value = -1;
 
     if (digit >= '0' && digit <= '9') {
@@ -182,8 +234,7 @@ hex_to_str(char digit) {
     return value;
 }
 
-static unsigned char *
-hex_str_to_bin(const char *hexstr, int *modulus_len)
+static unsigned char *hex_str_to_bin(const char *hexstr, int *modulus_len)
 {
     int len;
     unsigned char *result;
@@ -228,87 +279,100 @@ hex_str_to_bin(const char *hexstr, int *modulus_len)
     return result;
 }
 
-static gnutls_pubkey_t
+static EVP_PKEY *
 create_rsa_from_modulus(unsigned char *modulus, unsigned int modulus_len,
                         uint32_t exponent)
 {
-    unsigned char exp_array[4];
-    uint32_t exponent_no = htonl(exponent);
-    gnutls_pubkey_t rsa = NULL;
-    gnutls_datum_t mod;
-    gnutls_datum_t exp = {
-        .data = exp_array,
-        .size = sizeof(exp_array),
-    };
-    int err;
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
+    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+    EVP_PKEY *pubkey = NULL;
+    OSSL_PARAM *params = NULL;
+    BIGNUM *n = BN_bin2bn(modulus, modulus_len, NULL);
+    BIGNUM *e = BN_new();
 
-    memcpy(exp_array, &exponent_no, sizeof(exp_array));
-
-    err = gnutls_pubkey_init(&rsa);
-    if (err < 0) {
-        fprintf(stderr, "Could not initialized public key structure : %s\n",
-                gnutls_strerror(err));
-        return NULL;
+    CHECK_OSSL_NULLPTR1(ctx, "Could not create pkey context for EC key.\n");
+    if (!bld || !e || !n) {
+        fprintf(stderr, "Out of memory\n");
+        goto cleanup;
     }
 
-    mod.data = modulus;
-    mod.size = modulus_len;
+    BN_set_word(e, exponent);
 
-    err = gnutls_pubkey_import_rsa_raw(rsa, &mod, &exp);
-    if (err < 0) {
-        fprintf(stderr, "Could not set modulus and exponent on RSA key : %s\n",
-                gnutls_strerror(err));
-        gnutls_pubkey_deinit(rsa);
-        rsa = NULL;
+    OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, n);
+    OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, e);
+
+    if ((params = OSSL_PARAM_BLD_to_param(bld)) == NULL ||
+        EVP_PKEY_fromdata_init(ctx) != 1 ||
+        EVP_PKEY_fromdata(ctx, &pubkey,
+                          EVP_PKEY_PUBLIC_KEY, params) != 1) {
+        fprintf(stderr, "Could not create RSA public key.\n");
     }
+cleanup:
+    BN_free(e);
+    BN_free(n);
+    OSSL_PARAM_BLD_free(bld);
+    OSSL_PARAM_free(params);
+    EVP_PKEY_CTX_free(ctx);
 
-    return rsa;
+    return pubkey;
 }
 
-static gnutls_pubkey_t
+static EVP_PKEY *
 create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
                         unsigned char *ecc_y, unsigned int ecc_y_len,
                         const char *ecc_curveid)
 {
-    gnutls_pubkey_t rsa = NULL;
-    int err;
-    gnutls_datum_t x = {
-        .data = ecc_x,
-        .size = ecc_x_len,
-    };
-    gnutls_datum_t y = {
-        .data = ecc_y,
-        .size = ecc_y_len,
-    };
-    gnutls_ecc_curve_t curve;
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+    g_autofree unsigned char *buffer = NULL;
+    g_autofree char *curve = NULL;
+    EVP_PKEY *pubkey = NULL;
+    OSSL_PARAM *params = NULL;
+    size_t exp_len;
 
-    err = gnutls_pubkey_init(&rsa);
-    if (err < 0) {
-        fprintf(stderr, "Could not initialized public key structure : %s\n",
-                gnutls_strerror(err));
-        return NULL;
+    CHECK_OSSL_NULLPTR1(ctx, "Could not create pkey context for EC key.\n");
+    if (!bld) {
+        fprintf(stderr, "Out of memory\n");
+        goto cleanup;
     }
 
     if (ecc_curveid == NULL || !strcmp(ecc_curveid, "secp256r1")) {
-        curve = GNUTLS_ECC_CURVE_SECP256R1;
+        curve = g_strdup("prime256v1");
+        exp_len = 256/8;
     } else if (!strcmp(ecc_curveid, "secp384r1")) {
-        curve = GNUTLS_ECC_CURVE_SECP384R1;
+        curve = g_strdup("secp384r1");
+        exp_len = 384/8;
     } else if (!strcmp(ecc_curveid, "secp521r1")) {
-        curve = GNUTLS_ECC_CURVE_SECP521R1;
+        curve = g_strdup("secp521r1");
+        exp_len = 528/8;
     } else {
         fprintf(stderr, "Unsupported ECC curve id: %s\n", ecc_curveid);
         return NULL;
     }
-
-    err = gnutls_pubkey_import_ecc_raw(rsa, curve, &x, &y);
-    if (err < 0) {
-        fprintf(stderr, "Could not set x and y on ECC key : %s\n",
-                gnutls_strerror(err));
-        gnutls_pubkey_deinit(rsa);
-        rsa = NULL;
+    if (ecc_x_len > exp_len || ecc_y_len > exp_len) {
+        fprintf(stderr,
+                "EC X or Y parameter exceeds expected size of %zu bytes\n",
+                exp_len);
     }
+    buffer = g_malloc0(1 + 2 * exp_len);
+    buffer[0] = 0x4;
+    memcpy(&buffer[1 + exp_len - ecc_x_len], ecc_x, ecc_x_len);
+    memcpy(&buffer[1 + 2 * exp_len - ecc_y_len], ecc_y, ecc_y_len);
 
-    return rsa;
+    OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY, buffer, 1 + 2 * exp_len);
+    OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME, curve, 0);
+
+    if ((params = OSSL_PARAM_BLD_to_param(bld)) == NULL ||
+        EVP_PKEY_fromdata_init(ctx) != 1 ||
+        EVP_PKEY_fromdata(ctx, &pubkey, EVP_PKEY_PUBLIC_KEY, params) != 1) {
+        fprintf(stderr, "Could not create %s key\n", curve);
+    }
+cleanup:
+    OSSL_PARAM_BLD_free(bld);
+    OSSL_PARAM_free(params);
+    EVP_PKEY_CTX_free(ctx);
+
+    return pubkey;
 }
 
 static int
@@ -341,7 +405,7 @@ asn_free(void)
 }
 
 static int
-encode_asn1(gnutls_datum_t *asn1, asn1_node at)
+encode_asn1(datum_t *asn1, asn1_node at)
 {
     int err;
 
@@ -353,7 +417,7 @@ encode_asn1(gnutls_datum_t *asn1, asn1_node at)
         return err;
     }
 
-    asn1->data = gnutls_malloc(asn1->size + 16);
+    asn1->data = malloc(asn1->size + 16);
     if (!asn1->data) {
         fprintf(stderr, "2. Could not allocate memory\n");
         return ASN1_MEM_ERROR;
@@ -362,7 +426,7 @@ encode_asn1(gnutls_datum_t *asn1, asn1_node at)
     err = asn1_der_coding(at, "", asn1->data, (int *)&asn1->size, NULL);
     if (err != ASN1_SUCCESS) {
         fprintf(stderr, "3. asn1_der_coding error: %d\n", err);
-        gnutls_free(asn1->data);
+        free(asn1->data);
         asn1->data = NULL;
     }
     return err;
@@ -449,7 +513,7 @@ static int
 create_tpm_manufacturer_info(const char *manufacturer,
                              const char *tpm_model,
                              const char *tpm_version,
-                             gnutls_datum_t *asn1)
+                             datum_t *asn1)
 {
     asn1_node at = NULL;
     int err;
@@ -574,7 +638,7 @@ static int
 create_platf_manufacturer_info(const char *manufacturer,
                                const char *platf_model,
                                const char *platf_version,
-                               gnutls_datum_t *asn1,
+                               datum_t *asn1,
                                bool forTPM2)
 {
     asn1_node at = NULL;
@@ -617,14 +681,14 @@ create_tpm_and_platform_manuf_info(
                                const char *platf_manufacturer,
                                const char *platf_model,
                                const char *platf_version,
-                               gnutls_datum_t *asn1,
+                               datum_t *asn1,
                                bool forTPM2)
 {
     asn1_node at = NULL;
     asn1_node tpm_at = NULL;
     asn1_node platf_at = NULL;
     int err;
-    gnutls_datum_t datum = {
+    datum_t datum = {
         .data = NULL,
         .size = 0,
     };
@@ -670,8 +734,7 @@ create_tpm_and_platform_manuf_info(
                 __func__, __LINE__, asn1_strerror(err));
         goto cleanup;
     }
-    gnutls_free(datum.data);
-    datum.data = NULL;
+    free_datum(&datum);
 
     /* build the platform manufacturer data */
     err = build_platf_manufacturer_info(&platf_at, platf_manufacturer,
@@ -704,8 +767,7 @@ create_tpm_and_platform_manuf_info(
         goto cleanup;
     }
 
-    gnutls_free(datum.data);
-    datum.data = NULL;
+    free_datum(&datum);
 
     err = encode_asn1(asn1, at);
 
@@ -719,7 +781,7 @@ create_tpm_and_platform_manuf_info(
 #endif
 
  cleanup:
-    gnutls_free(datum.data);
+    free_datum(&datum);
     asn1_delete_structure(&at);
     asn1_delete_structure(&platf_at);
     asn1_delete_structure(&tpm_at);
@@ -731,7 +793,7 @@ static int
 create_tpm_specification_info(const char *spec_family,
                               unsigned int spec_level,
                               unsigned int spec_revision,
-                              gnutls_datum_t *asn1)
+                              datum_t *asn1)
 {
     asn1_node at = NULL;
     int err;
@@ -803,7 +865,7 @@ create_tpm_specification_info(const char *spec_family,
 }
 
 static int
-create_cert_extended_key_usage(const char *oid, gnutls_datum_t *asn1)
+create_cert_extended_key_usage(const char *oid, datum_t *asn1)
 {
     asn1_node at = NULL;
     int err;
@@ -848,14 +910,14 @@ create_cert_extended_key_usage(const char *oid, gnutls_datum_t *asn1)
  * This function with prepend something like this:
  *  0x30 <subsequent length> 0xa4 <subsequent length>
  */
-static int prepend_san_asn1_header(gnutls_datum_t *datum)
+static bool prepend_san_asn1_header(datum_t *datum)
 {
-    int err = GNUTLS_E_SUCCESS;
     unsigned char buffer[2 * (1 + 1 + sizeof(unsigned long))];
     unsigned i = sizeof(buffer);
     unsigned long size;
     unsigned char intlen;
     unsigned char *data = datum->data;
+    bool success = true;
 
     /* write backwards */
     intlen = 0;
@@ -887,9 +949,9 @@ static int prepend_san_asn1_header(gnutls_datum_t *datum)
     /* write equivalent of 0x30 */
     buffer[--i] = ASN1_CLASS_STRUCTURED | ASN1_TAG_SEQUENCE;
 
-    datum->data = gnutls_malloc(datum->size + sizeof(buffer) - i);
+    datum->data = malloc(datum->size + sizeof(buffer) - i);
     if (datum->data == NULL) {
-        err = GNUTLS_E_MEMORY_ERROR;
+        success = false;
         goto exit;
     }
 
@@ -898,26 +960,8 @@ static int prepend_san_asn1_header(gnutls_datum_t *datum)
     datum->size = sizeof(buffer) - i + datum->size;
 
 exit:
-    gnutls_free(data);
-    return err;
-}
-
-static int mypinfunc(void *userdata SWTPM_ATTR_UNUSED,
-                     int attempt SWTPM_ATTR_UNUSED,
-                     const char *tokenurl SWTPM_ATTR_UNUSED,
-                     const char *token_label SWTPM_ATTR_UNUSED,
-                     unsigned int flags SWTPM_ATTR_UNUSED,
-                     char *pin, size_t pin_max)
-{
-    const char *userpin = getenv("SWTPM_PKCS11_PIN");
-
-    if (!userpin)
-        return -1;
-
-    strncpy(pin, userpin, pin_max - 1);
-    pin[pin_max - 1] = 0;
-
-    return 0;
+    free(data);
+    return success;
 }
 
 /*
@@ -984,6 +1028,89 @@ readfd:
     return result;
 }
 
+static int password_cb(char *buf, int buflen, int rwflag, void *userdata)
+{
+    size_t to_copy = strlen(userdata);
+    if (buflen < 0 || to_copy > (size_t)buflen)
+        return 0;
+
+    memcpy(buf, userdata, to_copy);
+
+    return (int)to_copy;
+}
+
+static int ui_get_pin(UI *ui, UI_STRING *uis)
+{
+    return UI_set_result(ui, uis, UI_get0_user_data(ui));
+}
+
+static EVP_PKEY *get_key_pkcs11(OSSL_PROVIDER *provider, const char *pkcs11uri)
+{
+    OSSL_STORE_CTX *store = NULL;
+    EVP_PKEY *sigkey = NULL;
+    OSSL_STORE_INFO *info;
+    UI_METHOD *ui_method;
+
+    ui_method = UI_create_method("PIN reader");
+    CHECK_OSSL_NULLPTR1(ui_method, "COuld not create the PIN reader.\n");
+
+    UI_method_set_reader(ui_method, ui_get_pin);
+    store = OSSL_STORE_open_ex(pkcs11uri, NULL, "provider=pkcs11", ui_method,
+                               getenv("SWTPM_PKCS11_PIN"), NULL, NULL, NULL);
+    CHECK_OSSL_NULLPTR1(store, "Could not open store for pkcs11 provider.\n");
+
+    info = OSSL_STORE_load(store);
+    while (info) {
+        switch (OSSL_STORE_INFO_get_type(info)) {
+        case OSSL_STORE_INFO_PKEY:
+           sigkey = OSSL_STORE_INFO_get1_PKEY(info);
+           break;
+        }
+        OSSL_STORE_INFO_free(info);
+        if (sigkey)
+            break;
+        info = OSSL_STORE_load(store);
+    }
+    OSSL_STORE_close(store);
+
+    if (!sigkey) {
+        fprintf(stderr, "Could not get access to private key %s\n",
+                pkcs11uri);
+    }
+
+cleanup:
+    UI_destroy_method(ui_method);
+
+    return sigkey;
+}
+
+static const EVP_MD *get_hashalg_for_signing(EVP_PKEY *signingkey)
+{
+    int bits = EVP_PKEY_get_bits(signingkey);
+    const EVP_MD *md;
+
+    if (EVP_PKEY_is_a(signingkey, "RSA")) {
+        switch (bits) {
+        case 2048:
+            md = EVP_sha256();
+            break;
+        default:
+            md = EVP_sha384();
+            break;
+        }
+    } else if (EVP_PKEY_is_a(signingkey, "EC")) {
+        if (bits >= 512)
+            md = EVP_sha512();
+        else if (bits >= 384)
+            md = EVP_sha384();
+        else
+            md = EVP_sha256();
+    } else {
+        md = EVP_sha256();
+    }
+    return md;
+}
+
 static void capabilities_print_json(void)
 {
     fprintf(stdout,
@@ -1001,11 +1128,21 @@ int
 main(int argc, char *argv[])
 {
     int ret = 1;
-    gnutls_pubkey_t pubkey = NULL;
-    gnutls_x509_privkey_t sigkey = NULL;
-    gnutls_x509_crt_t sigcert = NULL;
-    gnutls_x509_crt_t crt = NULL;
-    gnutls_privkey_t tpmkey = NULL, pkcs11key = NULL;
+    EVP_PKEY *pubkey = NULL;
+    EVP_PKEY *sigkey = NULL;
+    BIO *bp = NULL;
+    FILE *fp = NULL;
+    X509 *sigcert = NULL;
+    X509 *crt = NULL;
+    BIGNUM *bn_serial = NULL;
+    ASN1_INTEGER *asn1_serial = NULL;
+    ASN1_TIME *asn1_time = NULL;
+    ASN1_OCTET_STRING *oct = NULL;
+    X509_EXTENSION *ext = NULL;
+    X509_NAME *issuer_name = NULL;
+    X509V3_CTX x509v3_ctx;
+    OSSL_PROVIDER *provider = NULL;
+    const EVP_MD *md = EVP_sha1();
     const char *pubkey_filename = NULL;
     const char *sigkey_filename = NULL;
     const char *cert_filename = NULL;
@@ -1017,27 +1154,22 @@ main(int argc, char *argv[])
     unsigned char *ecc_y_bin = NULL;
     int ecc_y_len = 0;
     const char *ecc_curveid = NULL;
-    gnutls_datum_t datum = { NULL, 0},  out = { NULL, 0};
-    gnutls_digest_algorithm_t hashAlgo = GNUTLS_DIG_SHA1;
+    datum_t datum = { NULL, 0},  out = { NULL, 0};
     mpz_t serial;
     time_t now;
     int err;
     int cert_file_fd;
     const char *subject = NULL;
-    const char *error = NULL;
     int days = 365;
-    time_t exp_time;
     char *sigkeypass = NULL;
     char *parentkeypass = NULL;
     unsigned char ser_number[21];
     size_t ser_number_len;
     long int exponent = 0x10001;
     bool write_pem = false;
-    uint8_t id[512];
-    size_t id_size = sizeof(id);
     enum cert_type_t certtype = CERT_TYPE_EK;
     const char *oid;
-    unsigned int key_usage = 0;
+    GString *key_usage = g_string_new("critical");
     const char *tpm_manufacturer = NULL;
     const char *tpm_version = NULL;
     const char *tpm_model = NULL;
@@ -1261,9 +1393,6 @@ main(int argc, char *argv[])
         }
     }
 
-    if (flags & CERT_TYPE_TPM2_F)
-        hashAlgo = GNUTLS_DIG_SHA256;
-
     if ((mpz_sizeinbase(serial, 2) + 7) / 8 > sizeof(ser_number) - 1) {
         fprintf(stderr, "Serial number is too large.\n");
         goto cleanup;
@@ -1288,13 +1417,6 @@ main(int argc, char *argv[])
 
     if ((ecc_x_bin && !ecc_y_bin) || (ecc_y_bin && !ecc_x_bin)) {
         fprintf(stderr, "ECC x and y parameters must both be given.\n");
-        goto cleanup;
-    }
-
-    if (pubkey_filename == NULL && !modulus_bin && !ecc_x_bin) {
-        fprintf(stderr, "Missing public EK file and modulus or ECC "
-                "parameters.\n");
-        usage(argv[0]);
         goto cleanup;
     }
 
@@ -1343,28 +1465,17 @@ main(int argc, char *argv[])
         break;
     }
 
-    err = gnutls_global_init();
-    if (err < 0) {
-            fprintf(stderr, "gnutls_global_init failed.\n");
-            goto cleanup;
-    }
     if (pubkey_filename) {
-        gnutls_pubkey_init(&pubkey);
-
-        err = gnutls_load_file(pubkey_filename, &datum);
-        if (err != GNUTLS_E_SUCCESS) {
-            fprintf(stderr, "Could not open file for EK public key: %s\n",
-                strerror(errno));
+        if (!(fp = fopen(pubkey_filename, "r"))) {
+            fprintf(stderr, "Could not open public key file: %s\n",
+                    strerror(errno));
             goto cleanup;
         }
-
-        err = gnutls_pubkey_import(pubkey, &datum, GNUTLS_X509_FMT_PEM);
-        gnutls_free(datum.data);
-        datum.data = NULL;
-        if (err != GNUTLS_E_SUCCESS) {
-            fprintf(stderr, "Could not import EK.\n");
-            goto cleanup;
-        }
+        pubkey = PEM_read_PUBKEY(fp, NULL, NULL, 0);
+        CHECK_OSSL_NULLPTR(pubkey,
+                           "Could not read PEM public key from %s.\n",
+                           pubkey_filename);
+        FCLOSE(fp);
     } else {
         if (modulus_bin) {
             pubkey = create_rsa_from_modulus(modulus_bin, modulus_len,
@@ -1396,126 +1507,118 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-#define CHECK_GNUTLS_ERROR(_err, _msg, ...) \
-if (_err != GNUTLS_E_SUCCESS) {             \
-    fprintf(stderr, _msg, __VA_ARGS__);     \
-    goto cleanup;                           \
-}
+    if (strstr(sigkey_filename, "pkcs11:") == sigkey_filename) {
+        provider = OSSL_PROVIDER_try_load(NULL, "pkcs11", 1);
+        CHECK_OSSL_NULLPTR1(provider, "Could not load provider 'pkcs11'.\n");
 
-    if (strstr(sigkey_filename, "tpmkey:uuid=") == sigkey_filename ||
-        strstr(sigkey_filename, "tpmkey:file=") == sigkey_filename) {
-        /* GnuTLS TPM 1.2 key URL */
-        err = gnutls_privkey_init(&tpmkey);
-        CHECK_GNUTLS_ERROR(err, "Could not initialize tpmkey: %s\n",
-                           gnutls_strerror(err));
-        err = gnutls_privkey_import_tpm_url(tpmkey, sigkey_filename,
-                                            parentkeypass, sigkeypass, 0);
-        CHECK_GNUTLS_ERROR(err, "Could not import tpmkey %s: %s\n",
-                           sigkey_filename, gnutls_strerror(err));
-    } else if (strstr(sigkey_filename, "pkcs11:") == sigkey_filename) {
-        gnutls_pkcs11_set_pin_function(mypinfunc, NULL);
-        /* GnuTLS PKCS11 key URI */
-        err = gnutls_privkey_init(&pkcs11key);
-        CHECK_GNUTLS_ERROR(err, "Could not initialize tpmkey: %s\n",
-                           gnutls_strerror(err));
-        err = gnutls_privkey_import_url(pkcs11key, sigkey_filename, 0);
-        CHECK_GNUTLS_ERROR(err, "Could not import pkcs11 key %s: %s\n",
-                           sigkey_filename, gnutls_strerror(err));
+        if (!(sigkey = get_key_pkcs11(provider, sigkey_filename)))
+            goto cleanup;
     } else {
-        err = gnutls_x509_privkey_init(&sigkey);
-        CHECK_GNUTLS_ERROR(err, "Could not initialize sigkey: %s\n",
-                           gnutls_strerror(err));
-
-        err = gnutls_load_file(sigkey_filename, &datum);
-        CHECK_GNUTLS_ERROR(err, "Could not read signing key from file %s: %s\n",
-                           sigkey_filename, gnutls_strerror(err));
-
-        if (sigkeypass) {
-            err = gnutls_x509_privkey_import2(sigkey, &datum, GNUTLS_X509_FMT_PEM,
-                                              sigkeypass, 0);
-        } else {
-            err = gnutls_x509_privkey_import(sigkey, &datum, GNUTLS_X509_FMT_PEM);
+        if (!(fp = fopen(sigkey_filename, "r"))) {
+            fprintf(stderr, "Could not open signing key file: %s\n",
+                    strerror(errno));
+            goto cleanup;
         }
-        /* 'certtool --infile <sigkey_filename> -k' not working?? */
-        CHECK_GNUTLS_ERROR(err,
-                           "Could not import signing key %s: %s - Is the (gnutls) key corrupted?\n",
-                           sigkey_filename, gnutls_strerror(err));
-    }
-    gnutls_free(datum.data);
-    datum.data = NULL;
-
-    err = gnutls_load_file(issuercert_filename, &datum);
-    CHECK_GNUTLS_ERROR(err, "Could not read certificate from file %s : %s\n",
-                       issuercert_filename, gnutls_strerror(err));
-
-    gnutls_x509_crt_init(&sigcert);
-
-    err = gnutls_x509_crt_import(sigcert, &datum, GNUTLS_X509_FMT_PEM);
-    gnutls_free(datum.data);
-    datum.data = NULL;
-    datum.size = 0;
-
-    CHECK_GNUTLS_ERROR(err, "Could not import issuer certificate: %s\n",
-                       gnutls_strerror(err));
-
-    err = gnutls_x509_crt_init(&crt);
-    CHECK_GNUTLS_ERROR(err, "CRT init failed: %s\n", gnutls_strerror(err))
-
-    /* 3.5.1 Version */
-    err = gnutls_x509_crt_set_version(crt, 3);
-    CHECK_GNUTLS_ERROR(err, "Could not set version on CRT: %s\n",
-                       gnutls_strerror(err))
-
-    /* 3.5.2 Serial Number */
-    err = gnutls_x509_crt_set_serial(crt, ser_number, ser_number_len);
-    CHECK_GNUTLS_ERROR(err, "Could not set serial on CRT: %s\n",
-                       gnutls_strerror(err))
-
-    /* 3.5.5 Validity */
-    now = time(NULL);
-    err = gnutls_x509_crt_set_activation_time(crt, now);
-    CHECK_GNUTLS_ERROR(err, "Could not set activation time on CRT: %s\n",
-                       gnutls_strerror(err))
-
-    exp_time = (days < 0) ? -1 : now + (time_t)days * 24 * 60 * 60;
-    err = gnutls_x509_crt_set_expiration_time(crt, exp_time);
-    CHECK_GNUTLS_ERROR(err, "Could not set expiration time on CRT: %s\n",
-                       gnutls_strerror(err))
-
-    /* 3.5.6 Subject -- must be empty for TPM 1.2 */
-    if (subject && (flags & CERT_TYPE_TPM2_F)) {
-        err = gnutls_x509_crt_set_dn(crt, subject, &error);
-        CHECK_GNUTLS_ERROR(err,
-                           "Could not set DN on CRT: %s\n"
-                           "DN '%s must be fault after %s\n.'",
-                           gnutls_strerror(err),
-                           subject, error)
+        sigkey = PEM_read_PrivateKey(fp, NULL, password_cb, sigkeypass);
+        CHECK_OSSL_NULLPTR(sigkey,
+                           "Could not read PEM signing key from %s.\n",
+                           sigkey_filename);
+        FCLOSE(fp);
     }
 
-    /* 3.5.7 Public Key Info */
-    switch (certtype) {
-    case CERT_TYPE_EK:
-        oid = "1.2.840.113549.1.1.7";
-        break;
-    case CERT_TYPE_PLATFORM:
-        oid = NULL;
-        break;
-    case CERT_TYPE_AIK:
-        oid = "1.2.840.113549.1.1.1";
-        break;
-    default:
-        fprintf(stderr, "Internal error: unhandle case in line %d\n",
-                __LINE__);
+    /* The signing hash algorithm depends on the key */
+    if (flags & CERT_TYPE_TPM2_F) {
+        if (!(md = get_hashalg_for_signing(sigkey)))
+            goto cleanup;
+    }
+
+    if (!(fp = fopen(issuercert_filename, "r"))) {
+        fprintf(stderr, "Could not open signing key file: %s\n",
+                strerror(errno));
         goto cleanup;
     }
-    if (oid) {
-        err = gnutls_x509_crt_set_key_purpose_oid(crt, oid, 0);
-        CHECK_GNUTLS_ERROR(err, "Could not set key purpose on CRT: %s\n",
-                           gnutls_strerror(err))
+    sigcert = PEM_read_X509(fp, NULL, NULL, NULL);
+    CHECK_OSSL_NULLPTR(sigcert,
+                       "Could not read certificate from %s.\n",
+                       issuercert_filename);
+    FCLOSE(fp);
+
+    /* Build the certificate */
+    crt = X509_new_ex(NULL, NULL);
+    CHECK_OSSL_NULLPTR1(crt, "Out of memory.\n");
+
+    oct = ASN1_OCTET_STRING_new();
+    CHECK_OSSL_NULLPTR1(oct, "Out of memory.\n");
+
+    /* Version */
+    CHECK_OSSL_RETURN1(X509_set_version(crt, 3) != 1,
+                       "Could not set version on CRT.\n");
+
+    /* Serial Number */
+    bn_serial = BN_bin2bn(ser_number, ser_number_len, NULL);
+    CHECK_OSSL_NULLPTR1(bn_serial, "Out of memory.\n");
+
+    asn1_serial = BN_to_ASN1_INTEGER(bn_serial, NULL);
+    CHECK_OSSL_NULLPTR1(asn1_serial, "Out of memory.\n");
+
+    CHECK_OSSL_RETURN1(X509_set_serialNumber(crt, asn1_serial) != 1,
+                       "Could not set serial on CRT.\n");
+
+    /* Issuer */
+    issuer_name = X509_get_subject_name(sigcert);
+    CHECK_OSSL_NULLPTR1(issuer_name,
+                        "Could not get subject name from signer cert.\n");
+
+    CHECK_OSSL_RETURN1(!X509_set_issuer_name(crt, issuer_name),
+                       "Could not set issuer name on CRT.\n");
+
+    /* Validity */
+    now = time(NULL);
+    asn1_time = X509_time_adj(NULL, 0, &now);
+    CHECK_OSSL_NULLPTR1(asn1_time, "Out of memory\n");
+
+    CHECK_OSSL_RETURN1(X509_set1_notBefore(crt, asn1_time) != 1,
+                       "Could not set activation time on CRT.\n");
+    if (days < 0) {
+        ASN1_TIME_set_string(asn1_time, "99991231235959Z");
+    } else {
+        asn1_time = X509_time_adj_ex(asn1_time, days, 0, &now);
+        CHECK_OSSL_NULLPTR1(asn1_time, "Out of memory\n");
+    }
+    CHECK_OSSL_RETURN1(X509_set1_notAfter(crt, asn1_time) != 1,
+                       "Could not set expiration time on CRT.\n");
+
+    /* Subject -- must be empty for TPM 1.2 */
+    if (subject && (flags & CERT_TYPE_TPM2_F)) {
+        g_autofree char *s = g_strdup(subject);
+        X509_NAME *name = X509_NAME_new();
+        char *token, *equal;
+
+        token = strtok(s, ",");
+        do {
+            while (isspace(*token))
+                token++;
+            equal = strchr(token, '=');
+            if (equal) {
+                g_autofree char *attr = g_strndup(token, equal - token);
+                g_autofree char *val = g_strdup(&equal[1]);
+
+                g_strchomp(attr);
+                g_strstrip(val);
+                X509_NAME_add_entry_by_txt(name, attr, MBSTRING_ASC, (unsigned char *)val, -1, -1, 0);
+            }
+            token = strtok(NULL, ",");
+        } while (token);
+
+        CHECK_OSSL_RETURN1(X509_set_subject_name(crt, name) != 1,
+                           "Could not set subject name.\n");
+        X509_NAME_free(name);
     }
 
-    /* 3.5.8 Certificate Policies -- skip since not mandated */
-    /* 3.5.9 Subject Alternative Names */
+    /* Subject Public Key Info */
+
+    /* Certificate Policies -- skip since not mandated */
+    /* Subject Alternative Names */
     switch (certtype) {
     case CERT_TYPE_EK:
         err = create_tpm_manufacturer_info(tpm_manufacturer, tpm_model,
@@ -1560,26 +1663,31 @@ if (_err != GNUTLS_E_SUCCESS) {             \
     }
 
     if (datum.size > 0) {
-        err = prepend_san_asn1_header(&datum);
-        CHECK_GNUTLS_ERROR(err, "Could not prepend SAN ASN.1 header: %s\n",
-                           gnutls_strerror(err))
+        if (!prepend_san_asn1_header(&datum)) {
+            fprintf(stderr, "Could not prepend SAN ASN.1 header.\n");
+            goto cleanup;
+        }
+        ASN1_OCTET_STRING_set(oct, datum.data, datum.size);
 
-        err = gnutls_x509_crt_set_extension_by_oid(crt, GNUTLS_X509EXT_OID_SAN,
-                                                   datum.data, datum.size,
-                                                   1);
-        CHECK_GNUTLS_ERROR(err, "Could not set subject alt name: %s\n",
-                           gnutls_strerror(err))
+        ext = X509_EXTENSION_create_by_NID(NULL, NID_subject_alt_name, 1, oct);
+        CHECK_OSSL_NULLPTR1(ext,
+                            "Could not create subject alternative name extension.\n");
+        CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
+                           "Could not add extension to CRT.\n");
+        X509_EXTENSION_free(ext);
+        ext = NULL;
     }
-    gnutls_free(datum.data);
-    datum.data = NULL;
-    datum.size = 0;
+    free_datum(&datum);
 
-    /* 3.5.10 Basic Constraints */
-    err = gnutls_x509_crt_set_basic_constraints(crt, 0, -1);
-    CHECK_GNUTLS_ERROR(err, "Could not set key usage id: %s\n",
-                       gnutls_strerror(err))
+    /* Basic Constraints */
+    ext = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints, "critical, CA:FALSE");
+    CHECK_OSSL_NULLPTR1(ext, "Out of memory.\n");
 
-    /* 3.5.11 Subject Directory Attributes */
+    CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
+                       "Could not add extension to CRT.\n");
+    X509_EXTENSION_free(ext);
+
+    /* Subject Directory Attributes */
     switch (certtype) {
     case CERT_TYPE_EK:
         err = create_tpm_specification_info(spec_family, spec_level,
@@ -1598,63 +1706,73 @@ if (_err != GNUTLS_E_SUCCESS) {             \
         goto cleanup;
     }
 
-    if (!err && datum.size > 0) {
-        err = gnutls_x509_crt_set_extension_by_oid(crt, "2.5.29.9",
-                                                   datum.data, datum.size,
-                                                   0);
-        CHECK_GNUTLS_ERROR(err, "Could not set subject directory attributes: "
-                           "%s\n", gnutls_strerror(err))
-    }
-    gnutls_free(datum.data);
-    datum.data = NULL;
+    if (datum.size > 0) {
+        ASN1_OCTET_STRING_set(oct, datum.data, datum.size);
 
-    /* 3.5.12 Authority Key Id */
-    err = gnutls_x509_crt_get_subject_key_id(sigcert, id, &id_size, NULL);
-    if (err == GNUTLS_E_SUCCESS && id_size > 0) {
-        err = gnutls_x509_crt_set_authority_key_id(crt, id, id_size);
-        CHECK_GNUTLS_ERROR(err, "Could not set the authority key id: %s\n",
-                           gnutls_strerror(err))
-    } else {
-        CHECK_GNUTLS_ERROR(err, "Could not get the authority key id from the cert: %s\n",
-                           gnutls_strerror(err))
+        ext = X509_EXTENSION_create_by_NID(NULL, NID_subject_directory_attributes, 0, oct);
+        CHECK_OSSL_NULLPTR1(ext,
+                            "Could not create subject directory attributes extension.\n");
+        CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
+                           "Could not add extension to CRT.\n");
+        X509_EXTENSION_free(ext);
+        ext = NULL;
     }
-    /* 3.5.13 Authority Info Access -- may be omitted */
-    /* 3.5.14 CRL Distribution -- missing  */
+    free_datum(&datum);
 
-    /* 3.5.15 Key Usage */
+    /* Authority Key Id */
+    X509V3_set_ctx_nodb(&x509v3_ctx);
+    X509V3_set_ctx(&x509v3_ctx, sigcert, NULL, NULL, NULL, 0);
+    ext = X509V3_EXT_conf_nid(NULL, &x509v3_ctx,
+                              NID_authority_key_identifier, "keyid");
+    CHECK_OSSL_NULLPTR1(ext, "Out of memory.\n");
+
+    CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
+                       "Could not add extension to CRT.\n");
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+
+    /* Authority Info Access -- may be omitted */
+    /* CRL Distribution -- missing  */
+
+    /* Key Usage */
     switch (certtype) {
     case CERT_TYPE_EK:
     case CERT_TYPE_PLATFORM:
         if (flags & CERT_TYPE_TPM2_F) {
             /* support 'User Device TPM' and 'Non-User Device TPM' in spec */
             if (flags & ALLOW_SIGNING_F) {
-                key_usage |= GNUTLS_KEY_DIGITAL_SIGNATURE;
+                g_string_append(key_usage, ", digitalSignature");
             }
             if ((flags & (ALLOW_SIGNING_F | DECRYPTION_F)) == 0 ||
                 (flags & DECRYPTION_F) == DECRYPTION_F) {
                 if (is_ecc) {
-                    key_usage |= GNUTLS_KEY_KEY_AGREEMENT;
+                    g_string_append(key_usage, ", keyAgreement");
                 } else {
-                    key_usage |= GNUTLS_KEY_KEY_ENCIPHERMENT;
+                    g_string_append(key_usage, ", keyEncipherment");
                 }
             }
         } else {
-            key_usage = GNUTLS_KEY_KEY_ENCIPHERMENT;
+            g_string_append(key_usage, ", keyEncipherment");
         }
         break;
     case CERT_TYPE_AIK:
-        key_usage = GNUTLS_KEY_DIGITAL_SIGNATURE;
+        g_string_append(key_usage, ", digitalSignature");
         break;
     default:
         fprintf(stderr, "Internal error: unhandle case in line %d\n",
                 __LINE__);
         goto cleanup;
     }
-    err = gnutls_x509_crt_set_key_usage(crt, key_usage);
-    CHECK_GNUTLS_ERROR(err, "Could not set key usage id: %s\n",
-                       gnutls_strerror(err))
 
-    /* 3.5.16 Extended Key Usage */
+    ext = X509V3_EXT_conf_nid(NULL, &x509v3_ctx, NID_key_usage, key_usage->str);
+    CHECK_OSSL_NULLPTR1(ext, "Could not create key usage extension.\n");
+
+    CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
+                       "Could not add extension to CRT.\n");
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+
+    /* Extended Key Usage */
     oid = NULL;
 
     switch (certtype) {
@@ -1678,51 +1796,45 @@ if (_err != GNUTLS_E_SUCCESS) {             \
             fprintf(stderr, "Could not create ASN.1 for extended key usage\n");
             goto cleanup;
         }
+        ASN1_OCTET_STRING_set(oct, datum.data, datum.size);
 
-        err = gnutls_x509_crt_set_extension_by_oid(crt,
-            GNUTLS_X509EXT_OID_EXTENDED_KEY_USAGE,
-            datum.data, datum.size, 0);
-        CHECK_GNUTLS_ERROR(err, "Could not set extended key usage by oid: %s\n",
-                           gnutls_strerror(err))
+        ext = X509_EXTENSION_create_by_NID(NULL, NID_ext_key_usage, 0, oct);
+        CHECK_OSSL_NULLPTR1(ext, "Could not set extended key usage.\n");
 
-        gnutls_free(datum.data);
-        datum.data = NULL;
+        CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
+                           "Could not add extension to CRT.\n");
+
+        X509_EXTENSION_free(ext);
+        ext = NULL;
+
+        free_datum(&datum);
     }
 
-    /* 3.5.17 Subject Key Id -- should not be included */
-    /* 3.5.18 Issuer Alt. Name -- should not be included */
-    /* 3.5.19 FreshestCRL -- should not be included */
-    /* 3.5.20 Subject Info. Access -- should not be included */
-    /* 3.5.21 Subject and Issued Unique Ids -- must be omitted */
-    /* 3.5.22 Virtualized Platform Attestation Service -- missing */
-    /* 3.5.23 Migration Controller Attestation Service -- missing */
-    /* 3.5.24 Migration Controller Registration Service -- missing */
-    /* 3.5.25 Virtual Platform Backup Service -- missing */
+    /* Subject Key Id -- may be included */
 
     /* set public key */
-    err = gnutls_x509_crt_set_pubkey(crt, pubkey);
-    CHECK_GNUTLS_ERROR(err, "Could not set public EK on CRT: %s\n",
-                       gnutls_strerror(err))
+    CHECK_OSSL_RETURN1(X509_set_pubkey(crt, pubkey) != 1,
+                       "Could not set public EK on CRT\n");
 
     /* sign cert */
-    if (sigkey) {
-        err = gnutls_x509_crt_sign2(crt, sigcert, sigkey, hashAlgo, 0);
-    } else if (pkcs11key) {
-        err = gnutls_x509_crt_privkey_sign(crt, sigcert, pkcs11key,
-                                           hashAlgo, 0);
-    } else {
-        /* TPM 1.2 signs cert for a TPM 1.2 (SHA1) or TPM 2 (SHA256) */
-        err = gnutls_x509_crt_privkey_sign(crt, sigcert, tpmkey,
-                                           hashAlgo, 0);
-    }
-    CHECK_GNUTLS_ERROR(err, "Could not sign the CRT: %s [%s]\n",
-                       gnutls_strerror(err), sigkey_filename)
+    if (md == EVP_sha1())
+        setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", 1);
+    if (sigkey)
+        CHECK_OSSL_RETURN1(X509_sign(crt, sigkey, md) == 0,
+                           "Could not sign the certificate.\n");
 
-    /* write cert to file; either PEM or DER */
-    gnutls_x509_crt_export2(crt,
-                            (write_pem)
-                            ? GNUTLS_X509_FMT_PEM
-                            : GNUTLS_X509_FMT_DER, &out);
+    /* write the certificate */
+    bp = BIO_new(BIO_s_mem());
+    CHECK_OSSL_NULLPTR1(bp, "Out of memory.\n");
+
+    if (write_pem) {
+        CHECK_OSSL_RETURN1(!PEM_write_bio_X509(bp, crt),
+                           "Could not write PEM certificate to buffer BIO.\n");
+    } else {
+        CHECK_OSSL_RETURN1(i2d_X509_bio(bp, crt) != 1,
+                           "Could not write DER certificate to buffer BIO.\n");
+    }
+    out.size = BIO_get_mem_data(bp, &out.data);
     if (cert_filename) {
         cert_file_fd = open(cert_filename, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,
                             S_IRUSR|S_IWUSR);
@@ -1766,17 +1878,20 @@ if (_err != GNUTLS_E_SUCCESS) {             \
 cleanup:
     mpz_clear(serial);
 
-    gnutls_free(out.data);
+    EVP_PKEY_free(pubkey);
+    BIO_free(bp);
+    ASN1_INTEGER_free(asn1_serial);
+    ASN1_TIME_free(asn1_time);
+    ASN1_OCTET_STRING_free(oct);
+    BN_free(bn_serial);
+    EVP_PKEY_free(sigkey);
+    X509_free(sigcert);
+    X509_free(crt);
+    OSSL_PROVIDER_unload(provider);
+    if (fp)
+        fclose(fp);
 
-    gnutls_x509_crt_deinit(crt);
-    gnutls_x509_crt_deinit(sigcert);
-    gnutls_x509_privkey_deinit(sigkey);
-    gnutls_pubkey_deinit(pubkey);
-    gnutls_privkey_deinit(tpmkey);
-    gnutls_privkey_deinit(pkcs11key);
-
-    gnutls_global_deinit();
-
+    g_string_free(key_usage, TRUE);
     free(sigkeypass);
     free(parentkeypass);
     free(modulus_bin);
