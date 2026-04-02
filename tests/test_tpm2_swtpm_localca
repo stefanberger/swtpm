@@ -179,6 +179,7 @@ do
     echo "Error: unexpected subject string"
     echo "actual   : $ac"
     echo "expected : $exp"
+    exit 1
   else
     echo "Pass: $ac"
   fi
