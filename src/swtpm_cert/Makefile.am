@@ -11,10 +11,8 @@ noinst_HEADERS =
 
 bin_PROGRAMS =
 
-if WITH_GNUTLS
 bin_PROGRAMS += \
 	swtpm_cert
-endif
 
 swtpm_cert_SOURCES = \
 	ek-cert.c
@@ -24,18 +22,21 @@ swtpm_cert_CFLAGS = \
 	-I$(top_srcdir)/include \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
-	$(GMP_CFLAGS)
+	$(GMP_CFLAGS) \
+	$(GLIB_CFLAGS)
 
 swtpm_cert_LDFLAGS = \
 	$(MY_LDFLAGS) \
-	$(HARDENING_LDFLAGS)
+	$(HARDENING_LDFLAGS) \
+	$(GLIB_LDFLAGS)
 
 ek-cert.o : tpm_asn1.h
 
 swtpm_cert_LDADD = \
 	$(LIBTASN1_LIBS) \
-	$(GNUTLS_LIBS) \
-	$(GMP_LIBS)
+	$(GMP_LIBS) \
+	$(LIBCRYPTO_LIBS) \
+	$(GLIB_LIBS)
 
 tpm_asn1.h : tpm.asn
 	asn1Parser -o $@ $^ 
