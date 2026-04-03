@@ -204,15 +204,7 @@ AC_ARG_WITH([gnutls],
 dnl certtool changed how it takes private key passwords
 dnl 3.3.29 is too old (RHEL 7); we need at least gnutls 3.4.0
 
-AS_IF([test "x$with_gnutls" != "xno"],
-    [PKG_CHECK_MODULES([GNUTLS],
-        [gnutls >= 3.4.0],
-        [],
-        [AS_IF([test "x$with_gnutls" = "xyes"],
-            [AC_MSG_ERROR("Is gnutls installed? -- could not get libs for gnutls")],
-            [with_gnutls=no]
-        )]
-    )
+AS_IF([test "x$with_gnutls" != "xno"],[
     AC_PATH_PROG([GNUTLS_CERTTOOL], certtool)
     AS_IF([test "x$GNUTLS_CERTTOOL" = "x" && test "x$with_gnutls" = "xyes"],
         [AC_MSG_ERROR("Could not find certtool. Is gnutls-utils/gnutls-bin installed?")],
@@ -220,11 +212,8 @@ AS_IF([test "x$with_gnutls" != "xno"],
         [with_gnutls=no]
     )
     AS_IF([test "x$with_gnutls" != "xno"],[with_gnutls="yes"])
-    ]
-)
-
+])
 AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" = "xyes"])
-
 
 DEFAULT_PCR_BANKS="sha256"
 AC_ARG_ENABLE([default-pcr-banks],
@@ -421,7 +410,7 @@ AC_SUBST([TSS_GROUP])
 CFLAGS="$CFLAGS -Wreturn-type -Wsign-compare -Wswitch-enum"
 CFLAGS="$CFLAGS -Wmissing-prototypes -Wall -Werror"
 CFLAGS="$CFLAGS -Wformat -Wformat-security -Wshadow"
-CFLAGS="$CFLAGS $GNUTLS_CFLAGS $COVERAGE_CFLAGS $SANITIZER_CFLAGS"
+CFLAGS="$CFLAGS $COVERAGE_CFLAGS $SANITIZER_CFLAGS"
 
 LDFLAGS="$LDFLAGS $COVERAGE_LDFLAGS $SANITIZER_LDFLAGS"
 
@@ -540,7 +529,6 @@ echo " JSON_GLIB_CFLAGS = $JSON_GLIB_CFLAGS"
 echo "   JSON_GLIB_LIBS = $JSON_GLIB_LIBS"
 echo "      GLIB_CFLAGS = $GLIB_CFLAGS"
 echo "        GLIB_LIBS = $GLIB_LIBS"
-echo "      GNUTLS_LIBS = $GNUTLS_LIBS"
 echo "         GMP_LIBS = $GMP_LIBS"
 echo "       GMP_CFLAGS = $GMP_CFLAGS"
 echo "   LIBFUSE_CFLAGS = $LIBFUSE_CFLAGS"
