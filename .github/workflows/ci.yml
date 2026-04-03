@@ -12,6 +12,7 @@ jobs:
       CONFIG:   "--with-openssl --prefix=/usr"
       CHECK:    "distcheck"
       RUN_TEST: "1"
+      PACKAGES: pkcs11-provider
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,7 +21,7 @@ jobs:
         uses: ./.github/actions/test-swtpm
 
   test-coveralls:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       PREFIX:                    "/usr"
       CONFIG:                    "--with-openssl --prefix=/usr --enable-test-coverage"
@@ -29,7 +30,7 @@ jobs:
       SWTPM_TEST_IBMTSS2:        "1"
       SWTPM_TEST_STORE_VOLATILE: "1"
       COVERALLS_REPO_TOKEN:      ${{ secrets.COVERALLS_REPO_TOKEN }}
-      PACKAGES:                  libtpm2-pkcs11-tools
+      PACKAGES:                  libtpm2-pkcs11-tools pkcs11-provider
     steps:
       - name: Checkout
         uses: actions/checkout@v4
