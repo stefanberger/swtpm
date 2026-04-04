@@ -795,9 +795,7 @@ int main(int argc, char *argv[])
         goto error;
     }
 
-    if (!g_str_has_prefix(signkey, "tpmkey:file=") &&
-        !g_str_has_prefix(signkey, "tpmkey:uuid=") &&
-        !g_str_has_prefix(signkey, "pkcs11:")) {
+    if (!g_str_has_prefix(signkey, "pkcs11:")) {
         g_autofree gchar *d = g_path_get_dirname(signkey);
         if (makedir(d, "signkey") != 0)
             goto error;
@@ -819,23 +817,7 @@ int main(int argc, char *argv[])
 
     swtpm_cert_env = g_get_environ();
 
-    // TPM keys are GNUTLS URIs...
-    if (g_str_has_prefix(signkey, "tpmkey:file=") || g_str_has_prefix(signkey, "tpmkey:uuid=")) {
-        g_autofree gchar *tss_tcsd_hostname = NULL;
-        g_autofree gchar *tss_tcsd_port = NULL;
-
-        tss_tcsd_hostname = get_config_value(config_file_lines,
-                                             "TSS_TCSD_HOSTNAME", "localhost");
-        tss_tcsd_port = get_config_value(config_file_lines,
-                                         "TSS_TCSD_PORT", "30003");
-        swtpm_cert_env = g_environ_setenv(swtpm_cert_env,
-                                          "TSS_TCSD_HOSTNAME", tss_tcsd_hostname, TRUE);
-        swtpm_cert_env = g_environ_setenv(swtpm_cert_env,
-                                          "TSS_TCSD_PORT", tss_tcsd_port, TRUE);
-
-        logit(gl_LOGFILE, "CA uses a GnuTLS TPM key; using TSS_TCSD_HOSTNAME=%s " \
-                          "TSS_TCSD_PORT=%s\n", tss_tcsd_hostname, tss_tcsd_port);
-    } else if (g_str_has_prefix(signkey, "pkcs11:")) {
+    if (g_str_has_prefix(signkey, "pkcs11:")) {
         gchar *tmp = str_replace(signkey, "\\;", ";"); /* historical reasons ... */
         g_free(signkey);
         signkey = tmp;
