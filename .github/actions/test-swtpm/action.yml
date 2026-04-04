@@ -52,13 +52,6 @@ runs:
         fi
 
         set -e
-        if [ -n "${COVERALLS_REPO_TOKEN}" ]; then
-          uidgid="$(id -nu):$(id -ng)"
-          sudo chown -R ${uidgid} ./
-          pip install setuptools==59.6.0  # Default Jammy version
-          pip install cpp-coveralls
-          cpp-coveralls -e libtpms --gcov-options '\-lp'
-        fi
         if [ -n "${RUN_TEST}" ]; then
           sudo make install
           sudo ${PREFIX}/bin/swtpm_setup \
