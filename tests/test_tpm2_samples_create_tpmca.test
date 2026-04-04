@@ -224,10 +224,11 @@ _EOF_
 	fi
 
 	case "${algorithm}" in
-	rsa2048)	exp_certsize=500;; # cert should be ~541 bytes long; give some 'room'
+	""|rsa2048)	exp_certsize=500;; # cert should be ~541 bytes long; give some 'room'
 	ecc256)		exp_certsize=460;; # cert should be ~476 bytes long;    - " -
 	secp384r1)	exp_certsize=510;; # cert should be ~519 bytes long;    - " -
 	esac
+
 	if [ "$(get_filesize "${workdir}/ek.cert")" -lt "${exp_certsize}" ]; then
 		echo "Error: The certificate's size is dubious"
 		ls -l "${workdir}/ek.cert"
@@ -287,8 +288,8 @@ _EOF_
 		exit 1
 	fi
 
-	if wait_process_gone "${SWTPM_PID}" 4; then
-		echo "Error: tcsd should not be running anymore."
+	if wait_process_gone "${TPM2_ABRMD_PID}" 4; then
+		echo "Error: tpm2abrmd should not be running anymore."
 		exit 1
 	fi
 	SWTPM_PID=""
