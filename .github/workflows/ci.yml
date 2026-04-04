@@ -46,12 +46,7 @@ jobs:
           pushd cpp-coveralls
            pip install -e .
           popd
-          cpp-coveralls -e libtpms --gcov-options '\-lp' --dryrun
-
-      - name: Coveralls Upload
-        uses: coverallsapp/github-action@v2
-        with:
-          debug: true
+          cpp-coveralls -e libtpms --gcov-options '\-lp'
 
   test-asan-ubsan:
     runs-on: ubuntu-24.04
