@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 
 FLAG_OVERWRITE=1
-FLAG_REGISTER_KEY=2
-FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN=4
-FLAG_SRK_WELL_KNOWN=8
-FLAG_TPM2=16
-
-TSS_TCSD_HOSTNAME_DEFAULT=localhost
-TSS_TCSD_PORT_DEFAULT=30003
+FLAG_TPM2=2
 
 logit()
 {
@@ -47,47 +41,6 @@ function escape_pkcs11_url()
 {
 	echo "${1//;/\\;}"
 }
-
-# Use expect for automating the interaction with the tpmtool
-#
-# @param 1...: parameters to pass to tpmtool command line
-#
-# TPM_SRK_PASSWORD and TPM_KEY_PASSWORD global variables are used
-# for the SRK and key passwords respectively.
-run_tpmtool() {
-	local prg out rc
-
-	if [ -z "$(type -P tpmtool)" ]; then
-		echo "Could not find tpmtool in PATH (${PATH})."
-		return 1
-	fi
-
-	# shellcheck disable=SC2124,SC2027
-	prg="spawn tpmtool "$@"
-		expect {
-			\"Enter SRK password:\" {
-				send \"${TPM_SRK_PASSWORD}\n\"
-				exp_continue
-			}
-			\"Enter key password:\" {
-				send \"${TPM_KEY_PASSWORD}\n\"
-				exp_continue
-			}
-			\"tpmkey:\" {
-				send_user \"\n\"
-			}
-			eof {
-				exit
-			}
-		}
-		catch wait result
-		exit [lindex \$result 3]
-	"
-	out=$(expect -c "${prg}")
-	rc=$?
-	echo "${out}"
-	return $rc
-} #run_tpmtool
 
 create_localca_cert() {
 	local flags=$1
@@ -232,55 +185,8 @@ create_localca_cert() {
 			return 1
 		fi
 	else
-		local params=""
-
-		if [ $((flags & FLAG_SRK_WELL_KNOWN)) -ne 0 ]; then
-			unset GNUTLS_PIN
-			params="--srk-well-known"
-		else
-			export GNUTLS_PIN="${TPM_SRK_PASSWORD}"
-		fi
-
-		if [ $((flags & FLAG_REGISTER_KEY)) -ne 0 ]; then
-			if ! msg="$(run_tpmtool --generate-rsa --signing --register ${params})"; then
-				logerr "Could not generate registered signing key with tpmtool"
-				logerr "${msg}"
-				return 1
-			fi
-			tpmkeyurl=$(echo "${msg}" | sed -n 's/\(tpmkey:uuid=[^;]*\);.*/\1/p')
-			if [ -z "${tpmkeyurl}" ]; then
-				logerr "Could not parse tpmkey URL"
-				logerr "${msg}"
-				return 1
-			fi
-		else
-			rm -f "${tpmkey}"
-			# shellcheck disable=SC2086
-			if ! msg="$(run_tpmtool --generate-rsa --signing --outfile \"${tpmkey}\" ${params})"; then
-				logerr "Could not create signing key with tpmtool"
-				logerr "${msg}"
-				rm -f "${tpmkey}"
-				return 1
-			fi
-			if [ ! -r "${tpmkey}" ] || [ "$(get_filesize "${tpmkey}")" -eq 0 ]; then
-				logerr "The TPM key file ${tpmkey} was not written properly"
-				logerr "${msg}"
-				rm -f "${tpmkey}"
-				return 1
-			fi
-			chmod 640 "${tpmkey}"
-			tpmkeyurl="tpmkey:file=${tpmkey}"
-		fi
-
-		rm -f "${tpmpubkey}"
-		# shellcheck disable=SC2086
-		if ! msg=$(run_tpmtool "--pubkey=${tpmkeyurl}" --outfile \"${tpmpubkey}\" ${params}) || \
-		   [ ! -r "${tpmpubkey}" ] || [ "$(get_filesize "${tpmpubkey}")" -eq 0 ]; then
-			logerr "Error: Could not get TPM public key"
-			logerr "${msg}"
-			rm -f "${tpmkey}" "${tpmpubkey}"
-			return 1
-		fi
+		logerr "TPM1.2 is not supported anymore."
+		return 1
 	fi
 
 	{
@@ -311,13 +217,8 @@ signingkey = $(escape_pkcs11_url "${tpmkeyurl}")
 issuercert = ${tpmca}
 certserial = ${dir}/certserial"
 
-	if [ $((flags & FLAG_TPM2)) -eq 0 ]; then
-		output+="$(echo -e "\nTSS_TCSD_HOSTNAME = ${TSS_TCSD_HOSTNAME}")"
-		output+="$(echo -e "\nTSS_TCSD_PORT = ${TSS_TCSD_PORT}")"
-	else
-		output+="$(echo -e "\nSWTPM_PKCS11_PIN = ${SWTPM_PKCS11_PIN}")"
-		# output+="$(echo -e "\nSWTPM_PKCS11_SO_PIN = ${SWTPM_PKCS11_SO_PIN}")"
-	fi
+	output+="$(echo -e "\nSWTPM_PKCS11_PIN = ${SWTPM_PKCS11_PIN}")"
+	# output+="$(echo -e "\nSWTPM_PKCS11_SO_PIN = ${SWTPM_PKCS11_SO_PIN}")"
 	if [ -n "${TPM_KEY_PASSWORD}" ]; then
 		output+="$(echo -e "\nsigningkey_password = ${TPM_KEY_PASSWORD}")"
 	fi
@@ -352,13 +253,6 @@ certserial = ${dir}/certserial"
 usage() {
 	local flags=$2
 
-	local tpmtool_note=" use 'well known' password if not
-                   given"
-	[ $((flags & FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN)) -eq 0 ] && \
-		tpmtool_note="
-                   Note: the well known password of 20 zero bytes is not
-                         supported by tpmtool"
-
 	cat << _EOF_
 Create a TPM-based CA for signing EK and platform certificates.
 
@@ -372,24 +266,14 @@ The following options are supported:
                    unless --overwrite is passed
 --overwrite        Overwrite any data in an existing directory; tries to
                    reuse a root CA if one is found there
---register         Create a registered TPM 1.2 key rather than a file that
-                   contains the key; this option has no effect if --tpm2 is
-                   used
---key-password s   Password for the newly created TPM key; required if
-                   --register is not passed
-                   Note: use the same as the --srk-password (bug in certtool)
---srk-password s   Password for the TPM's SRK;${tpmtool_note}
+--key-password s   Password for the newly created TPM key
+--srk-password s   Password for the TPM's SRK
 --outfile file     File to write the configuration to; if not passed it will be
                    written to stdout only
 --owner owner      The owner of the directory and the files; only set if this
                    script is run as root; recommended to be 'tss'
 --group group      The group owning the directory and the files;
                    recommended to be 'tss'
---tss-tcsd-hostname hostname
-                   The name of the host where tcsd (TrouSerS daemon) is running
-                   on; default is '${TSS_TCSD_HOSTNAME_DEFAULT}'
---tss-tcsd-port p  The TCP port on which tcsd is listening for connections;
-                   default is ${TSS_TCSD_PORT_DEFAULT}
 --tpm2             Setup a CA that uses a TPM 2.0
 --algorithm <alg>  Key algorithm for created TPM 2 CA. Default is rsa2048.
                    Possible values are: rsa2048, rsa3072, ecc256 or secp256r1,
@@ -406,30 +290,12 @@ SWTPM_ROOTCA_PASSWORD  The root CA's private key password
 _EOF_
 } #usage
 
-# Check whether tpmtool supports --srk-well-known
-tpmtool_supports_srk_well_known()
-{
-	local tmp
-
-	[ -z "$(type -P tpmtool)" ] && return 1
-
-	tmp=$(tpmtool --help | grep "srk-well-known")
-	[ -z "${tmp}" ] && return 1
-	return 0
-}
-
 main() {
 	local flags=0
 	local dir outfile owner group msg pid
 	local algorithm="rsa2048"
 
-	if tpmtool_supports_srk_well_known; then
-		flags=$((flags | FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN | FLAG_SRK_WELL_KNOWN))
-	fi
-
 	CERTTOOL=certtool
-	export TSS_TCSD_HOSTNAME=${TSS_TCSD_HOSTNAME_DEFAULT}
-	export TSS_TCSD_PORT=${TSS_TCSD_PORT_DEFAULT}
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
@@ -440,13 +306,9 @@ main() {
 		--overwrite)
 			flags=$((flags | FLAG_OVERWRITE))
 			;;
-		--register)
-			flags=$((flags | FLAG_REGISTER_KEY))
-			;;
 		--srk-password)
 			shift
 			TPM_SRK_PASSWORD="$1"
-			flags=$((flags & ~FLAG_SRK_WELL_KNOWN))
 			;;
 		--key-password)
 			shift
@@ -463,14 +325,6 @@ main() {
 		--group)
 			shift
 			group="$1"
-			;;
-		--tss-tcsd-hostname)
-			shift
-			TSS_TCSD_HOSTNAME="$1"
-			;;
-		--tss-tcsd-port)
-			shift
-			TSS_TCSD_PORT="$1"
 			;;
 		--tpm2)
 			flags=$((flags | FLAG_TPM2))
@@ -506,19 +360,6 @@ main() {
 		return 1
 	fi
 
-	if [ -z "${TPM_SRK_PASSWORD}" ] && [ $((flags & FLAG_TPM2)) -eq 0 ] &&
-	   [ $((flags & FLAG_TPMTOOL_SUPPORTS_SRK_WELL_KNOWN)) -eq 0 ]; then
-		logerr "SRK password must be provided"
-		return 1
-	fi
-
-	if [ -z "${TPM_KEY_PASSWORD}" ] && \
-	   [ $((flags & FLAG_REGISTER_KEY)) -eq 0 ] && \
-	   [ $((flags & FLAG_TPM2)) -eq 0 ]; then
-		logerr "Key password is required"
-		return 1
-	fi
-
 	if [ $((flags & FLAG_TPM2)) -ne 0 ] && [ -z "${pid}" ]; then
 		logerr "--pid is required for TPM 2"
 		return 1
@@ -548,11 +389,7 @@ main() {
 		return 1
 	fi
 
-	if [ $((flags & FLAG_TPM2)) -eq 0 ] && [ "${algorithm}" != "rsa2048" ]; then
-		logerr "Unsupported key algorithms for TPM CA for a TPM 1.2 '${algorithm}'."
-		logerr "Only rsa2048 is supported."
-		return 1
-	elif ! [[ "${algorithm}" =~ ^(rsa2048|rsa3072|ecc256|ecc384|secp256r1|secp384r1)$ ]]; then
+	if ! [[ "${algorithm}" =~ ^(rsa2048|rsa3072|ecc256|ecc384|secp256r1|secp384r1)$ ]]; then
 		logerr "Unsupported key algorithm for TPM CA '${algorithm}'. See --help."
 		return 1
 	else
