@@ -26,7 +26,6 @@ addons:
         - libtasn1-dev
         - socat
         - findutils
-        - gnutls-dev
         - gnutls-bin
         - softhsm2
         - libseccomp-dev

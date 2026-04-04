@@ -2,7 +2,7 @@ FROM python:3.9-alpine3.19 AS builder
 
 LABEL org.opencontainers.image.authors="Stefan Berger"
 
-ENV PACKAGES="curl openssl-dev automake autoconf bash build-base libtool make socat gawk libtasn1-dev gnutls gnutls-utils gnutls-dev expect libseccomp-dev softhsm py3-cryptography py3-twisted py3-setuptools json-glib-dev gmp-dev"
+ENV PACKAGES="curl openssl-dev automake autoconf bash build-base libtool make socat gawk libtasn1-dev gnutls gnutls-utils expect libseccomp-dev softhsm py3-cryptography py3-twisted py3-setuptools json-glib-dev gmp-dev"
 RUN apk add --no-cache --no-check-certificate $PACKAGES && rm -rf /var/cache/apk/*
 
 ARG LIBTPMS_BRANCH=master

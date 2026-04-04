@@ -21,7 +21,6 @@ Building and running the swtpm has dependencies on the following packages:
 - socat
 - trousers
 - gnutls
-- gnutls-devel
 - libtasn1
 - libtasn1-tools
 - libtasn1-devel
