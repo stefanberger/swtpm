@@ -52,8 +52,21 @@ runs:
         fi
 
         set -e
+        if [ -n "${COVERALLS_REPO_TOKEN}" ]; then
+          uidgid="$(id -nu):$(id -ng)"
+          sudo chown -R ${uidgid} ./
+          git clone https://github.com/eddyxu/cpp-coveralls
+          pushd cpp-coveralls
+           pip install .
+          popd
+          cpp-coveralls -e libtpms --gcov-options '\-lp' --dryrun
+        fi
         if [ -n "${RUN_TEST}" ]; then
           sudo make install
           sudo ${PREFIX}/bin/swtpm_setup \
                 --tpmstate /tmp --create-ek-cert --create-platform-cert --tpm2 || exit 1
         fi
+
+    - name: Coveralls Upload
+      if: env.COVERALLS_REPO_TOKEN != ''
+      uses: coverallsapp/github-action@v2

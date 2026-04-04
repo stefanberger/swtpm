@@ -37,22 +37,6 @@ jobs:
       - name: Build libtpms and swtpm and test
         uses: ./.github/actions/test-swtpm
 
-      - name: Prepare for Coveralls Upload
-        shell: bash
-        run: |
-          uidgid="$(id -nu):$(id -ng)"
-          sudo chown -R ${uidgid} ./
-          git clone https://github.com/eddyxu/cpp-coveralls
-          pushd cpp-coveralls
-           pip install -e .
-          popd
-          cpp-coveralls -e libtpms --gcov-options '\-lp' --dryrun
-
-      - name: Coveralls Upload
-        uses: coverallsapp/github-action@v2
-        with:
-          debug: true
-
   test-asan-ubsan:
     runs-on: ubuntu-24.04
     env:
