@@ -30,7 +30,6 @@ BuildRequires:  trousers >= 0.3.9
 %endif
 %if %{with gnutls}
 BuildRequires:  gnutls >= 3.4.0
-BuildRequires:  gnutls-devel
 BuildRequires:  gnutls-utils
 BuildRequires:  libtasn1-devel
 BuildRequires:  libtasn1
