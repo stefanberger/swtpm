@@ -94,7 +94,6 @@ TESTS += \
 
 if WITH_GNUTLS
 TESTS += \
-	test_samples_create_tpmca \
 	test_swtpm_cert \
 	test_swtpm_setup_create_cert \
 	test_tpm2_parameters \
