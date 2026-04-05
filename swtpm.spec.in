@@ -121,6 +121,7 @@ make %{?_smp_mflags} check
 
 %make_install
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.{a,la,so}
+rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/storage_plugins/*.{a,la}
 
 %pre selinux
 %selinux_relabel_pre -s %{selinuxtype}
@@ -163,6 +164,8 @@ fi
 %dir %{_libdir}/%{name}
 %{_libdir}/%{name}/libswtpm_libtpms.so.0
 %{_libdir}/%{name}/libswtpm_libtpms.so.0.0.0
+%dir %{_libdir}/%{name}/storage_plugins
+%{_libdir}/%{name}/storage_plugins/*.so
 
 %files devel
 %dir %{_includedir}/%{name}

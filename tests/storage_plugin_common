@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+#
+# Build helper for external storage plugin tests.
+# Produces a wrapper plugin that accepts:
+#   plugin:///abs/path/to/plugin.so?path=/state/dir
+# and forwards operations to dir:// backend ops.
+
+function build_dir_wrapper_plugin_so()
+{
+	local outdir="$1"
+	local cc="${CC:-cc}"
+	local top_src="${abs_top_srcdir:-${ROOT}}"
+	local top_build="${abs_top_builddir:-${ROOT}}"
+	local srcfile="${top_src}/tests/data/swtpm_storage_plugin_dir_wrapper.c"
+	local outfile="${outdir}/swtpm_storage_plugin_dir_wrapper.so"
+	local glib_cflags glib_libs
+
+	mkdir -p "${outdir}" || return 1
+
+	glib_cflags="$(pkg-config --cflags glib-2.0)" || return 1
+	glib_libs="$(pkg-config --libs glib-2.0)" || return 1
+	[ -r "${srcfile}" ] || return 1
+
+	# shellcheck disable=SC2086 # pkg-config: multiple flags need word-splitting
+	"${cc}" -shared -fPIC -O2 -Wall -Werror \
+		-o "${outfile}" "${srcfile}" \
+		-I"${top_src}/include" \
+		-I"${top_src}/src" \
+		-I"${top_src}/src/utils" \
+		-I"${top_src}/src/swtpm" \
+		-I"${top_src}/src/swtpm_setup" \
+		-I"${top_src}/src/swtpm_storage_plugin" \
+		-I"${top_build}/src" \
+		${glib_cflags} ${glib_libs} || return 1
+}

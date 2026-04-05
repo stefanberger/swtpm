@@ -29,6 +29,11 @@ variable only has an effect if `SWTPM_TEST_EXPENSIVE=1` is set.
 `SWTPM_TEST_PROFILE` allows to set a profile for the following tests:
  - test_tpm2_ibmtss2
 
+ `SWTPM_TEST_STORAGE_PLUGIN=0` skips the following test:
+ - test_tpm2_swtpm_setup_storage_plugin
+ - test_tpm2_swtpm_setup_external_storage_plugin
+ - test_tpm2_save_load_state_2_external_plugin
+
 Note: The test suite will terminate with an error if the profile disables an
 algorithm that it requires.
 

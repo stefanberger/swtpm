@@ -6,7 +6,13 @@
 
 SUBDIRS = \
 	utils \
-	swtpm \
+	swtpm
+
+if WITH_STORAGE_PLUGIN
+SUBDIRS += swtpm_storage_plugin
+endif
+
+SUBDIRS += \
 	swtpm_bios \
 	swtpm_cert \
 	swtpm_ioctl \

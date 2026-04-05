@@ -103,6 +103,13 @@ TESTS += \
 	test_tpm2_swtpm_localca_pkcs11.test \
 	test_tpm2_swtpm_setup_create_cert
 
+if WITH_STORAGE_PLUGIN
+TESTS += \
+	test_tpm2_swtpm_setup_storage_plugin \
+	test_tpm2_swtpm_setup_external_storage_plugin \
+	test_tpm2_save_load_state_2_external_plugin
+endif
+
 if HAVE_TCSD
 TESTS += \
 	test_tpm2_samples_create_tpmca.test
@@ -118,6 +125,10 @@ TEST_UTILS = \
 	load_vtpm_proxy \
 	test_common \
 	test_cuse
+
+if WITH_STORAGE_PLUGIN
+TEST_UTILS += storage_plugin_common
+endif
 
 EXTRA_DIST = \
 	$(TESTS) \
@@ -229,6 +240,10 @@ EXTRA_DIST = \
 	_test_volatilestate \
 	_test_wrongorder \
 	installed-runner.sh
+
+if WITH_STORAGE_PLUGIN
+EXTRA_DIST += data/swtpm_storage_plugin_dir_wrapper.c
+endif
 
 testdir = $(libexecdir)/installed-tests/$(PACKAGE)
 
