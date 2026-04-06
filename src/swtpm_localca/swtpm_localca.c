@@ -284,6 +284,37 @@ static gboolean extract_ecc_params(const gchar *key_params, gchar **ecc_x, gchar
     return ret;
 }
 
+/* Extract the public key parameters from a string like pubkey=1a3cd2,id=ml-kem-1024.
+ * This function returns 1 on hard error, 2 if the public key parameters could all
+ * be extracted, and 0 if no parameters could be extracted.
+ */
+static gboolean extract_pubkey_params(const gchar *key_params, gchar **pubkey,
+                                      gchar **keytype)
+{
+    regmatch_t pmatch[3];
+    regex_t preg;
+    int ret;
+
+    if (regcomp(&preg, "pubkey=([0-9A-Fa-f]+),type=([^,]+)",
+                REG_EXTENDED) != 0) {
+        logerr(gl_LOGFILE, "Internal error: Could not compile regex\n");
+        return 1;
+    }
+
+    ret = 0;
+    if (regexec(&preg, key_params, 3, pmatch, 0) == 0) {
+        *pubkey = g_strndup(&key_params[pmatch[1].rm_so],
+                            pmatch[1].rm_eo - pmatch[1].rm_so);
+        *keytype = g_strndup(&key_params[pmatch[2].rm_so],
+                             pmatch[2].rm_eo - pmatch[2].rm_so);
+        ret = 2;
+    }
+
+    regfree(&preg);
+
+    return ret;
+}
+
 /* Create a random ASCII decimal number of given length.
  * The buffer is not NUL terminated.
  */
@@ -381,6 +412,8 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     g_autofree gchar *ecc_x = NULL;
     g_autofree gchar *ecc_y = NULL;
     g_autofree gchar *ecc_curveid = NULL;
+    g_autofree gchar *pubkey = NULL;
+    g_autofree gchar *keytype = NULL;
     g_autofree gchar *certfile = NULL;
     g_autofree gchar *serial_str = NULL;
     gchar **to_free = NULL;
@@ -449,29 +482,44 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
             options = concat_arrays(options, (const gchar *[]){"--decryption", NULL}, TRUE);
     }
 
-    switch (extract_ecc_params(key_params, &ecc_x, &ecc_y, &ecc_curveid)) {
+
+    switch (extract_pubkey_params(key_params, &pubkey, &keytype)) {
     case 1:
         goto error;
-    case 2:
-        keyparams = concat_arrays((const gchar *[]){
-                                      "--ecc-x", ecc_x,
-                                      "--ecc-y", ecc_y,
+    case 2: /* have pubkey and keytype */
+        keyparams = concat_arrays((const gchar *[]) {
+                                      "--public", pubkey,
+                                      "--keytype", keytype,
                                       NULL
                                   },
                                   NULL, FALSE);
-        if (ecc_curveid != NULL)
-           keyparams = concat_arrays(keyparams,
-                                     (const gchar *[]){
-                                         "--ecc-curveid", ecc_curveid,
-                                         NULL
-                                     }, TRUE);
         break;
-    case 0:
-        keyparams = concat_arrays((const gchar *[]){
-                                      "--modulus", key_params,
-                                      NULL},
-                                   NULL, FALSE);
-        break;
+    case 0: /* try RSA or ECC */
+        switch (extract_ecc_params(key_params, &ecc_x, &ecc_y, &ecc_curveid)) {
+        case 1:
+            goto error;
+        case 2:
+            keyparams = concat_arrays((const gchar *[]){
+                                          "--ecc-x", ecc_x,
+                                          "--ecc-y", ecc_y,
+                                          NULL
+                                      },
+                                      NULL, FALSE);
+            if (ecc_curveid != NULL)
+               keyparams = concat_arrays(keyparams,
+                                         (const gchar *[]){
+                                             "--ecc-curveid", ecc_curveid,
+                                             NULL
+                                         }, TRUE);
+            break;
+        case 0:
+            keyparams = concat_arrays((const gchar *[]){
+                                           "--modulus", key_params,
+                                           NULL
+                                      },
+                                      NULL, FALSE);
+            break;
+        }
     }
 
     cmd = concat_arrays((const gchar *[]){
@@ -534,7 +582,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
         certtype = "platform";
 #if 0
     {
-        g_autofree gchar *join = g_strjoinv(" ", cmd);
+        g_autofree gchar *join = g_strjoinv(" ", (char **)cmd);
         fprintf(stderr, "Starting: %s\n", join);
     }
 #endif

@@ -429,6 +429,7 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_ALG_SM3      0x0012
 #define TPM2_ALG_ECC      0x0023
 #define TPM2_ALG_CFB      0x0043
+#define TPM2_ALG_MLKEM    0x00a0
 
 #define TPM2_CAP_PCRS     0x00000005
 
@@ -464,6 +465,10 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_SPK_HANDLE              0x81000001
 
+#define TPM2_MLKEM_PARMS_512         0x0001
+#define TPM2_MLKEM_PARMS_768         0x0002
+#define TPM2_MLKEM_PARMS_1024        0x0003
+
 #define TPM2_DURATION_SHORT      ( 2000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
 #define TPM2_DURATION_MEDIUM     ( 7500 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
 #define TPM2_DURATION_LONG       (15000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
@@ -496,6 +501,40 @@ static const unsigned char NONCE_RSA2048[2+0x100] = {AS2BE(0x100), 0, };
 static const unsigned char NONCE_RSA3072[2+0x180] = {AS2BE(0x180), 0, };
 static const unsigned char NONCE_RSA4096[2+0x200] = {AS2BE(0x200), 0, };
 static const unsigned char NONCE_ECC_384[2+0x30] = {AS2BE(0x30), 0, };
+
+static const unsigned char PolicyA_SHA256[32] = {
+    0x83, 0x71, 0x97, 0x67, 0x44, 0x84, 0xb3, 0xf8, 0x1a, 0x90, 0xcc, 0x8d,
+    0x46, 0xa5, 0xd7, 0x24, 0xfd, 0x52, 0xd7, 0x6e, 0x06, 0x52, 0x0b, 0x64,
+    0xf2, 0xa1, 0xda, 0x1b, 0x33, 0x14, 0x69, 0xaa
+};
+
+static const unsigned char PolicyB_SHA256[32] = {
+    0xCA, 0x3D, 0x0A, 0x99, 0xA2, 0xB9, 0x39, 0x06,
+    0xF7, 0xA3, 0x34, 0x24, 0x14, 0xEF, 0xCF, 0xB3,
+    0xA3, 0x85, 0xD4, 0x4C, 0xD1, 0xFD, 0x45, 0x90,
+    0x89, 0xD1, 0x9B, 0x50, 0x71, 0xC0, 0xB7, 0xA0
+};
+
+static const unsigned char PolicyB_SHA384[48] = {
+    0xB2, 0x6E, 0x7D, 0x28, 0xD1, 0x1A, 0x50, 0xBC, 0x53, 0xD8, 0x82, 0xBC,
+    0xF5, 0xFD, 0x3A, 0x1A, 0x07, 0x41, 0x48, 0xBB, 0x35, 0xD3, 0xB4, 0xE4,
+    0xCB, 0x1C, 0x0A, 0xD9, 0xBD, 0xE4, 0x19, 0xCA, 0xCB, 0x47, 0xBA, 0x09,
+    0x69, 0x96, 0x46, 0x15, 0x0F, 0x9F, 0xC0, 0x00, 0xF3, 0xF8, 0x0E, 0x12
+};
+
+static const unsigned char PolicyB_SHA512[64] = {
+    0xB8, 0x22, 0x1C, 0xA6, 0x9E, 0x85, 0x50, 0xA4,
+    0x91, 0x4D, 0xE3, 0xFA, 0xA6, 0xA1, 0x8C, 0x07,
+    0x2C, 0xC0, 0x12, 0x08, 0x07, 0x3A, 0x92, 0x8D,
+    0x5D, 0x66, 0xD5, 0x9E, 0xF7, 0x9E, 0x49, 0xA4,
+    0x29, 0xC4, 0x1A, 0x6B, 0x26, 0x95, 0x71, 0xD5,
+    0x7E, 0xDB, 0x25, 0xFB, 0xDB, 0x18, 0x38, 0x42,
+    0x56, 0x08, 0xB4, 0x13, 0xCD, 0x61, 0x6A, 0x5F,
+    0x6D, 0xB5, 0xB6, 0x07, 0x1A, 0xF9, 0x9B, 0xEA
+};
+
+#define KEYFLAGS_ATTRIBUTE_STORAGE  (1<<1 | 1<<4 | 1<<5 | 1<<6 | 1<<7 | 1<<16 | 1<<17)
+#define KEYFLAGS_ATTRIBUTE_SIGNING  (1<<1 | 1<<4 | 1<<5 | 1<<6 | 1<<7 | 1<<16 | 1<<18)
 
 static const struct bank_to_name {
     uint16_t hashAlg;
@@ -795,7 +834,7 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
                                            unsigned char *ektemplate, size_t *ektemplate_len,
                                            gchar **ekparam, const gchar **key_description)
 {
-    unsigned char authpolicy[48];
+    const unsigned char *authpolicy;
     size_t authpolicy_len;
     unsigned char symkeydata[6];
     size_t symkeydata_len;
@@ -805,24 +844,15 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
     size_t addlen, off;
 
     if (rsa_keysize == 2048) {
-        authpolicy_len = 32;
-        memcpy(authpolicy, ((unsigned char []){
-            0x83, 0x71, 0x97, 0x67, 0x44, 0x84, 0xb3, 0xf8, 0x1a, 0x90, 0xcc, 0x8d,
-            0x46, 0xa5, 0xd7, 0x24, 0xfd, 0x52, 0xd7, 0x6e, 0x06, 0x52, 0x0b, 0x64,
-            0xf2, 0xa1, 0xda, 0x1b, 0x33, 0x14, 0x69, 0xaa
-        }), authpolicy_len);
+        authpolicy_len = sizeof(PolicyA_SHA256);
+        authpolicy = PolicyA_SHA256;
         keyflags = 0;
         symkeylen = 128;
         havenonce = TRUE;
         addlen = 0;
     } else if (rsa_keysize == 3072 || rsa_keysize == 4096) {
-        authpolicy_len = 48;
-        memcpy(authpolicy, ((unsigned char []){
-            0xB2, 0x6E, 0x7D, 0x28, 0xD1, 0x1A, 0x50, 0xBC, 0x53, 0xD8, 0x82, 0xBC,
-            0xF5, 0xFD, 0x3A, 0x1A, 0x07, 0x41, 0x48, 0xBB, 0x35, 0xD3, 0xB4, 0xE4,
-            0xCB, 0x1C, 0x0A, 0xD9, 0xBD, 0xE4, 0x19, 0xCA, 0xCB, 0x47, 0xBA, 0x09,
-            0x69, 0x96, 0x46, 0x15, 0x0F, 0x9F, 0xC0, 0x00, 0xF3, 0xF8, 0x0E, 0x12
-        }), authpolicy_len);
+        authpolicy_len = sizeof(PolicyB_SHA384);
+        authpolicy = PolicyB_SHA384;
         keyflags = 0x40; // userWithAuth
         symkeylen = 256;
         havenonce = FALSE;
@@ -835,16 +865,16 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // adminWithPolicy, sign, decrypt
-        keyflags |= 0x000600b2;
+        // adminWithPolicy, restricted, sign, decrypt
+        keyflags |= 0x000700b2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
         memcpy(symkeydata, ((unsigned char[]) {AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
         off = 72 + addlen;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // adminWithPolicy, sign
-        keyflags |= 0x000400b2;
+        // adminWithPolicy, restricted, sign
+        keyflags |= 0x000500b2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
         memcpy(symkeydata, ((unsigned char[]) {AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
@@ -1133,6 +1163,105 @@ err_too_short:
     return 1;
 }
 
+/* Create an ML-KEM key with the given parameters */
+static int swtpm_tpm2_createprimary_mlkem(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
+                                          const unsigned char *symkeydata, size_t symkeydata_len,
+                                          const unsigned char *authpolicy, size_t authpolicy_len,
+                                          unsigned short paramset, unsigned short hashalg,
+                                          size_t off, uint32_t *curr_handle,
+                                          const char *mlkemtype, size_t pubkeysize,
+                                          unsigned char *ektemplate, size_t *ektemplate_len,
+                                          gchar **ekparam, const gchar **key_description)
+{
+    struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_CREATEPRIMARY);
+    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
+    g_autofree unsigned char *public = NULL;
+    ssize_t public_len;
+    g_autofree unsigned char *createprimary = NULL;
+    ssize_t createprimary_len;
+    unsigned char tpmresp[8192];
+    size_t tpmresp_len = sizeof(tpmresp);
+    int ret;
+
+    public_len =
+        memconcat(&public,
+                  (unsigned char[]){
+                      AS2BE(TPM2_ALG_MLKEM), AS2BE(hashalg), AS4BE(keyflags), AS2BE(authpolicy_len)
+                  }, (size_t)10,
+                  authpolicy, authpolicy_len,
+                  symkeydata, symkeydata_len,
+                  (unsigned char[]){ AS2BE(paramset), AS2BE(0) }, (size_t)4,
+                  NULL);
+    if (public_len < 0) {
+        logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
+        return 1;
+    }
+    if (ektemplate) {
+        if (*ektemplate_len < (size_t)public_len) {
+            logerr(self->logfile, "Internal error: Need %zu bytes for ektemplate (ecc) but got only %zu\n",
+                   public_len, *ektemplate_len);
+            return 1;
+        }
+        memcpy(ektemplate, public, public_len);
+        *ektemplate_len = public_len;
+    }
+
+    createprimary_len =
+        memconcat(&createprimary,
+                  &hdr, sizeof(hdr),
+                  (unsigned char[]) {AS4BE(primaryhandle), AS4BE(sizeof(authblock))}, (size_t)8,
+                  &authblock, sizeof(authblock),
+                  (unsigned char[]) {AS2BE(4), AS4BE(0), AS2BE(public_len)}, (size_t)8,
+                  public, public_len,
+                  (unsigned char[]) {AS4BE(0), AS2BE(0)}, (size_t)6,
+                  NULL);
+    if (createprimary_len < 0) {
+        logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
+        return 1;
+    }
+    ((struct tpm_req_header *)createprimary)->size = htobe32(createprimary_len);
+
+    ret = transfer(self, createprimary, createprimary_len, "TPM2_CreatePrimary(MLKEM)", FALSE,
+                   tpmresp, &tpmresp_len, TPM2_DURATION_LONG);
+    if (ret != 0)
+        return 1;
+    if (curr_handle) {
+        if (tpmresp_len < 10 + sizeof(*curr_handle))
+            goto err_too_short;
+        memcpy(curr_handle, &tpmresp[10], sizeof(*curr_handle));
+        *curr_handle = be32toh(*curr_handle);
+    }
+
+    if (ekparam) {
+        unsigned char *pubkey = &tpmresp[off + 2];
+        g_autofree gchar *pubkey_str = NULL;
+        unsigned short len;
+
+        if (tpmresp_len < off + 2)
+            goto err_too_short;
+
+        /* sanity check size indicator of public key */
+        memcpy(&len, &tpmresp[off], 2);
+        if (be16toh(len) != pubkeysize) {
+            logerr(self->logfile,
+                   "Internal error in %s: pubkeysize is not as expected: %u != %u\n",
+                   __func__, be16toh(len), pubkeysize);
+            return 1;
+        }
+        if (tpmresp_len < off + 2 + pubkeysize)
+            goto err_too_short;
+        pubkey_str = print_as_hex(pubkey, pubkeysize);
+
+        *ekparam = g_strdup_printf("pubkey=%s,type=%s", pubkey_str, mlkemtype);
+    }
+
+    return 0;
+
+err_too_short:
+    logerr(self->logfile, "Response from TPM2_CreatePrimary(MLKEM) is too short!\n");
+    return 1;
+}
+
 static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
                                                       uint32_t *curr_handle)
 {
@@ -1225,17 +1354,12 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
                                                      unsigned char *ektemplate, size_t *ektemplate_len,
                                                      gchar **ekparam, const char **key_description)
 {
-    unsigned char authpolicy[48]= {
-        0xB2, 0x6E, 0x7D, 0x28, 0xD1, 0x1A, 0x50, 0xBC, 0x53, 0xD8, 0x82, 0xBC,
-        0xF5, 0xFD, 0x3A, 0x1A, 0x07, 0x41, 0x48, 0xBB, 0x35, 0xD3, 0xB4, 0xE4,
-        0xCB, 0x1C, 0x0A, 0xD9, 0xBD, 0xE4, 0x19, 0xCA, 0xCB, 0x47, 0xBA, 0x09,
-        0x69, 0x96, 0x46, 0x15, 0x0F, 0x9F, 0xC0, 0x00, 0xF3, 0xF8, 0x0E, 0x12
-    };
+    const unsigned char *authpolicy = PolicyB_SHA384;
+    size_t authpolicy_len = sizeof(PolicyB_SHA384);
     const unsigned char schemedata[] = {
         AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
     };
     size_t schemedata_len = sizeof(schemedata);
-    size_t authpolicy_len = 48;
     unsigned char symkeydata[6];
     size_t symkeydata_len;
     unsigned int keyflags;
@@ -1244,16 +1368,16 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // userWithAuth, adminWithPolicy, sign, decrypt
-        keyflags = 0x000600f2;
+        // userWithAuth, adminWithPolicy, restricted, sign, decrypt
+        keyflags = 0x000700f2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
         memcpy(symkeydata, ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
         off = 86;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
-        // userWithAuth, adminWithPolicy, sign
-        keyflags = 0x000400f2;
+        // userWithAuth, adminWithPolicy, restricted, sign
+        keyflags = 0x000500f2;
         // symmetric: TPM_ALG_NULL
         symkeydata_len = 2;
         memcpy(symkeydata, ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
@@ -1282,6 +1406,77 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
 
     return ret;
 }
+
+/* Create a ML-KEM EK */
+static int swtpm_tpm2_createprimary_ek_mlkem(struct swtpm *self, unsigned int mlkem_keysize,
+                                             uint32_t *curr_handle,
+                                             unsigned char *ektemplate, size_t *ektemplate_len,
+                                             gchar **ekparam, const gchar **key_description)
+{
+    const unsigned char *authpolicy;
+    unsigned char symkeydata[6];
+    unsigned short paramset;
+    unsigned int symkeylen;
+    unsigned short hashalg;
+    size_t symkeydata_len;
+    size_t authpolicy_len;
+    const char *mlkemtype;
+    size_t pubkeysize;
+    size_t off; /* offset of public key's TPM2B in response */
+
+    switch (mlkem_keysize) {
+    case 512:
+        mlkemtype = "ml-kem-512";
+        paramset = TPM2_MLKEM_PARMS_512;
+        pubkeysize = 800;
+        authpolicy_len = sizeof(PolicyB_SHA256);
+        authpolicy = PolicyA_SHA256;
+        hashalg = TPM2_ALG_SHA256;
+        symkeylen = 128;
+        off = 0x46;
+        break;
+    case 768:
+        mlkemtype = "ml-kem-768";
+        paramset = TPM2_MLKEM_PARMS_768;
+        pubkeysize = 1184;
+        authpolicy_len = sizeof(PolicyB_SHA384);
+        authpolicy = PolicyB_SHA384;
+        hashalg = TPM2_ALG_SHA384;
+        symkeylen = 256;
+        off = 0x56;
+        break;
+    case 1024:
+        mlkemtype = "ml-kem-1024";
+        paramset = TPM2_MLKEM_PARMS_1024;
+        pubkeysize = 1568;
+        authpolicy_len = sizeof(PolicyB_SHA512);
+        authpolicy = PolicyB_SHA512;
+        hashalg = TPM2_ALG_SHA512;
+        symkeylen = 256;
+        off = 0x66;
+        break;
+    default:
+        logerr(self->logfile, "Internal error in %s: unsupported MLKEM keysize %d.\n",
+               __func__, mlkem_keysize);
+        return 1;
+    }
+
+    symkeydata_len = 6;
+    memcpy(symkeydata,
+           ((unsigned char[]) {AS2BE(TPM2_ALG_AES), AS2BE(symkeylen), AS2BE(TPM2_ALG_CFB)}),
+           symkeydata_len);
+
+    if (key_description)
+        *key_description = mlkemtype;
+
+    return swtpm_tpm2_createprimary_mlkem(self, TPM2_RH_ENDORSEMENT, KEYFLAGS_ATTRIBUTE_STORAGE,
+                                          symkeydata, symkeydata_len,
+                                          authpolicy, authpolicy_len,
+                                          paramset, hashalg,
+                                          off, curr_handle, mlkemtype, pubkeysize,
+                                          ektemplate, ektemplate_len, ekparam, key_description);
+}
+
 
 /* Create an ECC or RSA EK */
 static int swtpm_tpm2_create_ek(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize,
@@ -1316,6 +1511,12 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, gboolean isecc, unsigned int
             return 1;
         }
     }
+
+    if (1) { // FIXME
+        ret = swtpm_tpm2_createprimary_ek_mlkem(self, 1024, &curr_handle, ektemplate, &ektemplate_len,
+                                                ekparam, key_description);
+        goto skip;
+    }
     if (isecc)
         ret = swtpm_tpm2_createprimary_ek_ecc_nist_p384(self, allowsigning, decryption, &curr_handle,
                                                         ektemplate, &ektemplate_len, ekparam,
@@ -1326,6 +1527,7 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, gboolean isecc, unsigned int
 
     if (ret == 0)
         ret = swtpm_tpm2_evictcontrol(self, curr_handle, tpm2_ek_handle);
+skip:
     if (ret != 0) {
         logerr(self->logfile, "create_ek failed: 0x%x\n", ret);
         return 1;
