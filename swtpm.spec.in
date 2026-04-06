@@ -201,6 +201,8 @@ fi
 %config(noreplace) %{_sysconfdir}/swtpm_setup.conf
 %config(noreplace) %{_sysconfdir}/swtpm-localca.options
 %config(noreplace) %{_sysconfdir}/swtpm-localca.conf
+%{_prefix}/lib/sysusers.d/swtpm-sysusers.conf
+%{_prefix}/lib/tmpfiles.d/swtpm-tmpfiles.conf
 %dir %{_datadir}/swtpm
 %{_datadir}/swtpm/swtpm-localca
 %{_datadir}/swtpm/swtpm-create-user-config-files
