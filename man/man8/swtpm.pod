@@ -166,13 +166,18 @@ the given file I<mode> bits. This value must be given as an octal number startin
 The default value is 0640.
 
 If I<backend-uri> is specified, the TPM state data will be stored to the URI.
-Currently I<backend-uri=dir://<path_to_dir>> and I<backend-uri=file://<path_to_dir>>
-are available. For 'dir://', the URI should specify the path to the directory where
-files are stored. If I<path_to_dir> starts with a '/' then the path is interpreted
-as an absolute path, otherwise it is a path relative to the current directory.
-For 'file://', the URI should specify a single file or block device where TPM state
-will be stored. A blockdevice must exist already and be big enough to store all
-state. (since v0.7)
+Currently I<backend-uri=dir://<path_to_dir>>, I<backend-uri=file://<path_to_dir>>
+and I<backend-uri=plugin://<path_to_plugin.so>>[?option1=value1...optionN=valueN]
+(since v0.11, linux only) are available. For 'dir://', the URI should specify the
+path to the directory where files are stored. If I<path_to_dir> starts with a '/' 
+then the path is interpreted as an absolute path, otherwise it is a path relative to
+the current directory. For 'file://', the URI should specify a single file or block
+device where TPM state will be stored. A blockdevice must exist already and be big
+enough to store all state (since v0.7) . For 'plugin://', the URI should specify 
+the shared object implementing the storage backend, typically using an absolute 
+path to the plugin's I<.so> file. Any query parameters following the '?' are passed
+to the plugin unchanged  and are interpreted by the plugin implementation. This backend is
+only available on Linux builds compiled with storage plugin support (since v0.11).
 
 If I<lock> is specified then the TPM storage backend will lock the TPM state
 file to avoid concurrent access to it by another swtpm instance. The default

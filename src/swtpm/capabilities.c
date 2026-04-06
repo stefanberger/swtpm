@@ -247,6 +247,11 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
     const char *nvram_backend_dir = "\"nvram-backend-dir\", ";
     const char *nvram_backend_file = "\"nvram-backend-file\"";
     g_autofree gchar *profiles = NULL;
+#ifdef WITH_STORAGE_PLUGIN
+    const char *nvram_storage_plugin = ", \"nvram-storage-plugin\"";
+#else
+    const char *nvram_storage_plugin = "";
+#endif
     bool is_tpm2 = tpmversion == TPMLIB_TPM_VERSION_2;
 
     /* ignore errors */
@@ -271,7 +276,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          "{ "
          "\"type\": \"swtpm\", "
          "\"features\": [ "
-             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+            "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
           " ], "
          "\"profiles\": { %s}, "
          "\"version\": \"" VERSION "\" "
@@ -290,6 +295,7 @@ int capabilities_print_json(bool cusetpm, TPMLIB_TPMVersion tpmversion)
          true         ? "\"cmdarg-migration\", "       : "",
          nvram_backend_dir,
          nvram_backend_file,
+         nvram_storage_plugin,
          keysizecaps  ? keysizecaps                    : "",
          is_tpm2      ? ", \"cmdarg-profile\""         : "",
          is_tpm2      ? ", \"cmdarg-print-profiles\""  : "",
