@@ -1022,13 +1022,14 @@ function check_swtpm_no_storage_lock()
 
 	if [ -d "/proc/${pid}/fd" ]; then
 		# shellcheck disable=SC2010
-		if ls -l "/proc/${pid}/fd" | grep -q -E "\.lock\$"; then
+		# Match directory-backend lockfile only ({tpmstate}/.lock), not e.g. .rpm.lock
+		if ls -l "/proc/${pid}/fd" | grep -q -E '/\.lock$'; then
 			echo "Error: swtpm must not have storage locked"
 			ls -l "/proc/${pid}/fd"
 			exit 1
 		fi
 	elif [ -n "$(type -P lsof)" ]; then
-		if lsof -p "${pid}" | grep -q -e "\.lock\$"; then
+		if lsof -p "${pid}" | grep -q -E '/\.lock$'; then
 			echo "Error: swtpm must not have storage locked"
 			lsof -p "${pid}"
 			exit 1
@@ -1046,13 +1047,13 @@ function check_swtpm_storage_locked()
 
 	if [ -d "/proc/${pid}/fd" ]; then
 		# shellcheck disable=SC2010
-		if ! ls -l "/proc/${pid}/fd" | grep -q -E "\.lock\$"; then
+		if ! ls -l "/proc/${pid}/fd" | grep -q -E '/\.lock$'; then
 			echo "Error: swtpm must have storage locked"
 			ls -l "/proc/${pid}/fd"
 			exit 1
 		fi
 	elif [ -n "$(type -P lsof)" ]; then
-		if ! lsof -p "${pid}" | grep -q -e "\.lock\$"; then
+		if ! lsof -p "${pid}" | grep -q -E '/\.lock$'; then
 			echo "Error: swtpm must have storage locked"
 			lsof -p "${pid}"
 			exit 1
