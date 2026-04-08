@@ -1047,14 +1047,16 @@ static int ui_get_pin(UI *ui, UI_STRING *uis)
 static EVP_PKEY *get_key_pkcs11(OSSL_PROVIDER *provider, const char *pkcs11uri)
 {
     OSSL_STORE_CTX *store = NULL;
+    UI_METHOD *ui_method = NULL;
     EVP_PKEY *sigkey = NULL;
     OSSL_STORE_INFO *info;
-    UI_METHOD *ui_method;
 
-    ui_method = UI_create_method("PIN reader");
-    CHECK_OSSL_NULLPTR1(ui_method, "COuld not create the PIN reader.\n");
+    if (getenv("SWTPM_PKCS11_PIN")) {
+        ui_method = UI_create_method("PIN reader");
+        CHECK_OSSL_NULLPTR1(ui_method, "Could not create the PIN reader.\n");
 
-    UI_method_set_reader(ui_method, ui_get_pin);
+        UI_method_set_reader(ui_method, ui_get_pin);
+    }
     store = OSSL_STORE_open_ex(pkcs11uri, NULL, "provider=pkcs11", ui_method,
                                getenv("SWTPM_PKCS11_PIN"), NULL, NULL, NULL);
     CHECK_OSSL_NULLPTR1(store, "Could not open store for pkcs11 provider.\n");
