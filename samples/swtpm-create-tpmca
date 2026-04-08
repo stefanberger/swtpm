@@ -213,7 +213,7 @@ create_localca_cert() {
 	fi
 
 	output="statedir = ${dir}
-signingkey = $(escape_pkcs11_url "${tpmkeyurl}")
+signingkey = $(escape_pkcs11_url "${tpmkeyurl}" | sed 's/%00//g')
 issuercert = ${tpmca}
 certserial = ${dir}/certserial"
 
