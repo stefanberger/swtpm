@@ -1061,8 +1061,11 @@ static EVP_PKEY *get_key_pkcs11(OSSL_PROVIDER *provider, const char *pkcs11uri)
                                getenv("SWTPM_PKCS11_PIN"), NULL, NULL, NULL);
     CHECK_OSSL_NULLPTR1(store, "Could not open store for pkcs11 provider.\n");
 
-    info = OSSL_STORE_load(store);
-    while (info) {
+    while (!OSSL_STORE_eof(store)) {
+        info = OSSL_STORE_load(store);
+        if (!info)
+            continue;
+
         switch (OSSL_STORE_INFO_get_type(info)) {
         case OSSL_STORE_INFO_PKEY:
            sigkey = OSSL_STORE_INFO_get1_PKEY(info);
