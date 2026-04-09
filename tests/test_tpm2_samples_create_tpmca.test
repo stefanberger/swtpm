@@ -88,10 +88,9 @@ PATH=${ROOT}/src/swtpm_bios:${ROOT}/src/swtpm_cert:${PATH}
 # @param1: The vTPM for which the certificate is created is a TPM 2
 # @param2: The key algorithm for the created TPM 2 CA
 function run_test() {
-	local vtpm_is_tpm2="$1"
-	local algorithm="$2"
+	local algorithm="$1"
 
-	local tmp params certinfo regex regexs fil i skip exp_certsize
+	local tmp certinfo regex regexs fil i exp_certsize alg
 
 	rm -rf "${workdir:?}"/*
 
@@ -197,20 +196,12 @@ _EOF_
 		fi
 	done
 
-	params=""
-	if [ "${vtpm_is_tpm2}" -ne 0 ]; then
-		params="--tpm2"
-		skip=0
-	else
-		skip=7 # header in cert
-	fi
-
 	# make sure we can actually sign with this new certificate
 	if ! ${SWTPM_LOCALCA} \
 		--type ek \
 		--ek x=739192d8f1004283957a7b1568d610b41c637ccc114aadcac4908c20456468fa,y=59f63ac06f8011f6fdd1460c6bc8e3e0a2d090d4fc188c7e04870e06795ce8ae \
 		--dir "${workdir}" --vmid test \
-		${params} \
+		--tpm2 \
 		--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 00 \
 		--tpm-model swtpm --tpm-version 20170101 --tpm-manufacturer IBM \
 		--configfile "${SWTPM_LOCALCA_CONF}" \
@@ -224,7 +215,7 @@ _EOF_
 	fi
 
 	case "${algorithm}" in
-	""|rsa2048)	exp_certsize=500;; # cert should be ~541 bytes long; give some 'room'
+	rsa2048)	exp_certsize=500;; # cert should be ~541 bytes long; give some 'room'
 	ecc256)		exp_certsize=460;; # cert should be ~476 bytes long;    - " -
 	secp384r1)	exp_certsize=510;; # cert should be ~519 bytes long;    - " -
 	esac
@@ -236,7 +227,7 @@ _EOF_
 	fi
 
 	# Check the contents of the certificate
-	certinfo=$(dd "if=${workdir}/ek.cert" bs=1 "skip=$skip" status=none | \
+	certinfo=$(dd "if=${workdir}/ek.cert" bs=1 status=none | \
 		   "$CERTTOOL" -i --inder)
 	regexs=('^[[:space:]]+2.23.133.8.1$'
 		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.3=.*'
@@ -245,21 +236,16 @@ _EOF_
 		'^[[:space:]]+Certificate Authority \(CA\): FALSE$'
 		'^[[:space:]]+Unknown extension 2.5.29.9 \(not critical\):$'
 		'^[[:space:]]+Hexdump: 3019301706056781050210310e300c0c03322e3002010002020092$')
-	if [ "${vtpm_is_tpm2}" -ne 0 ]; then
-		local alg
 
-		case "${algorithm}" in
-		rsa2048)	alg=RSA;;
-		*)		alg=ECDSA;;
-		esac
+	case "${algorithm}" in
+	rsa2048)	alg=RSA-SHA256;;
+	ecc256)		alg=ECDSA-SHA256;;
+	secp384r1)	alg=ECDSA-SHA384;;
+	esac
 
-		# TPM 2.0; due to ecc: Key agreement
-		regexs+=('^[[:space:]]+Key agreement\.$'
-			 '^[[:space:]]+Signature Algorithm: '"${alg}"'-SHA256$')
-	else
-		regexs+=('^[[:space:]]+Key encipherment\.$'
-			 '^[[:space:]]+Signature Algorithm: RSA-SHA1$')
-	fi
+	# TPM 2.0; due to ecc: Key agreement
+	regexs+=('^[[:space:]]+Key agreement\.$'
+		 '^[[:space:]]+Signature Algorithm: '"${alg}"'$')
 
 	for ((i=0; i < ${#regexs}; i++)); do \
 		if [ -n "${regexs[$i]}" ] && \
@@ -272,9 +258,23 @@ _EOF_
 
 	# Send SIGTERM to tpm2-abrmd
 	kill_quiet -15 "${TPM2_ABRMD_PID}"
+	if wait_process_gone "${TPM2_ABRMD_PID}" 4; then
+		echo "Error: tpm2abrmd should not be running anymore."
+		exit 1
+	fi
 	TPM2_ABRMD_PID=""
 
-	kill_quiet -9 "${NCAT_PID}"
+	if wait_process_gone "${BASH_PID}" 4; then
+		echo "Error: bash for tpm2abrmd should not be running anymore."
+		exit 1
+	fi
+	BASH_PID=""
+
+	kill_quiet -15 "${NCAT_PID}"
+	if wait_process_gone "${NCAT_PID}" 4; then
+		echo "Error: ncat should not be running anymore."
+		exit 1
+	fi
 	NCAT_PID=""
 
 	# Shut down TPM
@@ -288,23 +288,16 @@ _EOF_
 		exit 1
 	fi
 
-	if wait_process_gone "${TPM2_ABRMD_PID}" 4; then
-		echo "Error: tpm2abrmd should not be running anymore."
-		exit 1
-	fi
 	SWTPM_PID=""
 } # run_test
 
-run_test 1 "rsa2048"
+run_test "rsa2048"
 echo "Test 1: OK"
 
-run_test 1 "ecc256"
+run_test "ecc256"
 echo "Test 2: OK"
 
-run_test 1 "secp384r1"
+run_test "secp384r1"
 echo "Test 3: OK"
-
-run_test 0
-echo "Test 4: OK"
 
 exit 0
