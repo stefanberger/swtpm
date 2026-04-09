@@ -115,13 +115,8 @@ AC_ARG_WITH([openssl],
             [])
 
 AS_CASE([$cryptolib],[openssl],
-    [PKG_CHECK_MODULES([LIBCRYPTO],[libcrypto])
-     AC_CHECK_LIB(crypto,
-        [AES_set_encrypt_key],
-        [true],
-        AC_MSG_ERROR(Faulty openssl crypto library)
-     )
-    AC_CHECK_HEADERS([openssl/aes.h],[],
+    [PKG_CHECK_MODULES([LIBCRYPTO],[libcrypto >= 3.5])
+    AC_CHECK_HEADERS([openssl/obj_mac.h],[],
         AC_MSG_ERROR(Is openssl-devel/libssl-dev installed?))
     AC_MSG_RESULT([Building with openssl crypto library])
 
