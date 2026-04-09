@@ -1041,7 +1041,9 @@ static int password_cb(char *buf, int buflen, int rwflag, void *userdata)
 
 static int ui_get_pin(UI *ui, UI_STRING *uis)
 {
-    return UI_set_result(ui, uis, UI_get0_user_data(ui));
+    if (UI_set_result(ui, uis, UI_get0_user_data(ui)) != 0)
+        return 0;
+    return 1;
 }
 
 static EVP_PKEY *get_key_pkcs11(OSSL_PROVIDER *provider, const char *pkcs11uri)
