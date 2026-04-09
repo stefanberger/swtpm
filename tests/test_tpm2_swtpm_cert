@@ -97,6 +97,29 @@ check_cert_size "${cert}" 1537
 echo -n > "${cert}"
 echo "Test 3: OK"
 
+if ! ${SWTPM_CERT} \
+       --tpm2 \
+       --signkey "${TESTDIR}/data/signkey.pem" \
+       --issuercert "${TESTDIR}/data/issuercert.pem" \
+       --out-cert "${cert}" \
+       --pubkey "${TESTDIR}/data/mlkem1024pubek.pem" \
+       --days 3650 \
+       --subject "OU=foo,L=NewYork,ST=NY,C=US" \
+       --pem \
+       --tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
+       --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
+       echo "Error: ${SWTPM_CERT} returned error code."
+       exit 1
+fi
+
+#expecting size to be constant
+check_cert_size "${cert}" 3227
+
+# truncate result file
+#certtool --certificate-info --infile ${cert}
+echo -n > "${cert}"
+echo "Test 4: OK"
+
 
 ###################### Platform Certificate #####################
 
@@ -123,7 +146,7 @@ check_cert_size "${cert}" 1484
 
 # truncate result file
 echo -n > "${cert}"
-echo "Test 4: OK"
+echo "Test 5: OK"
 
 ###################### IAK Certificate #####################
 
@@ -165,7 +188,7 @@ check_cert_size "${cert}" 1375
 
 # truncate result file
 echo -n > "${cert}"
-echo "Test 5: OK"
+echo "Test 6: OK"
 
 ###################### IDevID Certificate #####################
 
@@ -207,7 +230,7 @@ check_cert_size "${cert}" 1375
 
 # truncate result file
 echo -n > "${cert}"
-echo "Test 6: OK"
+echo "Test 7: OK"
 
 ####################### max. serial number #####################
 
@@ -258,4 +281,4 @@ fi
 
 # truncate result file
 echo -n > "${cert}"
-echo "Test 7: OK"
+echo "Test 8: OK"
