@@ -49,6 +49,18 @@ If this option is not given, secp256r1 is assumed.
 
 The exponent of the public key. By default 0x10001 is assumed.
 
+=item B<--public <hex digits>>
+
+The public key provided as hex digits. This option can be used for ML-KEM
+or ML-DSA keys. This option requires the B<--keyalgo> option to describe the
+algorithm of the key.
+
+=item B<--keyalgo <algorithm of key>>
+
+This option describes the key algorithm provided with the B<--public> option.
+This may be either one of ml-kem-512, ml-kem-768, ml-kem-1024, ml-dsa-44,
+ml-dsa-65, or ml-dsa-87.
+
 =item B<--signkey <filename>>
 
 The key used for signing the certificate. The file must be in PEM format.
@@ -152,7 +164,9 @@ The output may contain the following:
       "features": [
         "cmdarg-signkey-pwd",
         "cmdarg-tpm-serial-num",
-        "supports-iak-idevid"
+        "supports-iak-idevid",
+        "cmdarg-public",
+        "cmdarg-keyalgo"
       ],
       "version": "0.11.0"
     }
@@ -174,6 +188,16 @@ The I<--tpm-serial-num> option is supported.
 =item B<supports-iak-idevid> (since v0.11)
 
 Creation of IAK and IDevID certificates is supported.
+
+=item B<cmdarg-public>
+
+The I<--public> option is supported and ML-KEM and ML-DSA keys can
+be certified.
+
+=item B<cmdarg-keyalgo>
+
+The I<--keyalgo> option is supported and ML-KEM and ML-DSA keys can
+be certified.
 
 =back
 
