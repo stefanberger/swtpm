@@ -24,10 +24,6 @@ function check_cert_size()
 
 	local size
 
-	# Unfortunately different GnuTLS versions may create certs of different
-	# sizes; deactivate this test for now
-	return
-
 	size=$(stat -c%s "${cert}" 2>/dev/null)
 	if [ "$size" -ne "$exp" ]; then
 		echo "Warning: Certificate file has unexpected size."
@@ -50,7 +46,7 @@ if ! VARNAME=password ${SWTPM_CERT} \
 fi
 
 #expecting size to be constant
-check_cert_size "${cert}" 1224
+check_cert_size "${cert}" 1395
 
 # truncate result file
 echo -n > "${cert}"
@@ -72,7 +68,7 @@ if ! ${SWTPM_CERT} \
 fi
 
 #expecting size to be constant
-check_cert_size "${cert}" 1302
+check_cert_size "${cert}" 1395
 
 # truncate result file
 echo -n > "${cert}"
@@ -94,7 +90,7 @@ if ! ${SWTPM_CERT} \
 fi
 
 #expecting size to be constant
-check_cert_size "${cert}" 1367
+check_cert_size "${cert}" 1460
 
 # truncate result file
 #certtool --certificate-info --infile ${cert}
@@ -125,7 +121,7 @@ if ! ${SWTPM_CERT} \
 fi
 
 #expecting size to be constant
-check_cert_size "${cert}" 1411
+check_cert_size "${cert}" 1489
 
 # truncate result file
 #certtool --certificate-info --infile ${cert}
