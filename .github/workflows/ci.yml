@@ -33,12 +33,15 @@ jobs:
       PACKAGES:                  libtpm2-pkcs11-tools pkcs11-provider
     steps:
       - name: Checkout
+        if: env.COVERALLS_REPO_TOKEN != ''
         uses: actions/checkout@v4
 
       - name: Build libtpms and swtpm and test
+        if: env.COVERALLS_REPO_TOKEN != ''
         uses: ./.github/actions/test-swtpm
 
       - name: Prepare for Coveralls Upload
+        if: env.COVERALLS_REPO_TOKEN != ''
         shell: bash
         run: |
           uidgid="$(id -nu):$(id -ng)"
