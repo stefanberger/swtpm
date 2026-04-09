@@ -42,17 +42,22 @@ struct swtpm12_ops {
     int (*nv_lock)(struct swtpm *self);
 };
 
+enum keyalgo {
+    KEYALGO_RSA = 1,
+    KEYALGO_ECC = 2,
+};
+
 /* TPM 2 specific ops */
 struct swtpm2_ops {
     int (*shutdown)(struct swtpm *);
-    int (*create_spk)(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize);
-    int (*create_ek)(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize,
+    int (*create_spk)(struct swtpm *self,enum keyalgo keyalgo, unsigned int rsa_keysize);
+    int (*create_ek)(struct swtpm *self, enum keyalgo keyalgo, unsigned int rsa_keysize,
                      gboolean allowsigning, gboolean decryption, gboolean lock_nvram,
                      gchar **ekparam, const gchar **key_description);
     int (*get_all_pcr_banks)(struct swtpm *self, gchar ***all_pcr_banks);
     int (*set_active_pcr_banks)(struct swtpm *self, gchar **pcr_banks_l, gchar **all_pcr_banks,
                                 gchar ***active);
-    int (*write_ek_cert_nvram)(struct swtpm *self, gboolean isecc, unsigned int rsa_keysize,
+    int (*write_ek_cert_nvram)(struct swtpm *self, enum keyalgo keyalgo, unsigned int rsa_keysize,
                                gboolean lock_nvram, const unsigned char *data, size_t data_len);
     int (*write_platform_cert_nvram)(struct swtpm *self, gboolean lock_nvram,
                                      const unsigned char *data, size_t data_len);

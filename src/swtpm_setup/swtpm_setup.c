@@ -372,6 +372,7 @@ static int read_certificate_file(const gchar *certsdir, const gchar *filename,
  */
 static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
                                     const struct flag_to_certfile *ftc,
+                                    enum keyalgo keyalgo,
                                     unsigned int rsa_keysize, struct swtpm2 *swtpm2,
                                     const gchar *user_certsdir, const gchar *key_type,
                                     const gchar *key_description)
@@ -388,7 +389,7 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
 
     if (ftc->flag == SETUP_EK_CERT_F) {
         ret = swtpm2->ops->write_ek_cert_nvram(&swtpm2->swtpm,
-                                     !!(flags & SETUP_TPM2_ECC_F), rsa_keysize,
+                                     keyalgo, rsa_keysize,
                                      !!(flags & SETUP_LOCK_NVRAM_F),
                                      (const unsigned char*)filecontent, filecontent_len);
     } else {
@@ -412,6 +413,7 @@ error_unlink:
 /* Create EK and certificate for a TPM 2 */
 static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file,
                                    const gchar *certsdir, const gchar *vmid,
+                                   enum keyalgo keyalgo,
                                    unsigned int rsa_keysize, struct swtpm2 *swtpm2,
                                    const gchar *user_certsdir)
 {
@@ -423,7 +425,7 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
     int ret;
 
     if (flags & SETUP_CREATE_EK_F) {
-        ret = swtpm2->ops->create_ek(&swtpm2->swtpm, !!(flags & SETUP_TPM2_ECC_F), rsa_keysize,
+        ret = swtpm2->ops->create_ek(&swtpm2->swtpm, keyalgo, rsa_keysize,
                                      !!(flags & SETUP_ALLOW_SIGNING_F),
                                      !!(flags & SETUP_DECRYPTION_F),
                                      !!(flags & SETUP_LOCK_NVRAM_F),
@@ -445,8 +447,8 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
                 key_type = flags_to_certfiles[idx].flag & SETUP_EK_CERT_F ? "ek" : "";
 
                 ret = tpm2_persist_certificate(flags, certsdir, &flags_to_certfiles[idx],
-                                               rsa_keysize, swtpm2, user_certsdir,
-                                               key_type, key_description);
+                                               keyalgo, rsa_keysize, swtpm2,
+                                               user_certsdir, key_type, key_description);
                 if (ret)
                     return 1;
             }
@@ -459,22 +461,22 @@ static int tpm2_create_ek_and_cert(unsigned long flags, const gchar *config_file
 /* Create endorsement keys and certificates for a TPM 2 */
 static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_file,
                                      const gchar *certsdir, const gchar *vmid,
+                                     enum keyalgo ek1keyalgo, enum keyalgo ek2keyalgo,
                                      unsigned int rsa_keysize, struct swtpm2 *swtpm2,
                                      const gchar *user_certsdir)
 {
      int ret;
 
-     /* 1st key will be RSA */
-     flags = flags & ~SETUP_TPM2_ECC_F;
-     ret = tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
-                                   user_certsdir);
+     /* 1st key will be an RSA key */
+     ret = tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, ek1keyalgo,
+                                   rsa_keysize, swtpm2, user_certsdir);
      if (ret != 0)
          return 1;
 
-     /* 2nd key will be an ECC; no more platform cert */
-     flags = (flags & ~SETUP_PLATFORM_CERT_F) | SETUP_TPM2_ECC_F;
-     return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
-                                    user_certsdir);
+     /* 2nd key will be an ECC key; no more platform cert */
+     flags &= ~SETUP_PLATFORM_CERT_F;
+     return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, ek2keyalgo,
+                                    rsa_keysize, swtpm2, user_certsdir);
 }
 
 /* Get the default PCR banks from the config file and if nothing can
@@ -606,11 +608,13 @@ malformatted:
 static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                      const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
                      const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
+                     enum keyalgo ek1keyalgo, enum keyalgo ek2keyalgo,
                      unsigned int rsa_keysize, const gchar *certsdir,
                      const gchar *user_certsdir, const gchar *json_profile,
                      int json_profile_fd, const gchar *profile_remove_disabled_param)
 {
     struct swtpm2 *swtpm2;
+    enum keyalgo keyalgo;
     struct swtpm *swtpm;
     int ret;
 
@@ -633,13 +637,14 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
             goto error;
 
         if ((flags & SETUP_CREATE_SPK_F)) {
-            ret = swtpm2->ops->create_spk(swtpm, !!(flags & SETUP_TPM2_ECC_F), rsa_keysize);
+            keyalgo = flags & SETUP_TPM2_ECC_F ? KEYALGO_ECC : KEYALGO_RSA;
+            ret = swtpm2->ops->create_spk(swtpm, keyalgo, rsa_keysize);
             if (ret != 0)
                 goto destroy;
         }
 
-        ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid, rsa_keysize, swtpm2,
-                                        user_certsdir);
+        ret = tpm2_create_eks_and_certs(flags, config_file, certsdir, vmid, ek1keyalgo,
+                                        ek2keyalgo, rsa_keysize, swtpm2, user_certsdir);
         if (ret != 0)
             goto destroy;
     }
@@ -1448,6 +1453,8 @@ int main(int argc, char *argv[])
     struct tm *tm;
     int ret = 1;
     g_autoptr(GError) error = NULL;
+    enum keyalgo ek1keyalgo = KEYALGO_RSA;
+    enum keyalgo ek2keyalgo = KEYALGO_ECC;
 
     setvbuf(stdout, 0, _IONBF, 0);
 
@@ -1993,8 +2000,8 @@ int main(int argc, char *argv[])
                        swtpm_keyopt, fds_to_pass, n_fds_to_pass, certsdir, user_certsdir);
     } else {
         ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
-                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, rsa_keysize, certsdir,
-                       user_certsdir, json_profile, json_profile_fd,
+                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, ek1keyalgo, ek2keyalgo,
+                       rsa_keysize, certsdir, user_certsdir, json_profile, json_profile_fd,
                        profile_remove_disabled_param);
     }
 
