@@ -4,7 +4,7 @@
  *
  * Author: Stefan Berger, stefanb@linux.ibm.com
  *
- * Copyright (c) IBM Corporation, 2021
+ * Copyright (c) IBM Corporation, 2021 - 2026
  */
 
 #include "config.h"
@@ -14,6 +14,7 @@
 #include <grp.h>
 #include <limits.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -1199,6 +1200,66 @@ static int get_rsa_keysize_caps(unsigned long flags, const gchar **swtpm_prg_l,
     return 0;
 }
 
+static bool is_rsa_keysize_supported(unsigned long flags, unsigned int rsa_keysize,
+                                     gchar **swtpm_prg_l)
+{
+    g_autofree unsigned int *keysizes = NULL;
+    gboolean found = FALSE;
+    size_t n_keysizes;
+    size_t i;
+    int ret;
+
+    ret = get_rsa_keysizes(flags, (const char **)swtpm_prg_l, &keysizes, &n_keysizes);
+    if (ret)
+        return false;
+
+    for (i = 0; i < n_keysizes && !found; i++)
+        found = (keysizes[i] == rsa_keysize);
+    if (!found && rsa_keysize != 2048) {
+        logerr(gl_LOGFILE, "%u bit RSA keys are not supported by libtpms.\n", rsa_keysize);
+        return false;
+    }
+    return true;
+}
+
+/* Parse the rsa_keysize_str and check that it contains a supported size */
+static unsigned int parse_rsa_keysize(unsigned long flags, char **rsa_keysize_str,
+                                      gchar **swtpm_prg_l)
+{
+    unsigned int *keysizes = NULL;
+    unsigned int rsa_keysize;
+    size_t n_keysizes;
+    int ret;
+
+    if (strcmp(*rsa_keysize_str, "max") == 0) {
+        ret = get_rsa_keysizes(flags, (const char **)swtpm_prg_l, &keysizes, &n_keysizes);
+        if (ret)
+            return 0;
+        g_free(*rsa_keysize_str);
+        if (n_keysizes > 0) {
+            /* last one is the biggest one */
+            *rsa_keysize_str = g_strdup_printf("%u", keysizes[n_keysizes - 1]);
+        } else {
+            *rsa_keysize_str = g_strdup("2048");
+        }
+        g_free(keysizes);
+    }
+
+    if (strcmp(*rsa_keysize_str, "2048") == 0 ||
+        strcmp(*rsa_keysize_str, "3072") == 0 ||
+        strcmp(*rsa_keysize_str, "4096") == 0) {
+
+        rsa_keysize = strtoull(*rsa_keysize_str, NULL, 10);
+
+        if (!is_rsa_keysize_supported(flags, rsa_keysize, swtpm_prg_l))
+            return 0;
+        return rsa_keysize;
+    }
+
+    logit(gl_LOGFILE, "Unsupported RSA key size %s.\n", *rsa_keysize_str);
+    return 0;
+}
+
 static int validate_json_profile(const gchar **swtpm_prg_l, const char *json_profile)
 {
     g_autofree gchar *standard_output = NULL;
@@ -1429,7 +1490,7 @@ int main(int argc, char *argv[])
     long int pwdfile_fd = -1;
     g_autofree gchar *cipher = g_strdup("aes-128-cbc");
     g_autofree gchar *rsa_keysize_str = NULL;
-    unsigned int rsa_keysize;
+    unsigned int rsa_keysize = 2048;
     g_autofree gchar *swtpm_keyopt = NULL;
     g_autofree gchar *runas = NULL;
     g_autofree gchar *certsdir = NULL;
@@ -1458,8 +1519,8 @@ int main(int argc, char *argv[])
     g_autoptr(GError) error = NULL;
     enum keyalgo ek1keyalgo = KEYALGO_RSA;
     enum keyalgo ek2keyalgo = KEYALGO_ECC;
-    unsigned int ek1keyalgo_param;
-    unsigned int ek2keyalgo_param;
+    unsigned int ek1keyalgo_param = 0;
+    unsigned int ek2keyalgo_param = 0;
 
     setvbuf(stdout, 0, _IONBF, 0);
 
@@ -1928,47 +1989,15 @@ int main(int argc, char *argv[])
         logit(gl_LOGFILE, "  The TPM's state will be encrypted using a key derived from a passphrase (fd).\n");
     }
 
-    if ((flags & SETUP_RSA_KEYSIZE_BY_USER_F) == 0)
-        rsa_keysize_str = get_default_rsa_keysize(config_file_lines);
+    if ((flags & SETUP_TPM2_F) != 0 &&
+        ek1keyalgo_param == 0 &&
+        ek1keyalgo == KEYALGO_RSA) {
+        if ((flags & SETUP_RSA_KEYSIZE_BY_USER_F) == 0)
+            rsa_keysize_str = get_default_rsa_keysize(config_file_lines);
 
-    if (strcmp(rsa_keysize_str, "max") == 0) {
-        unsigned int *keysizes = NULL;
-        size_t n_keysizes;
-
-        ret = get_rsa_keysizes(flags, (const char **)swtpm_prg_l, &keysizes, &n_keysizes);
-        if (ret)
+        rsa_keysize = parse_rsa_keysize(flags, &rsa_keysize_str, swtpm_prg_l);
+        if (!rsa_keysize)
             goto error;
-        g_free(rsa_keysize_str);
-        if (n_keysizes > 0) {
-            /* last one is the biggest one */
-            rsa_keysize_str = g_strdup_printf("%u", keysizes[n_keysizes - 1]);
-        } else {
-            rsa_keysize_str = g_strdup("2048");
-        }
-        g_free(keysizes);
-    }
-    if (strcmp(rsa_keysize_str, "2048") == 0 ||
-        strcmp(rsa_keysize_str, "3072") == 0 ||
-        strcmp(rsa_keysize_str, "4096") == 0) {
-        unsigned int *keysizes = NULL;
-        size_t n_keysizes;
-        gboolean found = FALSE;
-
-        ret = get_rsa_keysizes(flags, (const char **)swtpm_prg_l, &keysizes, &n_keysizes);
-        if (ret)
-            goto error;
-
-        rsa_keysize = strtoull(rsa_keysize_str, NULL, 10);
-        for (i = 0; i < n_keysizes && found == FALSE; i++)
-            found = (keysizes[i] == rsa_keysize);
-        if (!found && rsa_keysize != 2048) {
-            logerr(gl_LOGFILE, "%u bit RSA keys are not supported by libtpms.\n", rsa_keysize);
-            goto error;
-        }
-        g_free(keysizes);
-    } else {
-        logit(gl_LOGFILE, "Unsupported RSA key size %s.\n", rsa_keysize_str);
-        goto error;
     }
 
     if (flags & SETUP_RECONFIGURE_F) {
