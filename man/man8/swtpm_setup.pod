@@ -90,9 +90,10 @@ must be supported by the chosen profile since it will lead to a key
 generation error otherwise. The default is rsa2048.
 
 Valid values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
-ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096.
+ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096, ml-kem-512,
+ml-kem-768, ml-kem-1024
 
-Note that rsa4096 requires the default-v2 or a later profile.
+Note that rsa4096 and ml-kem keys require the default-v2 or a later profile.
 
 If this option is used then the B<--rsa-keysize> option is ignored.
 

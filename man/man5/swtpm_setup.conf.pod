@@ -122,9 +122,10 @@ by users of the system.
 
 This keyword allows to choose the key algorithm of the 1st endorsement key.
 Supported values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
-ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096
+ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096, ml-kem-512, ml-kem-768,
+ml-kem-1024
 
-Note that rsa4096 requires the default-v2 or a later profile.
+Note that rsa4096 and ml-kem keys require the default-v2 or a later profile.
 
 =item B<ek2keyalgo> (since v0.11)
 
