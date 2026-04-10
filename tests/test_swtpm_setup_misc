@@ -15,6 +15,11 @@ function cleanup()
 }
 
 workdir="$(mktemp -d)" || exit 1
+config="${workdir}/swtpm_setup.conf"
+
+# Test configuration file to avoid picking up user's config file
+cat <<_EOF_ > "${config}"
+_EOF_
 
 # Simple tests with options and combination of options
 
@@ -36,32 +41,32 @@ fi
 
 # Options that require --tpm2
 for opt in --ecc --create-spk --reconfigure --allow-signing --decryption '--pcr-banks -'; do
-	if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite ${opt:+${opt}} 2>/dev/null; then
+	if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --config "${config}" --overwrite ${opt:+${opt}} 2>/dev/null; then
 		echo "Error: Option ${opt} should have required --tpm2"
 		exit 1
 	fi
 done
 
 # Unreasonble RSA key size
-if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --tpm2 --rsa-keysize 2222 &>/dev/null; then
+if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --config "${config}" --overwrite --tpm2 --rsa-keysize 2222 &>/dev/null; then
 	echo "Error: Should have failed with unreasonable key size"
 	exit 1
 fi
 
 # Unsupported option with --tpm2
-if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --tpm2 --take-ownership 2>/dev/null; then
+if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --config "${config}" --overwrite --tpm2 --take-ownership 2>/dev/null; then
 	echo "Error: Option ${opt} should have failed with --tpm2"
 	exit 1
 fi
 
 # Unsupported cipher
-if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --cipher aes-192-cbc &>/dev/null; then
+if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --config "${config}" --overwrite --cipher aes-192-cbc &>/dev/null; then
 	echo "Error: Should have failed on unsupported cipher aes-192-cbc"
 	exit 1
 fi
 
 # Unsupported option combination
-if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --overwrite --tpm2 --create-ek-cert --reconfigure 2>/dev/null; then
+if ${SWTPM_SETUP} --tpmstate "dir://${workdir}" --config "${config}" --overwrite --tpm2 --create-ek-cert --reconfigure 2>/dev/null; then
 	echo "Error: Should have failed on unsupported option combination"
 	exit 1
 fi
