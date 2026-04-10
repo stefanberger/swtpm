@@ -525,6 +525,74 @@ static const struct bank_to_name {
     {0, NULL},
 };
 
+struct pk_params {
+    enum keyalgo keyalgo;
+    uint16_t keyalgo_param; // RSA key size or ECC curve Id
+};
+
+static const struct ek_params {
+    struct pk_params pk;
+    uint32_t ek_handle;
+    const char *keytype;
+    uint32_t nvindex_ekcert;
+    uint32_t nvindex_template;
+} ek_params[] = {
+    {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P384,
+        },
+        .ek_handle = TPM2_EK_ECC_SECP384R1_HANDLE,
+        .keytype = "ECC",
+        .nvindex_ekcert = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 2048,
+        },
+        .ek_handle = TPM2_EK_RSA_HANDLE,
+        .keytype = "RSA 2048",
+        .nvindex_ekcert = TPM2_NV_INDEX_RSA2048_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_RSA2048_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 3072,
+        },
+        .ek_handle = TPM2_EK_RSA3072_HANDLE,
+        .keytype = "RSA 3072",
+        .nvindex_ekcert = TPM2_NV_INDEX_RSA3072_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_RSA3072_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 4096,
+        },
+        .ek_handle = TPM2_EK_RSA4096_HANDLE,
+        .keytype = "RSA 4096",
+        .nvindex_ekcert = TPM2_NV_INDEX_RSA4096_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_RSA4096_HI_EKTEMPLATE,
+    }
+};
+
+static const struct ek_params *get_ek_params(struct swtpm *self,
+                                             enum keyalgo keyalgo,
+                                             unsigned int keyalgo_param)
+{
+    size_t i;
+
+    for (i = 0; i < ARRAY_LEN(ek_params); i++) {
+        if (ek_params[i].pk.keyalgo == keyalgo &&
+            ek_params[i].pk.keyalgo_param == keyalgo_param) {
+            return &ek_params[i];
+        }
+    }
+    logerr(self->logfile, "Internal error: Unsupported keyalgo and keyalgo_param: %u/%u\n",
+           keyalgo, keyalgo_param);
+    return NULL;
+}
+
 /* function prototypes */
 static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
                                         const unsigned char *symkeydata, size_t symkeydata_len,
@@ -1294,50 +1362,23 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsign
                                 gboolean allowsigning, gboolean decryption, gboolean lock_nvram,
                                 gchar **ekparam, const  gchar **key_description)
 {
-    uint32_t tpm2_ek_handle, nvindex, curr_handle;
-    const char *keytype;
-    int ret;
     unsigned char ektemplate[512];
     size_t ektemplate_len = sizeof(ektemplate);
+    const struct ek_params *ekps;
+    uint32_t curr_handle;
+    int ret;
+
+    ekps = get_ek_params(self, keyalgo, keyalgo_param);
+    if (!ekps)
+        return 1;
 
     switch (keyalgo) {
     case KEYALGO_ECC:
-        switch (keyalgo_param) {
-        case TPM2_ECC_NIST_P384:
-            tpm2_ek_handle = TPM2_EK_ECC_SECP384R1_HANDLE;
-            keytype = "ECC";
-            nvindex = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE;
-            break;
-        default:
-            logerr(self->logfile, "Internal error: Unsupported ECC keysize %u.\n", keyalgo_param);
-            return 1;
-        }
-
         ret = swtpm_tpm2_createprimary_ek_ecc_nist_p384(self, allowsigning, decryption, &curr_handle,
                                                         ektemplate, &ektemplate_len, ekparam,
                                                         key_description);
         break;
     case KEYALGO_RSA:
-        switch (keyalgo_param) {
-        case 2048:
-            tpm2_ek_handle = TPM2_EK_RSA_HANDLE;
-            keytype = "RSA 2048";
-            nvindex = TPM2_NV_INDEX_RSA2048_EKTEMPLATE;
-            break;
-        case 3072:
-            tpm2_ek_handle = TPM2_EK_RSA3072_HANDLE;
-            keytype = "RSA 3072";
-            nvindex = TPM2_NV_INDEX_RSA3072_HI_EKTEMPLATE;
-            break;
-        case 4096:
-            tpm2_ek_handle = TPM2_EK_RSA4096_HANDLE;
-            keytype = "RSA 4096";
-            nvindex = TPM2_NV_INDEX_RSA4096_HI_EKTEMPLATE;
-            break;
-        default:
-            logerr(self->logfile, "Internal error: Unsupported RSA keysize %u.\n", keyalgo_param);
-            return 1;
-        }
         ret = swtpm_tpm2_createprimary_ek_rsa(self, keyalgo_param, allowsigning,
                                               decryption, &curr_handle,
                                               ektemplate, &ektemplate_len, ekparam,
@@ -1348,14 +1389,14 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsign
     }
 
     if (ret == 0)
-        ret = swtpm_tpm2_evictcontrol(self, curr_handle, tpm2_ek_handle);
+        ret = swtpm_tpm2_evictcontrol(self, curr_handle, ekps->ek_handle);
     if (ret != 0) {
         logerr(self->logfile, "create_ek failed: 0x%x\n", ret);
         return 1;
     }
 
-    logit(self->logfile,
-          "Successfully created %s EK with handle 0x%x.\n", keytype, tpm2_ek_handle);
+    logit(self->logfile, "Successfully created %s EK with handle 0x%x.\n",
+          ekps->keytype, ekps->ek_handle);
 
     if (allowsigning) {
         uint32_t nvindexattrs = TPMA_NV_PLATFORMCREATE | \
@@ -1365,12 +1406,13 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsign
                 TPMA_NV_PPWRITE | \
                 TPMA_NV_NO_DA | \
                 TPMA_NV_WRITEDEFINE;
-        ret = swtpm_tpm2_write_nvram(self, nvindex, nvindexattrs, ektemplate, ektemplate_len,
+        ret = swtpm_tpm2_write_nvram(self, ekps->nvindex_template, nvindexattrs,
+                                     ektemplate, ektemplate_len,
                                      lock_nvram, "EK template");
         if (ret == 0)
             logit(self->logfile,
                   "Successfully created NVRAM area 0x%x for %s EK template.\n",
-                  nvindex, keytype);
+                  ekps->nvindex_template, ekps->keytype);
     }
 
     return ret;
@@ -1531,7 +1573,6 @@ static int swtpm_tpm2_write_ek_cert_nvram(struct swtpm *self, enum keyalgo keyal
                                            unsigned int keyalgo_param, gboolean lock_nvram,
                                            const unsigned char *data, size_t data_len)
 {
-    uint32_t nvindex = 0;
     g_autofree gchar *keytype = NULL;
     uint32_t nvindexattrs = TPMA_NV_PLATFORMCREATE |
             TPMA_NV_AUTHREAD |
@@ -1540,32 +1581,16 @@ static int swtpm_tpm2_write_ek_cert_nvram(struct swtpm *self, enum keyalgo keyal
             TPMA_NV_PPWRITE |
             TPMA_NV_NO_DA |
             TPMA_NV_WRITEDEFINE;
+    const struct ek_params *ekps;
 
-    switch (keyalgo) {
-    case KEYALGO_RSA:
-        switch (keyalgo_param) {
-        case 2048:
-            nvindex = TPM2_NV_INDEX_RSA2048_EKCERT;
-            break;
-        case 3072:
-            nvindex = TPM2_NV_INDEX_RSA3072_HI_EKCERT;
-            break;
-        case 4096:
-            nvindex = TPM2_NV_INDEX_RSA4096_HI_EKCERT;
-            break;
-        }
-        keytype = g_strdup_printf("RSA %d ", keyalgo_param);
-        break;
-    case KEYALGO_ECC:
-        switch (keyalgo_param) {
-        case TPM2_ECC_NIST_P384:
-            nvindex = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT;
-            keytype = g_strdup("ECC ");
-            break;
-        }
-    }
+    ekps = get_ek_params(self, keyalgo, keyalgo_param);
+    if (!ekps)
+        return 1;
 
-    return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
+    keytype = g_strdup_printf("%s ", ekps->keytype);
+
+    return swtpm_tpm2_write_cert_nvram(self, ekps->nvindex_ekcert,
+                                       nvindexattrs, data, data_len,
                                        lock_nvram, keytype, "EK certificate");
 }
 
