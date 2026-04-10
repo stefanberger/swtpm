@@ -432,8 +432,6 @@ static const struct swtpm_cops swtpm_cops = {
 
 #define TPM2_CAP_PCRS     0x00000005
 
-#define TPM2_ECC_NIST_P384 0x0004
-
 #define TPMA_NV_PLATFORMCREATE 0x40000000
 #define TPMA_NV_AUTHREAD       0x40000
 #define TPMA_NV_NO_DA          0x2000000
@@ -1199,7 +1197,7 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
 
 /* Create either an ECC or RSA storage primary key (deprecated) */
 static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
-                                 unsigned int rsa_keysize)
+                                 unsigned int keyalgo_param)
 {
     int ret;
     uint32_t curr_handle;
@@ -1209,7 +1207,7 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
         ret = swtpm_tpm2_createprimary_spk_ecc_nist_p384(self, &curr_handle);
         break;
     case KEYALGO_RSA:
-        ret = swtpm_tpm2_createprimary_spk_rsa(self, rsa_keysize, &curr_handle);
+        ret = swtpm_tpm2_createprimary_spk_rsa(self, keyalgo_param, &curr_handle);
         break;
     default:
         ret = 1;
@@ -1292,7 +1290,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
 }
 
 /* Create an ECC or RSA EK */
-static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsigned int rsa_keysize,
+static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsigned int keyalgo_param,
                                 gboolean allowsigning, gboolean decryption, gboolean lock_nvram,
                                 gchar **ekparam, const  gchar **key_description)
 {
@@ -1304,33 +1302,46 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsign
 
     switch (keyalgo) {
     case KEYALGO_ECC:
-        tpm2_ek_handle = TPM2_EK_ECC_SECP384R1_HANDLE;
-        keytype = "ECC";
-        nvindex = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE;
+        switch (keyalgo_param) {
+        case TPM2_ECC_NIST_P384:
+            tpm2_ek_handle = TPM2_EK_ECC_SECP384R1_HANDLE;
+            keytype = "ECC";
+            nvindex = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE;
+            break;
+        default:
+            logerr(self->logfile, "Internal error: Unsupported ECC keysize %u.\n", keyalgo_param);
+            return 1;
+        }
 
         ret = swtpm_tpm2_createprimary_ek_ecc_nist_p384(self, allowsigning, decryption, &curr_handle,
                                                         ektemplate, &ektemplate_len, ekparam,
                                                         key_description);
         break;
     case KEYALGO_RSA:
-        if (rsa_keysize == 2048) {
+        switch (keyalgo_param) {
+        case 2048:
             tpm2_ek_handle = TPM2_EK_RSA_HANDLE;
             keytype = "RSA 2048";
             nvindex = TPM2_NV_INDEX_RSA2048_EKTEMPLATE;
-        } else if (rsa_keysize == 3072) {
+            break;
+        case 3072:
             tpm2_ek_handle = TPM2_EK_RSA3072_HANDLE;
             keytype = "RSA 3072";
             nvindex = TPM2_NV_INDEX_RSA3072_HI_EKTEMPLATE;
-        } else if (rsa_keysize == 4096) {
+            break;
+        case 4096:
             tpm2_ek_handle = TPM2_EK_RSA4096_HANDLE;
             keytype = "RSA 4096";
             nvindex = TPM2_NV_INDEX_RSA4096_HI_EKTEMPLATE;
-        } else {
-            logerr(self->logfile, "Internal error: Unsupported RSA keysize %u.\n", rsa_keysize);
+            break;
+        default:
+            logerr(self->logfile, "Internal error: Unsupported RSA keysize %u.\n", keyalgo_param);
             return 1;
         }
-        ret = swtpm_tpm2_createprimary_ek_rsa(self, rsa_keysize, allowsigning, decryption, &curr_handle,
-                                              ektemplate, &ektemplate_len, ekparam, key_description);
+        ret = swtpm_tpm2_createprimary_ek_rsa(self, keyalgo_param, allowsigning,
+                                              decryption, &curr_handle,
+                                              ektemplate, &ektemplate_len, ekparam,
+                                              key_description);
         break;
     default:
         ret = 1;
@@ -1517,7 +1528,7 @@ static int swtpm_tpm2_write_cert_nvram(struct swtpm *self, uint32_t nvindex,
 
 /* Write the platform certificate into an NVRAM area */
 static int swtpm_tpm2_write_ek_cert_nvram(struct swtpm *self, enum keyalgo keyalgo,
-                                           unsigned int rsa_keysize, gboolean lock_nvram,
+                                           unsigned int keyalgo_param, gboolean lock_nvram,
                                            const unsigned char *data, size_t data_len)
 {
     uint32_t nvindex = 0;
@@ -1532,18 +1543,26 @@ static int swtpm_tpm2_write_ek_cert_nvram(struct swtpm *self, enum keyalgo keyal
 
     switch (keyalgo) {
     case KEYALGO_RSA:
-        if (rsa_keysize == 2048)
+        switch (keyalgo_param) {
+        case 2048:
             nvindex = TPM2_NV_INDEX_RSA2048_EKCERT;
-        else if (rsa_keysize == 3072)
+            break;
+        case 3072:
             nvindex = TPM2_NV_INDEX_RSA3072_HI_EKCERT;
-        else if (rsa_keysize == 4096)
+            break;
+        case 4096:
             nvindex = TPM2_NV_INDEX_RSA4096_HI_EKCERT;
-        keytype = g_strdup_printf("RSA %d ", rsa_keysize);
+            break;
+        }
+        keytype = g_strdup_printf("RSA %d ", keyalgo_param);
         break;
     case KEYALGO_ECC:
-        nvindex = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT;
-        keytype = g_strdup("ECC ");
-        break;
+        switch (keyalgo_param) {
+        case TPM2_ECC_NIST_P384:
+            nvindex = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT;
+            keytype = g_strdup("ECC ");
+            break;
+        }
     }
 
     return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
