@@ -528,6 +528,15 @@ static const struct bank_to_name {
 struct pk_params {
     enum keyalgo keyalgo;
     uint16_t keyalgo_param; // RSA key size or ECC curve Id
+    const char *keydescription;
+    const unsigned char *nonce;
+    size_t nonce_len;
+    uint16_t hashalg;
+    const unsigned char *authpolicy;
+    size_t authpolicy_len;
+    unsigned int symkey_len;
+    int duration;
+    unsigned keysize;
 };
 
 static const struct ek_params {
@@ -541,6 +550,15 @@ static const struct ek_params {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P384,
+            .keydescription = "secp384r1",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = PolicyB_SHA384,
+            .authpolicy_len = sizeof(PolicyB_SHA384),
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = 48,
         },
         .ek_handle = TPM2_EK_ECC_SECP384R1_HANDLE,
         .keytype = "ECC",
@@ -550,6 +568,15 @@ static const struct ek_params {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 2048,
+            .keydescription = "rsa2048",
+            .nonce = NONCE_RSA2048,
+            .nonce_len = sizeof(NONCE_RSA2048),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = PolicyA_SHA256,
+            .authpolicy_len = sizeof(PolicyA_SHA256),
+            .symkey_len = 128,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = 2048 / 8,
         },
         .ek_handle = TPM2_EK_RSA_HANDLE,
         .keytype = "RSA 2048",
@@ -559,6 +586,15 @@ static const struct ek_params {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 3072,
+            .keydescription = "rsa3072",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = PolicyB_SHA384,
+            .authpolicy_len = sizeof(PolicyB_SHA384),
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = 3072 / 8,
         },
         .ek_handle = TPM2_EK_RSA3072_HANDLE,
         .keytype = "RSA 3072",
@@ -568,6 +604,15 @@ static const struct ek_params {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 4096,
+            .keydescription = "rsa4096",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = PolicyB_SHA384,
+            .authpolicy_len = sizeof(PolicyB_SHA384),
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_EXTRA_LONG,
+            .keysize = 4096 / 8,
         },
         .ek_handle = TPM2_EK_RSA4096_HANDLE,
         .keytype = "RSA 4096",
@@ -596,9 +641,8 @@ static const struct ek_params *get_ek_params(struct swtpm *self,
 /* function prototypes */
 static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
                                         const unsigned char *symkeydata, size_t symkeydata_len,
-                                        const unsigned char *authpolicy, size_t authpolicy_len,
-                                        unsigned int rsa_keysize, gboolean havenonce, size_t off,
-                                        uint32_t *curr_handle,
+                                        const struct pk_params *pk_params,
+                                        size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
                                         gchar **ekparam, const gchar **key_description);
 
@@ -876,32 +920,27 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
                                            unsigned char *ektemplate, size_t *ektemplate_len,
                                            gchar **ekparam, const gchar **key_description)
 {
-    const unsigned char *authpolicy;
-    size_t authpolicy_len;
+    const struct ek_params *ekps;
     unsigned char symkeydata[6];
     size_t symkeydata_len;
     unsigned int keyflags;
-    unsigned int symkeylen;
-    gboolean havenonce;
     size_t addlen, off;
 
-    if (rsa_keysize == 2048) {
-        authpolicy_len = sizeof(PolicyA_SHA256);
-        authpolicy = PolicyA_SHA256;
+    ekps = get_ek_params(self, KEYALGO_RSA, rsa_keysize);
+    if (!ekps)
+        return 1;
+
+    switch (rsa_keysize) {
+    case 2048:
         keyflags = 0;
-        symkeylen = 128;
-        havenonce = TRUE;
         addlen = 0;
-    } else if (rsa_keysize == 3072 || rsa_keysize == 4096) {
-        authpolicy_len = sizeof(PolicyB_SHA384);
-        authpolicy = PolicyB_SHA384;
+        break;
+    case 3072:
+    case 4096:
         keyflags = 0x40; // userWithAuth
-        symkeylen = 256;
-        havenonce = FALSE;
         addlen = 16;
-    } else {
-        logerr(self->logfile, "Internal error in %s: unsupported RSA keysize %d.\n",
-               __func__, rsa_keysize);
+        break;
+    default:
         return 1;
     }
 
@@ -928,89 +967,56 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
         // symmetric: TPM_ALG_AES, 128bit or 256bit, TPM_ALG_CFB
         symkeydata_len = 6;
         memcpy(symkeydata,
-               ((unsigned char[]) {AS2BE(TPM2_ALG_AES), AS2BE(symkeylen), AS2BE(TPM2_ALG_CFB)}),
+               ((unsigned char[]) {
+                   AS2BE(TPM2_ALG_AES),
+                   AS2BE(ekps->pk.symkey_len),
+                   AS2BE(TPM2_ALG_CFB)
+               }),
                symkeydata_len);
         off = 76 + addlen;
     }
 
     return swtpm_tpm2_createprimary_rsa(self, TPM2_RH_ENDORSEMENT, keyflags,
                                         symkeydata, symkeydata_len,
-                                        authpolicy, authpolicy_len, rsa_keysize,
-                                        havenonce, off, curr_handle,
-                                        ektemplate, ektemplate_len, ekparam, key_description);
+                                        &ekps->pk, off, curr_handle,
+                                        ektemplate, ektemplate_len, ekparam,
+                                        key_description);
 }
 
 /* Create an RSA key with the given parameters */
 static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
                                         const unsigned char *symkeydata, size_t symkeydata_len,
-                                        const unsigned char *authpolicy, size_t authpolicy_len,
-                                        unsigned int rsa_keysize, gboolean havenonce, size_t off,
-                                        uint32_t *curr_handle,
+                                        const struct pk_params *pk_params,
+                                        size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
                                         gchar **ekparam, const gchar **key_description)
 {
-    const unsigned char *nonce;
-    size_t nonce_len;
-    uint16_t hashalg;
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_CREATEPRIMARY);
     struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     g_autofree unsigned char *public = NULL;
     ssize_t public_len;
     g_autofree unsigned char *createprimary = NULL;
-    int duration = TPM2_DURATION_LONG;
     ssize_t createprimary_len;
-    int ret;
     unsigned char tpmresp[2048];
     size_t tpmresp_len = sizeof(tpmresp);
     uint16_t modlen;
+    int ret;
 
-    if (rsa_keysize == 2048) {
-        nonce = NONCE_RSA2048;
-        nonce_len = sizeof(NONCE_RSA2048);
-        hashalg = TPM2_ALG_SHA256;
-        if (key_description)
-            *key_description = "rsa2048";
-    } else if (rsa_keysize == 3072) {
-        if (!havenonce) {
-           nonce = NONCE_EMPTY;
-           nonce_len = sizeof(NONCE_EMPTY);
-        } else {
-           nonce = NONCE_RSA3072;
-           nonce_len = sizeof(NONCE_RSA3072);
-        }
-        hashalg = TPM2_ALG_SHA384;
-        if (key_description)
-            *key_description = "rsa3072";
-    } else if (rsa_keysize == 4096) {
-        if (!havenonce) {
-           nonce = NONCE_EMPTY;
-           nonce_len = sizeof(NONCE_EMPTY);
-        } else {
-           nonce = NONCE_RSA4096;
-           nonce_len = sizeof(NONCE_RSA4096);
-        }
-        hashalg = TPM2_ALG_SHA384;
-        if (key_description)
-            *key_description = "rsa4096";
-        duration = TPM2_DURATION_EXTRA_LONG;
-    } else {
-        logerr(self->logfile, "Internal error in %s: unsupported RSA keysize %d.\n",
-               __func__, rsa_keysize);
-        return 1;
-    }
+    if (key_description)
+        *key_description = pk_params->keydescription;
 
     public_len =
         memconcat(&public,
                   (unsigned char[]) {
-                      AS2BE(TPM2_ALG_RSA), AS2BE(hashalg),
-                      AS4BE(keyflags), AS2BE(authpolicy_len)
+                      AS2BE(TPM2_ALG_RSA), AS2BE(pk_params->hashalg),
+                      AS4BE(keyflags), AS2BE(pk_params->authpolicy_len)
                   }, (size_t)10,
-                  authpolicy, authpolicy_len,
+                  pk_params->authpolicy, pk_params->authpolicy_len,
                   symkeydata, symkeydata_len,
                   (unsigned char[]) {
-                      AS2BE(TPM2_ALG_NULL), AS2BE(rsa_keysize), AS4BE(0)
+                      AS2BE(TPM2_ALG_NULL), AS2BE(pk_params->keysize * 8), AS4BE(0)
                   }, (size_t)8,
-                  nonce, nonce_len,
+                  pk_params->nonce, pk_params->nonce_len,
                   NULL);
     if (public_len < 0) {
         logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
@@ -1042,7 +1048,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
     ((struct tpm_req_header *)createprimary)->size = htobe32(createprimary_len);
 
     ret = transfer(self, createprimary, createprimary_len, "TPM2_CreatePrimary(RSA)", FALSE,
-                   tpmresp, &tpmresp_len, duration);
+                   tpmresp, &tpmresp_len, pk_params->duration);
     if (ret != 0) {
         if (tpmresp_len >= sizeof(struct tpm_resp_header) &&
             be32toh(((struct tpm_resp_header *)tpmresp)->errcode) == 0x2c4) {
@@ -1051,8 +1057,9 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
              * value is out of range or is not correct for the context Parameter number 2
              */
             logerr(self->logfile,
-                   ">> Is RSA-%u supported by the profile? RSA-4096 needs 'default-v2'.<<\n",
-                   rsa_keysize);
+                   ">> Is RSA-%u supported by the profile? RSA-%u needs 'default-v2'.<<\n",
+                   pk_params->keysize * 8,
+                   pk_params->keysize * 8);
         }
         return 1;
     }
@@ -1068,7 +1075,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
          goto err_too_short;
     memcpy(&modlen, &tpmresp[off], sizeof(modlen));
     modlen = be16toh(modlen);
-    if (modlen != rsa_keysize >> 3) {
+    if (modlen != pk_params->keysize) {
         logerr(self->logfile, "Internal error in %s: Getting modulus from wrong offset %zu\n",
                __func__, off);
         return 1;
@@ -1089,10 +1096,8 @@ err_too_short:
 /* Create an ECC key with the given parameters */
 static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
                                         const unsigned char *symkeydata, size_t symkeydata_len,
-                                        const unsigned char *authpolicy, size_t authpolicy_len,
                                         const unsigned char *schemedata, size_t schemedata_len,
-                                        unsigned short curveid, unsigned short hashalg,
-                                        const unsigned char *nonce, size_t nonce_len,
+                                        const struct pk_params *pk_params,
                                         size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
                                         gchar **ekparam, const gchar **key_description)
@@ -1107,19 +1112,24 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     unsigned char tpmresp[2048];
     size_t tpmresp_len = sizeof(tpmresp);
     size_t off2;
-    uint16_t exp_ksize, ksize1, ksize2;
-    const char *cid;
+    uint16_t ksize1, ksize2;
+
+    if (key_description)
+        *key_description = pk_params->keydescription;
 
     public_len =
         memconcat(&public,
                   (unsigned char[]){
-                      AS2BE(TPM2_ALG_ECC), AS2BE(hashalg), AS4BE(keyflags), AS2BE(authpolicy_len)
+                      AS2BE(TPM2_ALG_ECC),
+                      AS2BE(pk_params->hashalg),
+                      AS4BE(keyflags),
+                      AS2BE(pk_params->authpolicy_len)
                   }, (size_t)10,
-                  authpolicy, authpolicy_len,
+                  pk_params->authpolicy, pk_params->authpolicy_len,
                   symkeydata, symkeydata_len,
                   schemedata, schemedata_len,
-                  nonce, nonce_len,
-                  nonce, nonce_len,
+                  pk_params->nonce, pk_params->nonce_len,
+                  pk_params->nonce, pk_params->nonce_len,
                   NULL);
     if (public_len < 0) {
         logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
@@ -1161,16 +1171,6 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
         *curr_handle = be32toh(*curr_handle);
     }
 
-    if (curveid == TPM2_ECC_NIST_P384) {
-        exp_ksize = 48;
-        cid = "secp384r1";
-        if (key_description)
-            *key_description = cid;
-    } else {
-        logerr(self->logfile, "Unknown curveid 0x%x\n", curveid);
-        return 1;
-    }
-
     if (tpmresp_len < off + sizeof(ksize1))
         goto err_too_short;
     memcpy(&ksize1, &tpmresp[off], sizeof(ksize1));
@@ -1182,7 +1182,7 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     memcpy(&ksize2, &tpmresp[off2], sizeof(ksize2));
     ksize2 = be16toh(ksize2);
 
-    if (ksize1 != exp_ksize || ksize2 != exp_ksize) {
+    if (ksize1 != pk_params->keysize || ksize2 != pk_params->keysize) {
         logerr(self->logfile, "ECC: Getting key parameters from wrong offset\n");
         return 1;
     }
@@ -1195,7 +1195,8 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
         g_autofree gchar *xparam_str = print_as_hex(xparam, ksize1);
         g_autofree gchar *yparam_str = print_as_hex(yparam, ksize2);
 
-        *ekparam = g_strdup_printf("x=%s,y=%s,id=%s", xparam_str, yparam_str, cid);
+        *ekparam = g_strdup_printf("x=%s,y=%s,id=%s", xparam_str, yparam_str,
+                                   pk_params->keydescription);
     }
 
     return 0;
@@ -1218,6 +1219,15 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
     const unsigned char schemedata[] = {
         AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
     };
+    struct pk_params pk_params = {
+        .authpolicy = authpolicy,
+        .authpolicy_len = authpolicy_len,
+        .nonce = NONCE_ECC_384,
+        .nonce_len = sizeof(NONCE_ECC_384),
+        .hashalg = TPM2_ALG_SHA384,
+        .keysize = 48,
+        .duration = TPM2_DURATION_LONG,
+    };
     size_t schemedata_len = sizeof(schemedata);
     size_t off = 42;
 
@@ -1227,10 +1237,10 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
      * -> Use two 48-byte all-zero nonces for NIST P384.
      */
 
-    return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags, symkeydata, symkeydata_len,
-                                        authpolicy, authpolicy_len, schemedata, schemedata_len,
-                                        TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
-                                        NONCE_ECC_384, sizeof(NONCE_ECC_384), off, curr_handle,
+    return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags,
+                                        symkeydata, symkeydata_len,
+                                        schemedata, schemedata_len,
+                                        &pk_params, off, curr_handle,
                                         NULL, 0, NULL, NULL);
 }
 
@@ -1242,25 +1252,52 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
     unsigned int keyflags = 0x00030472;
     const unsigned char authpolicy[0] = { };
     size_t authpolicy_len = sizeof(authpolicy);
-    unsigned short symkeylen = 0;
+    struct pk_params pk_params = {
+        .authpolicy = authpolicy,
+        .authpolicy_len = authpolicy_len,
+        .keysize = rsa_keysize / 8,
+        .duration = TPM2_DURATION_LONG,
+    };
     unsigned char symkeydata[6];
     size_t symkeydata_len;
     size_t off = 44;
 
-    if (rsa_keysize == 2048)
-        symkeylen = 128;
-    else if (rsa_keysize == 3072 || rsa_keysize == 4096)
-        symkeylen = 256;
+    switch (rsa_keysize) {
+    case 2048:
+        pk_params.nonce = NONCE_RSA2048;
+        pk_params.nonce_len = sizeof(NONCE_RSA2048);
+        pk_params.hashalg = TPM2_ALG_SHA256;
+        pk_params.symkey_len = 128;
+        break;
+    case 3072:
+        pk_params.nonce = NONCE_RSA3072;
+        pk_params.nonce_len = sizeof(NONCE_RSA3072);
+        pk_params.hashalg = TPM2_ALG_SHA384;
+        pk_params.symkey_len = 256;
+        break;
+    case 4096:
+        pk_params.nonce = NONCE_RSA4096;
+        pk_params.nonce_len = sizeof(NONCE_RSA4096);
+        pk_params.hashalg = TPM2_ALG_SHA384;
+        pk_params.symkey_len = 256;
+        break;
+    default:
+        return 1;
+    }
 
     symkeydata_len = 6;
     memcpy(symkeydata,
-           ((unsigned char[]) {AS2BE(TPM2_ALG_AES), AS2BE(symkeylen), AS2BE(TPM2_ALG_CFB)}),
+           ((unsigned char[]) {
+               AS2BE(TPM2_ALG_AES),
+               AS2BE(pk_params.symkey_len),
+               AS2BE(TPM2_ALG_CFB)
+           }),
            symkeydata_len);
 
     return swtpm_tpm2_createprimary_rsa(self, TPM2_RH_OWNER, keyflags,
                                         symkeydata, symkeydata_len,
-                                        authpolicy, authpolicy_len, rsa_keysize, TRUE,
-                                        off, curr_handle, NULL, 0, NULL, NULL);
+                                        &pk_params, off, curr_handle,
+                                        NULL, 0, NULL, NULL);
 }
 
 /* Create either an ECC or RSA storage primary key (deprecated) */
@@ -1304,17 +1341,20 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
                                                      unsigned char *ektemplate, size_t *ektemplate_len,
                                                      gchar **ekparam, const char **key_description)
 {
-    const unsigned char *authpolicy = PolicyB_SHA384;
-    size_t authpolicy_len = sizeof(PolicyB_SHA384);
     const unsigned char schemedata[] = {
         AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
     };
     size_t schemedata_len = sizeof(schemedata);
+    const struct ek_params *ekps;
     unsigned char symkeydata[6];
     size_t symkeydata_len;
     unsigned int keyflags;
     size_t off;
     int ret;
+
+    ekps = get_ek_params(self, KEYALGO_ECC, TPM2_ECC_NIST_P384);
+    if (!ekps)
+        return 1;
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
@@ -1339,18 +1379,21 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
         // symmetric: TPM_ALG_AES, 256bit, TPM_ALG_CFB
         symkeydata_len = 6;
         memcpy(symkeydata,
-               ((unsigned char[]){ AS2BE(TPM2_ALG_AES), AS2BE(256), AS2BE(TPM2_ALG_CFB)}),
+               ((unsigned char[]){
+                   AS2BE(TPM2_ALG_AES),
+                   AS2BE(ekps->pk.symkey_len),
+                   AS2BE(TPM2_ALG_CFB)
+               }),
                symkeydata_len);
         off = 90;
     }
 
     ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags,
                                        symkeydata, symkeydata_len,
-                                       authpolicy, authpolicy_len,
                                        schemedata, schemedata_len,
-                                       TPM2_ECC_NIST_P384, TPM2_ALG_SHA384,
-                                       NONCE_EMPTY, sizeof(NONCE_EMPTY), off, curr_handle,
-                                       ektemplate, ektemplate_len, ekparam, key_description);
+                                       &ekps->pk, off, curr_handle,
+                                       ektemplate, ektemplate_len, ekparam,
+                                       key_description);
     if (ret != 0)
        logerr(self->logfile, "%s failed\n", __func__);
 
