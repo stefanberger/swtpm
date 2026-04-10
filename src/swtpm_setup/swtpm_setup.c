@@ -72,6 +72,8 @@ gchar *gl_LOGFILE = NULL;
 
 #define DEFAULT_RSA_KEYSIZE 2048
 
+#define DEFAULT_EK1KEYALGO "rsa2048"
+#define DEFAULT_EK2KEYALGO "ecc_nist_p384"
 
 static const struct flag_to_certfile {
     unsigned long flag;
@@ -81,6 +83,17 @@ static const struct flag_to_certfile {
     {.flag = SETUP_EK_CERT_F      , .filename = "ek.cert",       .type = "ek" },
     {.flag = SETUP_PLATFORM_CERT_F, .filename = "platform.cert", .type = "platform" },
     {.flag = 0,                     .filename = NULL,            .type = NULL},
+};
+
+static const struct {
+    const char *name;
+    enum keyalgo keyalgo;
+    unsigned int keyalgo_param;
+} keyalgo_choices[] = {
+    { .name = "rsa2048"      , .keyalgo = KEYALGO_RSA, .keyalgo_param = 2048 },
+    { .name = "rsa3072"      , .keyalgo = KEYALGO_RSA, .keyalgo_param = 3072 },
+    { .name = "rsa4096"      , .keyalgo = KEYALGO_RSA, .keyalgo_param = 4096 },
+    { .name = "ecc_nist_p384", .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P384 },
 };
 
 /* initialize the path of the config_file */
@@ -466,13 +479,16 @@ static int tpm2_create_eks_and_certs(unsigned long flags, const gchar *config_fi
 {
      int ret;
 
-     /* 1st key will be an RSA key */
      ret = tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, ek1keyalgo,
                                    ek1keyalgo_param, swtpm2, user_certsdir);
      if (ret != 0)
          return 1;
 
-     /* 2nd key will be an ECC key; no more platform cert */
+     /* two keys the same -- create only one */
+     if (ek1keyalgo_param == ek2keyalgo_param && ek1keyalgo == ek2keyalgo)
+         return 0;
+
+     /* platform cert only with EK1 */
      flags &= ~SETUP_PLATFORM_CERT_F;
      return tpm2_create_ek_and_cert(flags, config_file, certsdir, vmid, ek2keyalgo,
                                     ek2keyalgo_param, swtpm2, user_certsdir);
@@ -638,8 +654,13 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
             goto error;
 
         if ((flags & SETUP_CREATE_SPK_F)) {
-            keyalgo = flags & SETUP_TPM2_ECC_F ? KEYALGO_ECC : KEYALGO_RSA;
-            keyalgo_param = flags & SETUP_TPM2_ECC_F ? TPM2_ECC_NIST_P384 : ek1keyalgo_param;
+            if ((flags & SETUP_TPM2_ECC_F)) {
+                keyalgo = KEYALGO_ECC;
+                keyalgo_param = TPM2_ECC_NIST_P384;
+            } else {
+                keyalgo = KEYALGO_RSA;
+                keyalgo_param = 3072;
+            }
             ret = swtpm2->ops->create_spk(swtpm, keyalgo, keyalgo_param);
             if (ret != 0)
                 goto destroy;
@@ -963,6 +984,12 @@ static void usage(const char *prgname, const char *default_config_file)
         "--ecc            : This option allows to create a TPM 2's ECC key as storage\n"
         "                   primary key; a TPM 2 always gets an RSA and an ECC EK key.\n"
         "\n"
+        "--ek1keyalgo     : Choice of the 1st EK's key algorithm; default is %s\n"
+        "                   choices: rsa2048, rsa3072, rsa4096, ecc_nist_p384\n"
+        "\n"
+        "--ek2keyalgo     : Choice of the 2nd EK's key algorithm; default is %s\n"
+        "                   choices: same as for --ek1keyalgo\n"
+        "\n"
         "--take-ownership : Take ownership; this option implies --createek\n"
         "  --ownerpass  <password>\n"
         "                 : Provide custom owner password; default is %s\n"
@@ -1028,8 +1055,9 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   Default: %s\n"
         "\n"
         "--rsa-keysize <keysize>\n"
-        "                 : The RSA key size of the EK key; 3072 and 4096 bits may be\n"
-        "                   supported if libtpms supports it.\n"
+        "                 : The RSA key size of the 1st EK key; 3072 and 4096 bits may\n"
+        "                   be supported if libtpms supports it. This option is ignored\n"
+        "                   if --ek1keyalgo is used.\n"
         "                   Default: %u\n"
         "\n"
         "--write-ek-cert-files <directory>\n"
@@ -1078,6 +1106,8 @@ static void usage(const char *prgname, const char *default_config_file)
         "\n"
         "--help,-h        : Display this help screen\n\n",
             prgname,
+            DEFAULT_EK1KEYALGO,
+            DEFAULT_EK2KEYALGO,
             DEFAULT_OWNER_PASSWORD,
             DEFAULT_SRK_PASSWORD,
             default_config_file,
@@ -1418,6 +1448,25 @@ static int read_config_file(const gchar *config_file,
     return 0;
 }
 
+static bool parse_keyalgo(const char *keyalgo_str,
+                          enum keyalgo *keyalgo,
+                          unsigned int *keyalgo_param,
+                          unsigned long *flags)
+{
+    size_t i;
+
+    for (i = 0; i < ARRAY_LEN(keyalgo_choices); i++) {
+        if (!strcasecmp(keyalgo_choices[i].name, keyalgo_str)) {
+            *keyalgo = keyalgo_choices[i].keyalgo;
+            *keyalgo_param = keyalgo_choices[i].keyalgo_param;
+            return true;
+        }
+    }
+    logerr(gl_LOGFILE,
+           "Key algorithm %s is not supported.\n", keyalgo_str);
+    return false;
+}
+
 int main(int argc, char *argv[])
 {
     int opt, option_index = 0;
@@ -1430,6 +1479,8 @@ int main(int argc, char *argv[])
         {"ecc", no_argument, NULL, 'e'},
         {"createek", no_argument, NULL, 'c'},
         {"create-spk", no_argument, NULL, 'C'},
+        {"ek1keyalgo", required_argument, NULL, '4'},
+        {"ek2keyalgo", required_argument, NULL, '5'},
         {"take-ownership", no_argument, NULL, 'o'},
         {"ownerpass", required_argument, NULL, 'O'},
         {"owner-well-known", no_argument, NULL, 'w'},
@@ -1499,6 +1550,8 @@ int main(int argc, char *argv[])
     g_autofree gchar *json_profile_name = NULL;
     g_autofree gchar *json_profile_file = NULL;
     g_autofree gchar *profile_remove_disabled_param = NULL;
+    g_autofree gchar *ek1keyalgo_str = NULL;
+    g_autofree gchar *ek2keyalgo_str = NULL;
     int json_profile_fd = -1;
     gchar *tmp;
     gchar **swtpm_prg_l = NULL;
@@ -1561,6 +1614,14 @@ int main(int argc, char *argv[])
             break;
         case 'e': /* --ecc */
             flags |= SETUP_TPM2_ECC_F;
+            break;
+        case '4': /* --ek1keyalgo */
+            g_free(ek1keyalgo_str);
+            ek1keyalgo_str = g_strdup(optarg);
+            break;
+        case '5': /* --ek2keyalgo */
+            g_free(ek2keyalgo_str);
+            ek2keyalgo_str = g_strdup(optarg);
             break;
         case 'c': /* --createek */
             flags |= SETUP_CREATE_EK_F;
@@ -1989,15 +2050,34 @@ int main(int argc, char *argv[])
         logit(gl_LOGFILE, "  The TPM's state will be encrypted using a key derived from a passphrase (fd).\n");
     }
 
-    if ((flags & SETUP_TPM2_F) != 0 &&
-        ek1keyalgo_param == 0 &&
-        ek1keyalgo == KEYALGO_RSA) {
-        if ((flags & SETUP_RSA_KEYSIZE_BY_USER_F) == 0)
-            rsa_keysize_str = get_default_rsa_keysize(config_file_lines);
-
-        rsa_keysize = parse_rsa_keysize(flags, &rsa_keysize_str, swtpm_prg_l);
-        if (!rsa_keysize)
+    if ((flags & SETUP_TPM2_F) != 0) {
+        if (!ek1keyalgo_str)
+            ek1keyalgo_str = get_config_value(config_file_lines, "ek1keyalgo");
+        if (ek1keyalgo_str &&
+            !parse_keyalgo(ek1keyalgo_str, &ek1keyalgo, &ek1keyalgo_param, &flags))
             goto error;
+
+        if (!ek2keyalgo_str)
+            ek2keyalgo_str = get_config_value(config_file_lines, "ek2keyalgo");
+        if (ek2keyalgo_str &&
+            !parse_keyalgo(ek2keyalgo_str, &ek2keyalgo, &ek2keyalgo_param, &flags))
+            goto error;
+
+        if (ek1keyalgo_param == 0 && ek1keyalgo == KEYALGO_RSA) {
+            if ((flags & SETUP_RSA_KEYSIZE_BY_USER_F) == 0)
+                rsa_keysize_str = get_default_rsa_keysize(config_file_lines);
+
+            rsa_keysize = parse_rsa_keysize(flags, &rsa_keysize_str, swtpm_prg_l);
+            if (!rsa_keysize)
+                goto error;
+        } else {
+            if (ek1keyalgo == KEYALGO_RSA &&
+                !is_rsa_keysize_supported(flags, ek1keyalgo_param, swtpm_prg_l))
+                goto error;
+            if (ek2keyalgo == KEYALGO_RSA &&
+                !is_rsa_keysize_supported(flags, ek2keyalgo_param, swtpm_prg_l))
+                goto error;
+        }
     }
 
     if (flags & SETUP_RECONFIGURE_F) {
@@ -2033,8 +2113,11 @@ int main(int argc, char *argv[])
         ret = init_tpm(flags, swtpm_prg_l, config_file, tpm_state_path, ownerpass, srkpass, vmid,
                        swtpm_keyopt, fds_to_pass, n_fds_to_pass, certsdir, user_certsdir);
     } else {
-        ek1keyalgo_param = rsa_keysize;
-        ek2keyalgo_param = TPM2_ECC_NIST_P384;
+        if (ek1keyalgo_param == 0)
+            ek1keyalgo_param = rsa_keysize; // default
+        if (ek2keyalgo_param == 0)
+            ek2keyalgo_param = TPM2_ECC_NIST_P384; // default
+
         ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
                        swtpm_keyopt, fds_to_pass, n_fds_to_pass,
                        ek1keyalgo, ek1keyalgo_param,
