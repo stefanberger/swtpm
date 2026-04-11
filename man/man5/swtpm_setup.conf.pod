@@ -118,6 +118,18 @@ This keyword allows the user to specify a default profile file.
 This keyword allows the user to set a profile directory that contains profiles written
 by users of the system.
 
+=item B<ek1keyalgo> (since v0.11)
+
+This keyword allows to choose the key algorithm of the 1st endorsement key.
+Supported values are: ecc_nist_p384, rsa2048, rsa3072, rsa4096
+
+Note that rsa4096 requires the default-v2 or a later profile.
+
+=item B<ek2keyalgo> (since v0.11)
+
+This keyword is similar to B<ek1keyalgo> but applies to the 2nd endorsement
+key. The same choices are available.
+
 =item B<>
 
 =back

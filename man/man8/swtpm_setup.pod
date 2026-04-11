@@ -83,6 +83,32 @@ unless --allow-signing is passed. This option requires --tpm2.
 
 Create elliptic curve crypto (ECC) keys; by default RSA keys are generated.
 
+=item B<--ek1keyalgo <key algorithm>> (since v0.11)
+
+Choose the key algorithm for the 1st endorsement key. This key algorithm
+must be supported by the chosen profile since it will lead to a key
+generation error otherwise. The default is rsa2048.
+
+Valid values are: ecc_nist_p384, rsa2048, rsa3072, rsa4096.
+
+Note that rsa4096 requires the default-v2 or a later profile.
+
+If this option is used then the B<--rsa-keysize> option is ignored.
+
+It is possible to choose a default 1st endorsement key algorithm with an
+I<ek1keyalgo> entry in the I<swtpm_setup.conf> configuration file.
+
+=item B<--ek2keyalgo <key algorithm>> (since v0.11)
+
+Choose the key algorithm for the 2nd endorsement key. If the 1st and 2nd
+endorsement key are of the same type then only one endorsement key will be
+created. The default is secp384r1.
+
+For valid values see the description of the B<--ek1keyalgo> option.
+
+It is possible to choose a default 2nd endorsement key algorithm with an
+I<ek2keyalgo> entry in the I<swtpm_setup.conf> configuration file.
+
 =item B<--take-ownership>
 
 Take ownership; this option implies --createek. This option is only available for TPM 1.2.
