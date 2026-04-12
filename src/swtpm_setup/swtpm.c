@@ -913,6 +913,69 @@ static int swtpm_tpm2_evictcontrol(struct swtpm *self, uint32_t curr_handle, uin
                     NULL, NULL, TPM2_DURATION_SHORT);
 }
 
+/* Common function to create a TPM 2 primary key.
+ *
+ * Returns 1 on error with errors having been reported.
+ * If tpmresp is != 0 on return then a TPM2 response was received.
+ */
+static int swtpm_tpm2_createprimary(struct swtpm *self, uint32_t primaryhandle,
+                                    unsigned char *ektemplate, size_t *ektemplate_len,
+                                    const unsigned char *public, size_t public_len,
+                                    const char *tpm2_function, int duration,
+                                    unsigned char *tpmresp, size_t *tpmresp_len,
+                                    uint32_t *curr_handle)
+{
+    struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_CREATEPRIMARY);
+    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
+    g_autofree unsigned char *createprimary = NULL;
+    ssize_t createprimary_len;
+    int ret;
+
+    if (ektemplate) {
+        if (*ektemplate_len < (size_t)public_len) {
+            logerr(self->logfile, "Internal error in %s: Need %zu bytes for ektemplate (rsa) but got only %zu\n",
+                   __func__, public_len, *ektemplate_len);
+            *tpmresp_len = 0;
+            return 1;
+        }
+        memcpy(ektemplate, public, public_len);
+        *ektemplate_len = public_len;
+    }
+
+    createprimary_len =
+        memconcat(&createprimary,
+                  &hdr, sizeof(hdr),
+                  (unsigned char[]) {AS4BE(primaryhandle), AS4BE(sizeof(authblock))}, (size_t)8,
+                  &authblock, sizeof(authblock),
+                  (unsigned char[]) {AS2BE(4), AS4BE(0), AS2BE(public_len)}, (size_t)8,
+                  public, public_len,
+                  (unsigned char[]) {AS4BE(0), AS2BE(0)}, (size_t)6,
+                  NULL);
+    if (createprimary_len < 0) {
+        logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
+        *tpmresp_len = 0;
+        return 1;
+    }
+    ((struct tpm_req_header *)createprimary)->size = htobe32(createprimary_len);
+
+    ret = transfer(self, createprimary, createprimary_len, tpm2_function, FALSE,
+                   tpmresp, tpmresp_len, duration);
+    if (ret != 0)
+        return 1;
+
+    if (curr_handle) {
+        if (*tpmresp_len < 10 + sizeof(*curr_handle))
+            goto err_too_short;
+        memcpy(curr_handle, &tpmresp[10], sizeof(*curr_handle));
+        *curr_handle = be32toh(*curr_handle);
+    }
+    return 0;
+
+err_too_short:
+    logerr(self->logfile, "Response from %s is too short!\n", tpm2_function);
+    return 1;
+}
+
 /* Create an RSA EK */
 static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_keysize,
                                            gboolean allowsigning, gboolean decryption,
@@ -991,14 +1054,11 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
                                         unsigned char *ektemplate, size_t *ektemplate_len,
                                         gchar **ekparam, const gchar **key_description)
 {
-    struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_CREATEPRIMARY);
-    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
+    const char *tpm2_function = "TPM2_CreatePrimary(RSA)";
     g_autofree unsigned char *public = NULL;
-    ssize_t public_len;
-    g_autofree unsigned char *createprimary = NULL;
-    ssize_t createprimary_len;
     unsigned char tpmresp[2048];
     size_t tpmresp_len = sizeof(tpmresp);
+    ssize_t public_len;
     uint16_t modlen;
     int ret;
 
@@ -1022,33 +1082,11 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
         logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
         return 1;
     }
-    if (ektemplate) {
-        if (*ektemplate_len < (size_t)public_len) {
-            logerr(self->logfile, "Internal error in %s: Need %zu bytes for ektemplate (rsa) but got only %zu\n",
-                   __func__, public_len, *ektemplate_len);
-            return 1;
-        }
-        memcpy(ektemplate, public, public_len);
-        *ektemplate_len = public_len;
-    }
-
-    createprimary_len =
-        memconcat(&createprimary,
-                  &hdr, sizeof(hdr),
-                  (unsigned char[]) {AS4BE(primaryhandle), AS4BE(sizeof(authblock))}, (size_t)8,
-                  &authblock, sizeof(authblock),
-                  (unsigned char[]) {AS2BE(4), AS4BE(0), AS2BE(public_len)}, (size_t)8,
-                  public, public_len,
-                  (unsigned char[]) {AS4BE(0), AS2BE(0)}, (size_t)6,
-                  NULL);
-    if (createprimary_len < 0) {
-        logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
-        return 1;
-    }
-    ((struct tpm_req_header *)createprimary)->size = htobe32(createprimary_len);
-
-    ret = transfer(self, createprimary, createprimary_len, "TPM2_CreatePrimary(RSA)", FALSE,
-                   tpmresp, &tpmresp_len, pk_params->duration);
+    ret = swtpm_tpm2_createprimary(self, primaryhandle,
+                                   ektemplate, ektemplate_len,
+                                   public, public_len,
+                                   tpm2_function, pk_params->duration,
+                                   tpmresp, &tpmresp_len, curr_handle);
     if (ret != 0) {
         if (tpmresp_len >= sizeof(struct tpm_resp_header) &&
             be32toh(((struct tpm_resp_header *)tpmresp)->errcode) == 0x2c4) {
@@ -1062,13 +1100,6 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
                    pk_params->keysize * 8);
         }
         return 1;
-    }
-
-    if (curr_handle) {
-        if (tpmresp_len < 10 + sizeof(*curr_handle))
-            goto err_too_short;
-        memcpy(curr_handle, &tpmresp[10], sizeof(*curr_handle));
-        *curr_handle = be32toh(*curr_handle);
     }
 
     if (tpmresp_len < off + sizeof(modlen))
@@ -1089,7 +1120,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
     return 0;
 
 err_too_short:
-    logerr(self->logfile, "Response from TPM2_CreatePrimary(RSA) is too short!\n");
+    logerr(self->logfile, "Response from %s is too short!\n", tpm2_function);
     return 1;
 }
 
@@ -1102,17 +1133,14 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                                         unsigned char *ektemplate, size_t *ektemplate_len,
                                         gchar **ekparam, const gchar **key_description)
 {
-    struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_CREATEPRIMARY);
-    struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
+    const char *tpm2_function = "TPM2_CreatePrimary(ECC)";
     g_autofree unsigned char *public = NULL;
-    ssize_t public_len;
-    g_autofree unsigned char *createprimary = NULL;
-    ssize_t createprimary_len;
-    int ret;
     unsigned char tpmresp[2048];
     size_t tpmresp_len = sizeof(tpmresp);
-    size_t off2;
     uint16_t ksize1, ksize2;
+    ssize_t public_len;
+    size_t off2;
+    int ret;
 
     if (key_description)
         *key_description = pk_params->keydescription;
@@ -1135,41 +1163,13 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
         logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
         return 1;
     }
-    if (ektemplate) {
-        if (*ektemplate_len < (size_t)public_len) {
-            logerr(self->logfile, "Internal error: Need %zu bytes for ektemplate (ecc) but got only %zu\n",
-                   public_len, *ektemplate_len);
-            return 1;
-        }
-        memcpy(ektemplate, public, public_len);
-        *ektemplate_len = public_len;
-    }
-
-    createprimary_len =
-        memconcat(&createprimary,
-                  &hdr, sizeof(hdr),
-                  (unsigned char[]) {AS4BE(primaryhandle), AS4BE(sizeof(authblock))}, (size_t)8,
-                  &authblock, sizeof(authblock),
-                  (unsigned char[]) {AS2BE(4), AS4BE(0), AS2BE(public_len)}, (size_t)8,
-                  public, public_len,
-                  (unsigned char[]) {AS4BE(0), AS2BE(0)}, (size_t)6,
-                  NULL);
-    if (createprimary_len < 0) {
-        logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
-        return 1;
-    }
-    ((struct tpm_req_header *)createprimary)->size = htobe32(createprimary_len);
-
-    ret = transfer(self, createprimary, createprimary_len, "TPM2_CreatePrimary(ECC)", FALSE,
-                   tpmresp, &tpmresp_len, TPM2_DURATION_LONG);
+    ret = swtpm_tpm2_createprimary(self, primaryhandle,
+                                   ektemplate, ektemplate_len,
+                                   public, public_len,
+                                   tpm2_function, pk_params->duration,
+                                   tpmresp, &tpmresp_len, curr_handle);
     if (ret != 0)
         return 1;
-    if (curr_handle) {
-        if (tpmresp_len < 10 + sizeof(*curr_handle))
-            goto err_too_short;
-        memcpy(curr_handle, &tpmresp[10], sizeof(*curr_handle));
-        *curr_handle = be32toh(*curr_handle);
-    }
 
     if (tpmresp_len < off + sizeof(ksize1))
         goto err_too_short;
@@ -1202,7 +1202,7 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     return 0;
 
 err_too_short:
-    logerr(self->logfile, "Response from TPM2_CreatePrimary(ECC) is too short!\n");
+    logerr(self->logfile, "Response from %s is too short!\n", tpm2_function);
     return 1;
 }
 
