@@ -930,11 +930,13 @@ static const unsigned char null_authpolicy[] = {};
 
 static const struct spk_params {
     struct pk_params pk;
+    const char *keytype;
 } spk_params[] = {
     {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P256,
+            .keydescription = "secp256r1",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_ECC_256,
             .nonce_len = sizeof(NONCE_ECC_256),
@@ -949,11 +951,13 @@ static const struct spk_params {
             .symkey_len = 128,
             .off = 42,
             .duration = TPM2_DURATION_LONG,
-        }
+        },
+        .keytype = "secp256r1",
    }, {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P384,
+            .keydescription = "secp384r1",
             .keyflags = KEYFLAGS_SPK,
             /* per "TCG TPM v2.0 Provisioning Guidance v1.0" page 37
              * -> "Ek Credential Profile 2.0" rev.14 section 2.1.5.2:
@@ -974,10 +978,12 @@ static const struct spk_params {
             .off = 42,
             .duration = TPM2_DURATION_LONG,
         },
+        .keytype = "secp384r1",
     }, {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P521,
+            .keydescription = "secp521r1",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_ECC_521,
             .nonce_len = sizeof(NONCE_ECC_521),
@@ -993,10 +999,12 @@ static const struct spk_params {
             .off = 42,
             .duration = TPM2_DURATION_LONG,
        },
+        .keytype = "secp521r1",
     }, {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 2048,
+            .keydescription = "rsa2048",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_RSA2048,
             .nonce_len = sizeof(NONCE_RSA2048),
@@ -1012,10 +1020,12 @@ static const struct spk_params {
             .off = 44,
             .duration = TPM2_DURATION_LONG,
        },
+        .keytype = "RSA 2048",
     }, {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 3072,
+            .keydescription = "rsa3072",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_RSA3072,
             .nonce_len = sizeof(NONCE_RSA3072),
@@ -1031,10 +1041,12 @@ static const struct spk_params {
             .off = 44,
             .duration = TPM2_DURATION_LONG,
        },
+        .keytype = "RSA 3072",
     }, {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 4096,
+            .keydescription = "rsa4096",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_RSA4096,
             .nonce_len = sizeof(NONCE_RSA4096),
@@ -1050,10 +1062,12 @@ static const struct spk_params {
             .off = 44,
             .duration = TPM2_DURATION_EXTRA_LONG,
        },
+        .keytype = "RSA 4096",
     }, {
         .pk = {
             .keyalgo = KEYALGO_MLKEM,
             .keyalgo_param = TPM2_MLKEM_PARMS_512,
+            .keydescription = "ml-kem-512",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_EMPTY,
             .nonce_len = sizeof(NONCE_EMPTY),
@@ -1069,10 +1083,12 @@ static const struct spk_params {
             .off = 0x46,
             .keysize = OSSL_ML_KEM_512_PUBLIC_KEY_BYTES,
         },
+        .keytype = "ML-KEM-512",
     }, {
         .pk = {
             .keyalgo = KEYALGO_MLKEM,
             .keyalgo_param = TPM2_MLKEM_PARMS_768,
+            .keydescription = "ml-kem-768",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_EMPTY,
             .nonce_len = sizeof(NONCE_EMPTY),
@@ -1088,10 +1104,12 @@ static const struct spk_params {
             .off = 0x56,
             .keysize = OSSL_ML_KEM_768_PUBLIC_KEY_BYTES,
         },
+        .keytype = "ML-KEM-768",
     }, {
         .pk = {
             .keyalgo = KEYALGO_MLKEM,
             .keyalgo_param = TPM2_MLKEM_PARMS_1024,
+            .keydescription = "ml-kem-1024",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_EMPTY,
             .nonce_len = sizeof(NONCE_EMPTY),
@@ -1107,6 +1125,7 @@ static const struct spk_params {
             .off = 0x66,
             .keysize = OSSL_ML_KEM_1024_PUBLIC_KEY_BYTES,
         },
+        .keytype = "ML-KEM-1024",
     }
 };
 
@@ -2438,7 +2457,8 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
     ret = swtpm_tpm2_evictcontrol(self, curr_handle, TPM2_SPK_HANDLE);
     if (ret == 0)
         logit(self->logfile,
-              "Successfully created storage primary key with handle 0x%x.\n", TPM2_SPK_HANDLE);
+              "Successfully created %s storage primary key with handle 0x%x.\n",
+              spks->keytype, TPM2_SPK_HANDLE);
 
     ret = swtpm_tpm2_flushcontext(self, curr_handle);
     if (ret != 0) {
