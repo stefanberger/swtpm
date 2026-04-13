@@ -91,9 +91,10 @@ generation error otherwise. The default is rsa2048.
 
 Valid values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
 ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096, ml-kem-512,
-ml-kem-768, ml-kem-1024
+ml-kem-768, ml-kem-1024, ml-dsa-44, ml-dsa-65, and ml-dsa-87.
 
-Note that rsa4096 and ML-KEM keys require the default-v2 or a later profile.
+Note that rsa4096, ML-KEM, and ML-DSA keys require the default-v2 or a later
+profile.
 
 If this option is used then the B<--rsa-keysize> option is ignored.
 
@@ -118,7 +119,11 @@ An IAK requires an EK certificate to be created to refer to in its own
 certificate.
 
 Valid values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
-ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096.
+ecc_nist_p521 or secp521r1, rsa2048, rsa3072, rsa4096, ml-dsa-44, ml-dsa-65,
+and ml-dsa-87.
+
+Note that rsa4096 and ML-DSA keys require the default-v2 or a later
+profile.
 
 It is possible to choose a default IAK key algorithm with an I<iakkeyalgo>
 entry in the I<swtpm_setup.conf> configuration file.
