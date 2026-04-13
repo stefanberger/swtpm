@@ -64,8 +64,11 @@ enum keyalgo {
 #define TPM2_MLDSA_PARMS_87          0x0003
 
 /* for get_capability */
-#define TPM2_CAP_TPM_PROPERTIES  6
-#define TPM2_PT_MANUFACTURER     0x105
+#define TPM2_CAP_PCRS           0x00000005
+#define TPM2_CAP_TPM_PROPERTIES 0x00000006
+
+#define TPM2_PT_MANUFACTURER    0x00000105
+#define TPM2_PT_NV_BUFFER_MAX   0x0000012c
 
 /* TPM 2 specific ops */
 struct swtpm2_ops {

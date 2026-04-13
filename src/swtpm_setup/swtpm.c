@@ -435,8 +435,6 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_ALG_MLKEM    0x00a0
 #define TPM2_ALG_MLDSA    0x00a1
 
-#define TPM2_CAP_PCRS     0x00000005
-
 #define TPMA_NV_PLATFORMCREATE 0x40000000
 #define TPMA_NV_AUTHREAD       0x40000
 #define TPMA_NV_NO_DA          0x2000000
@@ -2717,6 +2715,36 @@ static int swtpm_tpm2_nvdefinespace(struct swtpm *self, uint32_t nvindex, uint32
                     NULL, NULL, TPM2_DURATION_SHORT);
 }
 
+static int swtpm_tpm2_get_capability(struct swtpm *self, uint32_t cap, uint32_t prop,
+                                     uint32_t *res)
+{
+    struct tpm2_get_capability_req {
+        struct tpm_req_header hdr;
+        uint32_t cap;
+        uint32_t prop;
+        uint32_t count;
+    } __attribute__((packed)) req = {
+        .hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_NO_SESSIONS, sizeof(req), TPM2_CC_GETCAPABILITY),
+        .cap = htobe32(cap),
+        .prop = htobe32(prop),
+        .count = htobe32(1),
+    };
+    unsigned char tpmresp[27];
+    size_t tpmresp_len = sizeof(tpmresp);
+    uint32_t val;
+    int ret;
+
+    ret = transfer(self, &req, sizeof(req), "TPM2_GetCapability", FALSE,
+                   tpmresp, &tpmresp_len, TPM2_DURATION_SHORT);
+    if (ret != 0)
+        return 1;
+
+    memcpy(&val, &tpmresp[23], sizeof(val));
+    *res = be32toh(val);
+
+    return 0;
+}
+
 /* Write the data into the given NVIndex */
 static int swtpm_tpm2_nv_write(struct swtpm *self, uint32_t nvindex,
                                const unsigned char *data, size_t data_len)
@@ -2724,12 +2752,20 @@ static int swtpm_tpm2_nv_write(struct swtpm *self, uint32_t nvindex,
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_NV_WRITE);
     struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     g_autofree unsigned char *req = NULL;
-    ssize_t req_len;
+    uint32_t nv_buffer_max = 1024; // was limit up to SFL 11
     size_t offset = 0, txlen;
+    ssize_t req_len;
     int ret;
 
+    if (data_len > nv_buffer_max) {
+        ret = swtpm_tpm2_get_capability(self, TPM2_CAP_TPM_PROPERTIES,
+                                        TPM2_PT_NV_BUFFER_MAX, &nv_buffer_max);
+        if (ret != 0)
+            return 1;
+    }
+
     while (offset < data_len) {
-        txlen = min(data_len - offset, 1024);
+        txlen = min(data_len - offset, nv_buffer_max);
 
         g_free(req);
         req_len = memconcat(&req,
@@ -2910,36 +2946,6 @@ static int swtpm_tpm2_write_idevid_cert_nvram(struct swtpm *self, gboolean lock_
 
     return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
                                        lock_nvram, "", "IDevID certificate");
-}
-
-static int swtpm_tpm2_get_capability(struct swtpm *self, uint32_t cap, uint32_t prop,
-                                     uint32_t *res)
-{
-    struct tpm2_get_capability_req {
-        struct tpm_req_header hdr;
-        uint32_t cap;
-        uint32_t prop;
-        uint32_t count;
-    } __attribute__((packed)) req = {
-        .hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_NO_SESSIONS, sizeof(req), TPM2_CC_GETCAPABILITY),
-        .cap = htobe32(cap),
-        .prop = htobe32(prop),
-        .count = htobe32(1),
-    };
-    unsigned char tpmresp[27];
-    size_t tpmresp_len = sizeof(tpmresp);
-    uint32_t val;
-    int ret;
-
-    ret = transfer(self, &req, sizeof(req), "TPM2_GetCapability", FALSE,
-                   tpmresp, &tpmresp_len, TPM2_DURATION_SHORT);
-    if (ret != 0)
-        return 1;
-
-    memcpy(&val, &tpmresp[23], sizeof(val));
-    *res = be32toh(val);
-
-    return 0;
 }
 
 static const struct swtpm2_ops swtpm_tpm2_ops = {
