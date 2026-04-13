@@ -47,6 +47,7 @@ enum keyalgo {
     KEYALGO_RSA = 1,
     KEYALGO_ECC = 2,
     KEYALGO_MLKEM = 3,
+    KEYALGO_MLDSA = 4,
 };
 
 /* for keyalgo_param: */
@@ -57,6 +58,10 @@ enum keyalgo {
 #define TPM2_MLKEM_PARMS_512         0x0001
 #define TPM2_MLKEM_PARMS_768         0x0002
 #define TPM2_MLKEM_PARMS_1024        0x0003
+
+#define TPM2_MLDSA_PARMS_44          0x0001
+#define TPM2_MLDSA_PARMS_65          0x0002
+#define TPM2_MLDSA_PARMS_87          0x0003
 
 /* for get_capability */
 #define TPM2_CAP_TPM_PROPERTIES  6
