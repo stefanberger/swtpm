@@ -54,7 +54,8 @@ exp='\{ "type": "swtpm_setup", '\
 '"tpm12-not-need-root", "cmdarg-write-ek-cert-files", "cmdarg-create-config-files", '\
 '"cmdarg-reconfigure-pcr-banks"'\
 '(, "tpm2-rsa-keysize-2048")?(, "tpm2-rsa-keysize-3072")?(, "tpm2-rsa-keysize-4096")?, '\
-'"cmdarg-profile", "cmdarg-profile-remove-disabled" \], '\
+'"cmdarg-profile", "cmdarg-profile-remove-disabled", "cmdarg-ek1keyalgo", '\
+'"cmdarg-ek2keyalgo" \], '\
 '"profiles": \[ [^]]*\], '\
 '"version": "[^"]*" \}'
 if ! [[ ${msg} =~ ${exp} ]]; then
