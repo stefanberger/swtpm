@@ -37,6 +37,9 @@ PARAMETERS=(
 	"--ecc --createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile-fd 100 --cipher aes-256-cbc"
 	"--ecc --createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile-fd 101 --cipher aes-256-cbc"
 	"--ecc --createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram"
+	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p384 --ek2keyalgo ecc_nist_p384"
+	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo rsa3072       --ecc"
+	"--profile-name default-v1 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo ecc_nist_p384"
 )
 
 # Tests for 3072 bit RSA keys to be appended to above array if RSA 3072 keys are supported
@@ -52,6 +55,7 @@ PARAMETERS_3072=(
 	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --keyfile ${TESTDIR}/data/keyfile256bit.txt --cipher aes-256-cbc --rsa-keysize 3072"
 	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc --rsa-keysize 3072"
 	"--createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram --rsa-keysize 3072"
+	"--profile-name default-v1 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048 --ek2keyalgo rsa3072"
 )
 
 # Tests for 4096 bit RSA keys to be appended to above array if RSA 4096 keys are supported
@@ -62,6 +66,7 @@ PARAMETERS_4096=(
 	"--createek --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --rsa-keysize 4096 --profile-name default-v2"
 	"--createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile ${TESTDIR}/data/pwdfile.txt --cipher aes-256-cbc --rsa-keysize 4096 --profile-name default-v2"
 	"--createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram --rsa-keysize 4096 --profile-name default-v2"
+	"--profile-name default-v2 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048 --ek2keyalgo rsa4096"
 )
 
 # Open read-only file descriptors referenced in test cases
