@@ -1346,7 +1346,7 @@ static int print_capabilities(const char **swtpm_prg_l, gboolean swtpm_has_tpm12
            ", \"cmdarg-reconfigure-pcr-banks\""
            "%s"
            ", \"cmdarg-profile\", \"cmdarg-profile-remove-disabled\""
-           ""
+           ", \"cmdarg-ek1keyalgo\", \"cmdarg-ek2keyalgo\""
            " ], "
            "\"profiles\": [%s], "
            "\"version\": \"" VERSION "\" "

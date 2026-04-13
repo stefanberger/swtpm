@@ -307,7 +307,9 @@ The output may contain the following:
         "tpm2-rsa-keysize-3072",
         "tpm2-rsa-keysize-4096",
         "cmdarg-profile",
-        "cmdarg-profile-remove-disabled"
+        "cmdarg-profile-remove-disabled",
+        "cmdarg-ek1keyalgo",
+        "cmdarg-ek2keyalgo"
       ],
       "version": "0.7.0"
     }
@@ -366,6 +368,14 @@ supported.
 =item B<cmdarg-profile-remove-disabled> (since v0.10)
 
 The I<--profile-remove-disabled> option is supported.
+
+=item B<cmdarg-ek1keyalgo> (since v0.11)
+
+The I<--ek1keyalgo> option is supported.
+
+=item B<cmdarg-ek2keyalgo> (since v0.11)
+
+The I<--ek2keyalgo> option is supported.
 
 =back
 
