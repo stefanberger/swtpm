@@ -151,13 +151,13 @@ change_process_owner(const char *user)
 
     if (setgid(gid) < 0) {
         logprintf(STDERR_FILENO,
-                  "Error: setgid(%d) failed.\n",
+                  "Error: setgid(%ld) failed.\n",
                   gid);
         return -11;
     }
     if (setuid(uid) < 0) {
         logprintf(STDERR_FILENO,
-                  "Error: setuid(%d) failed.\n",
+                  "Error: setuid(%ld) failed.\n",
                   uid);
         return -12;
     }

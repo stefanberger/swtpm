@@ -49,6 +49,10 @@
 #include <grp.h>
 
 #include "options.h"
+#include "compiler_dependencies.h"
+
+static void option_error_set(char **error, const char *format, ...)
+    SWTPM_ATTRIBUTE_FORMAT(2, 3);
 
 static void
 option_error_set(char **error, const char *format, ...)

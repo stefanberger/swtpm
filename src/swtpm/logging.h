@@ -41,14 +41,17 @@
 #include <unistd.h> /* STD???_FILENO */
 #include <stdbool.h>
 
+#include "compiler_dependencies.h"
+
 #define SUPPRESS_LOGGING       -1 /* suppress all logging */
 #define SUPPRESS_INFO_LOGGING  -2 /* suppress only info and warning messages */
 
 int log_init(const char *filename, bool truncate);
 int log_init_fd(int fd);
 int log_set_level(unsigned int level);
-ssize_t logprintf(int fd, const char *format, ...);
-ssize_t logprintfA(int fd, unsigned int indent, const char *format, ...);
+ssize_t logprintf(int fd, const char *format, ...) SWTPM_ATTRIBUTE_FORMAT(2, 3);
+ssize_t logprintfA(int fd, unsigned int indent, const char *format, ...)
+    SWTPM_ATTRIBUTE_FORMAT(3, 4);
 int log_check_string(const char *);
 int log_set_prefix(const char *);
 void log_global_free(void);
