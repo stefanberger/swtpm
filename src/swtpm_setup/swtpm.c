@@ -308,12 +308,12 @@ static int transfer(struct swtpm *self, void *buffer, size_t buffer_len,
     if (!use_ctrl) {
         if ((size_t)resplen < sizeof(struct tpm_resp_header)) {
             logerr(self->logfile,
-                   "Response for %s has only %d bytes.\n", cmdname, resplen);
+                   "Response for %s has only %zd bytes.\n", cmdname, resplen);
             return 1;
         }
     } else if ((size_t)resplen < 4) {
         logerr(self->logfile,
-               "Response for %s has only %d bytes.\n", cmdname, resplen);
+               "Response for %s has only %zd bytes.\n", cmdname, resplen);
         return 1;
     }
 
@@ -1056,7 +1056,7 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     if (ektemplate) {
         if (*ektemplate_len < (size_t)public_len) {
             logerr(self->logfile, "Internal error: Need %zu bytes for ektemplate (ecc) but got only %zu\n",
-                   public_len, ektemplate_len);
+                   public_len, *ektemplate_len);
             return 1;
         }
         memcpy(ektemplate, public, public_len);
@@ -1868,7 +1868,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
                                       }, (size_t)12,
                                       NULL);
     if (tpm_rsa_key_parms_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         goto error;
     }
 
@@ -1881,7 +1881,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
                                   tpm_rsa_key_parms, tpm_rsa_key_parms_len,
                                   NULL);
     if (tpm_key_parms_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         goto error;
     }
 
@@ -1894,7 +1894,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
                               (unsigned char[]){AS4BE(0), AS4BE(0), AS4BE(0)}, (size_t)12,
                               NULL);
     if (tpm_key12_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         goto error;
     }
 
@@ -1907,7 +1907,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
                      tpm_key12, tpm_key12_len,
                      NULL);
     if (req_len < 0) {
-        logerr(self->logfile, "Internal error in %s: req is too small\n");
+        logerr(self->logfile, "Internal error in %s: req is too small\n", __func__);
         goto error;
     }
     SHA1(&req[6], req_len - 6, in_param_digest);
@@ -1918,7 +1918,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
                                          &continue_auth_session, (size_t)1,
                                          NULL);
     if (in_auth_setup_params_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         goto error;
     }
 
@@ -1927,7 +1927,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
                              in_auth_setup_params, in_auth_setup_params_len,
                              NULL);
     if (macinput_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         goto error;
     }
 
@@ -1941,7 +1941,7 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
                  owner_auth, owner_auth_len,
                  NULL);
     if (len < 0) {
-        logerr(self->logfile, "Internal error in %s: req is too small\n");
+        logerr(self->logfile, "Internal error in %s: req is too small\n", __func__);
         goto error;
     }
     req_len += len;
@@ -1994,7 +1994,7 @@ static int swtpm_tpm12_nv_define_space(struct swtpm *self, uint32_t nvindex,
                                    zeroes, sizeof(zeroes),
                                    NULL);
     if (pcr_info_short_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         return 1;
     }
 
@@ -2010,7 +2010,7 @@ static int swtpm_tpm12_nv_define_space(struct swtpm *self, uint32_t nvindex,
                                    }, (size_t)13,
                                    NULL);
     if (nv_data_public_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         return 1;
     }
 
@@ -2020,7 +2020,7 @@ static int swtpm_tpm12_nv_define_space(struct swtpm *self, uint32_t nvindex,
                         zeroes, sizeof(zeroes),
                         NULL);
     if (req_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         return 1;
     }
 
@@ -2043,7 +2043,7 @@ static int swtpm_tpm12_nv_write_value(struct swtpm *self, uint32_t nvindex,
                         data, data_len,
                         NULL);
     if (req_len < 0) {
-        logerr(self->logfile, "Internal error in %s: out of memory\n");
+        logerr(self->logfile, "Internal error in %s: out of memory\n", __func__);
         return 1;
     }
 

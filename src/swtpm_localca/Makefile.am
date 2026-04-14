@@ -15,6 +15,7 @@ noinst_HEADERS = \
 	swtpm_localca_utils.h
 
 swtpm_localca_CFLAGS = \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/src/utils \
 	-I$(top_builddir)/src/utils \
 	$(MY_CFLAGS) \

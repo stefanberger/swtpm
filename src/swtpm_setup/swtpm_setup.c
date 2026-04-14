@@ -1302,7 +1302,7 @@ static int change_process_owner(const char *user)
     }
 
     if (setuid(uid) != 0) {
-        logerr(gl_LOGFILE, "Error: setuid(%d) failed: %s\n", uid, strerror(errno));
+        logerr(gl_LOGFILE, "Error: setuid(%lld) failed: %s\n", uid, strerror(errno));
         goto error;
     }
 
