@@ -1076,7 +1076,6 @@ static EVP_PKEY *get_key_pkcs11(OSSL_PROVIDER *provider, const char *pkcs11uri)
         OSSL_STORE_INFO_free(info);
         if (sigkey)
             break;
-        info = OSSL_STORE_load(store);
     }
     OSSL_STORE_close(store);
 
