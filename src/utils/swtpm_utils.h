@@ -14,6 +14,8 @@
 
 #include <glib.h>
 
+#include "compiler_dependencies.h"
+
 #define min(X,Y) ((X) < (Y) ? (X) : (Y))
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -32,8 +34,8 @@
 extern gchar *gl_LOGFILE;
 
 void append_to_file(const char *pathname, const char *str);
-void logit(const char *logfile, const char *fmt, ...);
-void logerr(const char *logfile, const char *fmt, ...);
+void logit(const char *logfile, const char *fmt, ...) SWTPM_ATTRIBUTE_FORMAT(2, 3);
+void logerr(const char *logfile, const char *fmt, ...) SWTPM_ATTRIBUTE_FORMAT(2, 3);
 
 char *pathjoin(char *buffer, size_t bufferlen, const char *p1, const char *p2, const char *p3);
 

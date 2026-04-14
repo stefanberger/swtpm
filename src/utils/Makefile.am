@@ -14,6 +14,7 @@ noinst_LTLIBRARIES = \
 	libswtpm_utils.la
 
 libswtpm_utils_la_CFLAGS = \
+	-I$(top_srcdir)/include \
 	$(MY_CFLAGS) \
 	$(CFLAGS) \
 	$(HARDENING_CFLAGS) \

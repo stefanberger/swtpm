@@ -541,7 +541,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     success = spawn_sync(NULL, cmd, swtpm_cert_env, G_SPAWN_DEFAULT, NULL, NULL,
                          &standard_output, &standard_error, &exit_status, &error);
     if (!success) {
-        logerr(gl_LOGFILE, "Could not run swtpm_cert: %s\n", error);
+        logerr(gl_LOGFILE, "Could not run swtpm_cert: %s\n", error->message);
         g_error_free(error);
         goto error;
     }

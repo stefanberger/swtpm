@@ -375,7 +375,7 @@ int write_to_tempfile(gchar **filename, const unsigned char *data, size_t data_l
 
     n = lseek(fd, 0, SEEK_SET);
     if (n < 0) {
-        logerr(gl_LOGFILE, "Could not seek(0) on file '%s': %s\n", filename, strerror(errno));
+        logerr(gl_LOGFILE, "Could not seek(0) on file '%s': %s\n", *filename, strerror(errno));
         goto error;
     }
     return fd;
