@@ -1602,7 +1602,7 @@ main(int argc, char *argv[])
 
         token = strtok(s, ",");
         do {
-            while (isspace(*token))
+            while (isspace((int)*token))
                 token++;
             equal = strchr(token, '=');
             if (equal) {
