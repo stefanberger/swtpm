@@ -357,7 +357,7 @@ error_unlink:
 }
 
 static int read_certificate_file(const gchar *certsdir, const gchar *filename,
-                                 gchar **filecontent, size_t *filecontent_len,
+                                 gchar **filecontent, gsize *filecontent_len,
                                  gchar **certfile)
 {
     *certfile = g_strjoin(G_DIR_SEPARATOR_S, certsdir, filename, NULL);
@@ -378,7 +378,7 @@ static int tpm2_persist_certificate(unsigned long flags, const gchar *certsdir,
 {
     g_autofree gchar *filecontent = NULL;
     g_autofree gchar *certfile = NULL;
-    size_t filecontent_len;
+    gsize filecontent_len;
     int ret;
 
     ret = read_certificate_file(certsdir, ftc->filename,
