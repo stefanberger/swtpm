@@ -48,6 +48,10 @@
 
 #include "swtpm_debug.h"
 #include "logging.h"
+#include "compiler_dependencies.h"
+
+static int SWTPM_AppendPrintf(char **buffer, const char *fmt, ...)
+    SWTPM_ATTRIBUTE_FORMAT(2, 3);
 
 /*
  * SWTPM_AppendPrintf() print and append to buffer
@@ -110,7 +114,7 @@ void SWTPM_PrintAll(const char *string, const char *indentation,
             if (i && !( i % 16 )) {
                 SWTPM_AppendPrintf(&linebuffer, "\n");
 
-                logprintfA(STDERR_FILENO, 0, linebuffer);
+                logprintfA(STDERR_FILENO, 0, "%s", linebuffer);
 
                 free(linebuffer);
                 linebuffer = NULL;

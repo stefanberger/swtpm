@@ -93,7 +93,8 @@ tlv_data_append(unsigned char **buffer, uint32_t *buffer_len,
 
     tmp = realloc(*buffer, (size_t)totlen);
     if (!tmp) {
-         logprintf(STDERR_FILENO, "Could not allocate %u bytes.\n", totlen);
+         logprintf(STDERR_FILENO, "Could not allocate %zu bytes.\n",
+                   (size_t)totlen);
          return TPM_FAIL;
     }
     *buffer = tmp;
