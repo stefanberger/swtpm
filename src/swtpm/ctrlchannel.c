@@ -65,6 +65,31 @@
 
 /* local variables */
 
+/*
+ * Internally used data structure that allows casting of struct input's body
+ * (which serves as input buffer) to ptm_setstate_priv. This struct has a
+ * sufficiently large 'data' field to receive all the data that the client
+ * may have started 'streaming' immediately.
+ */
+struct ptm_setstate_priv {
+    union {
+        struct {
+            uint32_t state_flags; /* may be PTM_STATE_FLAG_ENCRYPTED */
+            uint32_t type;        /* which blob to set */
+            uint32_t length;      /* length of the data;
+                                     use 0 on the first packet to
+                                     transfer using write() */
+            uint8_t data[4096 - 8];
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+        } resp; /* reponse */
+    } u;
+};
+typedef struct ptm_setstate_priv ptm_setstate_priv;
+_Static_assert(sizeof(ptm_hdata) == sizeof(ptm_setstate_priv),
+               "ptm_setstate_priv must have same size as ptm_hdata");
+
 struct ctrlchannel {
     int fd;
     int clientfd;
@@ -205,7 +230,7 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd,
     return fd;
 }
 
-static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
+static int ctrlchannel_receive_state(ptm_setstate_priv *pss, ssize_t n, int fd)
 {
     uint32_t blobtype = be32toh(pss->u.req.type);
     uint32_t tpm_number = 0;
@@ -233,9 +258,13 @@ static int ctrlchannel_receive_state(ptm_setstate *pss, ssize_t n, int fd)
 
     n -= offsetof(ptm_setstate, u.req.data);
     /* n holds the number of available data bytes */
+    if (n < 0 || (size_t)n > sizeof(pss->u.req.data)) {
+        res = TPM_BAD_PARAMETER;
+        goto err_send_resp;
+    }
 
     while (true) {
-        if (n < 0 || (uint32_t)n > remain) {
+        if ((uint32_t)n > remain) {
             res = TPM_BAD_PARAMETER;
             goto err_send_resp;
         }
@@ -334,7 +363,7 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
     ptm_reset_est *pre;
     ptm_hdata *phd;
     ptm_getstate *pgs;
-    ptm_setstate *pss;
+    ptm_setstate_priv *pss;
     ptm_loc *pl;
     const void *msg_iov = msg->msg_iov;
 
@@ -412,7 +441,7 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
             needed = offsetof(struct input, body) +
                      offsetof(struct ptm_setstate, u.req.data);
             if (recvd >= needed) {
-                pss = (struct ptm_setstate *)&input->body;
+                pss = (struct ptm_setstate_priv *)&input->body;
                 needed += be32toh(pss->u.req.length);
             }
             break;
@@ -529,7 +558,7 @@ int ctrlchannel_process_fd(int fd,
     ptm_reset_est *re;
     ptm_hdata *data;
     ptm_getstate *pgs;
-    ptm_setstate *pss;
+    ptm_setstate_priv *pss;
     ptm_loc *pl;
     ptm_setbuffersize *psbs;
     ptm_getinfo *pgi, _pgi;
@@ -799,8 +828,8 @@ int ctrlchannel_process_fd(int fd,
         if ((*terminate = !mainloop_ensure_locked_storage(mlp)))
             goto err_io;
 
-        pss = (ptm_setstate *)input.body;
-        if (n < (ssize_t)offsetof(ptm_setstate, u.req.data)) /* rw */
+        pss = (ptm_setstate_priv *)input.body;
+        if (n < (ssize_t)offsetof(ptm_setstate_priv, u.req.data)) /* rw */
             goto err_bad_input;
 
         return ctrlchannel_receive_state(pss, n, fd);
