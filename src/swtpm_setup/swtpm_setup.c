@@ -1435,7 +1435,7 @@ int main(int argc, char *argv[])
     gchar **swtpm_prg_l = NULL;
     gchar **tmp_l = NULL;
     size_t i, n;
-    struct stat statbuf;
+    int logfd;
     const struct passwd *curr_user;
     struct group *curr_grp;
     char *endptr;
@@ -1662,6 +1662,15 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (gl_LOGFILE != NULL) {
+        logfd = open(gl_LOGFILE, O_WRONLY|O_APPEND|O_CREAT|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP);
+        if (logfd < 0) {
+            fprintf(stderr, "Cannot open logfile %s: %s\n", gl_LOGFILE, strerror(errno));
+            goto error;
+        }
+        close(logfd);
+    }
+
     if (swtpm_prg == NULL) {
         logerr(gl_LOGFILE,
                "Default TPM 'swtpm' could not be found and was not provided using --tpm.\n");
@@ -1719,21 +1728,6 @@ int main(int argc, char *argv[])
         ownerpass = g_strdup(DEFAULT_OWNER_PASSWORD);
     if (!got_srkpass)
         srkpass = g_strdup(DEFAULT_SRK_PASSWORD);
-
-    if (gl_LOGFILE != NULL) {
-        FILE *tmpfile;
-        if (stat(gl_LOGFILE, &statbuf) == 0 &&
-            (statbuf.st_mode & S_IFMT) == S_IFLNK) {
-            fprintf(stderr, "Logfile must not be a symlink.\n");
-            goto error;
-        }
-        tmpfile = fopen(gl_LOGFILE, "a");
-        if (tmpfile == NULL) {
-            fprintf(stderr, "Cannot write to logfile %s.\n", gl_LOGFILE);
-            goto error;
-        }
-        fclose(tmpfile);
-    }
 
     // Check tpm_state_path directory and access rights
     if (tpm_state_path == NULL) {
