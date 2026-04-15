@@ -1170,7 +1170,7 @@ main(int argc, char *argv[])
     int err;
     int cert_file_fd;
     const char *subject = NULL;
-    int days = 365;
+    long days = 365;
     char *sigkeypass = NULL;
     char *parentkeypass = NULL;
     unsigned char ser_number[21];
@@ -1192,6 +1192,7 @@ main(int argc, char *argv[])
     long int spec_revision = ~0;
     int flags = 0;
     bool is_ecc = false;
+    char *endptr;
     static struct option long_options[] = {
         {"pubkey", required_argument, NULL, 'p'},
         {"modulus", required_argument, NULL, 'm'},
@@ -1268,7 +1269,13 @@ main(int argc, char *argv[])
             ecc_curveid = optarg;
             break;
         case 'e': /* --exponent */
-            exponent = strtol(optarg, NULL, 0);
+            errno = 0;
+            exponent = strtol(optarg, &endptr, 0);
+            if (errno || endptr == optarg || *endptr != '\0') {
+                fprintf(stderr, "Could not parse the exponent '%s'.\n",
+                        optarg);
+                goto cleanup;
+            }
             if (exponent == 0) {
                 fprintf(stderr, "Exponent is wrong and cannot be 0.\n");
                 goto cleanup;
@@ -1319,7 +1326,18 @@ main(int argc, char *argv[])
             subject = optarg;
             break;
         case 'd': /* --days */
-            days = atoi(optarg);
+            errno = 0;
+            days = strtol(optarg, &endptr, 0);
+            if (errno || endptr == optarg || *endptr != '\0') {
+                fprintf(stderr, "Could not parse the number of days '%s'.\n",
+                        optarg);
+                goto cleanup;
+            }
+            if (days > INT_MAX) {
+                fprintf(stderr, "Days value of '%s' is outside valid range.\n",
+                        optarg);
+                goto cleanup;
+            }
             break;
         case 'r': /* --serial */
             if (gmp_sscanf(optarg, "%Zd", serial) != 1) {
@@ -1360,14 +1378,26 @@ main(int argc, char *argv[])
             spec_family = optarg;
             break;
         case '8': /* --tpm-spec-level */
-            spec_level = strtol(optarg, NULL, 0);
+            errno = 0;
+            spec_level = strtol(optarg, &endptr, 0);
+            if (errno || endptr == optarg || *endptr != '\0') {
+                fprintf(stderr, "Could not parse the spec level '%s'.\n",
+                        optarg);
+                goto cleanup;
+            }
             if (spec_level < 0) {
                 fprintf(stderr, "--tpm-spec-level must pass a positive number.\n");
                 goto cleanup;
             }
             break;
         case '9': /* --tpm-spec-revision */
-            spec_revision = strtol(optarg, NULL, 0);
+            errno = 0;
+            spec_revision = strtol(optarg, &endptr, 0);
+            if (errno || endptr == optarg || *endptr != '\0') {
+                fprintf(stderr, "Could not parse the spec revision '%s'.\n",
+                        optarg);
+                goto cleanup;
+            }
             if (spec_revision < 0) {
                 fprintf(stderr, "--tpm-spec-revision must pass a positive number.\n");
                 goto cleanup;
