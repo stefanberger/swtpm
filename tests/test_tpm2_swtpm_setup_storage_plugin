@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+#
+# SWTPM_TEST_STORAGE_PLUGIN: set to 0 to skip this test; otherwise it runs.
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+SWTPM_TEST_STORAGE_PLUGIN_DIR="$(dirname "$0")/data/.libs"
+
+source "${TESTDIR}/common"
+skip_test_no_tpm20 "${SWTPM_EXE}"
+skip_no_storage_plugin_support "${SWTPM_SETUP}"
+
+function cleanup_workdir()
+{
+	rm -rf "${workdir}"
+}
+
+SWTPM_LD_PRELOAD="${SWTPM_TEST_STORAGE_PLUGIN_DIR}/storage_plugin_dlopen_shim.so"
+if ! is_built_with_asan "${SWTPM_SETUP}" && [ -n "${SWTPM_TEST_UNINSTALLED}" ]; then
+	"${TESTDIR}/storage_plugin_common" build_dlopen_shim_so "${SWTPM_TEST_STORAGE_PLUGIN_DIR}"
+fi
+
+# Test 1: force dir plugin fallback.
+
+echo "Test 1: forcing dir backend fallback"
+
+if is_built_with_asan "${SWTPM_SETUP}"; then
+	# The dlopen shim for this fallback path uses LD_PRELOAD, which conflicts with
+	# ASan runtime ordering and causes swtpm_setup to exit before the test runs.
+	echo "Test 1 skipped (swtpm_setup built with ASAN)"
+else
+	workdir="$(mktemp -d)" || exit 1
+
+	if ! SWTPM_TEST_FAIL_PLUGIN_NAME="swtpm_storage_plugin_dir.so" \
+	    LD_PRELOAD="${SWTPM_LD_PRELOAD}" \
+		$SWTPM_SETUP \
+		--tpm2 \
+		--overwrite \
+		--tpm-state "dir://${workdir}" \
+		--config "${SWTPM_SETUP_CONF}" \
+		--logfile "${workdir}/logfile" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+	then
+		echo "Test 1 failed: Error: Could not run $SWTPM_SETUP."
+		echo "Setup Logfile:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
+
+	if ! grep -q "Failed to load plugin " "${workdir}/logfile" 2>/dev/null; then
+		echo "Test 1 failed: fallback message missing"
+		echo "Setup Logfile:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
+
+	echo "Test 1 passed"
+	cleanup_workdir
+fi
+
+# Test 2: force file plugin fallback.
+
+echo "Test 2: forcing file backend fallback"
+
+if is_built_with_asan "${SWTPM_SETUP}"; then
+	echo "Test 2 skipped (swtpm_setup built with ASAN)"
+else
+	workdir="$(mktemp -d)" || exit 1
+	statefile="${workdir}/tpm.state"
+
+	if ! SWTPM_TEST_FAIL_PLUGIN_NAME="swtpm_storage_plugin_file.so" \
+		LD_PRELOAD="${SWTPM_LD_PRELOAD}" \
+		$SWTPM_SETUP \
+		--tpm2 \
+		--overwrite \
+		--tpm-state "file://${statefile}" \
+		--config "${SWTPM_SETUP_CONF}" \
+		--logfile "${workdir}/logfile" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+	then
+		echo "Test 2 failed: Error: Could not run $SWTPM_SETUP."
+		echo "Setup Logfile:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
+
+	if ! grep -q "Failed to load plugin " "${workdir}/logfile" 2>/dev/null; then
+		echo "Test 2 failed: fallback message missing"
+		echo "Setup Logfile:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
+
+	echo "Test 2 passed"
+	cleanup_workdir
+fi
+
+# Test 3: dir backend — storage plugin loads successfully.
+
+echo "Test 3: dir backend loads storage plugin"
+
+workdir="$(mktemp -d)" || exit 1
+if ! $SWTPM_SETUP \
+	--tpm2 \
+	--overwrite \
+	--tpm-state "dir://${workdir}" \
+	--config "${SWTPM_SETUP_CONF}" \
+	--logfile "${workdir}/logfile" \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+then
+	echo "Test 3 failed: Error: Could not run $SWTPM_SETUP."
+	echo "Setup Logfile:"
+	cat "${workdir}/logfile"
+	exit 1
+fi
+
+if ! grep -q "Loaded storage plugin" "${workdir}/logfile" 2>/dev/null; then
+	echo "Test 3 failed: expected dir storage plugin load message"
+	echo "Setup Logfile:"
+	cat "${workdir}/logfile"
+	exit 1
+fi
+
+echo "Test 3 passed"
+cleanup_workdir
+
+# Test 4: file backend — storage plugin loads successfully.
+
+echo "Test 4: file backend loads storage plugin"
+
+workdir="$(mktemp -d)" || exit 1
+statefile="${workdir}/tpm.state"
+
+if ! $SWTPM_SETUP \
+	--tpm2 \
+	--overwrite \
+	--tpm-state "file://${statefile}" \
+	--config "${SWTPM_SETUP_CONF}" \
+	--logfile "${workdir}/logfile" \
+	--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}";
+then
+	echo "Test 4 failed: Error: Could not run $SWTPM_SETUP."
+	echo "Setup Logfile:"
+	cat "${workdir}/logfile"
+	exit 1
+fi
+
+if ! grep -q "Loaded storage plugin" "${workdir}/logfile" 2>/dev/null; then
+	echo "Test 4 failed: expected file storage plugin load message"
+	echo "Setup Logfile:"
+	cat "${workdir}/logfile"
+	exit 1
+fi
+
+echo "Test 4 passed"
+cleanup_workdir
+
+exit 0

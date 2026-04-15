@@ -11,6 +11,10 @@ if [ -n "${SWTPM_TEST_UNINSTALLED}" ]; then
     SWTPM_CERT=${SWTPM_CERT:-${ROOT}/src/swtpm_cert/swtpm_cert}
     SWTPM_LOCALCA=${SWTPM_LOCALCA:-${ROOT}/src/swtpm_localca/swtpm_localca}
     SWTPM_SETUP_CONF="${ROOT}/samples/swtpm_setup.conf"
+
+	if "${SWTPM_SETUP}" --help | grep -q "plugin://"; then
+		export LD_LIBRARY_PATH="${ROOT}/src/swtpm_storage_plugin/.libs:${LD_LIBRARY_PATH}"
+	fi
 else
     SWTPM_EXE=${SWTPM_EXE:-$(type -P swtpm)}
     SWTPM_IOCTL=${SWTPM_IOCTL:-$(type -P swtpm_ioctl)}
@@ -963,22 +967,37 @@ function skip_test_no_chardev()
 }
 
 # Check whether swtpm links with ASAN
+function is_built_with_asan()
+{
+	local swtpm_exe="$1"
+	local act_exe
+
+	if ! file "${swtpm_exe}" | grep -q ELF; then
+		act_exe="$(dirname "${swtpm_exe}")"/.libs/"$(basename "${swtpm_exe}")"
+	else
+		act_exe="${swtpm_exe}"
+	fi
+
+	if nm "${act_exe}" | grep -q "__asan_"; then
+		return 0
+	fi
+
+	return 1
+}
+
 function skip_test_linked_with_asan()
 {
 	local swtpm_exe="$1"
-
 	local act_exe
 
-	if [[ "$(uname -s)" =~ Linux ]]; then
+	if is_built_with_asan "${swtpm_exe}"; then
 		if ! file "${swtpm_exe}" | grep -q ELF; then
 			act_exe="$(dirname "${swtpm_exe}")"/.libs/"$(basename "${swtpm_exe}")"
 		else
 			act_exe="${swtpm_exe}"
 		fi
-		if nm "${act_exe}" | grep -q "__asan_"; then
-			echo "${act_exe} is built with ASAN"
-			exit 77
-		fi
+		echo "${act_exe} is built with ASAN"
+		exit 77
 	fi
 }
 
@@ -1003,13 +1022,14 @@ function check_swtpm_no_storage_lock()
 
 	if [ -d "/proc/${pid}/fd" ]; then
 		# shellcheck disable=SC2010
-		if ls -l "/proc/${pid}/fd" | grep -q -E "\.lock\$"; then
+		# Match directory-backend lockfile only ({tpmstate}/.lock), not e.g. .rpm.lock
+		if ls -l "/proc/${pid}/fd" | grep -q -E '/\.lock$'; then
 			echo "Error: swtpm must not have storage locked"
 			ls -l "/proc/${pid}/fd"
 			exit 1
 		fi
 	elif [ -n "$(type -P lsof)" ]; then
-		if lsof -p "${pid}" | grep -q -e "\.lock\$"; then
+		if lsof -p "${pid}" | grep -q -E '/\.lock$'; then
 			echo "Error: swtpm must not have storage locked"
 			lsof -p "${pid}"
 			exit 1
@@ -1027,13 +1047,13 @@ function check_swtpm_storage_locked()
 
 	if [ -d "/proc/${pid}/fd" ]; then
 		# shellcheck disable=SC2010
-		if ! ls -l "/proc/${pid}/fd" | grep -q -E "\.lock\$"; then
+		if ! ls -l "/proc/${pid}/fd" | grep -q -E '/\.lock$'; then
 			echo "Error: swtpm must have storage locked"
 			ls -l "/proc/${pid}/fd"
 			exit 1
 		fi
 	elif [ -n "$(type -P lsof)" ]; then
-		if ! lsof -p "${pid}" | grep -q -e "\.lock\$"; then
+		if ! lsof -p "${pid}" | grep -q -E '/\.lock$'; then
 			echo "Error: swtpm must have storage locked"
 			lsof -p "${pid}"
 			exit 1
@@ -1066,4 +1086,28 @@ function get_centos_version()
 {
 	sed -n 's/CentOS Stream release \([0-9]*\).*/\1/p' /etc/redhat-release |
 		gawk '{print $0*100}'
+}
+
+function has_storage_plugin_support()
+{
+	local swtpm_setup_exec="$1"
+
+	local tmp
+
+	tmp=$(${swtpm_setup_exec} --help | grep -E "plugin://")
+	[ -n "${tmp}" ] && return 0
+	return 1
+}
+
+
+function skip_no_storage_plugin_support()
+{
+	local swtpm_setup_exec="$1"
+
+	local tmp
+
+	if ! has_storage_plugin_support "${swtpm_setup_exec}"; then
+		echo "Skipping: the storage plugin is disabled in this build"
+		exit 77
+	fi
 }

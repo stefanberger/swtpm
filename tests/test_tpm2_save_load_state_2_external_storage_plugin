@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+source "${TESTDIR}/common"
+skip_no_storage_plugin_support "${SWTPM_SETUP}"
+
+SWTPM_TEST_STORAGE_PLUGIN_DIR="$(dirname "$0")/data/.libs"
+
+workdir="$(mktemp -d)" || exit 1
+plugin_so="${SWTPM_TEST_STORAGE_PLUGIN_DIR}/swtpm_storage_plugin_dir_wrapper.so"
+if [ -n "${SWTPM_TEST_UNINSTALLED}" ]; then
+	"${TESTDIR}/storage_plugin_common" build_dir_wrapper_plugin_so "${SWTPM_TEST_STORAGE_PLUGIN_DIR}"
+fi
+
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	rm -rf "${workdir}"
+}
+
+if [ ! -f "${plugin_so}" ]; then
+	echo "Could not find storage plugin at ${plugin_so}. Build tests first."
+	exit 77
+fi
+
+export SWTPM_TEST_STORAGE_PLUGIN_SO_PATH="${plugin_so}"
+export TPM_COMMAND_PORT=65463
+
+"$(dirname "$0")/test_tpm2_save_load_state_2"

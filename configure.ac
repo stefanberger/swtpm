@@ -101,10 +101,12 @@ SYSCONFDIR=`eval echo $sysconfdir`
 DATAROOTDIR=`eval echo $datarootdir`
 LOCALSTATEDIR=`eval echo $localstatedir`
 BINDIR=`eval echo $bindir`
+LIBDIR=`eval echo $libdir`
 AC_SUBST([SYSCONFDIR])
 AC_SUBST([DATAROOTDIR])
 AC_SUBST([LOCALSTATEDIR])
 AC_SUBST([BINDIR])
+AC_SUBST([LIBDIR])
 
 cryptolib=openssl
 
@@ -466,6 +468,45 @@ AS_IF([test "x$with_seccomp" != "xno"],
     ]
 )
 
+dnl Storage plugins are not supported on Cygwin or Darwin.
+storage_plugin_supported_on_host=yes
+AS_CASE([$host_os],
+    [cygwin*], [storage_plugin_supported_on_host=no],
+    [darwin*], [storage_plugin_supported_on_host=no])
+
+AC_ARG_WITH([storage-plugin],
+    [AS_HELP_STRING([--with-storage-plugin],
+        [build storage plugin modules for dir/file backends (default: yes where supported)])],
+    [],
+    [with_storage_plugin=])
+
+AS_IF([test "x$storage_plugin_supported_on_host" = "xno"], [
+        AS_IF([test "x$with_storage_plugin" = "xyes"],
+              [AC_MSG_ERROR([storage plugin is not supported on this host ($host_os)])])
+        with_storage_plugin=no
+        LIBDL_LIBS=""
+    ], [
+        AS_IF([test "x$with_storage_plugin" != "xno"], [
+            AC_CHECK_HEADERS([dlfcn.h], [have_dlfcn_h=yes], [have_dlfcn_h=no])
+            AC_SEARCH_LIBS([dlopen], [dl], [LIBDL_LIBS="$ac_cv_search_dlopen"], [LIBDL_LIBS=""])
+            AS_IF([test "x$LIBDL_LIBS" = "xnone required"], [LIBDL_LIBS=""])
+
+            AS_IF([test "x$have_dlfcn_h" = "xyes" && test "x$ac_cv_search_dlopen" != "xno"], [
+                with_storage_plugin=yes
+                AC_DEFINE_UNQUOTED([WITH_STORAGE_PLUGIN], 1,
+                    [whether to build with storage plugin])
+            ], [
+                AS_IF([test "x$with_storage_plugin" = "xyes"],
+                      [AC_MSG_ERROR([storage plugin requested but dlfcn.h/dlopen are unavailable])],
+                      [with_storage_plugin=no])
+            ])
+        ], [
+            with_storage_plugin=no
+            LIBDL_LIBS=""
+        ])
+    ])
+AM_CONDITIONAL([WITH_STORAGE_PLUGIN], [test "x$with_storage_plugin" = "xyes"])
+
 MY_CFLAGS="$CFLAGS"
 MY_LDFLAGS="$LDFLAGS"
 AC_SUBST([MY_CFLAGS])
@@ -489,6 +530,7 @@ AC_CONFIG_FILES([Makefile                   \
 		src/swtpm_cert/Makefile     \
 		src/swtpm_ioctl/Makefile    \
 		src/swtpm_localca/Makefile  \
+		src/swtpm_storage_plugin/Makefile \
 		src/swtpm_setup/Makefile    \
 		src/swtpm-sysusers.conf     \
 		src/swtpm-tmpfiles.conf     \
@@ -506,13 +548,14 @@ AC_CONFIG_FILES([samples/swtpm-localca],
 AC_OUTPUT
 
 echo
-printf "with_gnutls     : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
-printf "with_selinux    : %5s  (no = SELinux policy extensions will NOT be built)\n" $with_selinux
-printf "with_cuse       : %5s  (no = no CUSE interface)\n" $with_cuse
-printf "with_chardev    : %5s  (no = no chardev interface)\n" $with_chardev
-printf "with_vtpm_proxy : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
-printf "with_seccomp    : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
-printf "enable_tests    : %5s  (no = no tests will run)\n" $enable_tests
+printf "with_gnutls         : %5s  (no = swtpm_cert will NOT be built)\n" $with_gnutls
+printf "with_selinux        : %5s  (no = SELinux policy extensions will NOT be built)\n" $with_selinux
+printf "with_cuse           : %5s  (no = no CUSE interface)\n" $with_cuse
+printf "with_chardev        : %5s  (no = no chardev interface)\n" $with_chardev
+printf "with_vtpm_proxy     : %5s  (no = no vtpm proxy support; Linux only)\n" $with_vtpm_proxy
+printf "with_seccomp        : %5s  (no = no seccomp profile; Linux only)\n" $with_seccomp
+printf "with_storage_plugin : %5s  (yes = storage plugin modules for dir/file backends)\n" $with_storage_plugin
+printf "enable_tests        : %5s  (no = no tests will run)\n" $enable_tests
 printf "\n"
 printf "active PCR banks      : %s\n" $DEFAULT_PCR_BANKS
 printf "TPM 2 profile support : yes\n"
