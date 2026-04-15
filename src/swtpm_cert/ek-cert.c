@@ -351,12 +351,13 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
         exp_len = 528/8;
     } else {
         fprintf(stderr, "Unsupported ECC curve id: %s\n", ecc_curveid);
-        return NULL;
+        goto cleanup;
     }
     if (ecc_x_len > exp_len || ecc_y_len > exp_len) {
         fprintf(stderr,
                 "EC X or Y parameter exceeds expected size of %zu bytes\n",
                 exp_len);
+        goto cleanup;
     }
     buffer = g_malloc0(1 + 2 * exp_len);
     buffer[0] = 0x4;
