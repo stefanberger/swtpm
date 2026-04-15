@@ -650,6 +650,7 @@ int main(int argc, char *argv[])
     gchar **config_file_lines = NULL;
     gchar **swtpm_cert_env = NULL;
     const struct passwd *curr_user;
+    int logfd;
     struct stat statbuf;
     int ret = 1;
 
@@ -737,19 +738,12 @@ int main(int argc, char *argv[])
     curr_user = getpwuid(getuid());
 
     if (gl_LOGFILE != NULL) {
-        FILE *tmpfile;
-
-        if (stat(gl_LOGFILE, &statbuf) == 0 &&
-            (statbuf.st_mode & S_IFMT) == S_IFLNK) {
-            fprintf(stderr, "Logfile must not be a symlink.\n");
+        logfd = open(gl_LOGFILE, O_WRONLY|O_APPEND|O_CREAT|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP);
+        if (logfd < 0) {
+            fprintf(stderr, "Cannot open logfile %s: %s\n", gl_LOGFILE, strerror(errno));
             goto error;
         }
-        tmpfile = fopen(gl_LOGFILE, "a"); // do not truncate
-        if (tmpfile == NULL) {
-            fprintf(stderr, "Cannot write to logfile %s.\n", gl_LOGFILE);
-            goto error;
-        }
-        fclose(tmpfile);
+        close(logfd);
     }
 
     if (access(optsfile, R_OK) != 0) {
