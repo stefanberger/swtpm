@@ -242,6 +242,10 @@ static unsigned char *hex_str_to_bin(const char *hexstr, int *modulus_len)
     char val1, val2;
 
     len = strlen(hexstr);
+    if (len > 10 * 1024) {
+        fprintf(stderr, "Unreasonably long hex string of %d bytes.\n", len);
+        return NULL;
+    }
 
     if ((len & 1) != 0) {
         fprintf(stderr, "Got an odd number of hex digits (%d).\n", len);
