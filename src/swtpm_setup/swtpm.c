@@ -913,6 +913,29 @@ static int swtpm_tpm2_evictcontrol(struct swtpm *self, uint32_t curr_handle, uin
                     NULL, NULL, TPM2_DURATION_SHORT);
 }
 
+static size_t create_symkeydata(const struct pk_params *pk_params,
+                                unsigned char symkeydata[6])
+{
+    size_t symkeydata_len;
+
+    if (pk_params->symkey_len) {
+        symkeydata_len = 6;
+        memcpy(symkeydata,
+               ((unsigned char[]){
+                   AS2BE(TPM2_ALG_AES),
+                   AS2BE(pk_params->symkey_len),
+                   AS2BE(TPM2_ALG_CFB)
+               }),
+               symkeydata_len);
+    } else {
+        symkeydata_len = 2;
+        memcpy(symkeydata,
+               ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}),
+               symkeydata_len);
+    }
+    return symkeydata_len;
+}
+
 /* Common function to create a TPM 2 primary key.
  *
  * Returns 1 on error with errors having been reported.
@@ -1126,7 +1149,6 @@ err_too_short:
 
 /* Create an ECC key with the given parameters */
 static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
-                                        const unsigned char *symkeydata, size_t symkeydata_len,
                                         const unsigned char *schemedata, size_t schemedata_len,
                                         const struct pk_params *pk_params,
                                         size_t off, uint32_t *curr_handle,
@@ -1137,13 +1159,17 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     g_autofree unsigned char *public = NULL;
     unsigned char tpmresp[2048];
     size_t tpmresp_len = sizeof(tpmresp);
+    unsigned char symkeydata[6];
     uint16_t ksize1, ksize2;
+    size_t symkeydata_len;
     ssize_t public_len;
     size_t off2;
     int ret;
 
     if (key_description)
         *key_description = pk_params->keydescription;
+
+    symkeydata_len = create_symkeydata(pk_params, symkeydata);
 
     public_len =
         memconcat(&public,
@@ -1214,8 +1240,6 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
     unsigned int keyflags = 0x00030472;
     const unsigned char authpolicy[0] = { };
     size_t authpolicy_len = sizeof(authpolicy);
-    const unsigned char symkeydata[] = {AS2BE(TPM2_ALG_AES), AS2BE(256), AS2BE(TPM2_ALG_CFB)};
-    size_t symkeydata_len = sizeof(symkeydata);
     const unsigned char schemedata[] = {
         AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
     };
@@ -1226,6 +1250,7 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
         .nonce_len = sizeof(NONCE_ECC_384),
         .hashalg = TPM2_ALG_SHA384,
         .keysize = 48,
+        .symkey_len = 256,
         .duration = TPM2_DURATION_LONG,
     };
     size_t schemedata_len = sizeof(schemedata);
@@ -1238,7 +1263,6 @@ static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
      */
 
     return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags,
-                                        symkeydata, symkeydata_len,
                                         schemedata, schemedata_len,
                                         &pk_params, off, curr_handle,
                                         NULL, 0, NULL, NULL);
@@ -1346,8 +1370,7 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
     };
     size_t schemedata_len = sizeof(schemedata);
     const struct ek_params *ekps;
-    unsigned char symkeydata[6];
-    size_t symkeydata_len;
+    struct pk_params pkps;
     unsigned int keyflags;
     size_t off;
     int ret;
@@ -1355,43 +1378,33 @@ static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolea
     ekps = get_ek_params(self, KEYALGO_ECC, TPM2_ECC_NIST_P384);
     if (!ekps)
         return 1;
+    pkps = ekps->pk;
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
         // userWithAuth, adminWithPolicy, sign, decrypt; restricted CANNOT be set
         keyflags = 0x000600f2;
         // symmetric: TPM_ALG_NULL
-        symkeydata_len = 2;
-        memcpy(symkeydata, ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
+        pkps.symkey_len = 0;
         off = 86;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
         // userWithAuth, adminWithPolicy, sign; restricted CANNOT be set
         keyflags = 0x000400f2;
         // symmetric: TPM_ALG_NULL
-        symkeydata_len = 2;
-        memcpy(symkeydata, ((unsigned char[]){AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
+        pkps.symkey_len = 0;
         off = 86;
     } else {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
         // userWithAuth, adminWithPolicy, restricted, decrypt
         keyflags = 0x000300f2;
         // symmetric: TPM_ALG_AES, 256bit, TPM_ALG_CFB
-        symkeydata_len = 6;
-        memcpy(symkeydata,
-               ((unsigned char[]){
-                   AS2BE(TPM2_ALG_AES),
-                   AS2BE(ekps->pk.symkey_len),
-                   AS2BE(TPM2_ALG_CFB)
-               }),
-               symkeydata_len);
         off = 90;
     }
 
     ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags,
-                                       symkeydata, symkeydata_len,
                                        schemedata, schemedata_len,
-                                       &ekps->pk, off, curr_handle,
+                                       &pkps, off, curr_handle,
                                        ektemplate, ektemplate_len, ekparam,
                                        key_description);
     if (ret != 0)
