@@ -640,7 +640,6 @@ static const struct ek_params *get_ek_params(struct swtpm *self,
 
 /* function prototypes */
 static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
-                                        const unsigned char *symkeydata, size_t symkeydata_len,
                                         const struct pk_params *pk_params,
                                         size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
@@ -1007,14 +1006,14 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
                                            gchar **ekparam, const gchar **key_description)
 {
     const struct ek_params *ekps;
-    unsigned char symkeydata[6];
-    size_t symkeydata_len;
+    struct pk_params pkps;
     unsigned int keyflags;
     size_t addlen, off;
 
     ekps = get_ek_params(self, KEYALGO_RSA, rsa_keysize);
     if (!ekps)
         return 1;
+    pkps = ekps->pk;
 
     switch (rsa_keysize) {
     case 2048:
@@ -1035,43 +1034,31 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
         // adminWithPolicy, sign, decrypt; restricted CANNOT be set
         keyflags |= 0x000600b2;
         // symmetric: TPM_ALG_NULL
-        symkeydata_len = 2;
-        memcpy(symkeydata, ((unsigned char[]) {AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
+        pkps.symkey_len = 0;
         off = 72 + addlen;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
         // adminWithPolicy, sign; restricted CANNOT be set
         keyflags |= 0x000400b2;
         // symmetric: TPM_ALG_NULL
-        symkeydata_len = 2;
-        memcpy(symkeydata, ((unsigned char[]) {AS2BE(TPM2_ALG_NULL)}), symkeydata_len);
+        pkps.symkey_len = 0;
         off = 72 + addlen;
     } else {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
         // adminWithPolicy, restricted, decrypt
         keyflags |= 0x000300b2;
         // symmetric: TPM_ALG_AES, 128bit or 256bit, TPM_ALG_CFB
-        symkeydata_len = 6;
-        memcpy(symkeydata,
-               ((unsigned char[]) {
-                   AS2BE(TPM2_ALG_AES),
-                   AS2BE(ekps->pk.symkey_len),
-                   AS2BE(TPM2_ALG_CFB)
-               }),
-               symkeydata_len);
         off = 76 + addlen;
     }
 
     return swtpm_tpm2_createprimary_rsa(self, TPM2_RH_ENDORSEMENT, keyflags,
-                                        symkeydata, symkeydata_len,
-                                        &ekps->pk, off, curr_handle,
+                                        &pkps, off, curr_handle,
                                         ektemplate, ektemplate_len, ekparam,
                                         key_description);
 }
 
 /* Create an RSA key with the given parameters */
 static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
-                                        const unsigned char *symkeydata, size_t symkeydata_len,
                                         const struct pk_params *pk_params,
                                         size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
@@ -1080,13 +1067,17 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
     const char *tpm2_function = "TPM2_CreatePrimary(RSA)";
     g_autofree unsigned char *public = NULL;
     unsigned char tpmresp[2048];
+    unsigned char symkeydata[6];
     size_t tpmresp_len = sizeof(tpmresp);
+    size_t symkeydata_len;
     ssize_t public_len;
     uint16_t modlen;
     int ret;
 
     if (key_description)
         *key_description = pk_params->keydescription;
+
+    symkeydata_len = create_symkeydata(pk_params, symkeydata);
 
     public_len =
         memconcat(&public,
@@ -1282,8 +1273,6 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
         .keysize = rsa_keysize / 8,
         .duration = TPM2_DURATION_LONG,
     };
-    unsigned char symkeydata[6];
-    size_t symkeydata_len;
     size_t off = 44;
 
     switch (rsa_keysize) {
@@ -1309,17 +1298,7 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa
         return 1;
     }
 
-    symkeydata_len = 6;
-    memcpy(symkeydata,
-           ((unsigned char[]) {
-               AS2BE(TPM2_ALG_AES),
-               AS2BE(pk_params.symkey_len),
-               AS2BE(TPM2_ALG_CFB)
-           }),
-           symkeydata_len);
-
     return swtpm_tpm2_createprimary_rsa(self, TPM2_RH_OWNER, keyflags,
-                                        symkeydata, symkeydata_len,
                                         &pk_params, off, curr_handle,
                                         NULL, 0, NULL, NULL);
 }
