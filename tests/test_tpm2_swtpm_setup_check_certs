@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+TOPBUILD=${abs_top_builddir:-$(dirname "$0")/..}
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+source "${TESTDIR}/common"
+skip_test_no_tpm20 "${SWTPM_EXE}"
+
+WORKDIR="$(mktemp -d)" || exit 1
+
+SWTPM_SERVER_PORT=65490
+SWTPM_CTRL_PORT=65491
+
+PID_FILE=${WORKDIR}/pid
+SIGNINGKEY=${WORKDIR}/signingkey.pem
+ISSUERCERT=${WORKDIR}/issuercert.pem
+CERTSERIAL=${WORKDIR}/certserial
+USER_CERTSDIR=${WORKDIR}/mycerts
+mkdir -p "${USER_CERTSDIR}"
+
+trap "cleanup" SIGTERM EXIT
+
+function cleanup()
+{
+	if [ -n "${SWTPM_PID}" ]; then
+		kill_quiet "${SWTPM_PID}"
+	fi
+	rm -rf "${WORKDIR}"
+}
+
+# We want swtpm_cert to use the local CA and see that the
+# local CA script automatically creates a signingkey and
+# self-signed certificate
+
+cat <<_EOF_ > "${WORKDIR}/swtpm-localca.conf"
+statedir=${WORKDIR}
+signingkey = ${SIGNINGKEY}
+issuercert = ${ISSUERCERT}
+certserial = ${CERTSERIAL}
+_EOF_
+
+cat <<_EOF_ > "${WORKDIR}/swtpm-localca.options"
+--tpm-manufacturer IBM
+--tpm-model swtpm-libtpms
+--tpm-version 2
+--platform-manufacturer "Fedora XYZ"
+--platform-version 2.1
+--platform-model "QEMU A.B"
+_EOF_
+
+export MY_SWTPM_LOCALCA="${SWTPM_LOCALCA}"
+
+cat <<_EOF_ > "${WORKDIR}/swtpm_setup.conf"
+create_certs_tool=\${MY_SWTPM_LOCALCA}
+create_certs_tool_config=${WORKDIR}/swtpm-localca.conf
+create_certs_tool_options=${WORKDIR}/swtpm-localca.options
+profile = {"Name": "default-v2"}
+_EOF_
+
+# We need to adapt the PATH so the correct swtpm_cert is picked
+export PATH=${TOPBUILD}/src/swtpm_cert:${PATH}
+
+function check_cert() {
+	local user_certsdir="$1"
+	local keyalgo="$2"
+	local pattern="$3"
+	local ekfile="$4"
+
+	local output data tmp pubkey1 pubkey2 line1 line2
+
+	case "${keyalgo}" in
+	rsa*)
+		output=$(openssl x509 -inform der -in "${user_certsdir}/ek-${keyalgo}.crt" \
+			-noout -pubkey | openssl pkey -pubin -inform pem -text_pub)
+		;;
+	ecc_nist_p256)
+		output=$(openssl x509 -inform der -in "${user_certsdir}/ek-secp256r1.crt" \
+			-noout -pubkey | openssl pkey -pubin -inform pem -text_pub)
+		;;
+	ecc_nist_p384)
+		output=$(openssl x509 -inform der -in "${user_certsdir}/ek-secp384r1.crt" \
+			-noout -pubkey | openssl pkey -pubin -inform pem -text_pub)
+		;;
+	ecc_nist_p521)
+		output=$(openssl x509 -inform der -in "${user_certsdir}/ek-secp521r1.crt" \
+			-noout -pubkey | openssl pkey -pubin -inform pem -text_pub)
+		;;
+	esac
+
+	if ! grep -q "${pattern}" <<< "${output}"; then
+		echo "Error: Could not find expected pattern '${pattern}' for created ${keyalgo} EK"
+		exit 1
+	fi
+
+	case "${keyalgo}" in
+	rsa*)
+		# get the modulus; it must be found in the file tpm2_createek wrote
+		line1=$(grep -n "Modulus:"<<<"${output}"  | cut -d":" -f1)
+		line2=$(grep -n "Exponent:"<<<"${output}" | cut -d":" -f1)
+		line1=$((line1 + 1))
+		line2=$((line2 - 1))
+		tmp=$(sed -n "${line1},${line2}p" <<< "${output}" | tr -d "\n: ")
+		pubkey1=${tmp:2}
+		;;
+	ecc_nist_p256)
+		# get the coordinates; skip leading 04 and split x and y coordinates
+		line1=$(grep -n "pub:"<<<"${output}"  | cut -d":" -f1)
+		line2=$(grep -n "ASN1 OID: "<<<"${output}" | cut -d":" -f1)
+		line1=$((line1 + 1))
+		line2=$((line2 - 1))
+		tmp=$(sed -n "${line1},${line2}p" <<< "${output}" | tr -d "\n: ")
+		pubkey1="${tmp:2:64}"
+		pubkey2="${tmp:66:64}"
+		;;
+	ecc_nist_p384)
+		# get the coordinates; skip leading 04 and split x and y coordinates
+		line1=$(grep -n "pub:"<<<"${output}"  | cut -d":" -f1)
+		line2=$(grep -n "ASN1 OID: "<<<"${output}" | cut -d":" -f1)
+		line1=$((line1 + 1))
+		line2=$((line2 - 1))
+		tmp=$(sed -n "${line1},${line2}p" <<< "${output}" | tr -d "\n: ")
+		pubkey1="${tmp:2:96}"
+		pubkey2="${tmp:98:96}"
+		;;
+	ecc_nist_p521)
+		# get the coordinates; skip leading 04 and split x and y coordinates
+		line1=$(grep -n "pub:"<<<"${output}"  | cut -d":" -f1)
+		line2=$(grep -n "ASN1 OID: "<<<"${output}" | cut -d":" -f1)
+		line1=$((line1 + 1))
+		line2=$((line2 - 1))
+		tmp=$(sed -n "${line1},${line2}p" <<< "${output}" | tr -d "\n: ")
+		pubkey1="${tmp:2:132}"
+		pubkey2="${tmp:134:132}"
+		;;
+	esac
+
+	if [ -n "${ekfile}" ] && [ -r "${ekfile}" ]; then
+		data=$(od -tx1 -A n < "${ekfile}" |tr -d "\n ")
+		if ! grep -q "${pubkey1}" <<< "${data}"; then
+			echo "Error: Could not find public ${keyalgo} key in file that tpm2_createek wrote."
+			echo "public key  : ${pubkey1}"
+			echo "file content: ${data}"
+			exit 1
+		fi
+		echo "INFO: tpm2_createek created same ${keyalgo} key (length: $((${#pubkey1}/2)))"
+		if [ -n "${pubkey2}" ]; then
+			if ! grep -q "${pubkey2}" <<< "${data}"; then
+				echo "Error: Could not find public ${keyalgo} key (y coordinate) in file that tpm2_createek wrote."
+				echo "y-coordinate: ${pubkey2}"
+				echo "file content: ${data}"
+				exit 1
+			fi
+			echo "INFO: tpm2_createek created same ${keyalgo} EK (y-coordinate) (length: $((${#pubkey1}/2)))"
+		fi
+	fi
+}
+
+function swtpm_setup_run() {
+	local workdir="$1"
+	local user_certsdir="$2"
+	local tpm2_createek="$3"
+	local ek1keyalgo="$4"
+	local ek1pattern="$5"
+	local ek2keyalgo="$6"
+	local ek2pattern="$7"
+
+	local ek1file ek2file
+
+	rm -f "${user_certsdir}/"*
+
+	echo "INFO: Testing with ${ek1keyalgo} and ${ek2keyalgo}"
+
+	if ! ${SWTPM_SETUP} \
+		--tpm2 \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--tpmstate "${workdir}" \
+		--create-ek-cert \
+		--create-platform-cert \
+		--config "${workdir}/swtpm_setup.conf" \
+		--logfile "${workdir}/logfile" \
+		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
+		--overwrite \
+		--ek1keyalgo "${ek1keyalgo}" \
+		--ek2keyalgo "${ek2keyalgo}" \
+		--write-ek-cert-files "${user_certsdir}";
+	then
+		echo "Error: Could not run $SWTPM_SETUP."
+		echo "Logfile output:"
+		cat "${workdir}/logfile"
+		exit 1
+	fi
+
+	if [ -n "${tpm2_createek}" ]; then
+		ek1file="${workdir}/ek1"
+		ek2file="${workdir}/ek2"
+		ek1ctx="${workdir}/ek1ctx"
+		ek2ctx="${workdir}/ek2ctx"
+
+		rm -f "${ek1file}" "${ek2file}" "${ek1ctx}" "${ek2ctx}"
+
+		run_swtpm socket+socket \
+			--tpm2 \
+			--tpmstate dir="${workdir}" \
+			--flags not-need-init,startup-clear \
+			--log "file=${workdir}/logfile" \
+			--pid "file=${PID_FILE}"
+		if wait_for_file "${PID_FILE}" 3; then
+			echo "Error: Socket TPM did not write pidfile."
+			exit 1
+		fi
+		if [[ ${ek1keyalgo} =~ ^(ecc_nist_p256|ecc_nist_p384|ecc_nist_p521|rsa2048|rsa3072|rsa4096)$ ]]; then
+			if ! tpm2_createek -T "swtpm:host=localhost,port=${SWTPM_SERVER_PORT}" \
+				-G "${ek1keyalgo}" -u "${ek1file}" -c "${ek1ctx}"; then
+				ek1file=""
+			fi
+		fi
+		if [[ ${ek2keyalgo} =~ ^(ecc_nist_p256|ecc_nist_p384|ecc_nist_p521|rsa2048|rsa3072|rsa4096)$ ]]; then
+			if ! tpm2_createek -T "swtpm:host=localhost,port=${SWTPM_SERVER_PORT}" \
+				-G "${ek2keyalgo}" -u "${ek2file}" -c "${ek2ctx}"; then
+				ek2file=""
+			fi
+		fi
+
+		kill -SIGTERM "${SWTPM_PID}"
+		if wait_process_gone "${SWTPM_PID}" 4; then
+			echo "Error: SWTPM did not terminate on SIGTERM."
+			exit 1
+		fi
+	fi
+
+	check_cert "${user_certsdir}" "${ek1keyalgo}" "${ek1pattern}" "${ek1file}"
+	check_cert "${user_certsdir}" "${ek2keyalgo}" "${ek2pattern}" "${ek2file}"
+}
+
+TPM2_CREATEEK=$(type -P tpm2_createek)
+if [ -n "${TPM2_CREATEEK}" ]; then
+	echo -e "INFO: Will use ${TPM2_CREATEEK} to compare created EKs.\n"
+fi
+
+swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"rsa2048" "Public-Key: (2048 bit)" \
+	"ecc_nist_p256" "Public-Key: (256 bit)"
+echo -e "Test 1: OK\n"
+
+swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"ecc_nist_p384" "Public-Key: (384 bit)" \
+	"ecc_nist_p521" "Public-Key: (521 bit)"
+echo -e "Test 2: OK\n"
+
+swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"rsa3072" "Public-Key: (3072 bit)" \
+	"rsa4096" "Public-Key: (4096 bit)"
+echo -e "Test 3: OK\n"
+
+exit 0
