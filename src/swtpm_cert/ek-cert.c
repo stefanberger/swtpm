@@ -3,7 +3,7 @@
  *
  * Authors: Stefan Berger <stefanb@us.ibm.com>
  *
- * (c) Copyright IBM Corporation 2014, 2015, 2020.
+ * (c) Copyright IBM Corporation 2014, 2015, 2020, 2026
  *
  * All rights reserved.
  *
@@ -76,6 +76,12 @@
 #include "swtpm.h"
 #include "compiler_dependencies.h"
 
+#define MAX_PASSWORD_SIZE 256
+#define MAX_HEX_STRING_SIZE (10 * 1024)
+#define UNSET_VALUE (-1)
+
+#define BITS_TO_BYTES(NUM_BITS) (((NUM_BITS) + 7) / 8)
+
 typedef struct datum {
     unsigned char *data;
     unsigned int size;
@@ -121,7 +127,18 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
     do {		\
         fclose(filp);	\
         filp = NULL;	\
-    } while (0);
+    } while (0)
+
+/*
+ * All errors from libtasn1 lead to display of an error message after a jump to
+ * cleanup.
+ */
+#define ASN1_CHECK_ERROR(ERR, MSG)	\
+    if (ERR != ASN1_SUCCESS) {		\
+        err_line = __LINE__;		\
+        err_msg = MSG;			\
+        goto cleanup;			\
+    }
 
 /*
  * All errors from OpenSSL lead to display of error message and a
@@ -207,7 +224,7 @@ static void usage(const char *prg)
         "--tpm2                    : Issue a TPM 2 compliant certificate\n"
         "--allow-signing           : The EK of a TPM 2 allows signing;\n"
         "                            requires --tpm2\n"
-        "--decryption              : The EK if a TPM 2 can be used for key\n"
+        "--decryption              : The EK of a TPM 2 can be used for key\n"
         "                            encipherment; requires --tpm2\n"
         "--print-capabilities      : Print capabilities and exit\n"
         "--version                 : Display version and exit\n"
@@ -249,7 +266,7 @@ static unsigned char *hex_str_to_bin(const char *hexstr, int *modulus_len)
     char val1, val2;
 
     len = strlen(hexstr);
-    if (len > 10 * 1024) {
+    if (len > MAX_HEX_STRING_SIZE) {
         fprintf(stderr, "Unreasonably long hex string of %d bytes.\n", len);
         return NULL;
     }
@@ -262,7 +279,7 @@ static unsigned char *hex_str_to_bin(const char *hexstr, int *modulus_len)
 
     result = malloc(len / 2);
     if (result == NULL) {
-        fprintf(stderr, "Out of memory trying to allocate %d bytes.", len / 2);
+        fprintf(stderr, "Out of memory trying to allocate %d bytes.\n", len / 2);
         return NULL;
     }
     i = 0;
@@ -271,14 +288,14 @@ static unsigned char *hex_str_to_bin(const char *hexstr, int *modulus_len)
     while (i < len) {
         val1 = hex_to_str(hexstr[i]);
         if (val1 < 0) {
-            fprintf(stderr, "Illegal hex character '%c'.", hexstr[i]);
+            fprintf(stderr, "Illegal hex character '%c'.\n", hexstr[i]);
             free(result);
             return NULL;
         }
         i++;
         val2 = hex_to_str(hexstr[i]);
         if (val2 < 0) {
-            fprintf(stderr, "Illegal hex character '%c'.", hexstr[i]);
+            fprintf(stderr, "Illegal hex character '%c'.\n", hexstr[i]);
             free(result);
             return NULL;
         }
@@ -301,9 +318,9 @@ create_rsa_from_modulus(unsigned char *modulus, unsigned int modulus_len,
     BIGNUM *n = BN_bin2bn(modulus, modulus_len, NULL);
     BIGNUM *e = BN_new();
 
-    CHECK_OSSL_NULLPTR1(ctx, "Could not create pkey context for EC key.\n");
+    CHECK_OSSL_NULLPTR1(ctx, "Could not create pkey context for RSA key.\n");
     if (!bld || !e || !n) {
-        fprintf(stderr, "Out of memory\n");
+        fprintf(stderr, "Out of memory.\n");
         goto cleanup;
     }
 
@@ -350,13 +367,13 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
 
     if (ecc_curveid == NULL || !strcmp(ecc_curveid, "secp256r1")) {
         curve = g_strdup("prime256v1");
-        exp_len = 256/8;
+        exp_len = BITS_TO_BYTES(256);
     } else if (!strcmp(ecc_curveid, "secp384r1")) {
         curve = g_strdup("secp384r1");
-        exp_len = 384/8;
+        exp_len = BITS_TO_BYTES(384);
     } else if (!strcmp(ecc_curveid, "secp521r1")) {
         curve = g_strdup("secp521r1");
-        exp_len = 528/8;
+        exp_len = BITS_TO_BYTES(521);
     } else {
         fprintf(stderr, "Unsupported ECC curve id: %s\n", ecc_curveid);
         goto cleanup;
@@ -396,21 +413,23 @@ cleanup:
 static int
 asn_init(void)
 {
-    static bool inited;
+    static bool initialized;
+    unsigned int err_line;
+    const char *err_msg;
     int err;
 
-    if (inited)
+    if (initialized)
         return ASN1_SUCCESS;
 
     err = asn1_array2tree(tpm_asn1_tab, &_tpm_asn, NULL);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "array2tree error: %d", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "array2tree");
 
-    inited = true;
+    initialized = true;
 
 cleanup:
+    if (err)
+        fprintf(stderr, "%s @ %u: Error: %s : %s\n",
+                __func__, err_line, err_msg, asn1_strerror(err));
 
     return err;
 }
@@ -431,19 +450,21 @@ encode_asn1(datum_t *asn1, asn1_node at)
     asn1->size = 0;
     err = asn1_der_coding(at, "", NULL, (int *)&asn1->size, NULL);
     if (err != ASN1_MEM_ERROR) {
-        fprintf(stderr, "1. asn1_der_coding error: %d\n", err);
+        fprintf(stderr, "%s @ %u: Error: asn1_der_coding: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
         return err;
     }
 
     asn1->data = malloc(asn1->size + 16);
     if (!asn1->data) {
-        fprintf(stderr, "2. Could not allocate memory\n");
+        fprintf(stderr, "Out of memory.\n");
         return ASN1_MEM_ERROR;
     }
 
     err = asn1_der_coding(at, "", asn1->data, (int *)&asn1->size, NULL);
     if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "3. asn1_der_coding error: %d\n", err);
+        fprintf(stderr, "%s @ %u: Error: asn1_der_coding: %s\n",
+                __func__, __LINE__, asn1_strerror(err));
         free(asn1->data);
         asn1->data = NULL;
     }
@@ -456,74 +477,50 @@ build_tpm_manufacturer_info(asn1_node *at,
                             const char *tpm_model,
                             const char *tpm_version)
 {
+    unsigned int err_line;
+    const char *err_msg;
     int err;
 
     err = asn1_create_element(_tpm_asn, "TPM.TPMManufacturerInfo", at);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "asn1_create_element error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_create_element");
 
     err = asn1_write_value(*at, "tpmManufacturerSet.tpmManufacturer.?LAST",
                            "NEW", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "1a. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "tpmManufacturerSet.tpmManufacturer.id",
                            "2.23.133.2.1", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "1b. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at,
                            "tpmManufacturerSet.tpmManufacturer.manufacturer",
                            manufacturer, 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "2. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "tpmModelSet.tpmModel.?LAST", "NEW", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "3a. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "tpmModelSet.tpmModel.id", "2.23.133.2.2", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "3b. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "tpmModelSet.tpmModel.model", tpm_model, 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "4. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "tpmVersionSet.tpmVersion.?LAST", "NEW", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "5a. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "tpmVersionSet.tpmVersion.id", "2.23.133.2.3",
                            0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "5b. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "tpmVersionSet.tpmVersion.version", tpm_version, 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "6. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
 cleanup:
+    if (err)
+        fprintf(stderr, "%s @ %u: Error: %s : %s\n",
+                __func__, err_line, err_msg, asn1_strerror(err));
+
     return err;
 }
 
@@ -537,28 +534,17 @@ create_tpm_manufacturer_info(const char *manufacturer,
     int err;
 
     err = asn_init();
-    if (err != ASN1_SUCCESS) {
+    if (err != ASN1_SUCCESS)
         goto cleanup;
-    }
 
     err = build_tpm_manufacturer_info(&at, manufacturer,
                                       tpm_model, tpm_version);
-    if (err != ASN1_SUCCESS) {
+    if (err != ASN1_SUCCESS)
         goto cleanup;
-    }
 
     err = encode_asn1(asn1, at);
 
-#if 0
-    fprintf(stderr, "size=%d\n", asn1->size);
-    unsigned int i = 0;
-    for (i = 0; i < asn1->size; i++) {
-        fprintf(stderr, "%02x ", asn1->data[i]);
-    }
-    fprintf(stderr, "\n");
-#endif
-
- cleanup:
+cleanup:
     asn1_delete_structure(&at);
 
     return err;
@@ -571,84 +557,60 @@ build_platf_manufacturer_info(asn1_node *at,
                               const char *platf_version,
                               bool forTPM2)
 {
+    unsigned int err_line;
+    const char *err_msg;
     int err;
 
     err = asn1_create_element(_tpm_asn, "TPM.PlatformManufacturerInfo", at);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "asn1_create_element error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_create_element");
 
     err = asn1_write_value(*at, "platformManufacturerSet.platformManufacturer.?LAST",
                            "NEW", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b1a. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "platformManufacturerSet.platformManufacturer.id",
                            forTPM2 ? "2.23.133.5.1.1"
                                    : "2.23.133.2.4",
                            0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b1b. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "platformManufacturerSet.platformManufacturer.manufacturer",
                            manufacturer, 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b2. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "platformModelSet.platformModel.?LAST",
                            "NEW", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b3a. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "platformModelSet.platformModel.id",
                            forTPM2 ? "2.23.133.5.1.4"
                                    : "2.23.133.2.5",
                            0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b3b. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "platformModelSet.platformModel.model",
                            platf_model, 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b4. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "platformVersionSet.platformVersion.?LAST",
                            "NEW", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b5a. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "platformVersionSet.platformVersion.id",
                            forTPM2 ? "2.23.133.5.1.5"
                                    : "2.23.133.2.6",
                            0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b5b. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(*at, "platformVersionSet.platformVersion.version",
                            platf_version, 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "b6. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
 cleanup:
+    if (err)
+        fprintf(stderr, "%s @ %u: Error: %s : %s\n",
+                __func__, err_line, err_msg, asn1_strerror(err));
+
     return err;
 }
 
@@ -663,29 +625,18 @@ create_platf_manufacturer_info(const char *manufacturer,
     int err;
 
     err = asn_init();
-    if (err != ASN1_SUCCESS) {
+    if (err != ASN1_SUCCESS)
         goto cleanup;
-    }
 
     err = build_platf_manufacturer_info(&at, manufacturer,
                                         platf_model, platf_version,
                                         forTPM2);
-    if (err != ASN1_SUCCESS) {
+    if (err != ASN1_SUCCESS)
         goto cleanup;
-    }
 
     err = encode_asn1(asn1, at);
 
-#if 0
-    fprintf(stderr, "size=%d\n", asn1->size);
-    unsigned int i = 0;
-    for (i = 0; i < asn1->size; i++) {
-        fprintf(stderr, "%02x ", asn1->data[i]);
-    }
-    fprintf(stderr, "\n");
-#endif
-
- cleanup:
+cleanup:
     asn1_delete_structure(&at);
 
     return err;
@@ -702,103 +653,64 @@ create_tpm_and_platform_manuf_info(
                                datum_t *asn1,
                                bool forTPM2)
 {
-    asn1_node at = NULL;
-    asn1_node tpm_at = NULL;
     asn1_node platf_at = NULL;
-    int err;
+    unsigned int err_line = 0;
+    asn1_node tpm_at = NULL;
+    asn1_node at = NULL;
+    const char *err_msg;
     datum_t datum = {
         .data = NULL,
         .size = 0,
     };
+    int err;
 
     err = asn_init();
-    if (err != ASN1_SUCCESS) {
+    if (err != ASN1_SUCCESS)
         goto cleanup;
-    }
 
     err = asn1_create_element(_tpm_asn, "TPM.PlatformCertificateSAN", &at);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d:  asn1_create_element error: %s\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_create_element");
 
     /* build the TPM manufacturer data */
     err = build_tpm_manufacturer_info(&tpm_at, tpm_manufacturer,
                                       tpm_model, tpm_version);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d: Could not build TPM manufacturer info: %s\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "Could not build TPM manufacturer info");
 
     err = encode_asn1(&datum, tpm_at);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d: Could not encode TPM data as ASN.1: %s\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "Could not encode TPM data as ASN.1");
 
     err = asn1_write_value(at, "", "NEW", 1);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d: Could not create a NEW element: %s\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "Could not create a NEW element");
 
     err = asn1_write_value(at, "?1", datum.data, datum.size);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d: Could not write 1st element: %s!\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "Could not write 1st element");
+
     free_datum(&datum);
 
     /* build the platform manufacturer data */
     err = build_platf_manufacturer_info(&platf_at, platf_manufacturer,
                                         platf_model, platf_version,
                                         forTPM2);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d: Could not build platform manufacturer info: %s\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "Could not build platform manufacturer info");
 
     err = encode_asn1(&datum, platf_at);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d: Could not encode platform data as ASN.1: %s\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "Could not encode platform data as ASN.1");
 
     err = asn1_write_value(at, "", "NEW", 1);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d: Could not create a NEW element: %s\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "Could not create a NEW element");
 
     err = asn1_write_value(at, "?2", datum.data, datum.size);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "%s: %d: Could not write 2nd element: %s!\n",
-                __func__, __LINE__, asn1_strerror(err));
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "Could not write 2nd element");
 
     free_datum(&datum);
 
     err = encode_asn1(asn1, at);
 
-#if 0
-    fprintf(stderr, "size=%d\n", asn1->size);
-    unsigned int i = 0;
-    for (i = 0; i < asn1->size; i++) {
-        fprintf(stderr, "%02x ", asn1->data[i]);
-    }
-    fprintf(stderr, "\n");
-#endif
+cleanup:
+    if (err && err_line)
+        fprintf(stderr, "%s @ %u: Error: %s : %s\n",
+                __func__, err_line, err_msg, asn1_strerror(err));
 
- cleanup:
     free_datum(&datum);
     asn1_delete_structure(&at);
     asn1_delete_structure(&platf_at);
@@ -813,35 +725,27 @@ create_tpm_specification_info(const char *spec_family,
                               unsigned int spec_revision,
                               datum_t *asn1)
 {
-    asn1_node at = NULL;
-    int err;
     unsigned int bigendian;
     unsigned char twoscomp[1 + sizeof(bigendian)] = { 0, };
+    unsigned int err_line = 0;
+    const char *err_msg;
+    asn1_node at = NULL;
+    int err;
 
     err = asn_init();
-    if (err != ASN1_SUCCESS) {
+    if (err != ASN1_SUCCESS)
         goto cleanup;
-    }
 
     err = asn1_create_element(_tpm_asn, "TPM.TPMSpecificationInfo", &at);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "asn1_create_element error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_create_element");
 
     err = asn1_write_value(at, "tpmSpecificationSeq.id", "2.23.133.2.16", 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "c1b. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = asn1_write_value(at,
         "tpmSpecificationSeq.tpmSpecificationSet.tpmSpecification.family",
         spec_family, 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "c1c. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     bigendian = htobe32(spec_level);
     memcpy(&twoscomp[1], &bigendian, sizeof(bigendian));
@@ -849,10 +753,7 @@ create_tpm_specification_info(const char *spec_family,
     err = asn1_write_value(at,
         "tpmSpecificationSeq.tpmSpecificationSet.tpmSpecification.level",
         twoscomp, sizeof(twoscomp));
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "c1d. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     bigendian = htobe32(spec_revision);
     memcpy(&twoscomp[1], &bigendian, sizeof(bigendian));
@@ -860,23 +761,15 @@ create_tpm_specification_info(const char *spec_family,
     err = asn1_write_value(at,
         "tpmSpecificationSeq.tpmSpecificationSet.tpmSpecification.revision",
         twoscomp, sizeof(twoscomp));
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "c1e. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = encode_asn1(asn1, at);
 
-#if 0
-    fprintf(stderr, "size=%d\n", asn1->size);
-    unsigned int i = 0;
-    for (i = 0; i < asn1->size; i++) {
-        fprintf(stderr, "%02x ", asn1->data[i]);
-    }
-    fprintf(stderr, "\n");
-#endif
+cleanup:
+    if (err && err_line)
+        fprintf(stderr, "%s @ %u: Error: %s : %s\n",
+                __func__, err_line, err_msg, asn1_strerror(err));
 
- cleanup:
     asn1_delete_structure(&at);
 
     return err;
@@ -885,38 +778,28 @@ create_tpm_specification_info(const char *spec_family,
 static int
 create_cert_extended_key_usage(const char *oid, datum_t *asn1)
 {
+    unsigned int err_line = 0;
+    const char *err_msg;
     asn1_node at = NULL;
     int err;
 
     err = asn_init();
-    if (err != ASN1_SUCCESS) {
+    if (err != ASN1_SUCCESS)
         goto cleanup;
-    }
 
     err = asn1_create_element(_tpm_asn, "TPM.TPMEKCertExtendedKeyUsage", &at);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "asn1_create_element error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_create_element");
 
     err = asn1_write_value(at, "id", oid, 0);
-    if (err != ASN1_SUCCESS) {
-        fprintf(stderr, "d1. asn1_write_value error: %d\n", err);
-        goto cleanup;
-    }
+    ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = encode_asn1(asn1, at);
 
-#if 0
-    fprintf(stderr, "size=%d\n", asn1->size);
-    unsigned int i = 0;
-    for (i = 0; i < asn1->size; i++) {
-        fprintf(stderr, "%02x ", asn1->data[i]);
-    }
-    fprintf(stderr, "\n");
-#endif
+cleanup:
+    if (err && err_line)
+        fprintf(stderr, "%s @ %u: Error: %s : %s\n",
+                __func__, err_line, err_msg, asn1_strerror(err));
 
- cleanup:
     asn1_delete_structure(&at);
 
     return err;
@@ -925,7 +808,7 @@ create_cert_extended_key_usage(const char *oid, datum_t *asn1)
 /*
  * prepend_san_asn1_header -- prepend a SAN ASN.1 header on the data
  *
- * This function with prepend something like this:
+ * This function will prepend something like this:
  *  0x30 <subsequent length> 0xa4 <subsequent length>
  */
 static bool prepend_san_asn1_header(datum_t *datum)
@@ -937,9 +820,13 @@ static bool prepend_san_asn1_header(datum_t *datum)
     unsigned char *data = datum->data;
     bool success = true;
 
+    if (!data)
+        return false;
+    datum->data = NULL;
+
     /* write backwards */
     intlen = 0;
-    size = datum->size;
+    size = datum->size; /* datum->size is only 4 bytes */
     do {
         buffer[--i] = (size & 0xff);
         size >>= 8;
@@ -969,6 +856,7 @@ static bool prepend_san_asn1_header(datum_t *datum)
 
     datum->data = malloc(datum->size + sizeof(buffer) - i);
     if (datum->data == NULL) {
+        fprintf(stderr, "Out of memory.\n");
         success = false;
         goto exit;
     }
@@ -995,12 +883,12 @@ exit:
  */
 static char *get_password(const char *password)
 {
+    char buffer[MAX_PASSWORD_SIZE];
+    const char *tocopy;
     char *result;
     char *endptr;
-    int fd;
-    char buffer[256];
     ssize_t n;
-    const char *tocopy;
+    int fd;
 
     if (!strncmp(password, "fd:", 3)) {
         errno = 0;
@@ -1032,7 +920,7 @@ readfd:
     } else if (!strncmp(password, "env:", 4)) {
         tocopy = getenv(&password[4]);
         if (tocopy == NULL) {
-            fprintf(stderr, "Could not get password from environment variable\n");
+            fprintf(stderr, "Could not get password from environment variable.\n");
             return NULL;
         }
     } else {
@@ -1075,7 +963,8 @@ static EVP_PKEY *get_key_pkcs11(OSSL_PROVIDER *provider, const char *pkcs11uri)
         ui_method = UI_create_method("PIN reader");
         CHECK_OSSL_NULLPTR1(ui_method, "Could not create the PIN reader.\n");
 
-        UI_method_set_reader(ui_method, ui_get_pin);
+        CHECK_OSSL_RETURN1(UI_method_set_reader(ui_method, ui_get_pin) != 0,
+                           "Could not set the PIN reader.\n");
     }
     store = OSSL_STORE_open_ex(pkcs11uri, NULL, "provider=pkcs11", ui_method,
                                getenv("SWTPM_PKCS11_PIN"), NULL, NULL, NULL);
@@ -1095,14 +984,14 @@ static EVP_PKEY *get_key_pkcs11(OSSL_PROVIDER *provider, const char *pkcs11uri)
         if (sigkey)
             break;
     }
-    OSSL_STORE_close(store);
 
     if (!sigkey) {
-        fprintf(stderr, "Could not get access to private key %s\n",
+        fprintf(stderr, "Could not get access to private key %s.\n",
                 pkcs11uri);
     }
 
 cleanup:
+    OSSL_STORE_close(store);
     UI_destroy_method(ui_method);
 
     return sigkey;
@@ -1163,7 +1052,7 @@ main(int argc, char *argv[])
     ASN1_TIME *asn1_time = NULL;
     ASN1_OCTET_STRING *oct = NULL;
     X509_EXTENSION *ext = NULL;
-    X509_NAME *issuer_name = NULL;
+    const X509_NAME *issuer_name = NULL;
     X509V3_CTX x509v3_ctx;
     OSSL_PROVIDER *provider = NULL;
     const EVP_MD *md = EVP_sha1();
@@ -1178,7 +1067,7 @@ main(int argc, char *argv[])
     unsigned char *ecc_y_bin = NULL;
     int ecc_y_len = 0;
     const char *ecc_curveid = NULL;
-    datum_t datum = { NULL, 0},  out = { NULL, 0};
+    datum_t datum = { NULL, 0 }, out = { NULL, 0 };
     mpz_t serial;
     time_t now;
     int err;
@@ -1202,8 +1091,8 @@ main(int argc, char *argv[])
     const char *platf_model = NULL;
     bool add_header = false;
     const char *spec_family = NULL;
-    long int spec_level = ~0;
-    long int spec_revision = ~0;
+    long int spec_level = UNSET_VALUE;
+    long int spec_revision = UNSET_VALUE;
     int flags = 0;
     bool is_ecc = false;
     char *endptr;
@@ -1217,7 +1106,7 @@ main(int argc, char *argv[])
         {"signkey", required_argument, NULL, 's'},
         {"signkey-password", required_argument, NULL, 'S'},
         {"signkey-pwd", required_argument, NULL, 'T'},
-        {"parentkey-passord", required_argument, NULL, 'P'},
+        {"parentkey-password", required_argument, NULL, 'P'},
         {"parentkey-pwd", required_argument, NULL, 'Q'},
         {"issuercert", required_argument, NULL, 'i'},
         {"out-cert", required_argument, NULL, 'o'},
@@ -1290,8 +1179,8 @@ main(int argc, char *argv[])
                         optarg);
                 goto cleanup;
             }
-            if (exponent == 0) {
-                fprintf(stderr, "Exponent is wrong and cannot be 0.\n");
+            if (exponent <= 0) {
+                fprintf(stderr, "Exponent is wrong and cannot be <= 0.\n");
                 goto cleanup;
             }
             if ((unsigned long int)exponent > UINT_MAX) {
@@ -1403,6 +1292,10 @@ main(int argc, char *argv[])
                 fprintf(stderr, "--tpm-spec-level must pass a positive number.\n");
                 goto cleanup;
             }
+            if (spec_level > UINT_MAX) {
+                fprintf(stderr, "--tpm-spec-level is outside valid range.\n");
+                goto cleanup;
+            }
             break;
         case '9': /* --tpm-spec-revision */
             errno = 0;
@@ -1414,6 +1307,10 @@ main(int argc, char *argv[])
             }
             if (spec_revision < 0) {
                 fprintf(stderr, "--tpm-spec-revision must pass a positive number.\n");
+                goto cleanup;
+            }
+            if (spec_revision > UINT_MAX) {
+                fprintf(stderr, "--tpm-spec-revision is outside valid range.\n");
                 goto cleanup;
             }
             break;
@@ -1434,20 +1331,23 @@ main(int argc, char *argv[])
             break;
         case 'c': /* --print-capabilities */
             capabilities_print_json();
-            exit(0);
+            ret = 0;
+            goto cleanup;
         case 'v': /* --version */
             versioninfo();
-            exit(0);
+            ret = 0;
+            goto cleanup;
         case 'h': /* --help */
             usage(argv[0]);
-            exit(0);
+            ret = 0;
+            goto cleanup;
         default:
             usage(argv[0]);
-            exit(1);
+            goto cleanup;
         }
     }
 
-    if ((mpz_sizeinbase(serial, 2) + 7) / 8 > sizeof(ser_number) - 1) {
+    if (BITS_TO_BYTES(mpz_sizeinbase(serial, 2)) > sizeof(ser_number) - 1) {
         fprintf(stderr, "Serial number is too large.\n");
         goto cleanup;
     }
@@ -1486,8 +1386,7 @@ main(int argc, char *argv[])
             tpm_model == NULL ||
             tpm_version == NULL) {
             fprintf(stderr, "--tpm-manufacturer and --tpm-model and "
-                            "--tpm version "
-                            "must all be provided\n");
+                            "--tpm-version must all be provided.\n");
             goto cleanup;
         }
         break;
@@ -1501,17 +1400,16 @@ main(int argc, char *argv[])
             platf_model == NULL ||
             platf_version == NULL) {
             fprintf(stderr, "--platform-manufacturer and --platform-model and "
-                            "--platform version "
-                            "must all be provided\n");
+                            "--platform-version must all be provided.\n");
             goto cleanup;
         }
         break;
     case CERT_TYPE_EK:
         if (spec_family == NULL ||
-            spec_level == ~0 ||
-            spec_revision == ~0) {
+            spec_level == UNSET_VALUE ||
+            spec_revision == UNSET_VALUE) {
             fprintf(stderr, "--tpm-spec-family and --tpm-spec-level and "
-                            "--tpm-spec-revision must all be provided\n");
+                            "--tpm-spec-revision must all be provided.\n");
             goto cleanup;
         }
         break;
@@ -1558,7 +1456,7 @@ main(int argc, char *argv[])
     if (sigkey_filename == NULL) {
         fprintf(stderr, "Missing signature key.\n");
         usage(argv[0]);
-        exit(1);
+        goto cleanup;
     }
 
     if (strstr(sigkey_filename, "pkcs11:") == sigkey_filename) {
@@ -1587,7 +1485,7 @@ main(int argc, char *argv[])
     }
 
     if (!(fp = fopen(issuercert_filename, "r"))) {
-        fprintf(stderr, "Could not open signing key file: %s\n",
+        fprintf(stderr, "Could not open issuer cert file: %s\n",
                 strerror(errno));
         goto cleanup;
     }
@@ -1605,7 +1503,7 @@ main(int argc, char *argv[])
     CHECK_OSSL_NULLPTR1(oct, "Out of memory.\n");
 
     /* Version */
-    CHECK_OSSL_RETURN1(X509_set_version(crt, 3) != 1,
+    CHECK_OSSL_RETURN1(X509_set_version(crt, X509_VERSION_3) != 1,
                        "Could not set version on CRT.\n");
 
     /* Serial Number */
@@ -1629,7 +1527,7 @@ main(int argc, char *argv[])
     /* Validity */
     now = time(NULL);
     asn1_time = X509_time_adj(NULL, 0, &now);
-    CHECK_OSSL_NULLPTR1(asn1_time, "Out of memory\n");
+    CHECK_OSSL_NULLPTR1(asn1_time, "Out of memory.\n");
 
     CHECK_OSSL_RETURN1(X509_set1_notBefore(crt, asn1_time) != 1,
                        "Could not set activation time on CRT.\n");
@@ -1637,7 +1535,7 @@ main(int argc, char *argv[])
         ASN1_TIME_set_string(asn1_time, "99991231235959Z");
     } else {
         asn1_time = X509_time_adj_ex(asn1_time, days, 0, &now);
-        CHECK_OSSL_NULLPTR1(asn1_time, "Out of memory\n");
+        CHECK_OSSL_NULLPTR1(asn1_time, "Out of memory.\n");
     }
     CHECK_OSSL_RETURN1(X509_set1_notAfter(crt, asn1_time) != 1,
                        "Could not set expiration time on CRT.\n");
@@ -1681,7 +1579,7 @@ main(int argc, char *argv[])
         err = create_tpm_manufacturer_info(tpm_manufacturer, tpm_model,
                                            tpm_version, &datum);
         if (err) {
-            fprintf(stderr, "Could not create TPM manufacturer info");
+            fprintf(stderr, "Could not create TPM manufacturer info.\n");
             goto cleanup;
         }
         break;
@@ -1692,8 +1590,7 @@ main(int argc, char *argv[])
                                                  platf_version,
                                                  &datum, true);
             if (err) {
-                fprintf(stderr, "Could not create platform manufacturer "
-                        "info");
+                fprintf(stderr, "Could not create platform manufacturer info.\n");
                 goto cleanup;
             }
         } else {
@@ -1705,8 +1602,7 @@ main(int argc, char *argv[])
                                                      platf_version,
                                                      &datum, false);
             if (err) {
-                fprintf(stderr, "Could not create TPM and platform "
-                        "manufacturer info");
+                fprintf(stderr, "Could not create TPM and platform manufacturer info.\n");
                 goto cleanup;
             }
         }
@@ -1714,7 +1610,7 @@ main(int argc, char *argv[])
     case CERT_TYPE_AIK:
         break;
     default:
-        fprintf(stderr, "Internal error: unhandle case in line %d\n",
+        fprintf(stderr, "Internal error: unhandled case in line %d\n",
                 __LINE__);
         goto cleanup;
     }
@@ -1743,6 +1639,7 @@ main(int argc, char *argv[])
     CHECK_OSSL_RETURN1(X509_add_ext(crt, ext, -1) != 1,
                        "Could not add extension to CRT.\n");
     X509_EXTENSION_free(ext);
+    ext = NULL;
 
     /* Subject Directory Attributes */
     switch (certtype) {
@@ -1750,7 +1647,7 @@ main(int argc, char *argv[])
         err = create_tpm_specification_info(spec_family, spec_level,
                                             spec_revision, &datum);
         if (err) {
-            fprintf(stderr, "Could not create TPMSpecification\n");
+            fprintf(stderr, "Could not create TPMSpecification.\n");
             goto cleanup;
         }
         break;
@@ -1816,7 +1713,7 @@ main(int argc, char *argv[])
         g_string_append(key_usage, ", digitalSignature");
         break;
     default:
-        fprintf(stderr, "Internal error: unhandle case in line %d\n",
+        fprintf(stderr, "Internal error: unhandled case in line %d\n",
                 __LINE__);
         goto cleanup;
     }
@@ -1850,7 +1747,7 @@ main(int argc, char *argv[])
     if (oid) {
         err = create_cert_extended_key_usage(oid, &datum);
         if (err) {
-            fprintf(stderr, "Could not create ASN.1 for extended key usage\n");
+            fprintf(stderr, "Could not create ASN.1 for extended key usage.\n");
             goto cleanup;
         }
         ASN1_OCTET_STRING_set(oct, datum.data, datum.size);
@@ -1871,7 +1768,7 @@ main(int argc, char *argv[])
 
     /* set public key */
     CHECK_OSSL_RETURN1(X509_set_pubkey(crt, pubkey) != 1,
-                       "Could not set public EK on CRT\n");
+                       "Could not set public EK on CRT.\n");
 
     /* sign cert */
     if (md == EVP_sha1())
@@ -1891,7 +1788,13 @@ main(int argc, char *argv[])
         CHECK_OSSL_RETURN1(i2d_X509_bio(bp, crt) != 1,
                            "Could not write DER certificate to buffer BIO.\n");
     }
+
     out.size = BIO_get_mem_data(bp, &out.data);
+    if (!out.data || !out.size) {
+        fprintf(stderr, "The BIO did not have any data.\n");
+        goto cleanup;
+    }
+
     if (cert_filename) {
         cert_file_fd = open(cert_filename, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,
                             S_IRUSR|S_IWUSR);
@@ -1926,8 +1829,8 @@ main(int argc, char *argv[])
             goto cleanup;
         }
         close(cert_file_fd);
-    } else {
-        fprintf(stdout, "%s\n", out.data);
+    } else if (write_pem) {
+        fprintf(stdout, "%.*s\n", out.size, out.data);
     }
 
     ret = 0;
@@ -1942,6 +1845,7 @@ cleanup:
     ASN1_OCTET_STRING_free(oct);
     BN_free(bn_serial);
     EVP_PKEY_free(sigkey);
+    X509_EXTENSION_free(ext);
     X509_free(sigcert);
     X509_free(crt);
     OSSL_PROVIDER_unload(provider);
