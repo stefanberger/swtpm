@@ -44,10 +44,6 @@ The new signing key will get this password.
 Note: Due to a bug in GnuTLS certtool it may be necessary to use the
 same password for the signing key as for the SRK.
 
-=item B<--srk-password s>
-
-The TPM SRK password.
-
 =item B<--outfile filename>
 
 The name of a file where to write the swtpm-localca.conf configuration

@@ -222,9 +222,6 @@ certserial = ${dir}/certserial"
 	if [ -n "${TPM_KEY_PASSWORD}" ]; then
 		output+="$(echo -e "\nsigningkey_password = ${TPM_KEY_PASSWORD}")"
 	fi
-	if [ -n "${TPM_SRK_PASSWORD}" ]; then
-		output+="$(echo -e "\nparentkey_password = ${TPM_SRK_PASSWORD}")"
-	fi
 
 	if [ -n "${outfile}" ]; then
 		echo "${output}" > "${outfile}"
@@ -267,7 +264,6 @@ The following options are supported:
 --overwrite        Overwrite any data in an existing directory; tries to
                    reuse a root CA if one is found there
 --key-password s   Password for the newly created TPM key
---srk-password s   Password for the TPM's SRK
 --outfile file     File to write the configuration to; if not passed it will be
                    written to stdout only
 --owner owner      The owner of the directory and the files; only set if this
@@ -305,10 +301,6 @@ main() {
 			;;
 		--overwrite)
 			flags=$((flags | FLAG_OVERWRITE))
-			;;
-		--srk-password)
-			shift
-			TPM_SRK_PASSWORD="$1"
 			;;
 		--key-password)
 			shift
