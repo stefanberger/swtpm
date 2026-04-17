@@ -193,8 +193,6 @@ static void usage(const char *prg)
         "                            PKCS11 URL\n"
         "--signkey-password <pass> : Password for the CA signing key\n"
         "--signkey-pwd <pwd>       : Alternative password option for CA signing key\n"
-        "--parentkey-password <p>  : Password of parent key; SRK password of TPM\n"
-        "--parentkey-pwd <pwd>     : Alternative password option for SRK password\n"
         "--issuercert <filename>   : PEM file with CA cert\n"
         "--out-cert <filename>     : Filename for certificate\n"
         "--modulus <hex string>    : The modulus of the public key\n"
@@ -1031,7 +1029,6 @@ static void capabilities_print_json(void)
             "\"type\": \"swtpm_cert\", "
             "\"features\": [ "
              "\"cmdarg-signkey-pwd\""
-             ", \"cmdarg-parentkey-pwd\""
             " ], "
             "\"version\": \"" VERSION "\" "
             "}\n");
@@ -1075,7 +1072,6 @@ main(int argc, char *argv[])
     const char *subject = NULL;
     long days = 365;
     char *sigkeypass = NULL;
-    char *parentkeypass = NULL;
     unsigned char ser_number[21];
     size_t ser_number_len;
     long int exponent = 0x10001;
@@ -1106,8 +1102,6 @@ main(int argc, char *argv[])
         {"signkey", required_argument, NULL, 's'},
         {"signkey-password", required_argument, NULL, 'S'},
         {"signkey-pwd", required_argument, NULL, 'T'},
-        {"parentkey-password", required_argument, NULL, 'P'},
-        {"parentkey-pwd", required_argument, NULL, 'Q'},
         {"issuercert", required_argument, NULL, 'i'},
         {"out-cert", required_argument, NULL, 'o'},
         {"subject", required_argument, NULL, 'u'},
@@ -1140,7 +1134,7 @@ main(int argc, char *argv[])
 
 #ifdef __NetBSD__
     while ((opt = getopt_long(argc, argv,
-                    "p:m:x:y:z:e:s:S:T:P:Q:i:o:u:d:r:1:2:3:4:5:6:7:8:9:MaXADcvh",
+                    "p:m:x:y:z:e:s:S:T:i:o:u:d:r:1:2:3:4:5:6:7:8:9:MaXADcvh",
                     long_options, &option_index)) != -1) {
 #else
     while ((opt = getopt_long_only(argc, argv, "", long_options,
@@ -1203,20 +1197,6 @@ main(int argc, char *argv[])
             free(sigkeypass);
             sigkeypass = get_password(optarg);
             if (!sigkeypass)
-                goto cleanup;
-            break;
-        case 'P': /* --parentkey-password */
-            free(parentkeypass);
-            parentkeypass = strdup(optarg);
-            if (!parentkeypass) {
-                fprintf(stderr, "Out of memory.\n");
-                goto cleanup;
-            }
-            break;
-        case 'Q': /* --parentkey-pwd */
-            free(parentkeypass);
-            parentkeypass = get_password(optarg);
-            if (!parentkeypass)
                 goto cleanup;
             break;
         case 'i': /* --issuercert */
@@ -1854,7 +1834,6 @@ cleanup:
 
     g_string_free(key_usage, TRUE);
     free(sigkeypass);
-    free(parentkeypass);
     free(modulus_bin);
     free(ecc_x_bin);
     free(ecc_y_bin);
