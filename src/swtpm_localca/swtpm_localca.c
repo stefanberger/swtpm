@@ -4,7 +4,7 @@
  *
  * Author: Stefan Berger, stefanb@linux.ibm.com
  *
- * Copyright (c) IBM Corporation, 2021
+ * Copyright (c) IBM Corporation, 2021 - 2026
  */
 
 #include "config.h"
@@ -369,7 +369,7 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
                        gchar *key_params, const gchar *vmid, const gchar **tpm_spec_params,
                        const gchar **tpm_attr_params, const gchar *signkey,
                        const gchar *signkey_password, const gchar *issuercert,
-                       const gchar *parentkey_password, const gchar **swtpm_cert_env,
+                       const gchar **swtpm_cert_env,
                        const gchar *certserial, const gchar *lockfile,
                        const gchar *optsfile)
 {
@@ -387,11 +387,8 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
     gchar **split;
     const char *certtype;
     int signkey_pwd_fd = -1;
-    int parentkey_pwd_fd  = -1;
     g_autofree gchar *signkey_pwd_file = NULL;
     g_autofree gchar *signkey_pwd_file_param = NULL;
-    g_autofree gchar *parentkey_pwd_file = NULL;
-    g_autofree gchar *parentkey_pwd_file_param = NULL;
     gboolean success;
     g_autofree gchar *standard_output = NULL;
     g_autofree gchar *standard_error = NULL;
@@ -487,15 +484,6 @@ static int create_cert(unsigned long flags, const gchar *typ, const gchar *direc
         signkey_pwd_file_param = g_strdup_printf("file:%s", signkey_pwd_file);
         cmd = concat_arrays(cmd, (const gchar*[]){"--signkey-pwd", signkey_pwd_file_param, NULL}, TRUE);
     }
-    if (parentkey_password != NULL) {
-        parentkey_pwd_fd = write_to_tempfile(&parentkey_pwd_file,
-                                             (unsigned char *)parentkey_password, strlen(parentkey_password));
-        if (parentkey_pwd_fd < 0)
-            goto error;
-
-        parentkey_pwd_file_param = g_strdup_printf("file:%s", parentkey_pwd_file);
-        cmd = concat_arrays(cmd, (const gchar*[]){"--parentkey-pwd", parentkey_pwd_file_param, NULL}, TRUE);
-    }
 
     if (strcmp(typ, "ek") == 0)
         cmd = concat_arrays(cmd, tpm_spec_params, TRUE);
@@ -562,11 +550,6 @@ error:
        close(signkey_pwd_fd);
     if (signkey_pwd_file)
        unlink(signkey_pwd_file);
-
-    if (parentkey_pwd_fd >= 0)
-       close(parentkey_pwd_fd);
-    if (parentkey_pwd_file)
-       unlink(parentkey_pwd_file);
 
     return ret;
 }
@@ -642,7 +625,6 @@ int main(int argc, char *argv[])
     g_autofree gchar *statedir = NULL;
     g_autofree gchar *signkey = NULL;
     g_autofree gchar *signkey_password = NULL;
-    g_autofree gchar *parentkey_password = NULL;
     g_autofree gchar *issuercert = NULL;
     g_autofree gchar *certserial = NULL;
     gchar **tpm_spec_params = NULL;
@@ -796,7 +778,6 @@ int main(int argc, char *argv[])
     }
 
     signkey_password = get_config_value(config_file_lines, "signingkey_password", NULL);
-    parentkey_password = get_config_value(config_file_lines, "parentkey_password", NULL);
 
     issuercert = get_config_value(config_file_lines, "issuercert", NULL);
     if (issuercert == NULL) {
@@ -888,7 +869,7 @@ int main(int argc, char *argv[])
 
     ret = create_cert(flags, typ, directory, key_params, vmid,
                       (const char **)tpm_spec_params, (const char **)tpm_attr_params,
-                      signkey, signkey_password, issuercert, parentkey_password,
+                      signkey, signkey_password, issuercert,
                       (const char **)swtpm_cert_env, certserial, lockfile, optsfile);
 
 out:
