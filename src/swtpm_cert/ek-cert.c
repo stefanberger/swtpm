@@ -1072,7 +1072,7 @@ main(int argc, char *argv[])
     const char *subject = NULL;
     long days = 365;
     char *sigkeypass = NULL;
-    unsigned char ser_number[21];
+    unsigned char ser_number[20];
     size_t ser_number_len;
     long int exponent = 0x10001;
     bool write_pem = false;
@@ -1327,20 +1327,14 @@ main(int argc, char *argv[])
         }
     }
 
-    if (BITS_TO_BYTES(mpz_sizeinbase(serial, 2)) > sizeof(ser_number) - 1) {
+    if (BITS_TO_BYTES(mpz_sizeinbase(serial, 2)) > sizeof(ser_number)) {
         fprintf(stderr, "Serial number is too large.\n");
         goto cleanup;
     }
     mpz_export(ser_number, &ser_number_len, 1, 1, 1, 0, serial);
-    if (ser_number_len > sizeof(ser_number) - 1) {
+    if (ser_number_len > sizeof(ser_number)) {
         fprintf(stderr, "Serial number is too large.\n");
         goto cleanup;
-    }
-    /* serial number's highest bit must not indicate negative number */
-    if (ser_number[0] & 0x7f) {
-        memmove(&ser_number[1], &ser_number[0], ser_number_len);
-        ser_number[0] = 0;
-        ser_number_len++;
     }
 
     if (modulus_bin && (ecc_x_bin || ecc_y_bin)) {
