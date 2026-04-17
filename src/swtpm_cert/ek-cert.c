@@ -174,6 +174,15 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
         goto cleanup;				\
     }
 
+static bool uses_hashless_signing(const EVP_PKEY *key)
+{
+    return EVP_PKEY_is_a(key, "ml-dsa-44") ||
+           EVP_PKEY_is_a(key, "ml-dsa-65") ||
+           EVP_PKEY_is_a(key, "ml-dsa-87") ||
+           EVP_PKEY_is_a(key, "ED25519") ||
+           EVP_PKEY_is_a(key, "ED448");
+}
+
 static void versioninfo(void)
 {
     fprintf(stdout,
@@ -1074,7 +1083,9 @@ static const EVP_MD *get_hashalg_for_signing(EVP_PKEY *signingkey)
     int bits = EVP_PKEY_get_bits(signingkey);
     const EVP_MD *md;
 
-    if (EVP_PKEY_is_a(signingkey, "RSA")) {
+    if (uses_hashless_signing(signingkey)) {
+        md = NULL;
+    } else if (EVP_PKEY_is_a(signingkey, "RSA")) {
         switch (bits) {
         case 2048:
             md = EVP_sha256();
@@ -1142,7 +1153,7 @@ int main(int argc, char *argv[])
     const X509_NAME *issuer_name = NULL;
     X509V3_CTX x509v3_ctx;
     OSSL_PROVIDER *provider = NULL;
-    const EVP_MD *md = EVP_sha1();
+    const EVP_MD *md;
     const char *pubkey_filename = NULL;
     const char *sigkey_filename = NULL;
     const char *cert_filename = NULL;
@@ -1642,8 +1653,16 @@ int main(int argc, char *argv[])
 
     /* The signing hash algorithm depends on the key */
     if (flags & CERT_TYPE_TPM2_F) {
-        if (!(md = get_hashalg_for_signing(sigkey)))
+        md = get_hashalg_for_signing(sigkey);
+    }else {
+        /* TPM 1.2 had to be signed with SHA1 */
+        if (uses_hashless_signing(sigkey)) {
+            fprintf(stderr,
+                    "Cannot use hashless signing scheme for TPM 1.2 certs.\n");
             goto cleanup;
+        }
+        md = EVP_sha1();
+        setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", 1);
     }
 
     if (!(fp = fopen(issuercert_filename, "r"))) {
@@ -1976,11 +1995,8 @@ int main(int argc, char *argv[])
                        "Could not set public EK on CRT.\n");
 
     /* sign cert */
-    if (md == EVP_sha1())
-        setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", 1);
-    if (sigkey)
-        CHECK_OSSL_RETURN1(X509_sign(crt, sigkey, md) == 0,
-                           "Could not sign the certificate.\n");
+    CHECK_OSSL_RETURN1(X509_sign(crt, sigkey, md) == 0,
+                       "Could not sign the certificate.\n");
 
     /* write the certificate */
     bp = BIO_new(BIO_s_mem());
