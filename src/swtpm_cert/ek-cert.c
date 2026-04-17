@@ -148,6 +148,13 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
         goto cleanup;			\
     }
 
+#define CHECK_OSSL_RETURN(TEST, _msg, ...)	\
+    if (TEST) {					\
+        fprintf(stderr, _msg, __VA_ARGS__);	\
+        ERR_print_errors_fp(stderr);		\
+        goto cleanup;				\
+    }
+
 static void versioninfo(void)
 {
     fprintf(stdout,
@@ -300,17 +307,21 @@ create_rsa_from_modulus(unsigned char *modulus, unsigned int modulus_len,
         goto cleanup;
     }
 
-    BN_set_word(e, exponent);
+    CHECK_OSSL_RETURN1(!BN_set_word(e, exponent),
+                       "Could not set exponent.\n");
 
-    OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, n);
-    OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, e);
+    CHECK_OSSL_RETURN1(
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, n) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, e),
+        "Could not push BN.\n");
 
-    if ((params = OSSL_PARAM_BLD_to_param(bld)) == NULL ||
+    CHECK_OSSL_RETURN1(
+        (params = OSSL_PARAM_BLD_to_param(bld)) == NULL ||
         EVP_PKEY_fromdata_init(ctx) != 1 ||
         EVP_PKEY_fromdata(ctx, &pubkey,
-                          EVP_PKEY_PUBLIC_KEY, params) != 1) {
-        fprintf(stderr, "Could not create RSA public key.\n");
-    }
+                          EVP_PKEY_PUBLIC_KEY, params) != 1,
+        "Could not create RSA public key.\n");
+
 cleanup:
     BN_free(e);
     BN_free(n);
@@ -335,10 +346,7 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
     size_t exp_len;
 
     CHECK_OSSL_NULLPTR1(ctx, "Could not create pkey context for EC key.\n");
-    if (!bld) {
-        fprintf(stderr, "Out of memory\n");
-        goto cleanup;
-    }
+    CHECK_OSSL_NULLPTR1(bld, "Out of memory.\n");
 
     if (ecc_curveid == NULL || !strcmp(ecc_curveid, "secp256r1")) {
         curve = g_strdup("prime256v1");
@@ -364,14 +372,19 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
     memcpy(&buffer[1 + exp_len - ecc_x_len], ecc_x, ecc_x_len);
     memcpy(&buffer[1 + 2 * exp_len - ecc_y_len], ecc_y, ecc_y_len);
 
-    OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY, buffer, 1 + 2 * exp_len);
-    OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME, curve, 0);
+    CHECK_OSSL_RETURN1(
+        !OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY,
+                                          buffer, 1 + 2 * exp_len) ||
+        !OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME,
+                                         curve, 0),
+        "Could not push string.\n");
 
-    if ((params = OSSL_PARAM_BLD_to_param(bld)) == NULL ||
+    CHECK_OSSL_RETURN(
+        (params = OSSL_PARAM_BLD_to_param(bld)) == NULL ||
         EVP_PKEY_fromdata_init(ctx) != 1 ||
-        EVP_PKEY_fromdata(ctx, &pubkey, EVP_PKEY_PUBLIC_KEY, params) != 1) {
-        fprintf(stderr, "Could not create %s key\n", curve);
-    }
+        EVP_PKEY_fromdata(ctx, &pubkey, EVP_PKEY_PUBLIC_KEY, params) != 1,
+        "Could not create %s key\n", curve);
+
 cleanup:
     OSSL_PARAM_BLD_free(bld);
     OSSL_PARAM_free(params);
@@ -1646,7 +1659,10 @@ main(int argc, char *argv[])
 
                 g_strchomp(attr);
                 g_strstrip(val);
-                X509_NAME_add_entry_by_txt(name, attr, MBSTRING_ASC, (unsigned char *)val, -1, -1, 0);
+                CHECK_OSSL_RETURN1(
+                    X509_NAME_add_entry_by_txt(name, attr, MBSTRING_ASC,
+                                               (unsigned char *)val, -1, -1, 0) != 1,
+                    "X509_NAME_add_entry_by_txt failed.\n");
             }
             token = strtok(NULL, ",");
         } while (token);
