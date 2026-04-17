@@ -499,6 +499,24 @@ Display the help screen
 
 =back
 
+=head1 CA Keys
+
+It is recommended to use RSA or EC keys, such as RSA-3072/4096,
+secp256/384/521r1, or Ed25519/448 keys, for signing EK and platform
+certificates B<if> users may choose to create swtpm instances with the NULL
+or default-v1 profiles and therefore have only 2kb NVRAM spaces available
+for storing certificates.
+
+swtpm_cert can sign EK and platform certificates with an ML-DSA key.
+However, it is only recommended to setup a CA with ML-DSA keys if swtpm
+will be used with the default-v2 or a later profile since the certificates
+created with an ML-DSA signing key are substantially larger than what
+previous versions of swtpm profiles allowed to store in NVRAM spaces.
+Older profiles (specifically those supporting StateFormatLevel less than
+'12') only allowed to store up to 2kb in an NVRAM space. This has been
+increased to 10kb, which allows to sign a certificate for an ML-DSA
+(signing) EK with a CA that uses an ML-DSA signing key.
+
 =head1 EXAMPLE USAGE
 
 To simulate manufacturing of a TPM, one would typically run the following command:

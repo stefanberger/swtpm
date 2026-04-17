@@ -174,6 +174,15 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
         goto cleanup;				\
     }
 
+static bool uses_hashless_signing(const EVP_PKEY *key)
+{
+    return EVP_PKEY_is_a(key, "ml-dsa-44") ||
+           EVP_PKEY_is_a(key, "ml-dsa-65") ||
+           EVP_PKEY_is_a(key, "ml-dsa-87") ||
+           EVP_PKEY_is_a(key, "ED25519") ||
+           EVP_PKEY_is_a(key, "ED448");
+}
+
 static void versioninfo(void)
 {
     fprintf(stdout,
@@ -1074,7 +1083,9 @@ static const EVP_MD *get_hashalg_for_signing(EVP_PKEY *signingkey)
     int bits = EVP_PKEY_get_bits(signingkey);
     const EVP_MD *md;
 
-    if (EVP_PKEY_is_a(signingkey, "RSA")) {
+    if (uses_hashless_signing(signingkey)) {
+        md = NULL;
+    } else if (EVP_PKEY_is_a(signingkey, "RSA")) {
         switch (bits) {
         case 2048:
             md = EVP_sha256();
@@ -1625,10 +1636,8 @@ int main(int argc, char *argv[])
     }
 
     /* The signing hash algorithm depends on the key */
-    if (flags & CERT_TYPE_TPM2_F) {
-        if (!(md = get_hashalg_for_signing(sigkey)))
-            goto cleanup;
-    }
+    if (flags & CERT_TYPE_TPM2_F)
+        md = get_hashalg_for_signing(sigkey);
 
     if (!(fp = fopen(issuercert_filename, "r"))) {
         fprintf(stderr, "Could not open issuer cert file: %s\n",
@@ -1961,9 +1970,8 @@ int main(int argc, char *argv[])
     /* sign cert */
     if (md == EVP_sha1())
         setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", 1);
-    if (sigkey)
-        CHECK_OSSL_RETURN1(X509_sign(crt, sigkey, md) == 0,
-                           "Could not sign the certificate.\n");
+    CHECK_OSSL_RETURN1(X509_sign(crt, sigkey, md) == 0,
+                       "Could not sign the certificate.\n");
 
     /* write the certificate */
     bp = BIO_new(BIO_s_mem());
