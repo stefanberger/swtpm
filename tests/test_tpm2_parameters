@@ -38,6 +38,8 @@ PARAMETERS=(
 	"--ecc --createek --allow-signing --decryption --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --display --pwdfile-fd 101 --cipher aes-256-cbc"
 	"--ecc --createek --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --vmid test --lock-nvram"
 	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p384 --ek2keyalgo ecc_nist_p384"
+	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p521 --ek2keyalgo secp256r1"
+	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p256 --ek2keyalgo secp256r1"
 	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo rsa3072       --ecc"
 	"--profile-name default-v1 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo ecc_nist_p384"
 )
