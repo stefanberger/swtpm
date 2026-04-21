@@ -453,12 +453,15 @@ static const struct swtpm_cops swtpm_cops = {
 // Specification Version 2.1; Revision 13; 10 December 2018
 #define TPM2_NV_INDEX_PLATFORMCERT           0x01c08000
 
+#define TPM2_NV_INDEX_ECC_SECP256R1_EKCERT        0x01c0000a
+#define TPM2_NV_INDEX_ECC_SECP256R1_EKTEMPLATE    0x01c0000b
 #define TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT     0x01c00016
 #define TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE 0x01c00017
 
 #define TPM2_EK_RSA_HANDLE           0x81010001
 #define TPM2_EK_RSA3072_HANDLE       0x8101001c
 #define TPM2_EK_RSA4096_HANDLE       0x8101001e
+#define TPM2_EK_ECC_SECP256R1_HANDLE 0x8101000a
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_SPK_HANDLE              0x81000001
 
@@ -493,6 +496,7 @@ static const unsigned char NONCE_EMPTY[2] = {AS2BE(0)};
 static const unsigned char NONCE_RSA2048[2+0x100] = {AS2BE(0x100), 0, };
 static const unsigned char NONCE_RSA3072[2+0x180] = {AS2BE(0x180), 0, };
 static const unsigned char NONCE_RSA4096[2+0x200] = {AS2BE(0x200), 0, };
+static const unsigned char NONCE_ECC_256[2+0x20] = {AS2BE(0x20), 0, };
 static const unsigned char NONCE_ECC_384[2+0x30] = {AS2BE(0x30), 0, };
 
 static const unsigned char PolicyA_SHA256[32] = {
@@ -547,6 +551,24 @@ static const struct ek_params {
     uint32_t nvindex_template;
 } ek_params[] = {
     {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P256,
+            .keydescription = "secp256r1",
+            .nonce = NONCE_ECC_256,
+            .nonce_len = sizeof(NONCE_ECC_256),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = PolicyA_SHA256,
+            .authpolicy_len = sizeof(PolicyA_SHA256),
+            .symkey_len = 128,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = 32,
+        },
+        .ek_handle = TPM2_EK_ECC_SECP256R1_HANDLE,
+        .keytype = "secp256r1",
+        .nvindex_ekcert = TPM2_NV_INDEX_ECC_SECP256R1_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_ECC_SECP256R1_EKTEMPLATE,
+    }, {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P384,
@@ -621,6 +643,45 @@ static const struct ek_params {
     }
 };
 
+static const unsigned char null_authpolicy[] = {};
+
+static const struct spk_params {
+    struct pk_params pk;
+} spk_params[] = {
+    {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P256,
+            .nonce = NONCE_ECC_256,
+            .nonce_len = sizeof(NONCE_ECC_256),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .keysize = 32,
+            .symkey_len = 128,
+            .duration = TPM2_DURATION_LONG,
+        }
+   }, {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P384,
+            /* per "TCG TPM v2.0 Provisioning Guidance v1.0" page 37
+             * -> "Ek Credential Profile 2.0" rev.14 section 2.1.5.2:
+             * template for NIST P256 uses 2 identical 32-byte all-zero nonces
+             * -> Use two 48-byte all-zero nonces for NIST P384.
+             */
+            .nonce = NONCE_ECC_384,
+            .nonce_len = sizeof(NONCE_ECC_384),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .keysize = 48,
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+        },
+    }
+};
+
 static const struct ek_params *get_ek_params(struct swtpm *self,
                                              enum keyalgo keyalgo,
                                              unsigned int keyalgo_param)
@@ -637,6 +698,24 @@ static const struct ek_params *get_ek_params(struct swtpm *self,
            keyalgo, keyalgo_param);
     return NULL;
 }
+
+static const struct spk_params *get_spk_params(struct swtpm *self,
+                                               enum keyalgo keyalgo,
+                                               unsigned int keyalgo_param)
+{
+    size_t i;
+
+    for (i = 0; i < ARRAY_LEN(spk_params); i++) {
+        if (spk_params[i].pk.keyalgo == keyalgo &&
+            spk_params[i].pk.keyalgo_param == keyalgo_param) {
+            return &spk_params[i];
+        }
+    }
+    logerr(self->logfile, "Internal error: Unsupported SRK keyalgo and keyalgo_param: %u/%u\n",
+           keyalgo, keyalgo_param);
+    return NULL;
+}
+
 
 /* function prototypes */
 static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
@@ -1223,39 +1302,28 @@ err_too_short:
     return 1;
 }
 
-static int swtpm_tpm2_createprimary_spk_ecc_nist_p384(struct swtpm *self,
-                                                      uint32_t *curr_handle)
+static int swtpm_tpm2_createprimary_spk_ecc(struct swtpm *self,
+                                            unsigned int keyalgo_param,
+                                            uint32_t *curr_handle)
 {
+    uint16_t curveid = (uint16_t)keyalgo_param;
+    const unsigned char schemedata[] = {
+        AS2BE(TPM2_ALG_NULL), AS2BE(curveid), AS2BE(TPM2_ALG_NULL)
+    };
+    size_t schemedata_len = sizeof(schemedata);
     // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth
     //           noDA, restricted, decrypt
     unsigned int keyflags = 0x00030472;
-    const unsigned char authpolicy[0] = { };
-    size_t authpolicy_len = sizeof(authpolicy);
-    const unsigned char schemedata[] = {
-        AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
-    };
-    struct pk_params pk_params = {
-        .authpolicy = authpolicy,
-        .authpolicy_len = authpolicy_len,
-        .nonce = NONCE_ECC_384,
-        .nonce_len = sizeof(NONCE_ECC_384),
-        .hashalg = TPM2_ALG_SHA384,
-        .keysize = 48,
-        .symkey_len = 256,
-        .duration = TPM2_DURATION_LONG,
-    };
-    size_t schemedata_len = sizeof(schemedata);
+    const struct spk_params *spks;
     size_t off = 42;
 
-    /* per "TCG TPM v2.0 Provisioning Guidance v1.0" page 37
-     * -> "Ek Credential Profile 2.0" rev.14 section 2.1.5.2:
-     * template for NIST P256 uses 2 identical 32-byte all-zero nonces
-     * -> Use two 48-byte all-zero nonces for NIST P384.
-     */
+    spks = get_spk_params(self, KEYALGO_ECC, keyalgo_param);
+    if (!spks)
+        return 1;
 
     return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags,
                                         schemedata, schemedata_len,
-                                        &pk_params, off, curr_handle,
+                                        &spks->pk, off, curr_handle,
                                         NULL, 0, NULL, NULL);
 }
 
@@ -1312,7 +1380,7 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
 
     switch (keyalgo) {
     case KEYALGO_ECC:
-        ret = swtpm_tpm2_createprimary_spk_ecc_nist_p384(self, &curr_handle);
+        ret = swtpm_tpm2_createprimary_spk_ecc(self, keyalgo_param, &curr_handle);
         break;
     case KEYALGO_RSA:
         ret = swtpm_tpm2_createprimary_spk_rsa(self, keyalgo_param, &curr_handle);
@@ -1339,46 +1407,55 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
 }
 
 /* Create an ECC EK key that may be allowed to sign and/or decrypt */
-static int swtpm_tpm2_createprimary_ek_ecc_nist_p384(struct swtpm *self, gboolean allowsigning,
-                                                     gboolean decryption, uint32_t *curr_handle,
-                                                     unsigned char *ektemplate, size_t *ektemplate_len,
-                                                     gchar **ekparam, const char **key_description)
+static int swtpm_tpm2_createprimary_ek_ecc(struct swtpm *self, const struct ek_params *ekps,
+                                           gboolean allowsigning, gboolean decryption,
+                                           uint32_t *curr_handle,
+                                           unsigned char *ektemplate, size_t *ektemplate_len,
+                                           gchar **ekparam, const char **key_description)
 {
     const unsigned char schemedata[] = {
-        AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
+        AS2BE(TPM2_ALG_NULL), AS2BE(ekps->pk.keyalgo_param), AS2BE(TPM2_ALG_NULL)
     };
     size_t schemedata_len = sizeof(schemedata);
-    const struct ek_params *ekps;
     struct pk_params pkps;
     unsigned int keyflags;
     size_t off;
     int ret;
 
-    ekps = get_ek_params(self, KEYALGO_ECC, TPM2_ECC_NIST_P384);
-    if (!ekps)
-        return 1;
     pkps = ekps->pk;
+
+    switch (pkps.keyalgo_param) {
+    case TPM2_ECC_NIST_P256:
+        off = 0x4a;
+        keyflags = 0;
+        break;
+    case TPM2_ECC_NIST_P384:
+        off = 0x5a;
+        keyflags = 0x40; // userWithAuth (high range)
+        break;
+    default:
+        return 1;
+    }
 
     if (allowsigning && decryption) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
         // userWithAuth, adminWithPolicy, sign, decrypt; restricted CANNOT be set
-        keyflags = 0x000600f2;
+        keyflags |= 0x000600b2;
         // symmetric: TPM_ALG_NULL
         pkps.symkey_len = 0;
-        off = 86;
+        off -= 4;
     } else if (allowsigning) {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
         // userWithAuth, adminWithPolicy, sign; restricted CANNOT be set
-        keyflags = 0x000400f2;
+        keyflags |= 0x000400b2;
         // symmetric: TPM_ALG_NULL
         pkps.symkey_len = 0;
-        off = 86;
+        off -= 4;
     } else {
         // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
         // userWithAuth, adminWithPolicy, restricted, decrypt
-        keyflags = 0x000300f2;
+        keyflags |= 0x000300b2;
         // symmetric: TPM_ALG_AES, 256bit, TPM_ALG_CFB
-        off = 90;
     }
 
     ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags,
@@ -1409,9 +1486,11 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsign
 
     switch (keyalgo) {
     case KEYALGO_ECC:
-        ret = swtpm_tpm2_createprimary_ek_ecc_nist_p384(self, allowsigning, decryption, &curr_handle,
-                                                        ektemplate, &ektemplate_len, ekparam,
-                                                        key_description);
+        ret = swtpm_tpm2_createprimary_ek_ecc(self, ekps,
+                                              allowsigning, decryption,
+                                              &curr_handle,
+                                              ektemplate, &ektemplate_len,
+                                              ekparam, key_description);
         break;
     case KEYALGO_RSA:
         ret = swtpm_tpm2_createprimary_ek_rsa(self, keyalgo_param, allowsigning,

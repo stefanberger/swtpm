@@ -89,7 +89,8 @@ Choose the key algorithm for the 1st endorsement key. This key algorithm
 must be supported by the chosen profile since it will lead to a key
 generation error otherwise. The default is rsa2048.
 
-Valid values are: ecc_nist_p384 or secp384r1, rsa2048, rsa3072, rsa4096.
+Valid values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
+rsa2048, rsa3072, rsa4096.
 
 Note that rsa4096 requires the default-v2 or a later profile.
 
