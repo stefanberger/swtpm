@@ -121,7 +121,8 @@ by users of the system.
 =item B<ek1keyalgo> (since v0.11)
 
 This keyword allows to choose the key algorithm of the 1st endorsement key.
-Supported values are: ecc_nist_p384 or secp384r1, rsa2048, rsa3072, rsa4096
+Supported values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
+rsa2048, rsa3072, rsa4096
 
 Note that rsa4096 requires the default-v2 or a later profile.
 
