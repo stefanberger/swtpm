@@ -422,12 +422,12 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_ALG_SHA256   0x000b
 #define TPM2_ALG_SHA384   0x000c
 #define TPM2_ALG_SHA512   0x000d
-#define TPM2_ALG_SHA3_256 0x0027
-#define TPM2_ALG_SHA3_384 0x0028
-#define TPM2_ALG_SHA3_512 0x0029
 #define TPM2_ALG_NULL     0x0010
 #define TPM2_ALG_SM3      0x0012
 #define TPM2_ALG_ECC      0x0023
+#define TPM2_ALG_SHA3_256 0x0027
+#define TPM2_ALG_SHA3_384 0x0028
+#define TPM2_ALG_SHA3_512 0x0029
 #define TPM2_ALG_CFB      0x0043
 
 #define TPM2_CAP_PCRS     0x00000005
@@ -560,6 +560,8 @@ struct pk_params {
     uint32_t keyflags;
     const unsigned char *nonce;
     size_t nonce_len;
+    const unsigned char *nonce2; // For ECC if nonce != nonce2
+    size_t nonce2_len;
     uint16_t hashalg;
     const unsigned char *authpolicy;
     size_t authpolicy_len;
@@ -1409,7 +1411,8 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                   symkeydata, symkeydata_len,
                   pk_params->schemedata, pk_params->schemedata_len,
                   pk_params->nonce, pk_params->nonce_len,
-                  pk_params->nonce, pk_params->nonce_len,
+                  pk_params->nonce2 ? pk_params->nonce2     : pk_params->nonce,
+                  pk_params->nonce2 ? pk_params->nonce2_len : pk_params->nonce_len,
                   NULL);
     if (public_len < 0) {
         logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
