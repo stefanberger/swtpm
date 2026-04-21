@@ -94,6 +94,7 @@ static const struct {
     { .name = "rsa3072"      , .keyalgo = KEYALGO_RSA, .keyalgo_param = 3072 },
     { .name = "rsa4096"      , .keyalgo = KEYALGO_RSA, .keyalgo_param = 4096 },
     { .name = "ecc_nist_p384", .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P384 },
+    { .name = "secp384r1"    , .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P384 },
 };
 
 /* initialize the path of the config_file */
