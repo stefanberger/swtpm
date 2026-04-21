@@ -457,12 +457,15 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_NV_INDEX_ECC_SECP256R1_EKTEMPLATE    0x01c0000b
 #define TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT     0x01c00016
 #define TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE 0x01c00017
+#define TPM2_NV_INDEX_ECC_SECP521R1_HI_EKCERT     0x01c00018
+#define TPM2_NV_INDEX_ECC_SECP521R1_HI_EKTEMPLATE 0x01c00019
 
 #define TPM2_EK_RSA_HANDLE           0x81010001
 #define TPM2_EK_RSA3072_HANDLE       0x8101001c
 #define TPM2_EK_RSA4096_HANDLE       0x8101001e
 #define TPM2_EK_ECC_SECP256R1_HANDLE 0x8101000a
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
+#define TPM2_EK_ECC_SECP521R1_HANDLE 0x81010018
 #define TPM2_SPK_HANDLE              0x81000001
 
 #define TPM2_DURATION_SHORT      ( 2000 /* ms */ * ARCH_PROCESSING_DELAY_FACTOR)
@@ -498,6 +501,7 @@ static const unsigned char NONCE_RSA3072[2+0x180] = {AS2BE(0x180), 0, };
 static const unsigned char NONCE_RSA4096[2+0x200] = {AS2BE(0x200), 0, };
 static const unsigned char NONCE_ECC_256[2+0x20] = {AS2BE(0x20), 0, };
 static const unsigned char NONCE_ECC_384[2+0x30] = {AS2BE(0x30), 0, };
+static const unsigned char NONCE_ECC_521[2+0x42] = {AS2BE(0x42), 0, };
 
 static const unsigned char PolicyA_SHA256[32] = {
     0x83, 0x71, 0x97, 0x67, 0x44, 0x84, 0xb3, 0xf8, 0x1a, 0x90, 0xcc, 0x8d,
@@ -512,6 +516,17 @@ static const unsigned char PolicyB_SHA384[48] = {
     0xCB, 0x1C, 0x0A, 0xD9, 0xBD, 0xE4, 0x19, 0xCA,
     0xCB, 0x47, 0xBA, 0x09, 0x69, 0x96, 0x46, 0x15,
     0x0F, 0x9F, 0xC0, 0x00, 0xF3, 0xF8, 0x0E, 0x12
+};
+
+static const unsigned char PolicyB_SHA512[64] = {
+    0xB8, 0x22, 0x1C, 0xA6, 0x9E, 0x85, 0x50, 0xA4,
+    0x91, 0x4D, 0xE3, 0xFA, 0xA6, 0xA1, 0x8C, 0x07,
+    0x2C, 0xC0, 0x12, 0x08, 0x07, 0x3A, 0x92, 0x8D,
+    0x5D, 0x66, 0xD5, 0x9E, 0xF7, 0x9E, 0x49, 0xA4,
+    0x29, 0xC4, 0x1A, 0x6B, 0x26, 0x95, 0x71, 0xD5,
+    0x7E, 0xDB, 0x25, 0xFB, 0xDB, 0x18, 0x38, 0x42,
+    0x56, 0x08, 0xB4, 0x13, 0xCD, 0x61, 0x6A, 0x5F,
+    0x6D, 0xB5, 0xB6, 0x07, 0x1A, 0xF9, 0x9B, 0xEA
 };
 
 static const struct bank_to_name {
@@ -586,6 +601,24 @@ static const struct ek_params {
         .keytype = "ECC",
         .nvindex_ekcert = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT,
         .nvindex_template = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P521,
+            .keydescription = "secp521r1",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = PolicyB_SHA512,
+            .authpolicy_len = sizeof(PolicyB_SHA512),
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = 66,
+        },
+        .ek_handle = TPM2_EK_ECC_SECP521R1_HANDLE,
+        .keytype = "ECC",
+        .nvindex_ekcert = TPM2_NV_INDEX_ECC_SECP521R1_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_ECC_SECP521R1_HI_EKTEMPLATE,
     }, {
         .pk = {
             .keyalgo = KEYALGO_RSA,
@@ -679,6 +712,19 @@ static const struct spk_params {
             .symkey_len = 256,
             .duration = TPM2_DURATION_LONG,
         },
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_ECC,
+            .keyalgo_param = TPM2_ECC_NIST_P521,
+            .nonce = NONCE_ECC_521,
+            .nonce_len = sizeof(NONCE_ECC_521),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .keysize = 66,
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+       },
     }
 };
 
@@ -1431,6 +1477,10 @@ static int swtpm_tpm2_createprimary_ek_ecc(struct swtpm *self, const struct ek_p
         break;
     case TPM2_ECC_NIST_P384:
         off = 0x5a;
+        keyflags = 0x40; // userWithAuth (high range)
+        break;
+    case TPM2_ECC_NIST_P521:
+        off = 0x6a;
         keyflags = 0x40; // userWithAuth (high range)
         break;
     default:
