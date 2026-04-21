@@ -50,6 +50,7 @@ enum keyalgo {
 /* for keyalgo_param: */
 #define TPM2_ECC_NIST_P256 0x0003
 #define TPM2_ECC_NIST_P384 0x0004
+#define TPM2_ECC_NIST_P521 0x0005
 
 /* TPM 2 specific ops */
 struct swtpm2_ops {
