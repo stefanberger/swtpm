@@ -49,9 +49,6 @@ fi
 #expecting size to be constant
 check_cert_size "${cert}" 1119
 
-#certtool --certificate-info --infile "${cert}"
-#openssl x509 -in "${cert}" -text
-
 # truncate result file
 echo -n > "${cert}"
 echo "Test 1: OK"
@@ -98,7 +95,6 @@ fi
 check_cert_size "${cert}" 1196
 
 # truncate result file
-#certtool --certificate-info --infile ${cert}
 echo -n > "${cert}"
 echo "Test 3: OK"
 
@@ -127,6 +123,5 @@ fi
 check_cert_size "${cert}" 1143
 
 # truncate result file
-#certtool --certificate-info --infile ${cert}
 echo -n > "${cert}"
 echo "Test 4: OK"

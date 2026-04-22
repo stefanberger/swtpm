@@ -136,15 +136,15 @@ for keysize in ${keysizes}; do
 		exit 1
 	fi
 
-	if ! $CERTTOOL --inder --infile "${certfile}" -i | grep -q "${keysize} bits"; then
+	if ! openssl x509 -inform der -in "${certfile}" -noout -text | grep -q "${keysize} bit"; then
 		echo "Error: EK file '${certfile}' is not an RSA ${keysize} bit key."
-		$CERTTOOL --inder --infile "${certfile}" -i
+		openssl x509 -inform der -in "${certfile}" -noout -text
 		exit 1
 	fi
-	if ! $CERTTOOL --inder --infile "${certfile}" -i | grep "Key Usage" -A1 | \
-		grep -q "Digital signature."; then
-		echo "Error: EK file '${certfile}' does not have key usage flag 'Digitial signature' set."
-		$CERTTOOL --inder --infile "${certfile}" -i
+	if ! openssl x509 -inform der -in "${certfile}" -noout -text | grep "Key Usage" -A1 | \
+		grep -q "Digital Signature"; then
+		echo "Error: EK file '${certfile}' does not have key usage flag 'Digitial Signature' set."
+		openssl x509 -inform der -in "${certfile}" -noout -text
 		exit 1
 	fi
 
@@ -250,9 +250,9 @@ for pwdfile in "" "${PWDFILE}"; do
 		exit 1
 	fi
 
-	if ! $CERTTOOL --inder --infile "${certfile}" -i | grep -q "384 bits"; then
+	if ! openssl x509 -inform der -in "${certfile}" -noout -text | grep -q "384 bit"; then
 		echo "Error: EK file '${certfile}' is not an ECC 384 bit key."
-		$CERTTOOL --inder --infile "${certfile}" -i
+		openssl x509 -inform der -in "${certfile}" -noout -text
 		exit 1
 	fi
 
