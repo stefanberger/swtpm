@@ -26,14 +26,6 @@ export SWTPM_SETUP_CONF
 
 ECHO=$(type -P echo)
 
-case "$(uname -s)" in
-Darwin)
-	CERTTOOL=gnutls-certtool;;
-*)
-	CERTTOOL=certtool;;
-esac
-export CERTTOOL
-
 # Note: Do not use file descriptors above 127 due to OpenBSD.
 
 # Send a signal to a process and suppress the output if for example a process

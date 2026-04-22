@@ -93,7 +93,6 @@ fi
 check_cert_size "${cert}" 1460
 
 # truncate result file
-#certtool --certificate-info --infile ${cert}
 echo -n > "${cert}"
 echo "Test 3: OK"
 
@@ -124,6 +123,5 @@ fi
 check_cert_size "${cert}" 1489
 
 # truncate result file
-#certtool --certificate-info --infile ${cert}
 echo -n > "${cert}"
 echo "Test 4: OK"

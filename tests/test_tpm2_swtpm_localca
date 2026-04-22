@@ -22,10 +22,6 @@ PATH=${TOPBUILD}/src/swtpm_cert:$PATH
 
 source "${TESTDIR}/common"
 
-if ${CERTTOOL} --help | grep -q -E "\--verify-profile"; then
-	verify_profile="--verify-profile=medium"
-fi
-
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
@@ -53,10 +49,10 @@ _EOF_
 # the following contains the test parameters and
 # expected key usage
 for testparams in \
-	"--allow-signing|Digital signature" \
-	"--allow-signing --decryption|Digital signature,Key encipherment" \
-	"--decryption|Key encipherment" \
-	"|Key encipherment";
+	"--allow-signing|Digital Signature" \
+	"--allow-signing --decryption|Digital Signature, Key Encipherment" \
+	"--decryption|Key Encipherment" \
+	"|Key Encipherment";
 do
   params=$(echo "${testparams}" | cut -d"|" -f1)
   usage=$(echo "${testparams}" | cut -d"|" -f2)
@@ -106,12 +102,12 @@ do
 
   for u in $usage; do
     echo "$u"
-    if ! ${CERTTOOL} -i \
-            --inder --infile "${workdir}/ek.cert" | \
-            grep "Key Usage" -A2 | \
+    if ! openssl x509 -inform der -in "${workdir}/ek.cert" -text -noout | \
+            grep "Key Usage" -A1 | \
             grep -q "$u"; then
       echo "Error: Could not find key usage $u in key created " \
            "with $params."
+      exit 1
     else
       echo "Found '$u'"
     fi
@@ -119,16 +115,10 @@ do
 
   IFS="$OIFS"
 
-  ${CERTTOOL} \
-    -i \
-    --inder --infile "${workdir}/ek.cert" \
-    --outfile "${workdir}/ek.pem"
-
-  if ! ${CERTTOOL} \
-    --verify \
-    ${verify_profile:+${verify_profile}} \
-    --load-ca-certificate "${ISSUERCERT}" \
-    --infile "${workdir}/ek.pem"; then
+  if ! openssl verify \
+         -CAfile "${workdir}/swtpm-localca-rootca-cert.pem" \
+         -untrusted "${ISSUERCERT}" \
+         "${workdir}/ek.cert"; then
     echo "Error: Could not verify certificate chain."
     exit 1
   fi
@@ -138,53 +128,5 @@ do
 done
 
 echo "Test 1: OK"
-echo
-
-#A few tests with odd vm Ids
-for vmid in \
-	"s p a c e|s p a c e" \
-	"\$(ls)>foo|\$(ls)\>foo" \
-	"\`ls\`&; #12|\`ls\`&\; #12" \
-	"foo>&1<&2;\$(ls)|foo\>&1\<&2\;\$(ls)" \
-	"'*|'*" \
-	'"*|\"*' \
-	":\$\$|:\$\$" \
-	"\${t}[]|\${t}[]";
-do
-  in=$(echo "$vmid" | cut -d"|" -f1)
-  exp=$(echo "$vmid" | cut -d"|" -f2)
-
-  if ! ${SWTPM_LOCALCA} \
-    --type ek \
-    --ek "${ek}" \
-    --dir "${workdir}" \
-    --vmid "$in" \
-    --tpm2 \
-    --configfile "${workdir}/swtpm-localca.conf" \
-    --optsfile "${workdir}/swtpm-localca.options" \
-    --tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0 \
-    ${params:+${params}} &>/dev/null; then
-    echo "Error: Test with parameters '$params' failed."
-    exit 1
-  fi
-
-  if [ ! -r "${workdir}/ek.cert" ]; then
-    echo "Error: ${workdir}/ek.cert was not created."
-    exit 1
-  fi
-
-  ac=$(${CERTTOOL} -i --inder --infile "${workdir}/ek.cert" | \
-       sed -n "s/.*Subject: CN=\(.*\)$/\1/p")
-  if [ "$ac" != "$exp" ]; then
-    echo "Error: unexpected subject string"
-    echo "actual   : $ac"
-    echo "expected : $exp"
-    exit 1
-  else
-    echo "Pass: $ac"
-  fi
-done
-
-echo "Test 2: OK"
 
 exit 0

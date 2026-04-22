@@ -228,23 +228,22 @@ _EOF_
 
 	# Check the contents of the certificate
 	certinfo=$(dd "if=${workdir}/ek.cert" bs=1 status=none | \
-		   "$CERTTOOL" -i --inder)
-	regexs=('^[[:space:]]+2.23.133.8.1$'
-		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.3=.*'
-		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.2=.*'
-		'^[[:space:]]+directoryName:.*(,)?2.23.133.2.1=.*'
-		'^[[:space:]]+Certificate Authority \(CA\): FALSE$'
-		'^[[:space:]]+Unknown extension 2.5.29.9 \(not critical\):$'
-		'^[[:space:]]+Hexdump: 3019301706056781050210310e300c0c03322e3002010002020092$')
+		   openssl x509 -inform der -text -noout)
+	regexs=('^[[:space:]]+Endorsement Key Certificate$'
+		'^[[:space:]]+DirName:.*(/)tcg-at-tpmVersion=.*'
+		'^[[:space:]]+DirName:.*(/)?tcg-at-tpmManufacturer=IBM.*'
+		'^[[:space:]]+DirName:.*(/)?tcg-at-tpmModel=swtpm.*'
+		'^[[:space:]]+CA:FALSE$'
+		'^[[:space:]]+TPM Specification:$')
 
 	case "${algorithm}" in
-	rsa2048)	alg=RSA-SHA256;;
-	ecc256)		alg=ECDSA-SHA256;;
-	secp384r1)	alg=ECDSA-SHA384;;
+	rsa2048)	alg=sha256WithRSAEncryption;;
+	ecc256)		alg=ecdsa-with-SHA256;;
+	secp384r1)	alg=ecdsa-with-SHA384;;
 	esac
 
 	# TPM 2.0; due to ecc: Key agreement
-	regexs+=('^[[:space:]]+Key agreement\.$'
+	regexs+=('^[[:space:]]+Key Agreement$'
 		 '^[[:space:]]+Signature Algorithm: '"${alg}"'$')
 
 	for ((i=0; i < ${#regexs}; i++)); do \

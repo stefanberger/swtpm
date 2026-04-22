@@ -11,8 +11,8 @@ workdir="$(mktemp -d)" || exit 1
 # Have softhsm_setup use 'workdir'.
 export SOFTHSM_SETUP_CONFIGDIR="${workdir}"
 
-# Since we will be using the pkcs11 module as well via certtool
-# we have to set the environment variable to point to its config file.
+# Since we will be using the pkcs11 module as well using openssl with a pkcs11
+# provider, we have to set the environment variable to point to its config file.
 # This has to be the same as for swtpm_setup sets it.
 export SOFTHSM2_CONF="${workdir}"/softhsm2.conf
 
@@ -28,10 +28,6 @@ PATH="${ROOT}/src/swtpm_cert:$PATH"
 
 source "${TESTDIR}/common"
 
-if ${CERTTOOL} --help | grep -q -E "\--verify-profile"; then
-	verify_profile="--verify-profile=medium"
-fi
-
 trap "cleanup" SIGTERM EXIT
 
 function cleanup()
@@ -42,7 +38,6 @@ function cleanup()
 
 skip_test_linked_with_asan "${SWTPM_LOCALCA}"
 
-unset GNUTLS_PIN
 export PIN="abcdef"
 
 # Generate the PKCS11 token and key; it uses env. variable 'PIN'
@@ -57,16 +52,11 @@ pkcs11uri=$(echo "${msg}" | \
             sed 's/type=public/type=private/')
 
 # Now we need to create the root CA ...
-template="${workdir}/template"
-
 cakey="${workdir}/swtpm-localca-rootca-privkey.pem"
 cacert="${workdir}/swtpm-localca-rootca-cert.pem"
 
 # first the private key
-if ! msg=$(${CERTTOOL} \
-	--generate-privkey \
-	--outfile "${cakey}" \
-	2>&1); then
+if ! msg=$(openssl genrsa -out "${cakey}" 2048 2>&1); then
 	echo "Could not create root-CA key ${cakey}."
 	echo "${msg}"
 	exit 1
@@ -74,19 +64,10 @@ fi
 chmod 640 "${cakey}"
 
 # now the self-signed certificate
-cat <<_EOF_ > "${template}"
-cn=swtpm-localca-rootca
-ca
-cert_signing_key
-expiration_days = 3650
-_EOF_
-
-if ! msg=$(${CERTTOOL} \
-	--generate-self-signed \
-	--template "${template}" \
-	--outfile "${cacert}" \
-	--load-privkey "${cakey}" \
-	2>&1); then
+if ! msg=$(openssl req -new -x509 \
+		-key "${cakey}" -days 3650 \
+		-out "${cacert}" -subj '/CN=swtpm-localca-root' \
+		-addext "keyUsage=critical,keyCertSign" 2>&1); then
 	echo "Could not create root CA."
 	echo "${msg}"
 	exit 1
@@ -96,31 +77,26 @@ fi
 
 pubkey="${workdir}/swtpm-localca-interm-pubkey.pem"
 
-if ! msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
-	--load-privkey "${pkcs11uri}" \
-	--pubkey-info \
-	--outfile "${pubkey}"); then
+msg=$(timeout 5 openssl pkey \
+           -provider pkcs11 \
+           -in "${pkcs11uri}" -pubout -out "${pubkey}" 2>&1)
+rc=$?
+if [ "$rc" -ne 0 ]; then
+        if [ "$rc" -eq 124 ]; then
+		echo "WARN: openssl with -provider may not work. Skipping test."
+		exit 77
+        fi
 	echo "Could not get public key for pkcs11 uri key ($pkcs11uri}."
 	echo "${msg}"
 	exit 1
 fi
 
-cat <<_EOF_ > "${template}"
-cn=swtpm-localca
-ca
-cert_signing_key
-expiration_days = 3650
-_EOF_
-
-if ! msg=$(GNUTLS_PIN=${PIN} ${CERTTOOL} \
-	--generate-certificate \
-	--template "${template}" \
-	--outfile "${ISSUERCERT}" \
-	--load-ca-privkey "${cakey}" \
-	--load-ca-certificate "${cacert}" \
-	--load-privkey "${pkcs11uri}" \
-	--load-pubkey "${pubkey}" \
-	2>&1); then
+if ! msg=$(openssl req \
+	-new -x509 -CA "${cacert}" -CAkey "${cakey}" \
+	-provider pkcs11 -key "${pkcs11uri}" \
+	-days 3650 -subj '/CN=swtpm-localca' \
+	-addext "keyUsage=critical,keyCertSign" \
+	-out "${ISSUERCERT}" 2>&1); then
 	echo "Could not create intermediate CA"
 	echo "${msg}"
 	exit 1
@@ -149,10 +125,10 @@ _EOF_
 # the following contains the test parameters and
 # expected key usage
 for testparams in \
-	"--allow-signing|Digital signature" \
-	"--allow-signing --decryption|Digital signature,Key encipherment" \
-	"--decryption|Key encipherment" \
-	"|Key encipherment";
+	"--allow-signing|Digital Signature" \
+	"--allow-signing --decryption|Digital Signature, Key Encipherment" \
+	"--decryption|Key Encipherment" \
+	"|Key Encipherment";
 do
   params=$(echo "${testparams}" | cut -d"|" -f1)
   usage=$(echo "${testparams}" | cut -d"|" -f2)
@@ -187,12 +163,11 @@ do
   IFS=","
 
   for u in $usage; do
-    if ! ${CERTTOOL} -i \
-            --inder --infile "${workdir}/ek.cert" | \
-            grep "Key Usage" -A2 | \
+    if ! openssl x509 -inform der -in "${workdir}/ek.cert" -noout -text | \
+            grep "Key Usage" -A1 | \
             grep -q "$u"; then
-      echo "Error: Could not find key usage $u in key created " \
-           "with $params."
+      echo "Error: Could not find key usage $u in key created with $params."
+      exit 1
     else
       echo "Found '$u'"
     fi
@@ -200,16 +175,10 @@ do
 
   IFS="$OIFS"
 
-  ${CERTTOOL} \
-    -i \
-    --inder --infile "${workdir}/ek.cert" \
-    --outfile "${workdir}/ek.pem"
-
-  if ! GNUTLS_PIN=${PIN} ${CERTTOOL} \
-    --verify \
-    ${verify_profile:+${verify_profile}} \
-    --load-ca-certificate "${ISSUERCERT}" \
-    --infile "${workdir}/ek.pem"; then
+  if ! openssl verify \
+        -CAfile "${cacert}" \
+        -untrusted "${ISSUERCERT}" \
+        "${workdir}/ek.cert"; then
     echo "Error: Could not verify certificate chain."
     exit 1
   fi

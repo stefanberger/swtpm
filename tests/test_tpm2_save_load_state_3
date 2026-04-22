@@ -686,8 +686,8 @@ function test_external_key()
 	local check="$2"
 
 	if [ "$create" -eq 1 ]; then
-		${CERTTOOL} --generate-privkey --bits 2048 --outfile "${PRIVKEY}" &>/dev/null
-		${CERTTOOL} --pubkey-info --load-privkey "${PRIVKEY}" > "${PUBKEY}"
+		openssl genrsa --out "${PRIVKEY}" 2048 &>/dev/null
+		openssl pkey -in "${PRIVKEY}" -pubout -out "${PUBKEY}"
 		if ! "$TOOLSPATH/${PREFIX}loadexternal" -hi o -ipem "${PUBKEY}" > "$TMPFILE"; then
 			echo "Error: loadexternal failed."
 			exit 1

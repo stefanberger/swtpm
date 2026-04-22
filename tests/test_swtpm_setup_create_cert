@@ -105,22 +105,18 @@ if [ ! -f "${certfile}" ]; then
 	exit 1
 fi
 
-if ! $CERTTOOL --inder --infile "${certfile}" -i | grep -q "2048 bits"; then
+if ! openssl x509 -inform der -in "${certfile}" -noout -text | grep -q "2048 bit"; then
 	echo "Error: EK file '${certfile}' is not an RSA 2048 bit key."
-	$CERTTOOL --inder --infile "${certfile}" -i
+	openssl x509 -inform der -in "${certfile}" -noout -text
 	exit 1
 fi
 
-expiration="$($CERTTOOL --inder --infile "${certfile}" -i | grep "Not After:")"
-expected1="Not After: Fri Dec 31 23:59:59 UTC 9999"
-# 32bit machines
-expected2="Not After: Thu Dec 31 23:23:23 UTC 2037"
-if ! echo "${expiration}" | grep -q "${expected1}" && \
-   ! echo "${expiration}" | grep -q "${expected2}"; then
+expiration="$(openssl x509 -inform der -in "${certfile}" -noout -text | grep "Not After :")"
+expected="Not After : Dec 31 23:59:59 9999 GMT"
+if ! echo "${expiration}" | grep -q "${expected}"; then
 	echo "Error: EK file '${certfile}' does not expire in 9999 or 2037"
-	echo "actual   : ${expiration}"
-	echo "expected1: ${expected1}"
-	echo "expected2: ${expected2} (32 bit machines)"
+	echo "actual  : ${expiration}"
+	echo "expected: ${expected}"
 	exit 1
 fi
 
