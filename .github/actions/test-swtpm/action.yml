@@ -8,7 +8,7 @@ runs:
         sudo apt-get -y install automake autoconf libtool libssl-dev sed make gawk \
           sed bash dh-exec python3-pip libfuse-dev libglib2.0-dev libjson-glib-dev \
           libgmp-dev expect libtasn1-dev socat findutils gnutls-bin softhsm2 \
-          libseccomp-dev tss2 ${PACKAGES}
+          libseccomp-dev tss2 openssl pkcs11-provider ${PACKAGES}
         if [ ! -d libtpms ]; then
           git clone https://github.com/stefanberger/libtpms;
         fi
