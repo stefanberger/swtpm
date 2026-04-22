@@ -23,6 +23,8 @@ BuildRequires:  json-glib-devel
 BuildRequires:  expect
 BuildRequires:  net-tools
 BuildRequires:  openssl-devel
+BuildRequires:  openssl
+BuildRequires:  pkcs11-provider
 BuildRequires:  socat
 BuildRequires:  softhsm
 %if (0%{?fedora}) || (0%{?rhel} && 0%{?rhel} < 9)
