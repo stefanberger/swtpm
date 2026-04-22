@@ -20,6 +20,8 @@ Build-Depends: debhelper (>= 10),
                libtool,
                libtpms-dev,
                net-tools,
+               openssl,
+               pkcs11-provider,
                socat,
                softhsm2
 
