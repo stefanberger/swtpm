@@ -1294,7 +1294,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "--tpm-spec-level must pass a positive number.\n");
                 goto cleanup;
             }
-            if (spec_level > UINT_MAX) {
+            if ((unsigned long int)spec_level > UINT_MAX) {
                 fprintf(stderr, "--tpm-spec-level is outside valid range.\n");
                 goto cleanup;
             }
@@ -1311,7 +1311,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "--tpm-spec-revision must pass a positive number.\n");
                 goto cleanup;
             }
-            if (spec_revision > UINT_MAX) {
+            if ((unsigned long int)spec_revision > UINT_MAX) {
                 fprintf(stderr, "--tpm-spec-revision is outside valid range.\n");
                 goto cleanup;
             }
