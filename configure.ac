@@ -137,6 +137,11 @@ AS_CASE([$cryptolib],[openssl],
     ],
 )
 
+AC_CHECK_PROG([OPENSSL_CLITOOL], [openssl], [yes], [no])
+AS_IF([test "$OPENSSL_CLITOOL" != "yes"],
+    [AC_MSG_ERROR("Could not find openssl tool. Is openssl installed?")]
+)
+
 PKG_CHECK_MODULES([LIBTASN1],[libtasn1])
 
 PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.10])
