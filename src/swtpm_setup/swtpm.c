@@ -563,6 +563,9 @@ struct pk_params {
     uint16_t hashalg;
     const unsigned char *authpolicy;
     size_t authpolicy_len;
+#define SCHEMEDATA_SIZE 8
+    unsigned char schemedata[SCHEMEDATA_SIZE];
+    size_t schemedata_len;
     unsigned int symkey_len;
     int duration;
     size_t off; // offset of public key in TPM response
@@ -640,6 +643,10 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = PolicyA_SHA256,
             .authpolicy_len = sizeof(PolicyA_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(2048), AS4BE(0)
+             },
+            .schemedata_len = 8,
             .symkey_len = 128,
             .duration = TPM2_DURATION_LONG,
             .keysize = 2048 / 8,
@@ -658,6 +665,10 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = PolicyB_SHA384,
             .authpolicy_len = sizeof(PolicyB_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(3072), AS4BE(0)
+             },
+            .schemedata_len = 8,
             .symkey_len = 256,
             .duration = TPM2_DURATION_LONG,
             .keysize = 3072 / 8,
@@ -676,6 +687,10 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = PolicyB_SHA384,
             .authpolicy_len = sizeof(PolicyB_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(4096), AS4BE(0)
+             },
+            .schemedata_len = 8,
             .symkey_len = 256,
             .duration = TPM2_DURATION_EXTRA_LONG,
             .keysize = 4096 / 8,
@@ -752,6 +767,10 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(2048), AS4BE(0)
+             },
+            .schemedata_len = 8,
             .keysize = 2048/8,
             .symkey_len = 128,
             .off = 44,
@@ -767,6 +786,10 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(3072), AS4BE(0)
+             },
+            .schemedata_len = 8,
             .keysize = 3072/8,
             .symkey_len = 256,
             .off = 44,
@@ -782,6 +805,10 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(4096), AS4BE(0)
+             },
+            .schemedata_len = 8,
             .keysize = 4096/8,
             .symkey_len = 256,
             .off = 44,
@@ -1274,9 +1301,7 @@ static int swtpm_tpm2_createprimary_rsa(struct swtpm *self, uint32_t primaryhand
                   }, (size_t)10,
                   pk_params->authpolicy, pk_params->authpolicy_len,
                   symkeydata, symkeydata_len,
-                  (unsigned char[]) {
-                      AS2BE(TPM2_ALG_NULL), AS2BE(pk_params->keysize * 8), AS4BE(0)
-                  }, (size_t)8,
+                  pk_params->schemedata, pk_params->schemedata_len,
                   pk_params->nonce, pk_params->nonce_len,
                   NULL);
     if (public_len < 0) {
