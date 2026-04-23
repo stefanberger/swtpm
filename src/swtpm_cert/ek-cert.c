@@ -1604,6 +1604,8 @@ int main(int argc, char *argv[])
         switch (certtype) {
         case CERT_TYPE_PLATFORM:
         case CERT_TYPE_EK:
+        case CERT_TYPE_IAK:
+        case CERT_TYPE_IDEVID:
             if (!subject)
                 break;
 
@@ -1629,16 +1631,6 @@ int main(int argc, char *argv[])
                 }
                 token = strtok(NULL, ",");
             } while (token);
-            break;
-        case CERT_TYPE_IAK:
-        case CERT_TYPE_IDEVID:
-            name = X509_NAME_new();
-            CHECK_OSSL_NULLPTR1(name, "Out of memory");
-            CHECK_OSSL_RETURN1(
-                X509_NAME_add_entry_by_txt(name, "serialNumber", MBSTRING_ASC,
-                                           (unsigned char *)tpm_serial_num,
-                                           -1, -1, 0) != 1,
-                "X509_NAME_add_entry_by_txt failed.\n");
             break;
         case CERT_TYPE_AIK:
             break;
