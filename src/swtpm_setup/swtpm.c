@@ -529,6 +529,15 @@ static const unsigned char PolicyB_SHA512[64] = {
     0x6D, 0xB5, 0xB6, 0x07, 0x1A, 0xF9, 0x9B, 0xEA
 };
 
+/* SPK: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth, noDA, restricted, decrypt */
+#define KEYFLAGS_SPK ((1<<1) /* fixedTPM */ \
+                    | (1<<4) /* fixedParent */ \
+                    | (1<<5) /* sensitiveDataOrigin */ \
+                    | (1<<6) /* userWithAuth */ \
+                    | (1<<10) /* noDA */ \
+                    | (1<<16) /* restricted */ \
+                    | (1<<17)) /* decrypt */
+
 static const struct bank_to_name {
     uint16_t hashAlg;
     const char *name;
@@ -548,6 +557,7 @@ struct pk_params {
     enum keyalgo keyalgo;
     uint16_t keyalgo_param; // RSA key size or ECC curve Id
     const char *keydescription;
+    uint32_t keyflags;
     const unsigned char *nonce;
     size_t nonce_len;
     uint16_t hashalg;
@@ -555,6 +565,7 @@ struct pk_params {
     size_t authpolicy_len;
     unsigned int symkey_len;
     int duration;
+    size_t off; // offset of public key in TPM response
     unsigned keysize;
 };
 
@@ -598,7 +609,7 @@ static const struct ek_params {
             .keysize = 48,
         },
         .ek_handle = TPM2_EK_ECC_SECP384R1_HANDLE,
-        .keytype = "ECC",
+        .keytype = "rsa384r1",
         .nvindex_ekcert = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT,
         .nvindex_template = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE,
     }, {
@@ -616,7 +627,7 @@ static const struct ek_params {
             .keysize = 66,
         },
         .ek_handle = TPM2_EK_ECC_SECP521R1_HANDLE,
-        .keytype = "ECC",
+        .keytype = "secp521r1",
         .nvindex_ekcert = TPM2_NV_INDEX_ECC_SECP521R1_HI_EKCERT,
         .nvindex_template = TPM2_NV_INDEX_ECC_SECP521R1_HI_EKTEMPLATE,
     }, {
@@ -685,6 +696,7 @@ static const struct spk_params {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P256,
+            .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_ECC_256,
             .nonce_len = sizeof(NONCE_ECC_256),
             .hashalg = TPM2_ALG_SHA256,
@@ -692,12 +704,14 @@ static const struct spk_params {
             .authpolicy_len = 0,
             .keysize = 32,
             .symkey_len = 128,
+            .off = 42,
             .duration = TPM2_DURATION_LONG,
         }
    }, {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P384,
+            .keyflags = KEYFLAGS_SPK,
             /* per "TCG TPM v2.0 Provisioning Guidance v1.0" page 37
              * -> "Ek Credential Profile 2.0" rev.14 section 2.1.5.2:
              * template for NIST P256 uses 2 identical 32-byte all-zero nonces
@@ -710,12 +724,14 @@ static const struct spk_params {
             .authpolicy_len = 0,
             .keysize = 48,
             .symkey_len = 256,
+            .off = 42,
             .duration = TPM2_DURATION_LONG,
         },
     }, {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P521,
+            .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_ECC_521,
             .nonce_len = sizeof(NONCE_ECC_521),
             .hashalg = TPM2_ALG_SHA512,
@@ -723,7 +739,53 @@ static const struct spk_params {
             .authpolicy_len = 0,
             .keysize = 66,
             .symkey_len = 256,
+            .off = 42,
             .duration = TPM2_DURATION_LONG,
+       },
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 2048,
+            .keyflags = KEYFLAGS_SPK,
+            .nonce = NONCE_RSA2048,
+            .nonce_len = sizeof(NONCE_RSA2048),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .keysize = 2048/8,
+            .symkey_len = 128,
+            .off = 44,
+            .duration = TPM2_DURATION_LONG,
+       },
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 3072,
+            .keyflags = KEYFLAGS_SPK,
+            .nonce = NONCE_RSA3072,
+            .nonce_len = sizeof(NONCE_RSA3072),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .keysize = 3072/8,
+            .symkey_len = 256,
+            .off = 44,
+            .duration = TPM2_DURATION_LONG,
+       },
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_RSA,
+            .keyalgo_param = 4096,
+            .keyflags = KEYFLAGS_SPK,
+            .nonce = NONCE_RSA4096,
+            .nonce_len = sizeof(NONCE_RSA4096),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .keysize = 4096/8,
+            .symkey_len = 256,
+            .off = 44,
+            .duration = TPM2_DURATION_EXTRA_LONG,
        },
     }
 };
@@ -1357,63 +1419,29 @@ static int swtpm_tpm2_createprimary_spk_ecc(struct swtpm *self,
         AS2BE(TPM2_ALG_NULL), AS2BE(curveid), AS2BE(TPM2_ALG_NULL)
     };
     size_t schemedata_len = sizeof(schemedata);
-    // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth
-    //           noDA, restricted, decrypt
-    unsigned int keyflags = 0x00030472;
     const struct spk_params *spks;
-    size_t off = 42;
 
     spks = get_spk_params(self, KEYALGO_ECC, keyalgo_param);
     if (!spks)
         return 1;
 
-    return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, keyflags,
+    return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, spks->pk.keyflags,
                                         schemedata, schemedata_len,
-                                        &spks->pk, off, curr_handle,
+                                        &spks->pk, spks->pk.off, curr_handle,
                                         NULL, 0, NULL, NULL);
 }
 
-static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int rsa_keysize,
+static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int keyalgo_param,
                                             uint32_t *curr_handle)
 {
-    // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth
-    //           noDA, restricted, decrypt
-    unsigned int keyflags = 0x00030472;
-    const unsigned char authpolicy[0] = { };
-    size_t authpolicy_len = sizeof(authpolicy);
-    struct pk_params pk_params = {
-        .authpolicy = authpolicy,
-        .authpolicy_len = authpolicy_len,
-        .keysize = rsa_keysize / 8,
-        .duration = TPM2_DURATION_LONG,
-    };
-    size_t off = 44;
+    const struct spk_params *spks;
 
-    switch (rsa_keysize) {
-    case 2048:
-        pk_params.nonce = NONCE_RSA2048;
-        pk_params.nonce_len = sizeof(NONCE_RSA2048);
-        pk_params.hashalg = TPM2_ALG_SHA256;
-        pk_params.symkey_len = 128;
-        break;
-    case 3072:
-        pk_params.nonce = NONCE_RSA3072;
-        pk_params.nonce_len = sizeof(NONCE_RSA3072);
-        pk_params.hashalg = TPM2_ALG_SHA384;
-        pk_params.symkey_len = 256;
-        break;
-    case 4096:
-        pk_params.nonce = NONCE_RSA4096;
-        pk_params.nonce_len = sizeof(NONCE_RSA4096);
-        pk_params.hashalg = TPM2_ALG_SHA384;
-        pk_params.symkey_len = 256;
-        break;
-    default:
+    spks = get_spk_params(self, KEYALGO_RSA, keyalgo_param);
+    if (!spks)
         return 1;
-    }
 
-    return swtpm_tpm2_createprimary_rsa(self, TPM2_RH_OWNER, keyflags,
-                                        &pk_params, off, curr_handle,
+    return swtpm_tpm2_createprimary_rsa(self, TPM2_RH_OWNER, spks->pk.keyflags,
+                                        &spks->pk, spks->pk.off, curr_handle,
                                         NULL, 0, NULL, NULL);
 }
 
