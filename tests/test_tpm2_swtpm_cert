@@ -136,6 +136,7 @@ if ! ${SWTPM_CERT} \
 	--pubkey "${TESTDIR}/data/pubek.pem" \
 	--out-cert "${cert}" \
 	--days 3650 \
+	--subject "serialNumber=${serial}" \
 	--pem \
 	--tpm-serial-num "${serial}" \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 2; then
@@ -177,6 +178,7 @@ if ! ${SWTPM_CERT} \
 	--pubkey "${TESTDIR}/data/pubek.pem" \
 	--out-cert "${cert}" \
 	--days 3650 \
+	--subject "serialNumber=${serial}" \
 	--pem \
 	--tpm-serial-num "${serial}" \
 	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 2; then
