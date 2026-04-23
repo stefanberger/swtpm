@@ -589,6 +589,10 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = PolicyA_SHA256,
             .authpolicy_len = sizeof(PolicyA_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P256), AS2BE(TPM2_ALG_NULL)
+             },
+            .schemedata_len = 6,
             .symkey_len = 128,
             .duration = TPM2_DURATION_LONG,
             .keysize = 32,
@@ -607,6 +611,10 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = PolicyB_SHA384,
             .authpolicy_len = sizeof(PolicyB_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
+             },
+            .schemedata_len = 6,
             .symkey_len = 256,
             .duration = TPM2_DURATION_LONG,
             .keysize = 48,
@@ -625,6 +633,10 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA512,
             .authpolicy = PolicyB_SHA512,
             .authpolicy_len = sizeof(PolicyB_SHA512),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P521), AS2BE(TPM2_ALG_NULL)
+             },
+            .schemedata_len = 6,
             .symkey_len = 256,
             .duration = TPM2_DURATION_LONG,
             .keysize = 66,
@@ -717,6 +729,10 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P256), AS2BE(TPM2_ALG_NULL)
+             },
+            .schemedata_len = 6,
             .keysize = 32,
             .symkey_len = 128,
             .off = 42,
@@ -737,6 +753,10 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL),
+             },
+            .schemedata_len = 6,
             .keysize = 48,
             .symkey_len = 256,
             .off = 42,
@@ -752,6 +772,10 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA512,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P521), AS2BE(TPM2_ALG_NULL)
+             },
+            .schemedata_len = 6,
             .keysize = 66,
             .symkey_len = 256,
             .off = 42,
@@ -1352,7 +1376,6 @@ err_too_short:
 
 /* Create an ECC key with the given parameters */
 static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
-                                        const unsigned char *schemedata, size_t schemedata_len,
                                         const struct pk_params *pk_params,
                                         size_t off, uint32_t *curr_handle,
                                         unsigned char *ektemplate, size_t *ektemplate_len,
@@ -1384,7 +1407,7 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
                   }, (size_t)10,
                   pk_params->authpolicy, pk_params->authpolicy_len,
                   symkeydata, symkeydata_len,
-                  schemedata, schemedata_len,
+                  pk_params->schemedata, pk_params->schemedata_len,
                   pk_params->nonce, pk_params->nonce_len,
                   pk_params->nonce, pk_params->nonce_len,
                   NULL);
@@ -1439,11 +1462,6 @@ static int swtpm_tpm2_createprimary_spk_ecc(struct swtpm *self,
                                             unsigned int keyalgo_param,
                                             uint32_t *curr_handle)
 {
-    uint16_t curveid = (uint16_t)keyalgo_param;
-    const unsigned char schemedata[] = {
-        AS2BE(TPM2_ALG_NULL), AS2BE(curveid), AS2BE(TPM2_ALG_NULL)
-    };
-    size_t schemedata_len = sizeof(schemedata);
     const struct spk_params *spks;
 
     spks = get_spk_params(self, KEYALGO_ECC, keyalgo_param);
@@ -1451,7 +1469,6 @@ static int swtpm_tpm2_createprimary_spk_ecc(struct swtpm *self,
         return 1;
 
     return swtpm_tpm2_createprimary_ecc(self, TPM2_RH_OWNER, spks->pk.keyflags,
-                                        schemedata, schemedata_len,
                                         &spks->pk, spks->pk.off, curr_handle,
                                         NULL, 0, NULL, NULL);
 }
@@ -1512,10 +1529,6 @@ static int swtpm_tpm2_createprimary_ek_ecc(struct swtpm *self, const struct ek_p
                                            unsigned char *ektemplate, size_t *ektemplate_len,
                                            gchar **ekparam, const char **key_description)
 {
-    const unsigned char schemedata[] = {
-        AS2BE(TPM2_ALG_NULL), AS2BE(ekps->pk.keyalgo_param), AS2BE(TPM2_ALG_NULL)
-    };
-    size_t schemedata_len = sizeof(schemedata);
     struct pk_params pkps;
     unsigned int keyflags;
     size_t off;
@@ -1562,7 +1575,6 @@ static int swtpm_tpm2_createprimary_ek_ecc(struct swtpm *self, const struct ek_p
     }
 
     ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, keyflags,
-                                       schemedata, schemedata_len,
                                        &pkps, off, curr_handle,
                                        ektemplate, ektemplate_len, ekparam,
                                        key_description);
