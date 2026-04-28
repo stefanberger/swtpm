@@ -349,3 +349,96 @@ if ! act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1); then
 fi
 
 echo "Test 1 OK"
+echo
+
+rm -f "${TPMDIR}"/*
+cp "${TESTDIR}/data/tpm2state8/"* "${TPMDIR}"
+libtpms_versions=(v0.9 v0.10)
+
+if ! tsscreateprimary -help | grep -q "\-rsa \[keybits\]"; then
+	libtpms_versions=()
+fi
+
+for version in "${libtpms_versions[@]}"; do
+	for profile in null default-v1; do
+		state="tpmstate-${version}-${profile}.bin"
+		statefile="${TPMDIR}/${state}"
+		if [ ! -r "${statefile}" ]; then
+			continue
+		fi
+		echo "INFO: Testing with TPM state '${state}'."
+		echo > "${LOGFILE}"
+		$SWTPM_EXE socket \
+			--server "port=${TPM_COMMAND_PORT}" \
+			--tpmstate "backend-uri=file://${statefile}" \
+			--pid "file=$PID_FILE" \
+			--ctrl "type=unixio,path=$SOCK_PATH" \
+			--log "file=$LOGFILE,level=20" \
+			--tpm2 \
+			--flags not-need-init,startup-clear \
+			${SWTPM_TEST_SECCOMP_OPT:+${SWTPM_TEST_SECCOMP_OPT}} &
+
+		if wait_for_file "$PID_FILE" 3; then
+			echo "Error: (4) Socket TPM did not write pidfile."
+			cat "${LOGFILE}"
+			exit 1
+		fi
+
+		if ! msg=$(tsscreateprimary -rsa 3072 -hi o -si 2>&1); then
+			echo "Error: Could not create 1st primary key."
+			echo "${msg}"
+			exit 1
+		fi
+		# Key has handle 80000000; was persisted at 81000000
+		for handle in 80000000 81000000; do
+			if ! tssverifysignature \
+					-if "${TPMDIR}/tosign.txt" \
+					-is "${TPMDIR}/signature-${version}-${profile}.bin" \
+					-hk "${handle}"; then
+				echo "Error: Signature verification failed with key at ${handle}."
+				exit 1
+			fi
+		done
+		echo "INFO: Signature verification passed."
+
+		if ! msg=$(tsscreateprimary -rsa 3072 -hi o -des 2>&1); then
+			echo "Error: Could not create 2nd primary key."
+			echo "${msg}"
+			exit 1
+		fi
+		# Key has handle 80000001; was persisted at 81000001
+		decrypted="${TPMDIR}/decrypted"
+		for handle in 80000001 81000001; do
+			rm -f "${decrypted}"
+			if ! tssencryptdecrypt \
+				-d \
+				-hk "${handle}" \
+				-if "${TPMDIR}/encrypted-${version}-${profile}.bin" \
+				-of "${decrypted}"; then
+				echo "Error: Decryption failed with key at ${handle}."
+				exit 1
+			fi
+			if [ "$(cat "${TPMDIR}/toencrypt.txt")" != "$(cat "${decrypted}")" ]; then
+				echo "Error: Decrypted files have different contents."
+				echo "Expected: $(cat "${TPMDIR}/toencrypt.txt")"
+				echo "Actual  : $(cat "${decrypted}")"
+				exit 1
+			fi
+		done
+		echo "INFO: Decryption succeeded."
+
+		# Send Shutdown
+		if ! act=$($SWTPM_IOCTL --unix "$SOCK_PATH" -s 2>&1); then
+			echo "Error: $SWTPM_IOCTL CMD_SHUTDOWN failed: $act"
+			exit 1
+		fi
+	done
+done
+
+if [ -n "${libtpms_versions[*]}" ]; then
+	echo "Test 2 OK"
+else
+	echo "Test 2: Skipped. tss tools are tool old."
+fi
+
+exit 0
