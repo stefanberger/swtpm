@@ -114,6 +114,12 @@ static const struct {
     { .name = "secp256r1"    , .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P256 },
     { .name = "ecc_nist_p521", .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P521 },
     { .name = "secp521r1"    , .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P521 },
+    { .name = "ml-kem-512"   , .keyalgo = KEYALGO_MLKEM, .keyalgo_param = TPM2_MLKEM_PARMS_512 },
+    { .name = "ml-kem-768"   , .keyalgo = KEYALGO_MLKEM, .keyalgo_param = TPM2_MLKEM_PARMS_768 },
+    { .name = "ml-kem-1024"  , .keyalgo = KEYALGO_MLKEM, .keyalgo_param = TPM2_MLKEM_PARMS_1024 },
+    { .name = "ml-dsa-44"    , .keyalgo = KEYALGO_MLDSA, .keyalgo_param = TPM2_MLDSA_PARMS_44 },
+    { .name = "ml-dsa-65"    , .keyalgo = KEYALGO_MLDSA, .keyalgo_param = TPM2_MLDSA_PARMS_65 },
+    { .name = "ml-dsa-87"    , .keyalgo = KEYALGO_MLDSA, .keyalgo_param = TPM2_MLDSA_PARMS_87 },
 };
 
 /* initialize the path of the config_file */
@@ -872,8 +878,13 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
                 keyalgo = KEYALGO_ECC;
                 keyalgo_param = TPM2_ECC_NIST_P384;
             } else {
-                keyalgo = KEYALGO_RSA;
-                keyalgo_param = 3072;
+                if (ek1keyalgo == KEYALGO_MLKEM || ek1keyalgo == KEYALGO_MLDSA) {
+                    keyalgo = KEYALGO_MLKEM;
+                    keyalgo_param = ek1keyalgo_param; // can re-use value if EK1 = MLDSA
+                } else {
+                    keyalgo = KEYALGO_RSA;
+                    keyalgo_param = 3072;
+                }
             }
             ret = swtpm2->ops->create_spk(swtpm, keyalgo, keyalgo_param);
             if (ret != 0)
@@ -1203,11 +1214,14 @@ static void usage(const char *prgname, const char *default_config_file)
         "                   this option requires --tpm2.\n"
         "\n"
         "--ecc            : This option allows to create a TPM 2's ECC key as storage\n"
-        "                   primary key; a TPM 2 always gets an RSA and an ECC EK key.\n"
+        "                   primary key;\n"
         "\n"
         "--ek1keyalgo <alg>\n"
         "                 : Choice of the 1st EK's key algorithm; default is %s\n"
-        "                   choices: rsa2048, rsa3072, rsa4096, ecc_nist_p384\n"
+        "                   choices: rsa2048, rsa3072, rsa4096, ecc_nist_p256,\n"
+        "                            ecc_nist_p384, ecc_nist_p521, mlkem-512\n"
+        "                            ml-kem-768, ml-kem-1024, ml-dsa-44, ml-dsa-65\n"
+        "                            ml-dsa-87\n"
         "\n"
         "--ek2keyalgo <alg>\n"
         "                 : Choice of the 2nd EK's key algorithm; default is %s\n"
@@ -1215,7 +1229,9 @@ static void usage(const char *prgname, const char *default_config_file)
         "\n"
         "--iakkeyalgo <alg>\n"
         "                 : Choice of the IAK algorithm; default is 'none'\n"
-        "                   choices: rsa2048, rsa3072, rsa4096, ecc_nist_p384\n"
+        "                   choices: rsa2048, rsa3072, rsa4096, ecc_nist_p256,\n"
+        "                            ecc_nist_p384, ecc_nist_p521, ml-dsa-44\n"
+        "                            ml-dsa-65, ml-dsa-87\n"
         "\n"
         "--idevidkeyalgo <alg>\n"
         "                 : Choice of the IDevID key algorithm; default is 'none'\n"
@@ -1236,6 +1252,9 @@ static void usage(const char *prgname, const char *default_config_file)
         "                 : Create a platform certificate; this implies --create-ek-cert\n"
         "\n"
         "--create-spk     : Create storage primary key; this requires --tpm2; deprecated\n"
+        "                   A key with algorithm similar to the 1st EK will be created.\n"
+        "                   An ML-KEM key with similar strength will be used in place\n"
+        "                   of an ML-DSA key.\n"
         "\n"
         "--lock-nvram     : Lock NVRAM access\n"
         "\n"
@@ -2346,6 +2365,15 @@ int main(int argc, char *argv[])
         if ((iakkeyalgo != KEYALGO_NONE || idevidkeyalgo != KEYALGO_NONE) &&
             (flags & SETUP_CREATE_EK_F)== 0 ) {
             fprintf(stderr, "When creaing IAK and/or IDevID keys, then an EK certificate must be created as well.\n");
+            goto error;
+        }
+
+        if (iakkeyalgo == KEYALGO_MLKEM) {
+            fprintf(stderr, "The IAK key cannot be an ML-KEM key.\n");
+            goto error;
+        }
+        if (idevidkeyalgo == KEYALGO_MLKEM) {
+            fprintf(stderr, "The IDevID key cannot be an ML-KEM key.\n");
             goto error;
         }
     }

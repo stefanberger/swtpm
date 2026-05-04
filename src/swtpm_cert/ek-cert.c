@@ -174,6 +174,15 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
         goto cleanup;				\
     }
 
+static bool uses_hashless_signing(const EVP_PKEY *key)
+{
+    return EVP_PKEY_is_a(key, "ml-dsa-44") ||
+           EVP_PKEY_is_a(key, "ml-dsa-65") ||
+           EVP_PKEY_is_a(key, "ml-dsa-87") ||
+           EVP_PKEY_is_a(key, "ED25519") ||
+           EVP_PKEY_is_a(key, "ED448");
+}
+
 static void versioninfo(void)
 {
     fprintf(stdout,
@@ -203,6 +212,9 @@ static void usage(const char *prg)
         "--ecc-y <hex string>      : ECC key y component\n"
         "--ecc-curveid <id>        : ECC curve id; secp256r1, secp384r1, secp521r1\n"
         "                            default: secp256r1\n"
+        "--public <hex string>     : Public key component for ML-KEM or ML-DSA key\n"
+        "--keyalgo <name>          : ml-kem-512, ml-kem-768, ml-kem-1024,\n"
+        "                            ml-dsa-44, ml-dsa-65, or ml-dsa-87\n"
         "--serial <serial number>  : The certificate serial number\n"
         "--days <number>           : Number of days the cert is valid;\n"
         "                            -1 for no expiration\n"
@@ -404,6 +416,38 @@ create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
         EVP_PKEY_fromdata(ctx, &pubkey, EVP_PKEY_PUBLIC_KEY, params) != 1,
         "Could not create %s key\n", curve);
 
+cleanup:
+    OSSL_PARAM_BLD_free(bld);
+    OSSL_PARAM_free(params);
+    EVP_PKEY_CTX_free(ctx);
+
+    return pubkey;
+}
+
+static EVP_PKEY *create_pubkey(unsigned char *public_bin, size_t public_len,
+                               const char *keyalgo)
+{
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(NULL, keyalgo, NULL);
+    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+    EVP_PKEY *pubkey = NULL;
+    OSSL_PARAM *params = NULL;
+
+    CHECK_OSSL_NULLPTR(ctx, "Could not create pkey context for %s key.\n",
+                       keyalgo);
+    CHECK_OSSL_NULLPTR1(bld, "Out of memory.\n");
+
+    CHECK_OSSL_RETURN1(
+        !OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY,
+                                          public_bin, public_len),
+        "Could not push octet string.\n");
+
+    if ((params = OSSL_PARAM_BLD_to_param(bld)) == NULL ||
+        EVP_PKEY_fromdata_init(ctx) != 1 ||
+        EVP_PKEY_fromdata(ctx, &pubkey,
+                          EVP_PKEY_PUBLIC_KEY, params) != 1) {
+        fprintf(stderr, "Could not create %s public key.\n", keyalgo);
+        ERR_print_errors_fp(stderr);
+    }
 cleanup:
     OSSL_PARAM_BLD_free(bld);
     OSSL_PARAM_free(params);
@@ -1039,7 +1083,9 @@ static const EVP_MD *get_hashalg_for_signing(EVP_PKEY *signingkey)
     int bits = EVP_PKEY_get_bits(signingkey);
     const EVP_MD *md;
 
-    if (EVP_PKEY_is_a(signingkey, "RSA")) {
+    if (uses_hashless_signing(signingkey)) {
+        md = NULL;
+    } else if (EVP_PKEY_is_a(signingkey, "RSA")) {
         switch (bits) {
         case 2048:
             md = EVP_sha256();
@@ -1070,6 +1116,8 @@ static void capabilities_print_json(void)
              "\"cmdarg-signkey-pwd\""
              ", \"cmdarg-tpm-serial-num\""
              ", \"supports-iak-idevid\""
+             ", \"cmdarg-public\""
+             ", \"cmdarg-keyalgo\""
             " ], "
             "\"version\": \"" VERSION "\" "
             "}\n");
@@ -1117,6 +1165,8 @@ int main(int argc, char *argv[])
     unsigned char *ecc_y_bin = NULL;
     int ecc_y_len = 0;
     const char *ecc_curveid = NULL;
+    unsigned char *public_bin = NULL;
+    int public_len;
     datum_t datum = { NULL, 0 }, out = { NULL, 0 };
     mpz_t serial;
     time_t now;
@@ -1148,6 +1198,7 @@ int main(int argc, char *argv[])
     char *endptr;
     const char *keychoice = NULL;
     int critical = 0;
+    const char *keyalgo = NULL;
     static struct option long_options[] = {
         {"pubkey", required_argument, NULL, 'p'},
         {"modulus", required_argument, NULL, 'm'},
@@ -1155,6 +1206,8 @@ int main(int argc, char *argv[])
         {"ecc-y", required_argument, NULL, 'y'},
         {"ecc-curveid", required_argument, NULL, 'z'},
         {"exponent", required_argument, NULL, 'e'},
+        {"public", required_argument, NULL, 'q'},
+        {"keyalgo", required_argument, NULL, 'R'},
         {"signkey", required_argument, NULL, 's'},
         {"signkey-password", required_argument, NULL, 'S'},
         {"signkey-pwd", required_argument, NULL, 'T'},
@@ -1191,7 +1244,7 @@ int main(int argc, char *argv[])
 
 #ifdef __NetBSD__
     while ((opt = getopt_long(argc, argv,
-                    "p:m:x:y:z:e:s:S:T:i:o:u:d:r:1:2:3:4:5:6:7:8:9:MaXADcvh",
+                    "p:q:m:x:y:z:e:s:R:S:T:P:Q:i:o:u:d:r:1:2:3:4:5:6:7:8:9:MaXADcvh",
                     long_options, &option_index)) != -1) {
 #else
     while ((opt = getopt_long_only(argc, argv, "", long_options,
@@ -1245,6 +1298,41 @@ int main(int argc, char *argv[])
             }
             if ((unsigned long int)exponent > UINT_MAX) {
                 fprintf(stderr, "Exponent must fit into 32bits.\n");
+                goto cleanup;
+            }
+            break;
+        case 'q': /* --public */
+            free(public_bin);
+            if (!(public_bin = hex_str_to_bin(optarg, &public_len)))
+                goto cleanup;
+            if (keychoice != NULL &&
+                strcmp(keychoice, "ML-KEM") &&
+                strcmp(keychoice, "ML-DSA")) {
+                fprintf(stderr, "Already found options for keytype '%s'; "
+                                "cannot switch to ML-KEM or ML-DSA.\n",
+                        keychoice);
+                goto cleanup;
+            }
+            break;
+        case 'R': /* --keyalgo */
+            if (strcmp(optarg, "ml-kem-512") == 0 ||
+                strcmp(optarg, "ml-kem-768") == 0 ||
+                strcmp(optarg, "ml-kem-1024") == 0) {
+                if (keychoice &&
+                    !check_keychoice(&keychoice, "ML-KEM"))
+                    goto cleanup;
+                keychoice = "ML-KEM";
+                keyalgo = optarg;
+            } else if (strcmp(optarg, "ml-dsa-44") == 0 ||
+                       strcmp(optarg, "ml-dsa-65") == 0 ||
+                       strcmp(optarg, "ml-dsa-87") == 0) {
+                if (keychoice &&
+                    !check_keychoice(&keychoice, "ML-DSA"))
+                    goto cleanup;
+                keychoice = "ML-DSA";
+                keyalgo = optarg;
+            } else {
+                fprintf(stderr, "Unsupported key type '%s'.\n", optarg);
                 goto cleanup;
             }
             break;
@@ -1415,6 +1503,13 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
+    if ((!strcmp(keychoice, "ML-KEM") || !strcmp(keychoice, "ML-DSA"))
+        && !public_bin) {
+        fprintf(stderr, "Missing --public option for key type %s.\n",
+                keychoice);
+        goto cleanup;
+    }
+
     if ((ecc_x_bin && !ecc_y_bin) || (ecc_y_bin && !ecc_x_bin)) {
         fprintf(stderr, "ECC x and y parameters must both be given.\n");
         goto cleanup;
@@ -1499,6 +1594,13 @@ int main(int argc, char *argv[])
             ecc_y_bin = NULL;
 
             is_ecc = true;
+        } else if (public_bin) {
+            if (strncmp(keyalgo, "ml-kem-", 7) == 0 ||
+                strncmp(keyalgo, "ml-dsa-", 7) == 0) {
+                pubkey = create_pubkey(public_bin, public_len, keyalgo);
+            }
+            free(public_bin);
+            public_bin = NULL;
         }
 
         if (pubkey == NULL)
@@ -1534,10 +1636,8 @@ int main(int argc, char *argv[])
     }
 
     /* The signing hash algorithm depends on the key */
-    if (flags & CERT_TYPE_TPM2_F) {
-        if (!(md = get_hashalg_for_signing(sigkey)))
-            goto cleanup;
-    }
+    if (flags & CERT_TYPE_TPM2_F)
+        md = get_hashalg_for_signing(sigkey);
 
     if (!(fp = fopen(issuercert_filename, "r"))) {
         fprintf(stderr, "Could not open issuer cert file: %s\n",
@@ -1870,9 +1970,8 @@ int main(int argc, char *argv[])
     /* sign cert */
     if (md == EVP_sha1())
         setenv("OPENSSL_ENABLE_SHA1_SIGNATURES", "1", 1);
-    if (sigkey)
-        CHECK_OSSL_RETURN1(X509_sign(crt, sigkey, md) == 0,
-                           "Could not sign the certificate.\n");
+    CHECK_OSSL_RETURN1(X509_sign(crt, sigkey, md) == 0,
+                       "Could not sign the certificate.\n");
 
     /* write the certificate */
     bp = BIO_new(BIO_s_mem());
@@ -1954,6 +2053,7 @@ cleanup:
     free(modulus_bin);
     free(ecc_x_bin);
     free(ecc_y_bin);
+    free(public_bin);
     asn_free();
 
     return ret;

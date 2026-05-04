@@ -46,6 +46,8 @@ enum keyalgo {
     KEYALGO_NONE = 0,
     KEYALGO_RSA = 1,
     KEYALGO_ECC = 2,
+    KEYALGO_MLKEM = 3,
+    KEYALGO_MLDSA = 4,
 };
 
 /* for keyalgo_param: */
@@ -53,9 +55,20 @@ enum keyalgo {
 #define TPM2_ECC_NIST_P384 0x0004
 #define TPM2_ECC_NIST_P521 0x0005
 
+#define TPM2_MLKEM_PARMS_512         0x0001
+#define TPM2_MLKEM_PARMS_768         0x0002
+#define TPM2_MLKEM_PARMS_1024        0x0003
+
+#define TPM2_MLDSA_PARMS_44          0x0001
+#define TPM2_MLDSA_PARMS_65          0x0002
+#define TPM2_MLDSA_PARMS_87          0x0003
+
 /* for get_capability */
-#define TPM2_CAP_TPM_PROPERTIES  6
-#define TPM2_PT_MANUFACTURER     0x105
+#define TPM2_CAP_PCRS           0x00000005
+#define TPM2_CAP_TPM_PROPERTIES 0x00000006
+
+#define TPM2_PT_MANUFACTURER    0x00000105
+#define TPM2_PT_NV_BUFFER_MAX   0x0000012c
 
 /* TPM 2 specific ops */
 struct swtpm2_ops {

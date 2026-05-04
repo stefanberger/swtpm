@@ -4,7 +4,7 @@
  *
  * Author: Stefan Berger, stefanb@linux.ibm.com
  *
- * Copyright (c) IBM Corporation, 2021
+ * Copyright (c) IBM Corporation, 2021 - 2026
  */
 
 #include "config.h"
@@ -29,18 +29,19 @@
 #include <openssl/hmac.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-# include <openssl/core_names.h>
-# include <openssl/param_build.h>
-#else
-# include <openssl/rsa.h>
-#endif
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#include <openssl/ml_kem.h>
 
 #include "swtpm.h"
 #include "swtpm_utils.h"
 #include "tpm_ioctl.h"
 #include "sys_dependencies.h"
 #include "arch_specifics.h"
+
+#define ML_DSA_44_PUBLIC_KEY_BYTES 1312
+#define ML_DSA_65_PUBLIC_KEY_BYTES 1952
+#define ML_DSA_87_PUBLIC_KEY_BYTES 2592
 
 #define AS2BE(VAL) (((VAL) >> 8) & 0xff), ((VAL) & 0xff)
 #define AS4BE(VAL) AS2BE((VAL) >> 16), AS2BE(VAL)
@@ -431,8 +432,8 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_ALG_SHA3_384 0x0028
 #define TPM2_ALG_SHA3_512 0x0029
 #define TPM2_ALG_CFB      0x0043
-
-#define TPM2_CAP_PCRS     0x00000005
+#define TPM2_ALG_MLKEM    0x00a0
+#define TPM2_ALG_MLDSA    0x00a1
 
 #define TPMA_NV_PLATFORMCREATE 0x40000000
 #define TPMA_NV_AUTHREAD       0x40000
@@ -451,6 +452,18 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_NV_INDEX_RSA3072_HI_EKTEMPLATE  0x01c0001d
 #define TPM2_NV_INDEX_RSA4096_HI_EKCERT      0x01c0001e
 #define TPM2_NV_INDEX_RSA4096_HI_EKTEMPLATE  0x01c0001f
+#define TPM2_NV_INDEX_MLKEM512_HI_EKCERT     0x01c00060
+#define TPM2_NV_INDEX_MLKEM512_HI_EKTEMPLATE 0x01c00061
+#define TPM2_NV_INDEX_MLKEM768_HI_EKCERT     0x01c00062
+#define TPM2_NV_INDEX_MLKEM768_HI_EKTEMPLATE 0x01c00063
+#define TPM2_NV_INDEX_MLKEM1024_HI_EKCERT    0x01c00064
+#define TPM2_NV_INDEX_MLKEM1024_HI_EKTEMPLATE 0x01c00065
+#define TPM2_NV_INDEX_MLDSA44_HI_EKCERT      0x01c00070
+#define TPM2_NV_INDEX_MLDSA44_HI_EKTEMPLATE  0x01c00071
+#define TPM2_NV_INDEX_MLDSA65_HI_EKCERT      0x01c00072
+#define TPM2_NV_INDEX_MLDSA65_HI_EKTEMPLATE  0x01c00073
+#define TPM2_NV_INDEX_MLDSA87_HI_EKCERT      0x01c00074
+#define TPM2_NV_INDEX_MLDSA87_HI_EKTEMPLATE  0x01c00075
 // For ECC follow "TCG EK Credential Profile For TPM Family 2.0; Level 0"
 // Specification Version 2.1; Revision 13; 10 December 2018
 #define TPM2_NV_INDEX_PLATFORMCERT           0x01c08000
@@ -471,6 +484,13 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_EK_ECC_SECP256R1_HANDLE 0x8101000a
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_EK_ECC_SECP521R1_HANDLE 0x81010018
+
+#define TPM2_EK_MLKEM512_HANDLE      0x81010060 // FIXME: correct?
+#define TPM2_EK_MLKEM768_HANDLE      0x81010062 // FIXME: correct?
+#define TPM2_EK_MLKEM1024_HANDLE     0x81010064 // FIXME: correct?
+#define TPM2_EK_MLDSA44_HANDLE       0x81010070 // FIXME: correct?
+#define TPM2_EK_MLDSA65_HANDLE       0x81010072 // FIXME: correct?
+#define TPM2_EK_MLDSA87_HANDLE       0x81010074 // FIXME: correct?
 
 #define TPM2_SPK_HANDLE              0x81000001
 #define TPM2_IDEVID_HANDLE           0x81020000
@@ -520,6 +540,13 @@ static const unsigned char PolicyA_SHA256[32] = {
     0xf2, 0xa1, 0xda, 0x1b, 0x33, 0x14, 0x69, 0xaa
 };
 
+static const unsigned char PolicyB_SHA256[32] = {
+    0xCA, 0x3D, 0x0A, 0x99, 0xA2, 0xB9, 0x39, 0x06,
+    0xF7, 0xA3, 0x34, 0x24, 0x14, 0xEF, 0xCF, 0xB3,
+    0xA3, 0x85, 0xD4, 0x4C, 0xD1, 0xFD, 0x45, 0x90,
+    0x89, 0xD1, 0x9B, 0x50, 0x71, 0xC0, 0xB7, 0xA0
+};
+
 static const unsigned char PolicyB_SHA384[48] = {
     0xB2, 0x6E, 0x7D, 0x28, 0xD1, 0x1A, 0x50, 0xBC,
     0x53, 0xD8, 0x82, 0xBC, 0xF5, 0xFD, 0x3A, 0x1A,
@@ -540,7 +567,22 @@ static const unsigned char PolicyB_SHA512[64] = {
     0x6D, 0xB5, 0xB6, 0x07, 0x1A, 0xF9, 0x9B, 0xEA
 };
 
-/* SPK: fixedTPM, fixedParent, sensitiveDataOrigin, userWithAuth, noDA, restricted, decrypt */
+#define KEYFLAGS_EK_STORAGE  ((1<<1) /* fixedTPM */ \
+                            | (1<<4) /* fixedParent */ \
+                            | (1<<5) /* sensitiveDataOrigin */ \
+                            | (1<<6) /* userWithAuth */ \
+                            | (1<<7) /* adminWithPolicy */ \
+                            | (1<<16) /* restricted */ \
+                            | (1<<17)) /* decrypt */
+
+#define KEYFLAGS_EK_SIGNING  ((1<<1) /* fixedTPM */ \
+                             | (1<<4) /* fixedParent */ \
+                             | (1<<5) /* sensitiveDataOrigin */ \
+                             | (1<<6) /* userWithAuth */ \
+                             | (1<<7) /* adminWithPolicy */ \
+                             | (1<<16) /* restriced */ \
+                             | (1<<18)) /* sign */
+
 #define KEYFLAGS_SPK ((1<<1) /* fixedTPM */ \
                     | (1<<4) /* fixedParent */ \
                     | (1<<5) /* sensitiveDataOrigin */ \
@@ -741,6 +783,144 @@ static const struct ek_params {
         .keytype = "RSA 4096",
         .nvindex_ekcert = TPM2_NV_INDEX_RSA4096_HI_EKCERT,
         .nvindex_template = TPM2_NV_INDEX_RSA4096_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLKEM,
+            .keyalgo_param = TPM2_MLKEM_PARMS_512,
+            .keydescription = "ml-kem-512",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = PolicyB_SHA256,
+            .authpolicy_len = sizeof(PolicyB_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLKEM_PARMS_512), AS2BE(0)
+             },
+            .schemedata_len = 4,
+            .symkey_len = 128,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x46,
+            .keysize = OSSL_ML_KEM_512_PUBLIC_KEY_BYTES,
+        },
+        .ek_handle = TPM2_EK_MLKEM512_HANDLE,
+        .keytype = "ML-KEM-512",
+        .nvindex_ekcert = TPM2_NV_INDEX_MLKEM512_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_MLKEM512_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLKEM,
+            .keyalgo_param = TPM2_MLKEM_PARMS_768,
+            .keydescription = "ml-kem-768",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = PolicyB_SHA384,
+            .authpolicy_len = sizeof(PolicyB_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLKEM_PARMS_768), AS2BE(0)
+             },
+            .schemedata_len = 4,
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x56,
+            .keysize = OSSL_ML_KEM_768_PUBLIC_KEY_BYTES,
+        },
+        .ek_handle = TPM2_EK_MLKEM768_HANDLE,
+        .keytype = "ML-KEM-768",
+        .nvindex_ekcert = TPM2_NV_INDEX_MLKEM768_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_MLKEM768_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLKEM,
+            .keyalgo_param = TPM2_MLKEM_PARMS_1024,
+            .keydescription = "ml-kem-1024",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = PolicyB_SHA512,
+            .authpolicy_len = sizeof(PolicyB_SHA512),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLKEM_PARMS_1024), AS2BE(0)
+             },
+            .schemedata_len = 4,
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x66,
+            .keysize = OSSL_ML_KEM_1024_PUBLIC_KEY_BYTES,
+        },
+        .ek_handle = TPM2_EK_MLKEM1024_HANDLE,
+        .keytype = "ML-KEM-1024",
+        .nvindex_ekcert = TPM2_NV_INDEX_MLKEM1024_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_MLKEM1024_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_44,
+            .keydescription = "ml-dsa-44",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = PolicyB_SHA256,
+            .authpolicy_len = sizeof(PolicyB_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_44), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 128,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x41,
+            .keysize = ML_DSA_44_PUBLIC_KEY_BYTES,
+        },
+        .ek_handle = TPM2_EK_MLDSA44_HANDLE,
+        .keytype = "ML-DSA-44",
+        .nvindex_ekcert = TPM2_NV_INDEX_MLDSA44_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_MLDSA44_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_65,
+            .keydescription = "ml-dsa-65",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = PolicyB_SHA384,
+            .authpolicy_len = sizeof(PolicyB_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_65), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x51,
+            .keysize = ML_DSA_65_PUBLIC_KEY_BYTES,
+        },
+        .ek_handle = TPM2_EK_MLDSA65_HANDLE,
+        .keytype = "ML-DSA-65",
+        .nvindex_ekcert = TPM2_NV_INDEX_MLDSA65_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_MLDSA65_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_87,
+            .keydescription = "ml-dsa-87",
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = PolicyB_SHA512,
+            .authpolicy_len = sizeof(PolicyB_SHA512),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_87), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x61,
+            .keysize = ML_DSA_87_PUBLIC_KEY_BYTES,
+        },
+        .ek_handle = TPM2_EK_MLDSA87_HANDLE,
+        .keytype = "ML-DSA-87",
+        .nvindex_ekcert = TPM2_NV_INDEX_MLDSA87_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_MLDSA87_HI_EKTEMPLATE,
     }
 };
 
@@ -748,11 +928,13 @@ static const unsigned char null_authpolicy[] = {};
 
 static const struct spk_params {
     struct pk_params pk;
+    const char *keytype;
 } spk_params[] = {
     {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P256,
+            .keydescription = "secp256r1",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_ECC_256,
             .nonce_len = sizeof(NONCE_ECC_256),
@@ -767,11 +949,13 @@ static const struct spk_params {
             .symkey_len = 128,
             .off = 42,
             .duration = TPM2_DURATION_LONG,
-        }
+        },
+        .keytype = "secp256r1",
    }, {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P384,
+            .keydescription = "secp384r1",
             .keyflags = KEYFLAGS_SPK,
             /* per "TCG TPM v2.0 Provisioning Guidance v1.0" page 37
              * -> "Ek Credential Profile 2.0" rev.14 section 2.1.5.2:
@@ -792,10 +976,12 @@ static const struct spk_params {
             .off = 42,
             .duration = TPM2_DURATION_LONG,
         },
+        .keytype = "secp384r1",
     }, {
         .pk = {
             .keyalgo = KEYALGO_ECC,
             .keyalgo_param = TPM2_ECC_NIST_P521,
+            .keydescription = "secp521r1",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_ECC_521,
             .nonce_len = sizeof(NONCE_ECC_521),
@@ -811,10 +997,12 @@ static const struct spk_params {
             .off = 42,
             .duration = TPM2_DURATION_LONG,
        },
+        .keytype = "secp521r1",
     }, {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 2048,
+            .keydescription = "rsa2048",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_RSA2048,
             .nonce_len = sizeof(NONCE_RSA2048),
@@ -830,10 +1018,12 @@ static const struct spk_params {
             .off = 44,
             .duration = TPM2_DURATION_LONG,
        },
+        .keytype = "RSA 2048",
     }, {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 3072,
+            .keydescription = "rsa3072",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_RSA3072,
             .nonce_len = sizeof(NONCE_RSA3072),
@@ -849,10 +1039,12 @@ static const struct spk_params {
             .off = 44,
             .duration = TPM2_DURATION_LONG,
        },
+        .keytype = "RSA 3072",
     }, {
         .pk = {
             .keyalgo = KEYALGO_RSA,
             .keyalgo_param = 4096,
+            .keydescription = "rsa4096",
             .keyflags = KEYFLAGS_SPK,
             .nonce = NONCE_RSA4096,
             .nonce_len = sizeof(NONCE_RSA4096),
@@ -868,6 +1060,70 @@ static const struct spk_params {
             .off = 44,
             .duration = TPM2_DURATION_EXTRA_LONG,
        },
+        .keytype = "RSA 4096",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLKEM,
+            .keyalgo_param = TPM2_MLKEM_PARMS_512,
+            .keydescription = "ml-kem-512",
+            .keyflags = KEYFLAGS_SPK,
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLKEM_PARMS_1024), AS2BE(0)
+             },
+            .schemedata_len = 4,
+            .symkey_len = 128,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x46,
+            .keysize = OSSL_ML_KEM_512_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-KEM-512",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLKEM,
+            .keyalgo_param = TPM2_MLKEM_PARMS_768,
+            .keydescription = "ml-kem-768",
+            .keyflags = KEYFLAGS_SPK,
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLKEM_PARMS_1024), AS2BE(0)
+             },
+            .schemedata_len = 4,
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x56,
+            .keysize = OSSL_ML_KEM_768_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-KEM-768",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLKEM,
+            .keyalgo_param = TPM2_MLKEM_PARMS_1024,
+            .keydescription = "ml-kem-1024",
+            .keyflags = KEYFLAGS_SPK,
+            .nonce = NONCE_EMPTY,
+            .nonce_len = sizeof(NONCE_EMPTY),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = null_authpolicy,
+            .authpolicy_len = 0,
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLKEM_PARMS_1024), AS2BE(0)
+             },
+            .schemedata_len = 4,
+            .symkey_len = 256,
+            .duration = TPM2_DURATION_LONG,
+            .off = 0x66,
+            .keysize = OSSL_ML_KEM_1024_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-KEM-1024",
     }
 };
 
@@ -1041,6 +1297,69 @@ static const struct iak_params {
             .duration = TPM2_DURATION_EXTRA_LONG,
         },
         .keytype = "RSA 4096",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_44,
+            .keydescription = "ml-dsa-44",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA256,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_44), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 0,
+            .off = 0x41,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = ML_DSA_44_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-DSA-44",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_65,
+            .keydescription = "ml-dsa-65",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA384,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_65), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 0,
+            .off = 0x51,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = ML_DSA_65_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-DSA-65",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_87,
+            .keydescription = "ml-dsa-87",
+            .keyflags = KEYFLAGS_IAK,
+            .nonce = NONCE_IAK,
+            .nonce_len = sizeof(NONCE_IAK),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA512,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA512),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_87), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 0,
+            .off = 0x61,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = ML_DSA_87_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-DSA-87",
     }
 };
 
@@ -1210,6 +1529,69 @@ static const struct idevid_params {
             .duration = TPM2_DURATION_EXTRA_LONG,
         },
         .keytype = "RSA 4096",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_44,
+            .keydescription = "ml-dsa-44",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA256,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_44), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 0,
+            .off = 0x41,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = ML_DSA_44_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-DSA-44",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_65,
+            .keydescription = "ml-dsa-65",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .hashalg = TPM2_ALG_SHA384,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA384,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA384),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_65), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 0,
+            .off = 0x51,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = ML_DSA_65_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-DSA-65",
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_MLDSA,
+            .keyalgo_param = TPM2_MLDSA_PARMS_87,
+            .keydescription = "ml-dsa-87",
+            .keyflags = KEYFLAGS_IDEVID,
+            .nonce = NONCE_IDEVID,
+            .nonce_len = sizeof(NONCE_IDEVID),
+            .hashalg = TPM2_ALG_SHA512,
+            .authpolicy = Attestation_PolicyIDevIDKey_SHA512,
+            .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA512),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_MLDSA_PARMS_87), FALSE, AS2BE(0)
+             },
+            .schemedata_len = 5,
+            .symkey_len = 0,
+            .off = 0x61,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = ML_DSA_87_PUBLIC_KEY_BYTES,
+        },
+        .keytype = "ML-DSA-87",
     }
 };
 
@@ -1865,6 +2247,145 @@ err_too_short:
     return 1;
 }
 
+static int swtpm_tpm2_createprimary_ml(struct swtpm *self, uint32_t primaryhandle,
+                                       unsigned char *ektemplate, size_t *ektemplate_len,
+                                       const unsigned char *public, size_t public_len,
+                                       const char *tpm2_function,
+                                       const struct pk_params *pk_params,
+                                       unsigned char *tpmresp, size_t *tpmresp_len,
+                                       uint32_t *curr_handle, gchar **ekparam)
+{
+    int ret;
+
+    ret = swtpm_tpm2_createprimary(self, primaryhandle,
+                                   ektemplate, ektemplate_len,
+                                   public, public_len,
+                                   tpm2_function, pk_params->duration,
+                                   tpmresp, tpmresp_len, curr_handle);
+    if (ret != 0) {
+        if (*tpmresp_len >= sizeof(struct tpm_resp_header) &&
+            be32toh(((struct tpm_resp_header *)tpmresp)->errcode) == 0x2ea) {
+            /*
+             * Error may appear when ML-KEM is not supported in the profile.
+             */
+            logerr(self->logfile,
+                   ">> Is %s supported by the profile? %s needs 'default-v2'.<<\n",
+                   pk_params->keydescription,
+                   pk_params->keydescription);
+        }
+        return 1;
+    }
+
+    if (ekparam) {
+        unsigned char *pubkey = &tpmresp[pk_params->off + 2];
+        g_autofree gchar *pubkey_str = NULL;
+        unsigned short len;
+
+        if (*tpmresp_len < pk_params->off + 2)
+            goto err_too_short;
+
+        /* sanity check size indicator of public key */
+        memcpy(&len, &tpmresp[pk_params->off], 2);
+        if (be16toh(len) != pk_params->keysize) {
+            logerr(self->logfile,
+                   "Internal error in %s: pubkeysize is not as expected: %u != %u\n",
+                   __func__, be16toh(len), pk_params->keysize);
+            return 1;
+        }
+        if (*tpmresp_len < pk_params->off + 2 + pk_params->keysize)
+            goto err_too_short;
+        pubkey_str = print_as_hex(pubkey, pk_params->keysize);
+
+        *ekparam = g_strdup_printf("pubkey=%s,algo=%s",
+                                   pubkey_str, pk_params->keydescription);
+    }
+
+    return 0;
+
+err_too_short:
+    logerr(self->logfile, "Response from %s is too short!\n", tpm2_function);
+    return 1;
+}
+
+/* Create an ML-KEM key with the given parameters */
+static int swtpm_tpm2_createprimary_mlkem(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
+                                          const struct pk_params *pk_params, uint32_t *curr_handle,
+                                          unsigned char *ektemplate, size_t *ektemplate_len,
+                                          gchar **ekparam, const gchar **key_description)
+{
+    const char *tpm2_function = "TPM2_CreatePrimary(MLKEM)";
+    g_autofree unsigned char *public = NULL;
+    unsigned char tpmresp[8192];
+    size_t tpmresp_len = sizeof(tpmresp);
+    unsigned char symkeydata[6];
+    size_t symkeydata_len = 6;
+    ssize_t public_len;
+
+    if (key_description)
+        *key_description = pk_params->keydescription;
+
+    symkeydata_len = create_symkeydata(pk_params, symkeydata);
+
+    public_len =
+        memconcat(&public,
+                  (unsigned char[]){
+                      AS2BE(TPM2_ALG_MLKEM), AS2BE(pk_params->hashalg),
+                      AS4BE(keyflags), AS2BE(pk_params->authpolicy_len)
+                  }, (size_t)10,
+                  pk_params->authpolicy, pk_params->authpolicy_len,
+                  symkeydata, symkeydata_len,
+                  pk_params->schemedata, pk_params->schemedata_len,
+                  NULL);
+    if (public_len < 0) {
+        logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
+        return 1;
+    }
+
+    return swtpm_tpm2_createprimary_ml(self, primaryhandle,
+                                       ektemplate, ektemplate_len,
+                                       public, public_len,
+                                       tpm2_function, pk_params,
+                                       tpmresp, &tpmresp_len, curr_handle,
+                                       ekparam);
+}
+
+/* Create an ML-DSA key with the given parameters */
+static int swtpm_tpm2_createprimary_mldsa(struct swtpm *self, uint32_t primaryhandle, unsigned int keyflags,
+                                          const struct pk_params *pk_params, uint32_t *curr_handle,
+                                          unsigned char *ektemplate, size_t *ektemplate_len,
+                                          gchar **ekparam, const gchar **key_description)
+{
+    const char *tpm2_function = "TPM2_CreatePrimary(MLDSA)";
+    g_autofree unsigned char *public = NULL;
+    unsigned char tpmresp[8192];
+    size_t tpmresp_len = sizeof(tpmresp);
+    ssize_t public_len;
+
+    if (key_description)
+        *key_description = pk_params->keydescription;
+
+    public_len =
+        memconcat(&public,
+                  (unsigned char[]){
+                      AS2BE(TPM2_ALG_MLDSA), AS2BE(pk_params->hashalg),
+                      AS4BE(keyflags), AS2BE(pk_params->authpolicy_len)
+                  }, (size_t)10,
+                  pk_params->authpolicy, pk_params->authpolicy_len,
+                  pk_params->schemedata, pk_params->schemedata_len,
+                  NULL);
+    if (public_len < 0) {
+        logerr(self->logfile, "Internal error in %s: memconcat failed\n", __func__);
+        return 1;
+    }
+
+    return swtpm_tpm2_createprimary_ml(self, primaryhandle,
+                                       ektemplate, ektemplate_len,
+                                       public, public_len,
+                                       tpm2_function, pk_params,
+                                       tpmresp, &tpmresp_len, curr_handle,
+                                       ekparam);
+}
+
 static int swtpm_tpm2_createprimary_spk_ecc(struct swtpm *self,
                                             unsigned int keyalgo_param,
                                             uint32_t *curr_handle)
@@ -1894,12 +2415,17 @@ static int swtpm_tpm2_createprimary_spk_rsa(struct swtpm *self, unsigned int key
                                         NULL, 0, NULL, NULL);
 }
 
-/* Create either an ECC or RSA storage primary key (deprecated) */
+/* Create either an ECC, RSA, or MLKEM storage primary key (deprecated) */
 static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
                                  unsigned int keyalgo_param)
 {
-    int ret;
+    const struct spk_params *spks;
     uint32_t curr_handle;
+    int ret;
+
+    spks = get_spk_params(self, keyalgo, keyalgo_param);
+    if (!spks)
+        return 1;
 
     switch (keyalgo) {
     case KEYALGO_ECC:
@@ -1907,6 +2433,15 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
         break;
     case KEYALGO_RSA:
         ret = swtpm_tpm2_createprimary_spk_rsa(self, keyalgo_param, &curr_handle);
+        break;
+    case KEYALGO_MLKEM:
+        ret = swtpm_tpm2_createprimary_mlkem(self, TPM2_RH_OWNER, spks->pk.keyflags,
+                                             &spks->pk, &curr_handle,
+                                             NULL, 0, NULL, NULL);
+        break;
+    case KEYALGO_MLDSA:
+        logerr(self->logfile, "ML-DSA key cannot be a SPK.\n");
+        ret = 1;
         break;
     case KEYALGO_NONE:
     default:
@@ -1919,7 +2454,8 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
     ret = swtpm_tpm2_evictcontrol(self, curr_handle, TPM2_SPK_HANDLE);
     if (ret == 0)
         logit(self->logfile,
-              "Successfully created storage primary key with handle 0x%x.\n", TPM2_SPK_HANDLE);
+              "Successfully created %s storage primary key with handle 0x%x.\n",
+              spks->keytype, TPM2_SPK_HANDLE);
 
     ret = swtpm_tpm2_flushcontext(self, curr_handle);
     if (ret != 0) {
@@ -1953,6 +2489,12 @@ static int swtpm_tpm2_create_iak(struct swtpm *self,
                                            &iaks->pk, iaks->pk.off, &curr_handle,
                                            NULL, 0, keyparam, key_description);
         break;
+    case KEYALGO_MLDSA:
+        ret = swtpm_tpm2_createprimary_mldsa(self, TPM2_RH_ENDORSEMENT, iaks->pk.keyflags,
+                                             &iaks->pk, &curr_handle,
+                                             NULL, 0, keyparam, key_description);
+        break;
+    case KEYALGO_MLKEM:
     case KEYALGO_NONE:
     default:
         return 1;
@@ -1993,6 +2535,12 @@ static int swtpm_tpm2_create_idevid(struct swtpm *self,
                                            &idps->pk, idps->pk.off, &curr_handle,
                                            NULL, 0, keyparam, key_description);
         break;
+    case KEYALGO_MLDSA:
+        ret = swtpm_tpm2_createprimary_mldsa(self, TPM2_RH_ENDORSEMENT, idps->pk.keyflags,
+                                             &idps->pk, &curr_handle,
+                                             NULL, 0, keyparam, key_description);
+        break;
+    case KEYALGO_MLKEM:
     case KEYALGO_NONE:
     default:
         return 1;
@@ -2102,9 +2650,21 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsign
                                               ektemplate, &ektemplate_len, ekparam,
                                               key_description);
         break;
+    case KEYALGO_MLKEM:
+        ret = swtpm_tpm2_createprimary_mlkem(self, TPM2_RH_ENDORSEMENT, KEYFLAGS_EK_STORAGE,
+                                             &ekps->pk, &curr_handle,
+                                             ektemplate, &ektemplate_len,
+                                             ekparam, key_description);
+        break;
+    case KEYALGO_MLDSA:
+        ret = swtpm_tpm2_createprimary_mldsa(self, TPM2_RH_ENDORSEMENT, KEYFLAGS_EK_SIGNING,
+                                             &ekps->pk, &curr_handle,
+                                             ektemplate, &ektemplate_len,
+                                             ekparam, key_description);
+        break;
     case KEYALGO_NONE:
     default:
-        ret = 1;
+        return 1;
     }
 
     if (ret == 0)
@@ -2175,6 +2735,36 @@ static int swtpm_tpm2_nvdefinespace(struct swtpm *self, uint32_t nvindex, uint32
                     NULL, NULL, TPM2_DURATION_SHORT);
 }
 
+static int swtpm_tpm2_get_capability(struct swtpm *self, uint32_t cap, uint32_t prop,
+                                     uint32_t *res)
+{
+    struct tpm2_get_capability_req {
+        struct tpm_req_header hdr;
+        uint32_t cap;
+        uint32_t prop;
+        uint32_t count;
+    } __attribute__((packed)) req = {
+        .hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_NO_SESSIONS, sizeof(req), TPM2_CC_GETCAPABILITY),
+        .cap = htobe32(cap),
+        .prop = htobe32(prop),
+        .count = htobe32(1),
+    };
+    unsigned char tpmresp[27];
+    size_t tpmresp_len = sizeof(tpmresp);
+    uint32_t val;
+    int ret;
+
+    ret = transfer(self, &req, sizeof(req), "TPM2_GetCapability", FALSE,
+                   tpmresp, &tpmresp_len, TPM2_DURATION_SHORT);
+    if (ret != 0)
+        return 1;
+
+    memcpy(&val, &tpmresp[23], sizeof(val));
+    *res = be32toh(val);
+
+    return 0;
+}
+
 /* Write the data into the given NVIndex */
 static int swtpm_tpm2_nv_write(struct swtpm *self, uint32_t nvindex,
                                const unsigned char *data, size_t data_len)
@@ -2182,12 +2772,20 @@ static int swtpm_tpm2_nv_write(struct swtpm *self, uint32_t nvindex,
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_NV_WRITE);
     struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
     g_autofree unsigned char *req = NULL;
-    ssize_t req_len;
+    uint32_t nv_buffer_max = 1024; // was limit up to SFL 11
     size_t offset = 0, txlen;
+    ssize_t req_len;
     int ret;
 
+    if (data_len > nv_buffer_max) {
+        ret = swtpm_tpm2_get_capability(self, TPM2_CAP_TPM_PROPERTIES,
+                                        TPM2_PT_NV_BUFFER_MAX, &nv_buffer_max);
+        if (ret != 0)
+            return 1;
+    }
+
     while (offset < data_len) {
-        txlen = min(data_len - offset, 1024);
+        txlen = min(data_len - offset, nv_buffer_max);
 
         g_free(req);
         req_len = memconcat(&req,
@@ -2368,36 +2966,6 @@ static int swtpm_tpm2_write_idevid_cert_nvram(struct swtpm *self, gboolean lock_
 
     return swtpm_tpm2_write_cert_nvram(self, nvindex, nvindexattrs, data, data_len,
                                        lock_nvram, "", "IDevID certificate");
-}
-
-static int swtpm_tpm2_get_capability(struct swtpm *self, uint32_t cap, uint32_t prop,
-                                     uint32_t *res)
-{
-    struct tpm2_get_capability_req {
-        struct tpm_req_header hdr;
-        uint32_t cap;
-        uint32_t prop;
-        uint32_t count;
-    } __attribute__((packed)) req = {
-        .hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_NO_SESSIONS, sizeof(req), TPM2_CC_GETCAPABILITY),
-        .cap = htobe32(cap),
-        .prop = htobe32(prop),
-        .count = htobe32(1),
-    };
-    unsigned char tpmresp[27];
-    size_t tpmresp_len = sizeof(tpmresp);
-    uint32_t val;
-    int ret;
-
-    ret = transfer(self, &req, sizeof(req), "TPM2_GetCapability", FALSE,
-                   tpmresp, &tpmresp_len, TPM2_DURATION_SHORT);
-    if (ret != 0)
-        return 1;
-
-    memcpy(&val, &tpmresp[23], sizeof(val));
-    *res = be32toh(val);
-
-    return 0;
 }
 
 static const struct swtpm2_ops swtpm_tpm2_ops = {
