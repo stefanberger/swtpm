@@ -1038,7 +1038,7 @@ static const struct iak_params {
             .keysize = 4096/8,
             .symkey_len = 0,
             .off = 0x5a,
-            .duration = TPM2_DURATION_LONG,
+            .duration = TPM2_DURATION_EXTRA_LONG,
         },
         .keytype = "RSA 4096",
     }
@@ -1207,7 +1207,7 @@ static const struct idevid_params {
             .keysize = 4096/8,
             .symkey_len = 0,
             .off = 0x68,
-            .duration = TPM2_DURATION_LONG,
+            .duration = TPM2_DURATION_EXTRA_LONG,
         },
         .keytype = "RSA 4096",
     }
