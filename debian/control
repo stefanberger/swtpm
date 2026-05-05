@@ -7,7 +7,6 @@ Rules-Requires-Root: no
 Build-Depends: debhelper (>= 10),
                dh-apparmor,
                dh-sequence-installsysusers,
-               expect,
                gawk,
                gnutls-bin,
                libfuse-dev,
@@ -68,4 +67,3 @@ Depends: gnutls-bin,
          swtpm (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Suggests: trousers (>= 0.3.9)

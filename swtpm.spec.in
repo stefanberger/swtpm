@@ -20,16 +20,12 @@ BuildRequires:  libtool
 BuildRequires:  libtpms-devel >= 0.6.0
 BuildRequires:  glib2-devel
 BuildRequires:  json-glib-devel
-BuildRequires:  expect
 BuildRequires:  net-tools
 BuildRequires:  openssl-devel
 BuildRequires:  openssl
 BuildRequires:  pkcs11-provider
 BuildRequires:  socat
 BuildRequires:  softhsm
-%if (0%{?fedora}) || (0%{?rhel} && 0%{?rhel} < 9)
-BuildRequires:  trousers >= 0.3.9
-%endif
 %if %{with gnutls}
 BuildRequires:  gnutls >= 3.4.0
 BuildRequires:  gnutls-utils
@@ -68,7 +64,7 @@ Include files for the TPM emulator's CUSE interface.
 Summary:        Tools for the TPM emulator
 License:        BSD-3-Clause
 Requires:       swtpm = %{version}-%{release}
-Requires:       trousers >= 0.3.9 bash gnutls-utils
+Requires:       bash gnutls-utils
 
 %description    tools
 Tools for the TPM emulator from the swtpm package
@@ -78,7 +74,7 @@ Summary:        Tools for creating a local CA based on a pkcs11 device
 License:        BSD-3-Clause
 Requires:       swtpm-tools = %{version}-%{release}
 Requires:       tpm2-pkcs11 tpm2-pkcs11-tools tpm2-tools tpm2-abrmd
-Requires:       expect gnutls-utils trousers >= 0.3.9
+Requires:       gnutls-utils
 
 %description    tools-pkcs11
 Tools for creating a local CA based on a pkcs11 device
