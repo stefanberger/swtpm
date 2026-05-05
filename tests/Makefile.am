@@ -15,9 +15,8 @@ if ENABLE_TESTS
 
 TESTS = \
 	test_vtpm_proxy \
-	test_tpm2_vtpm_proxy
-
-TESTS += \
+	test_tpm2_vtpm_proxy \
+	\
 	test_commandline \
 	test_ctrlchannel \
 	test_ctrlchannel2 \
@@ -37,6 +36,8 @@ TESTS += \
 	test_setbuffersize \
 	test_volatilestate \
 	test_swtpm_bios \
+	test_swtpm_cert \
+	test_swtpm_setup_create_cert \
 	test_tpm_probe \
 	test_tpm12 \
 	test_wrongorder \
@@ -45,9 +46,8 @@ TESTS += \
 	test_print_states \
 	test_swtpm_setup_overwrite \
 	test_swtpm_setup_file_backend \
-	test_swtpm_setup_misc
-
-TESTS += \
+	test_swtpm_setup_misc \
+	\
 	test_tpm2_avoid_da_lockout \
 	test_tpm2_chroot_socket \
 	test_tpm2_chroot_chardev \
@@ -64,11 +64,13 @@ TESTS += \
 	test_tpm2_hashing2 \
 	test_tpm2_hashing3 \
 	test_tpm2_migration_key \
+	test_tpm2_parameters \
 	test_tpm2_partial_reads \
 	test_tpm2_pcap \
 	test_tpm2_print_capabilities \
 	test_tpm2_print_states \
 	test_tpm2_resume_volatile \
+	test_tpm2_samples_create_tpmca.test \
 	test_tpm2_savestate \
 	test_tpm2_save_load_encrypted_state \
 	test_tpm2_save_load_state \
@@ -79,6 +81,11 @@ TESTS += \
 	test_tpm2_save_load_state_da_timeout \
 	test_tpm2_save_load_state_locking \
 	test_tpm2_setbuffersize \
+	test_tpm2_swtpm_cert \
+	test_tpm2_swtpm_cert_ecc \
+	test_tpm2_swtpm_localca \
+	test_tpm2_swtpm_localca_pkcs11.test \
+	test_tpm2_swtpm_setup_create_cert \
 	test_tpm2_volatilestate \
 	test_tpm2_wrongorder \
 	test_tpm2_probe \
@@ -93,19 +100,6 @@ TESTS += \
 	test_tpm2_swtpm_setup_profile_name \
 	test_tpm2_libtpms_versions_profiles
 
-if WITH_GNUTLS
-TESTS += \
-	test_swtpm_cert \
-	test_swtpm_setup_create_cert \
-	test_tpm2_parameters \
-	test_tpm2_samples_create_tpmca.test
-	test_tpm2_swtpm_cert \
-	test_tpm2_swtpm_cert_ecc \
-	test_tpm2_swtpm_localca \
-	test_tpm2_swtpm_localca_pkcs11.test \
-	test_tpm2_swtpm_setup_create_cert
-
-endif # WITH_GNUTLS
 endif # ENABLE_TESTS
 
 TEST_UTILS = \

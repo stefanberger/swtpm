@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ $(uname -p) != "x86_64" ]; then
+if [ $(uname -m) != "x86_64" ]; then
  echo "This test only runs on x86_64 host"
  exit 1
 fi
@@ -16,7 +16,7 @@ WITHOUT_CUSE="--without-cuse"
 # doesn't behave as it does with 64bit. test_hashing2 gets stuck.
 
 
-CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 ${WITHOUT_CUSE} && \
+CFLAGS='-m64' ./configure --with-openssl --prefix=/usr --libdir=/lib64 ${WITHOUT_CUSE} && \
  make clean && \
  make -j$(nproc) &&
  sudo make -j$(nproc) install &&
@@ -29,7 +29,7 @@ if [ -z "${WITHOUT_CUSE}" ]; then
 fi
 
 PKG_CONFIG_PATH=/usr/lib/pkgconfig \
- CFLAGS='-m32' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib ${WITHOUT_CUSE} && \
+ CFLAGS='-m32' ./configure --with-openssl --prefix=/usr --libdir=/lib ${WITHOUT_CUSE} && \
  make clean && \
  make -j$(nproc) &&
  sudo make -j$(nproc) install &&
@@ -42,7 +42,7 @@ if [ -z "${WITHOUT_CUSE}" ]; then
  exit 1
 fi
 
-CFLAGS='-m64' ./configure --with-openssl --with-gnutls --prefix=/usr --libdir=/lib64 ${WITHOUT_CUSE} && \
+CFLAGS='-m64' ./configure --with-openssl --prefix=/usr --libdir=/lib64 ${WITHOUT_CUSE} && \
  make clean && \
  make -j$(nproc) &&
  SWTPM_EXE=/tmp/swtpm32 make -j$(nproc) check ||

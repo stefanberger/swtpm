@@ -200,26 +200,6 @@ AS_CASE([$host_os],
 AM_CONDITIONAL([WITH_CHARDEV],[test "$with_chardev" = "yes"])
 AC_MSG_RESULT($with_chardev)
 
-AC_ARG_WITH([gnutls],
-            AS_HELP_STRING([--with-gnutls],[build with gnutls library]),
-            [],
-            [with_gnutls=check]
-)
-
-dnl certtool changed how it takes private key passwords
-dnl 3.3.29 is too old (RHEL 7); we need at least gnutls 3.4.0
-
-AS_IF([test "x$with_gnutls" != "xno"],[
-    AC_PATH_PROG([GNUTLS_CERTTOOL], certtool)
-    AS_IF([test "x$GNUTLS_CERTTOOL" = "x" && test "x$with_gnutls" = "xyes"],
-        [AC_MSG_ERROR("Could not find certtool. Is gnutls-utils/gnutls-bin installed?")],
-        [test "x$GNUTLS_CERTTOOL" = "x"],
-        [with_gnutls=no]
-    )
-    AS_IF([test "x$with_gnutls" != "xno"],[with_gnutls="yes"])
-])
-AM_CONDITIONAL([WITH_GNUTLS], [test "x$with_gnutls" = "xyes"])
-
 DEFAULT_PCR_BANKS="sha256"
 AC_ARG_ENABLE([default-pcr-banks],
               AS_HELP_STRING(
