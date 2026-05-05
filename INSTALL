@@ -4,7 +4,6 @@ Building and running the swtpm has dependencies on the following packages:
 - autoconf
 - bash
 - coreutils
-- expect
 - libtool
 - sed
 - libtpms
@@ -19,7 +18,6 @@ Building and running the swtpm has dependencies on the following packages:
 - python3-twisted
 - selinux-policy-devel
 - socat
-- trousers
 - gnutls
 - libtasn1
 - libtasn1-tools
