@@ -41,11 +41,10 @@ gchar *gl_LOGFILE = NULL;
 #define LOCALCA_OPTIONS "swtpm-localca.options"
 #define LOCALCA_CONFIG  "swtpm-localca.conf"
 
-#if defined __APPLE__
-# define CERTTOOL_NAME "gnutls-certtool"
-#else
-# define CERTTOOL_NAME "certtool"
-#endif
+#define OPENSSL_TOOL  "openssl"
+#define NEWKEY_ALGO   "rsa:3072"
+#define CERT_HASH     "-sha256"
+#define CERT_DAYS     "36500"
 
 /* initialize the path of the options and config files */
 static int init(gchar **options_file, gchar **config_file)
@@ -67,10 +66,10 @@ static int init(gchar **options_file, gchar **config_file)
     return 0;
 }
 
-/* Run the certtool command line prepared in cmd. Display error message
+/* Run the openssl command line prepared in cmd. Display error message
  * in case of failure and also display the keyfile if something goes wrong.
  */
-static int run_certtool(const gchar **cmd, const gchar **env, const char *msg, gchar *keyfile)
+static int run_openssl(const gchar **cmd, const gchar **env, const char *msg)
 {
     g_autofree gchar *standard_error = NULL;
     gint exit_status;
@@ -81,8 +80,6 @@ static int run_certtool(const gchar **cmd, const gchar **env, const char *msg, g
                          NULL, &standard_error, &exit_status, &error);
     if (!success || exit_status != 0) {
         logerr(gl_LOGFILE, "%s" , msg);
-        if (keyfile)
-            logerr(gl_LOGFILE, " %s:", keyfile);
         if (!success) {
             logerr(gl_LOGFILE, "%s\n", error->message);
             g_error_free(error);
@@ -108,7 +105,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
     int template2_file_fd = -1;
     g_autofree gchar *template1_file = NULL;
     g_autofree gchar *template2_file = NULL;
-    gchar **certtool_env = NULL;
+    gchar **openssl_env = NULL;
 
     lockfd = lock_file(lockfile);
     if (lockfd < 0)
@@ -124,25 +121,41 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         g_autofree gchar *cakey = g_strjoin(G_DIR_SEPARATOR_S, directory, "swtpm-localca-rootca-privkey.pem", NULL);
         g_autofree gchar *cacert = g_strjoin(G_DIR_SEPARATOR_S, directory, "swtpm-localca-rootca-cert.pem", NULL);
         const gchar *swtpm_rootca_password = g_getenv("SWTPM_ROOTCA_PASSWORD");
-        g_autofree gchar *certtool = g_find_program_in_path(CERTTOOL_NAME);
+        g_autofree gchar *openssl = g_find_program_in_path(OPENSSL_TOOL);
         g_autofree const gchar **cmd = NULL;
         g_autofree gchar *fc = NULL;
-        const char *filecontent;
 
-        if (certtool == NULL) {
-            logerr(gl_LOGFILE, "Could not find %s in PATH.\n", CERTTOOL_NAME);
+        if (openssl == NULL) {
+            logerr(gl_LOGFILE, "Could not find %s in PATH.\n", OPENSSL_TOOL);
             goto error;
         }
 
-        /* generate the root-CA's private key */
-        cmd = concat_arrays(cmd, (const gchar*[]){
-                                certtool, "--generate-privkey", "--outfile", cakey, NULL
-                            }, TRUE);
-        if (swtpm_rootca_password != NULL)
+        /* create root CA key and self-signed cert */
+        cmd = concat_arrays(NULL,
+                            (const gchar *[]) {
+                                openssl,
+                                "req",
+                                "-x509",
+                                "-keyout", cakey,
+                                "-newkey", NEWKEY_ALGO,
+                                "-out", cacert,
+                                "-days", CERT_DAYS,
+                                CERT_HASH,
+                                "-subj", "/CN=swtpm-localca-rootca",
+                                "-addext", "basicConstraints=critical,CA:TRUE",
+                                "-addext", "keyUsage=critical,keyCertSign",
+                                swtpm_rootca_password == NULL ? "-noenc" : NULL,
+                                NULL
+                            }, FALSE);
+        if (swtpm_rootca_password != NULL) {
             cmd = concat_arrays(cmd, (const char*[]){
-                                   "--password", swtpm_rootca_password, NULL
+                                   "-passout", "env:SWTPM_ROOTCA_PASSWORD", NULL
                                 }, TRUE);
-        if (run_certtool(cmd, (const gchar **)certtool_env, "Could not create root-CA key", cakey))
+            openssl_env = g_environ_setenv(openssl_env,
+                                           "SWTPM_ROOTCA_PASSWORD", swtpm_rootca_password,
+                                           TRUE);
+        }
+        if (run_openssl(cmd, (const char **)openssl_env, "Could not create root-CA: "))
             goto error;
 
         if (chmod(cakey, S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
@@ -150,86 +163,51 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
             goto error;
         }
 
-        certtool_env = g_environ_setenv(NULL, "PATH", g_getenv("PATH"), TRUE);
-
-        /* create the root-CA's cert */
-        filecontent = "cn=swtpm-localca-rootca\n"
-                      "ca\n"
-                      "cert_signing_key\n"
-                      "expiration_days = -1\n";
-        template1_file_fd = write_to_tempfile(&template1_file,
-                                              (const unsigned char *)filecontent, strlen(filecontent));
-        if (template1_file_fd < 0)
-            goto error;
-
         g_free(cmd);
+        /* create intermediate CA's key and certificate */
         cmd = concat_arrays(NULL,
                             (const gchar *[]) {
-                                certtool,
-                                "--generate-self-signed",
-                                "--template", template1_file,
-                                "--outfile", cacert,
-                                "--load-privkey", cakey,
+                                openssl,
+                                "req",
+                                "-x509",
+                                "-keyout", signkey,
+                                "-newkey", NEWKEY_ALGO,
+                                "-out", issuercert,
+                                "-days", CERT_DAYS,
+                                CERT_HASH,
+                                "-CA", cacert,
+                                "-CAkey", cakey,
+                                "-subj", "/CN=swtpm-localca",
+                                "-addext", "basicConstraints=critical,CA:TRUE",
+                                "-addext", "keyUsage=critical,keyCertSign",
+                                signkey_password == NULL ? "-noenc" : NULL,
                                 NULL
                             }, FALSE);
-        if (swtpm_rootca_password != NULL)
-            certtool_env = g_environ_setenv(certtool_env, "GNUTLS_PIN", swtpm_rootca_password, TRUE);
+        if (signkey_password != NULL) {
+            cmd = concat_arrays(cmd,
+                                (const gchar *[]) {
+                                    "-passout", "env:SWTPM_CA_PASSWORD",
+                                    NULL
+                                }, TRUE);
+            openssl_env = g_environ_setenv(openssl_env,
+                                           "SWTPM_CA_PASSWORD", signkey_password,
+                                           TRUE);
+        }
+        if (swtpm_rootca_password != NULL) {
+            cmd = concat_arrays(cmd,
+                                (const gchar *[]) {
+                                    "-passin", "env:SWTPM_ROOTCA_PASSWORD",
+                                    NULL
+                                }, TRUE);
+        }
 
-        if (run_certtool(cmd, (const char **)certtool_env, "Could not create root-CA:", NULL))
-            goto error;
-
-        g_free(cmd);
-
-        /* create the intermediate CA's key */
-        cmd = concat_arrays(NULL,
-                            (const gchar *[]) {
-                                certtool, "--generate-privkey", "--outfile", signkey, NULL
-                            }, FALSE);
-        if (signkey_password != NULL)
-            cmd = concat_arrays(cmd, (const gchar *[]){
-                                    "--password", signkey_password, NULL},
-                                TRUE);
-        if (run_certtool(cmd, (const char **)certtool_env, "Could not create local-CA key", cakey))
+        if (run_openssl(cmd, (const char **)openssl_env, "Could not create local-CA: "))
             goto error;
 
         if (chmod(signkey, S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
             logerr(gl_LOGFILE, "Could not chmod %s: %s\n", signkey, strerror(errno));
             goto error;
         }
-
-        filecontent = "cn=swtpm-localca\n"
-                      "ca\n"
-                      "cert_signing_key\n"
-                      "expiration_days = -1\n";
-        if (swtpm_rootca_password != NULL && signkey_password != NULL)
-            fc = g_strdup_printf("%spassword = %s\n", filecontent, swtpm_rootca_password);
-        else
-            fc = g_strdup(filecontent);
-
-        template2_file_fd = write_to_tempfile(&template2_file,
-                                              (const unsigned char *)fc, strlen(fc));
-        if (template2_file_fd < 0)
-            goto error;
-
-        g_free(cmd);
-        cmd = concat_arrays(NULL,
-                            (const gchar *[]) {
-                                certtool,
-                                "--generate-certificate",
-                                "--template", template2_file,
-                                "--outfile", issuercert,
-                                "--load-privkey", signkey,
-                                "--load-ca-privkey", cakey,
-                                "--load-ca-certificate", cacert,
-                                NULL
-                            }, FALSE);
-        if (signkey_password != NULL)
-            certtool_env = g_environ_setenv(certtool_env, "GNUTLS_PIN", signkey_password, TRUE);
-        else if (swtpm_rootca_password != NULL)
-            certtool_env = g_environ_setenv(certtool_env, "GNUTLS_PIN", swtpm_rootca_password, TRUE);
-
-        if (run_certtool(cmd, (const char **)certtool_env, "Could not create local-CA:", NULL))
-            goto error;
     }
 
     ret = 0;
@@ -244,7 +222,7 @@ error:
         close(template2_file_fd);
     if (template2_file != NULL)
         unlink(template2_file);
-    g_strfreev(certtool_env);
+    g_strfreev(openssl_env);
 
     unlock_file(lockfd);
 
