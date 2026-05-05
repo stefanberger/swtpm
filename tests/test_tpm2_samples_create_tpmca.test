@@ -25,6 +25,11 @@ if ! tpm2_ptool | grep -q ",config,"; then
 	exit 77
 fi
 
+if [ -z "$(type -P p11tool)" ]; then
+	echo "This test requires p11tool from gnutls-utils/gnutls-bin to be installed"
+	exit 77
+fi
+
 if [ -z "$(type -P tpm2-abrmd)" ]; then
 	echo "Could not find tpm2-abrmd in PATH"
 	exit 77
