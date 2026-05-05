@@ -8,7 +8,6 @@ Build-Depends: debhelper (>= 10),
                dh-apparmor,
                dh-sequence-installsysusers,
                gawk,
-               gnutls-bin,
                libfuse-dev,
                libglib2.0-dev,
                libgmp-dev,
@@ -63,7 +62,6 @@ Description: Tools for the TPM emulator
       tool basically simulates TPM manufacturing where certificates are
       written into the NVRAM of the TPM
   - swtpm_cert: Creation of certificates for the TPM (x509)
-Depends: gnutls-bin,
-         swtpm (= ${binary:Version}),
+Depends: swtpm (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}

@@ -1,5 +1,4 @@
 # spec file for RHEL/CentOS and Fedora
-%bcond_without gnutls
 
 # Macros needed by SELinux
 %global selinuxtype targeted
@@ -26,12 +25,8 @@ BuildRequires:  openssl
 BuildRequires:  pkcs11-provider
 BuildRequires:  socat
 BuildRequires:  softhsm
-%if %{with gnutls}
-BuildRequires:  gnutls >= 3.4.0
-BuildRequires:  gnutls-utils
 BuildRequires:  libtasn1-devel
 BuildRequires:  libtasn1
-%endif
 BuildRequires:  selinux-policy-devel
 BuildRequires:  gcc
 BuildRequires:  libseccomp-devel
@@ -64,7 +59,7 @@ Include files for the TPM emulator's CUSE interface.
 Summary:        Tools for the TPM emulator
 License:        BSD-3-Clause
 Requires:       swtpm = %{version}-%{release}
-Requires:       bash gnutls-utils
+Requires:       bash
 
 %description    tools
 Tools for the TPM emulator from the swtpm package
@@ -104,9 +99,6 @@ Installed swtpm tests
 
 NOCONFIGURE=1 ./autogen.sh
 %configure \
-%if %{with gnutls}
-        --with-gnutls \
-%endif
         --without-cuse
 
 %make_build
@@ -169,9 +161,7 @@ fi
 %files tools
 %doc README
 %{_bindir}/swtpm_bios
-%if %{with gnutls}
 %{_bindir}/swtpm_cert
-%endif
 %{_bindir}/swtpm_setup
 %{_bindir}/swtpm_ioctl
 %{_bindir}/swtpm_localca
