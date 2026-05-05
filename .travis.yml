@@ -22,7 +22,6 @@ addons:
         - libglib2.0-dev
         - libjson-glib-dev
         - libgmp-dev
-        - expect
         - libtasn1-dev
         - socat
         - findutils
@@ -40,11 +39,6 @@ addons:
     branch_pattern: coverity_scan
 before_install:
   - test $TRAVIS_BRANCH != coverity_scan -o ${TRAVIS_JOB_NUMBER##*.} = 1 || exit 0
-  - |  # We need trousers only for the tss user
-    if [ "$(uname -s)" = "Linux" ]; then
-      sudo rm -rf /dev/tpm* # This is a work-around for Bionic where trousers otherwise fails to install
-      sudo apt-get -y install trousers
-    fi
 script:
   - sudo pip3 install --upgrade pip==20.3.3
   - if [ ! -d libtpms ]; then git clone https://github.com/stefanberger/libtpms; fi
