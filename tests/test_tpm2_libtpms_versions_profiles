@@ -649,7 +649,7 @@ function build_swtpm()
 		fi
 	fi
 	PKG_CONFIG_PATH="${destdir}" CFLAGS="${cflags}" \
-		./autogen.sh --without-cuse --without-selinux --without-seccomp
+		./autogen.sh --without-cuse --without-selinux --without-seccomp --disable-tests
 	make -j "$(nproc)" || return 1
 
 	cp \
