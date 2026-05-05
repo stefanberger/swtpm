@@ -263,7 +263,6 @@ AC_ARG_ENABLE([tests],
 )
 AM_CONDITIONAL(ENABLE_TESTS, [test x$enable_tests = xyes])
 
-have_tcsd=no
 AS_IF([test "x$enable_tests" = "xyes"],[
     dnl We either need netstat (more common across systems) or 'ss' for test cases
     AC_PATH_PROG([NETSTAT], [netstat])
@@ -274,19 +273,6 @@ AS_IF([test "x$enable_tests" = "xyes"],[
             [AC_MSG_ERROR(['netstat' and 'ss' tools are missing for tests: net-tools OR iproute/iproute2 package])]
         )
         ]
-    )
-
-    AC_PATH_PROG([TCSD], tcsd)
-    AS_IF([test "x$TCSD" = "x"],
-        [have_tcsd=no,
-        AC_MSG_WARN([tcsd could not be found; typically need it for tss user account and tests])
-        ],
-        [have_tcsd=yes]
-    )
-
-    AC_PATH_PROG([EXPECT], expect)
-    AS_IF([test "x$EXPECT" = "x"],
-        AC_MSG_ERROR([expect is required: expect package])
     )
 
     AC_PATH_PROG([GAWK], gawk)
@@ -309,7 +295,6 @@ AS_IF([test "x$enable_tests" = "xyes"],[
 	AC_MSG_ERROR([cp is required])
     )
 ])
-AM_CONDITIONAL([HAVE_TCSD], test "$have_tcsd" != "no")
 
 AM_PATH_PYTHON([3.3])
 
@@ -391,23 +376,6 @@ AC_ARG_WITH([tss-group],
             [TSS_GROUP="$withval"],
             [TSS_GROUP="tss"]
 )
-
-case $have_tcsd in
-yes)
-	AC_MSG_CHECKING([whether TSS_USER $TSS_USER is available])
-	if ! test $(id -u $TSS_USER); then
-		AC_MSG_ERROR(["$TSS_USER is not available"])
-	else
-		AC_MSG_RESULT([yes])
-	fi
-	AC_MSG_CHECKING([whether TSS_GROUP $TSS_GROUP is available])
-	if ! test $(id -g $TSS_GROUP); then
-		AC_MSG_ERROR(["$TSS_GROUP is not available"])
-	else
-		AC_MSG_RESULT([yes])
-	fi
-	;;
-esac
 
 AC_SUBST([TSS_USER])
 AC_SUBST([TSS_GROUP])
