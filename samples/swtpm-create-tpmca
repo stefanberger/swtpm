@@ -34,6 +34,29 @@ function get_filesize()
 	fi
 }
 
+# Get the OpenSSL provider path for the given module searching a few well-known
+# paths.
+function get_provider_path()
+{
+	local module="$1"
+
+	local p
+
+	for p in \
+		"/usr/lib64/ossl-modules" \
+		"/usr/lib/ossl-modules" \
+		"/usr/lib/$(uname -m)-linux-gnu/ossl-modules";
+	do
+		if [ -r "${p}/${module}" ]; then
+			echo "${p}"
+			return 0
+		fi
+	done
+
+	logerr "Could not find OpenSSL provider path for ${module} module."
+	return 1
+}
+
 # Create a config value by escaping the proper characters
 #
 # @param 1: The string to escape
@@ -55,42 +78,37 @@ create_localca_cert() {
 	local tpmkey=${dir}/swtpm-localca-tpmca-privkey.pem
 	local tpmpubkey=${dir}/swtpm-localca-tpmca-pubkey.pem
 	local tpmca=${dir}/swtpm-localca-tpmca-cert.pem
-	local template=${dir}/template
+	local pinfile=${dir}/pin
+	local passfile=${dir}/password
 	local tpmkeyurl
-	local msg output
+	local msg output providerpath
+
+	export SWTPM_ROOTCA_PASSWORD
 
 	if ! [ -r "${cakey}" ] || ! [ -r "${cacert}" ]; then
-		if ! msg=$("${CERTTOOL}" \
-			--generate-privkey \
-			${SWTPM_ROOTCA_PASSWORD:+--password "${SWTPM_ROOTCA_PASSWORD}"} \
-			--outfile "${cakey}" \
-			2>&1);
-		then
-			logerr "Could not create root-CA key ${cakey}."
-			logerr "${msg}"
-			return 1
-		fi
-		chmod 640 "${cakey}"
-
-		{
-			echo "cn=swtpm-localca-rootca"
-			echo "ca"
-			echo "cert_signing_key"
-			echo "expiration_days = 3650"
-		} > "${template}"
-
-		if ! msg=$(GNUTLS_PIN="${SWTPM_ROOTCA_PASSWORD}" ${CERTTOOL} \
-			--generate-self-signed \
-			--template "${template}" \
-			--outfile "${cacert}" \
-			--load-privkey "${cakey}" \
+		# shellcheck disable=2086
+		if ! msg=$(openssl \
+			req \
+			-x509 \
+			-keyout "${cakey}" \
+			-newkey rsa:3072 \
+			${SWTPM_ROOTCA_PASSWORD:+-passout "env:SWTPM_ROOTCA_PASSWORD"} \
+			${SWTPM_ROOTCA_PASSWORD:--noenc} \
+			-out "${cacert}" \
+			-days 36500 \
+			-sha256 \
+			-subj "/CN=swtpm-localca-rootca" \
+			-addext "basicConstraints=critical,CA:TRUE" \
+			-addext "keyUsage=critical,keyCertSign" \
 			2>&1);
 		then
 			logerr "Could not create root CA."
 			logerr "${msg}"
-			rm -f "${cakey}" "${template}"
+			rm -f "${cakey}" "${passfile}"
 			return 1
 		fi
+		chmod 640 "${cakey}"
+		rm -f "${passfile}"
 	else
 		logit "Reusing existing root CA"
 	fi
@@ -189,31 +207,38 @@ create_localca_cert() {
 		return 1
 	fi
 
-	{
-		echo "cn=swtpm-localca"
-		echo "ca"
-		echo "cert_signing_key"
-		echo "expiration_days = 3650"
-	} > "${template}"
+	if ! providerpath=$(get_provider_path "pkcs11.so"); then
+		return 1
+	fi
 
-	if ! msg=$(${CERTTOOL} \
-		--generate-certificate \
-		--template "${template}" \
-		--outfile "${tpmca}" \
-		--load-ca-privkey "${cakey}" \
-		--load-ca-certificate "${cacert}" \
-		--load-privkey "${tpmkeyurl}" \
-		--load-pubkey "${tpmpubkey}" \
+	# Write any PIN into a PIN file
+	echo "${SWTPM_PKCS11_PIN}" > "${pinfile}"
+	if ! msg=$(openssl \
+		req \
+		-provider-path "${providerpath}" \
+		-provider pkcs11 \
+		-x509 \
+		-key "${tpmkeyurl//%00/}${SWTPM_PKCS11_PIN:+?pin-source=${pinfile}}" \
+		-out "${tpmca}" \
+		-days 36500 \
+		-sha256 \
+		-CA "${cacert}" \
+		-CAkey "${cakey}" \
+		${SWTPM_ROOTCA_PASSWORD:+-passin "env:SWTPM_ROOTCA_PASSWORD"} \
+		-subj "/CN=swtpm-localca" \
+		-addext "basicConstraints=critical,CA:TRUE" \
+		-addext "keyUsage=critical,keyCertSign" \
 		2>&1);
 	then
 		logerr "Could not create TPM CA"
 		logerr "${msg}"
-		rm -f "${template}"
+		rm -f "${pinfile}"
 		return 1
 	fi
+	rm -f "${pinfile}"
 
 	output="statedir = ${dir}
-signingkey = $(escape_pkcs11_url "${tpmkeyurl}" | sed 's/%00//g')
+signingkey = $(escape_pkcs11_url "${tpmkeyurl//%00/}")
 issuercert = ${tpmca}
 certserial = ${dir}/certserial"
 
@@ -241,8 +266,6 @@ certserial = ${dir}/certserial"
 			chown "${owner}:${group}" "${outfile}"
 		fi
 	fi
-
-	rm -f "${template}"
 
 	return 0
 } #create_localca_cert
@@ -290,8 +313,6 @@ main() {
 	local flags=0
 	local dir outfile owner group msg pid
 	local algorithm="rsa2048"
-
-	CERTTOOL=certtool
 
 	while [ $# -ne 0 ]; do
 		case "$1" in
