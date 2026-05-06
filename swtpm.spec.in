@@ -59,7 +59,7 @@ Include files for the TPM emulator's CUSE interface.
 Summary:        Tools for the TPM emulator
 License:        BSD-3-Clause
 Requires:       swtpm = %{version}-%{release}
-Requires:       bash
+Requires:       bash openssl
 
 %description    tools
 Tools for the TPM emulator from the swtpm package
@@ -69,7 +69,7 @@ Summary:        Tools for creating a local CA based on a pkcs11 device
 License:        BSD-3-Clause
 Requires:       swtpm-tools = %{version}-%{release}
 Requires:       tpm2-pkcs11 tpm2-pkcs11-tools tpm2-tools tpm2-abrmd
-Requires:       gnutls-utils
+Requires:       gnutls-utils openssl
 
 %description    tools-pkcs11
 Tools for creating a local CA based on a pkcs11 device
