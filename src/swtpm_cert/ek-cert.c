@@ -792,13 +792,13 @@ create_iak_info(datum_t *asn1, const char *hwSerialNum)
     err = asn1_create_element(_tpm_asn, "TPM.TPMIAKSanInfo", &at);
     ASN1_CHECK_ERROR(err, "asn1_create_element");
 
-    err = asn1_write_value(at, "tpmIAKSanInfoSeq.id", "1.3.6.1.5.5.7.8.4", 0);
+    err = asn1_write_value(at, "tpmIAKSanInfoSet.tpmIAKSanInfoSeq.id", "1.3.6.1.5.5.7.8.4", 0);
     ASN1_CHECK_ERROR(err, "asn1_write_value");
 
-    err = asn1_write_value(at, "tpmIAKSanInfoSeq.iakSanInfoSet.hwType", "2.23.133.1.2", 0);
+    err = asn1_write_value(at, "tpmIAKSanInfoSet.tpmIAKSanInfoSeq.iakSanInfoSet.hwType", "2.23.133.1.2", 0);
     ASN1_CHECK_ERROR(err, "asn1_write_value");
 
-    err = asn1_write_value(at, "tpmIAKSanInfoSeq.iakSanInfoSet.hwSerialNum", hwSerialNum, 0);
+    err = asn1_write_value(at, "tpmIAKSanInfoSet.tpmIAKSanInfoSeq.iakSanInfoSet.hwSerialNum", hwSerialNum, 0);
     ASN1_CHECK_ERROR(err, "asn1_write_value");
 
     err = encode_asn1(asn1, at);
