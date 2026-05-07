@@ -168,6 +168,70 @@ check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
 echo -n > "${cert}"
 echo "Test ${TC}: OK (ecc)"
 
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--pubkey "${PARAM_MLKEM1024PUBKEY}";
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"ML-KEM-1024 Public-Key:" \
+	"CA:FALSE" \
+	"Endorsement Key Certificate" \
+	"Key Encipherment" \
+	"DirName:/tcg-at-tpmManufacturer=IBM/tcg-at-tpmModel=swtpm-libtpms/tcg-at-tpmVersion=2"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (ML-KEM-1024 key)"
+
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--public 16d75180b96183fc9ff96aa6b8d93793a0a645dc97589b62245955be3061719525ac90c3efb17308859038776d7eb88c8b55a8d9ebbeb8873f2b798d9888aff3f22358808b1c3c489d690d29ea9f6e1c1c301815686a0d39d1479f0979cfb07f7127c37c83c2f26a9c8c203d68c41ae6a690ce56bc4276082cec00c32a5b6515a41121a853d76e64e2a928aac333a4618af260ef7763b9f425d1737926e180ec50cbb87b334b085a638568455c2d14b8501056514e062365117a6603b007a70d1567290297b3998a7bc0cab0b43625a2fa94e58b88755cb3c5779aaff877ff11c1b380555bb05eae277f98808ebf590f6bc33c26353e8a55abdf838e7cb5ada53545dc3164e668494ef45441016f11b94c964b379c653f28111286f25987c0283189ba3dc34430f3c026b72870667dfe85038dec103ae08c511cc8dc292fd9091ac624575d78994ff54f3b20b985b62d76c6512c240c65024fba29a486b9c096ac9173c44583f94a1e6c5e1586ab35c3c93d667e5edb22393705eb9782666c76423954b818b346012851aa015af6cb9865ca45aa14e966a7882704d28049c66601615855acb604ced42bf743c1c1a37ead7bbd2284bf512086d6a6cde9f22e39a5abe321393b477f07ec76a5529cc81996c99777df184f41842f1722801d936becda48159c21e85bc5f39b6f17e537a18956eca7238e0336b196bc5a36b1c6e531b88b29a1b23ad9d0bfb6643c65092730e81410154faf1a429950aa3cf7a435a24d1ca00930bb354c207a5809958a505936224fcfcbb4f622ca5115113781b53f1225dda59b39bba4b82ca180f535ac3b7554a62187566a3a3c81dfc9cf7fd91648b36c0e19237dd2a067d86d627c366cacb716acaa3fd9c22bd0a1dd6256d42b2a460acb1a95ccf0070f62367096765d06dcb2f7959f0c7280874362c0f75473998240a91ac70528aec4b49ea974bf975f405180bd1393093555f015ca1dc81c8b22999466a674d440ee47bffd5193fae2c67ba6360e86c4d3a38c52a448f773b91094c25d56731ce83bdf515e6a345999186136f57a4bdb2d6c49aa185c81330e8ff4bdbd9321bb74c5e0c6c217c7b78a02783594a09dd7aeb9293b1e31fc \
+	--keyalgo ml-kem-512;
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"ML-KEM-512 Public-Key:" \
+	"CA:FALSE" \
+	"Endorsement Key Certificate" \
+	"Key Encipherment" \
+	"DirName:/tcg-at-tpmManufacturer=IBM/tcg-at-tpmModel=swtpm-libtpms/tcg-at-tpmVersion=2"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (ML-KEM-512 key)"
+
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--pubkey "${PARAM_MLDSA87PUBKEY}";
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"ML-DSA-87 Public-Key:" \
+	"CA:FALSE" \
+	"Endorsement Key Certificate" \
+	"Key Encipherment" \
+	"DirName:/tcg-at-tpmManufacturer=IBM/tcg-at-tpmModel=swtpm-libtpms/tcg-at-tpmVersion=2"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (ML-DSA-87 key)"
+
 ###################### Platform Certificate #####################
 
 if ! ${SWTPM_CERT} \
@@ -246,6 +310,29 @@ check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
 # truncate result file
 echo -n > "${cert}"
 echo "Test ${TC}: OK (IAK)"
+
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--type iak \
+	--pubkey "${PARAM_MLDSA87PUBKEY}" \
+	--subject "serialNumber=${serial}" \
+	--tpm-serial-num "${serial}";
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"ML-DSA-87 Public-Key:" \
+	"..${serial}" \
+	"CA:FALSE" \
+	"Digital Signature"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (ML-DSA-87 IAK)"
 
 ###################### IDevID Certificate #####################
 

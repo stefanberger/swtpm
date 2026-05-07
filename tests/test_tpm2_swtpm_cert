@@ -18,6 +18,10 @@ RSAPRIVKEY=${TMPDIR}/rsaprivkey.pem
 RSAPUBKEY=${TMPDIR}/rsapubkey.pem
 EC256PRIVKEY=${TMPDIR}/ec256privkey.pem
 EC256PUBKEY=${TMPDIR}/ec256pubkey.pem
+MLKEM1024PRIVKEY=${TMPDIR}/mlkem1024privkey.pem
+MLKEM1024PUBKEY=${TMPDIR}/mlkem1024pubkey.pem
+MLDSA87PRIVKEY=${TMPDIR}/mldsa87privkey.pem
+MLDSA87PUBKEY=${TMPDIR}/mldsa87pubkey.pem
 
 # secp521r1 key used for signing
 EC521PRIVKEY=${TMPDIR}/ec521privkey.pem
@@ -33,6 +37,10 @@ if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
    ! msg=$(openssl rsa -in "${RSAPRIVKEY}" -pubout -out "${RSAPUBKEY}" 2>&1) ||
    ! msg=$(openssl ecparam -name prime256v1 -genkey -noout -out "${EC256PRIVKEY}" 2>&1) || \
    ! msg=$(openssl ec -in "${EC256PRIVKEY}" -pubout -out "${EC256PUBKEY}" 2>&1) || \
+   ! msg=$(openssl genpkey -algorithm ml-kem-1024 -out "${MLKEM1024PRIVKEY}" 2>&1) || \
+   ! msg=$(openssl pkey -in "${MLKEM1024PRIVKEY}" -pubout -out "${MLKEM1024PUBKEY}" 2>&1) || \
+   ! msg=$(openssl genpkey -algorithm ml-dsa-87 -out "${MLDSA87PRIVKEY}" 2>&1) || \
+   ! msg=$(openssl pkey -in "${MLDSA87PRIVKEY}" -pubout -out "${MLDSA87PUBKEY}" 2>&1) || \
    ! msg=$(openssl req \
 	-x509 \
 	-new \
@@ -73,9 +81,11 @@ echo "Testing with RSA certificate signing key"
 
 PARAM_RSAPUBKEY="${RSAPUBKEY}" \
 PARAM_ECPUBKEY="${EC256PUBKEY}" \
+PARAM_MLKEM1024PUBKEY="${MLKEM1024PUBKEY}" \
+PARAM_MLDSA87PUBKEY="${MLDSA87PUBKEY}" \
 PARAM_SIGNKEY="${RSA3072PRIVKEY}" \
 PARAM_ISSUERCERT="${ISSUERCERT_RSA3072}" \
-PARAM_CERT_SIZES="1046 841 1092 841 1057 806 973 973 1112" \
+PARAM_CERT_SIZES="1046 841 1092 841 2340 1572 3364 1057 806 973 3245 973 1112" \
 	./_test_tpm2_swtpm_cert
 ret=$?
 [ $ret -ne 0 ] && exit $ret
@@ -85,9 +95,11 @@ printf "\nTesting with secp521r1 certificate signing key\n"
 
 PARAM_RSAPUBKEY="${RSAPUBKEY}" \
 PARAM_ECPUBKEY="${EC256PUBKEY}" \
+PARAM_MLKEM1024PUBKEY="${MLKEM1024PUBKEY}" \
+PARAM_MLDSA87PUBKEY="${MLDSA87PUBKEY}" \
 PARAM_SIGNKEY="${EC521PRIVKEY}" \
 PARAM_ISSUERCERT="${ISSUERCERT_EC521}" \
-PARAM_CERT_SIZES="792-794 588-589 838-840 587-589 804-805 552-554 720-721 720-721 859-860" \
+PARAM_CERT_SIZES="792-794 587-589 838-840 587-589 2086-2088 1318-1320 3110-3112 804-805 552-554 719-721 2991-2993 720-721 858-860" \
 	./_test_tpm2_swtpm_cert
 ret=$?
 [ $ret -ne 0 ] && exit $ret
