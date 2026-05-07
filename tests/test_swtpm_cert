@@ -1,127 +1,62 @@
 #!/usr/bin/env bash
 
-# For the license, see the LICENSE file in the root directory.
+cd "$(dirname "$0")" || exit 1
 
-ROOT=${abs_top_builddir:-$(dirname "$0")/..}
-TESTDIR=${abs_top_testdir:=$(dirname "$0")}
-
-source "${TESTDIR}/common"
-
-trap "cleanup" SIGTERM EXIT
-
+TMPDIR=$(mktemp -d) || exit 1
 function cleanup()
 {
-	rm -f "${cert}" "${pwdfile}"
+	rm -rf "${TMPDIR}"
 }
+trap "cleanup" SIGTERM EXIT
 
-cert="$(mktemp)" || exit 1
-pwdfile="$(mktemp)" || exit 1
+# CA:
+CACERT=${TMPDIR}/swtpm-localca-rootca-cert.pem
+CAKEY=${TMPDIR}/swtpm-localca-rootca-privkey.pem
 
-function check_cert_size()
-{
-	local cert="$1"
-	local exp="$2"
+# EK keys:
+RSAPRIVKEY=${TMPDIR}/rsaprivkey.pem
+RSAPUBKEY=${TMPDIR}/rsapubkey.pem
 
-	local size
+# RSA 3072 key used for signing
+RSA3072ENCRYPTED_PRIVKEY=${TMPDIR}/rsa3072privkey.pem
+RSA3072ENCRYPTED_PUBKEY=${TMPDIR}/rsa3072pubkey.pem
+ISSUERCERT_RSA3072ENCRYPTED_PRIVKEY=${TMPDIR}/rsa3072privkeyissuercert.pem
 
-	size=$(get_filesize "${cert}")
-	if [ "$size" -ne "$exp" ]; then
-		echo "Warning: Certificate file has unexpected size."
-		echo "         Expected: $exp;  found: $size"
-	fi
-}
-
-if ! VARNAME=password ${SWTPM_CERT} \
-	--signkey "${TESTDIR}/data/signkey-encrypted.pem" \
-	--signkey-pwd env:VARNAME \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--out-cert "${cert}" \
-	--modulus 'b9dda830729de58f9f5bed2b3b9394ad4ec5afb9c390b89a3337250cbc575cfc8f31f7ffd3f05f4155076f7d1605381cd281b7f147b801154e4f89ee529fe36eae50f79561850e5b63037edaacbb390ea3fcd037e674fb179e3c5afe31214d78a756ca44cc6cf25421b51420ede548310c92b08a513ccc62fd0ef45dcf6546f6e865be6a661d045d1c47b60b428d11dc97cb9f35ee7c385bb20320934b015f8014e8fb19851c2af307e1e64648c142175e40b60615dc494fdb09ea5d5a6f3273b65a241e3cf30cc449b9fb3f900d1ed4be967b32b16f95a1d732dbfa143eaa1c2017556117f70faee5d77f836705d05405361ad5871a32161fa5a1234cfab497' \
-	--days 3650 \
-	--pem \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 1.2 --tpm-spec-revision 123 --tpm-spec-level 321; then
-	echo "Error: ${SWTPM_CERT} returned error code."
+if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
+   ! msg=$(openssl rsa -in "${RSAPRIVKEY}" -pubout -out "${RSAPUBKEY}" 2>&1) ||
+   ! msg=$(openssl req \
+	-x509 \
+	-new \
+	-noenc \
+	-keyout "${CAKEY}" \
+	-newkey rsa:3072 \
+	-sha256 \
+	-days 365 \
+	-out "${CACERT}" \
+	-subj "/CN=swtpm-localca-rootca" 2>&1) || \
+   ! msg=$(openssl genrsa -out "${RSA3072ENCRYPTED_PRIVKEY}" -aes256 -passout pass:password 3072 2>&1) || \
+   ! msg=$(openssl rsa     -in "${RSA3072ENCRYPTED_PRIVKEY}" -pubout -passin  pass:password -out "${RSA3072ENCRYPTED_PUBKEY}" 2>&1) || \
+   ! msg=$(openssl req \
+	-x509 \
+	-key "${RSA3072ENCRYPTED_PRIVKEY}" \
+	-passin pass:password \
+	-out "${ISSUERCERT_RSA3072ENCRYPTED_PRIVKEY}" \
+	-days 1000 \
+	-subj "/CN=swtpm-localca" \
+	-CA "${CACERT}" \
+	-CAkey "${CAKEY}" 2>&1);
+then
+	echo "Could not create the required keys"
+	echo "${msg}"
 	exit 1
 fi
 
-#expecting size to be constant
-check_cert_size "${cert}" 1395
+PARAM_RSAPUBKEY="${RSAPUBKEY}" \
+PARAM_PASSWORD=password \
+PARAM_SIGNKEY_ENCRYPTED="${RSA3072ENCRYPTED_PRIVKEY}" \
+PARAM_ISSUERCERT="${ISSUERCERT_RSA3072ENCRYPTED_PRIVKEY}" \
+	./_test_swtpm_cert
+ret=$?
+[ $ret -ne 0 ] && exit $ret
 
-# truncate result file
-echo -n > "${cert}"
-echo "Test 1: OK"
-
-if ! ${SWTPM_CERT} \
-	--signkey "${TESTDIR}/data/signkey-encrypted.pem" \
-	--signkey-pwd file:<(echo -en "password") \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--out-cert "${cert}" \
-	--modulus 'b9dda830729de58f9f5bed2b3b9394ad4ec5afb9c390b89a3337250cbc575cfc8f31f7ffd3f05f4155076f7d1605381cd281b7f147b801154e4f89ee529fe36eae50f79561850e5b63037edaacbb390ea3fcd037e674fb179e3c5afe31214d78a756ca44cc6cf25421b51420ede548310c92b08a513ccc62fd0ef45dcf6546f6e865be6a661d045d1c47b60b428d11dc97cb9f35ee7c385bb20320934b015f8014e8fb19851c2af307e1e64648c142175e40b60615dc494fdb09ea5d5a6f3273b65a241e3cf30cc449b9fb3f900d1ed4be967b32b16f95a1d732dbfa143eaa1c2017556117f70faee5d77f836705d05405361ad5871a32161fa5a1234cfab497' \
-	--days 3650 \
-	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
-	--pem \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 1.2 --tpm-spec-revision 123 --tpm-spec-level 321; then
-	echo "Error: ${SWTPM_CERT} returned error code."
-	exit 1
-fi
-
-#expecting size to be constant
-check_cert_size "${cert}" 1395
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 2: OK"
-
-if ! ${SWTPM_CERT} \
-	--signkey "${TESTDIR}/data/signkey-encrypted.pem" \
-	--signkey-pwd pass:password \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--out-cert "${cert}" \
-	--pubkey "${TESTDIR}/data/pubek.pem" \
-	--days 3650 \
-	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
-	--pem \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 1.2 --tpm-spec-revision 123 --tpm-spec-level 321; then
-	echo "Error: ${SWTPM_CERT} returned error code."
-	exit 1
-fi
-
-#expecting size to be constant
-check_cert_size "${cert}" 1460
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 3: OK"
-
-
-###################### Platform Certificate #####################
-
-echo -en "password" > "${pwdfile}"
-exec 100<"${pwdfile}"
-if ! ${SWTPM_CERT} \
-        --type platform \
-	--signkey "${TESTDIR}/data/signkey-encrypted.pem" \
-	--signkey-pwd fd:100 \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--pubkey "${TESTDIR}/data/pubek.pem" \
-	--out-cert "${cert}" \
-	--days 3650 \
-	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
-	--pem \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--platform-manufacturer Fedora \
-	--platform-model QEMU \
-	--platform-version 2.1; then
-	echo "Error: ${SWTPM_CERT} returned error code."
-	exit 1
-fi
-
-#expecting size to be constant
-check_cert_size "${cert}" 1489
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 4: OK"
+exit 0

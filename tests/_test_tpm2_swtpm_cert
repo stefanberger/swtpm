@@ -1,0 +1,307 @@
+#!/usr/bin/env bash
+
+# For the license, see the LICENSE file in the root directory.
+
+ROOT=${abs_top_builddir:-$(dirname "$0")/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+source "${TESTDIR}/common"
+
+cert="$(mktemp)" || exit 1
+
+trap "cleanup" SIGTERM EXIT
+function cleanup()
+{
+	rm -f "${cert}"
+}
+
+function check_cert_size()
+{
+	local cert="$1"
+	local exp="$2"
+
+	local size lo hi
+
+	lo=$(cut -d"-" -f1 <<< "${exp}")
+	hi=$(cut -d"-" -f2 <<< "${exp}")
+
+	# Check size of DER cert
+	size=$(openssl x509 -in "${cert}" -outform der | wc -c)
+	if [ "${size}" -lt "${lo}" ] || [ "${size}" -gt "${hi}" ]; then
+		echo "Warning: DER Certificate has unexpected size."
+		echo "         Expected: $exp;  found: $size"
+	fi
+}
+
+function check_cert()
+{
+	local cert="$1"
+	local size="$2"
+
+	shift 2
+
+	local txt msg
+
+	check_cert_size "${cert}" "${size}"
+	txt=$(openssl x509 -in "${cert}" -noout -text)
+
+	while [ $# -ne 0 ]; do
+		if ! grep -q "$1" <<< "${txt}"; then
+			echo "Could not find expected data in cert."
+			echo "expected: $1"
+			echo "${txt}"
+			exit 1
+		fi
+		shift
+	done
+	if ! msg=$(openssl verify \
+		-partial_chain \
+		-CAfile "${PARAM_ISSUERCERT}" \
+		"${cert}" 2>&1); then
+		echo "Could not verify the certificate."
+		echo "${msg}"
+		exit 1
+	fi
+}
+
+# shellcheck disable=2206
+PARAM_CERT_SIZES=(${PARAM_CERT_SIZES})
+
+COMMON=(
+	--tpm2
+	--signkey "${PARAM_SIGNKEY}"
+	--issuercert "${PARAM_ISSUERCERT}"
+	--out-cert "${cert}"
+	--days 3650
+	--pem
+	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 2
+	--tpm-spec-family 2 --tpm-spec-revision 146 --tpm-spec-level 0
+	--subject "CN=swtpm,serialNumber=123,O=test,OU=test"
+)
+TC=0
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--modulus b9dda830729de58f9f5bed2b3b9394ad4ec5afb9c390b89a3337250cbc575cfc8f31f7ffd3f05f4155076f7d1605381cd281b7f147b801154e4f89ee529fe36eae50f79561850e5b63037edaacbb390ea3fcd037e674fb179e3c5afe31214d78a756ca44cc6cf25421b51420ede548310c92b08a513ccc62fd0ef45dcf6546f6e865be6a661d045d1c47b60b428d11dc97cb9f35ee7c385bb20320934b015f8014e8fb19851c2af307e1e64648c142175e40b60615dc494fdb09ea5d5a6f3273b65a241e3cf30cc449b9fb3f900d1ed4be967b32b16f95a1d732dbfa143eaa1c2017556117f70faee5d77f836705d05405361ad5871a32161fa5a1234cfab497 \
+	--decrypt \
+	--days -1;
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"Dec 31 23:59:59 9999 GMT" \
+	"Public-Key: (2048 bit)" \
+	"CA:FALSE" \
+	"Endorsement Key Certificate" \
+	"Key Encipherment" \
+	"DirName:/tcg-at-tpmManufacturer=IBM/tcg-at-tpmModel=swtpm-libtpms/tcg-at-tpmVersion=2"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (modulus)"
+
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--ecc-x 61eaf811ea582656ca2a835dd1b9cd63eb196d7ff62711d6e9b8f85e580a47ca \
+	--ecc-y a51efdc71fd6c791a24a75beb50526aa81b44cc598e65b2d5e116084aea4cb5b;
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"Public-Key: (256 bit)" \
+	"CA:FALSE" \
+	"Endorsement Key Certificate" \
+	"Key Agreement" \
+	"DirName:/tcg-at-tpmManufacturer=IBM/tcg-at-tpmModel=swtpm-libtpms/tcg-at-tpmVersion=2"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (ecc; coordinates)"
+
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--allow-signing \
+	--pubkey "${PARAM_RSAPUBKEY}";
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"Public-Key: (2432 bit)" \
+	"CA:FALSE" \
+	"Endorsement Key Certificate" \
+	"Digital Signature" \
+	"DirName:/tcg-at-tpmManufacturer=IBM/tcg-at-tpmModel=swtpm-libtpms/tcg-at-tpmVersion=2"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (allow signing)"
+
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--pubkey "${PARAM_ECPUBKEY}";
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"Public-Key: (256 bit)" \
+	"CA:FALSE" \
+	"Endorsement Key Certificate" \
+	"Key Encipherment" \
+	"DirName:/tcg-at-tpmManufacturer=IBM/tcg-at-tpmModel=swtpm-libtpms/tcg-at-tpmVersion=2"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (ecc)"
+
+###################### Platform Certificate #####################
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--serial 123 \
+	--type platform \
+	--pubkey "${PARAM_RSAPUBKEY}" \
+	--platform-manufacturer Fedora \
+	--platform-model QEMU \
+	--platform-version 2.1;
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 123 (0x7b)" \
+	"Public-Key: (2432 bit)" \
+	"CA:FALSE" \
+	"Platform Attribute Certificate" \
+	"Key Encipherment" \
+	"DirName:/tcg-at-platformManufacturerStr=Fedora/tcg-at-platformModel=QEMU/tcg-at-platformVersion=2.1"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (platform cert)"
+
+
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--serial 12 \
+	--type platform \
+	--pubkey "${PARAM_ECPUBKEY}" \
+	--platform-manufacturer Fedora \
+	--platform-model QEMU \
+	--platform-version 2.1;
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 12 (0xc)" \
+	"Public-Key: (256 bit)" \
+	"CA:FALSE" \
+	"Platform Attribute Certificate" \
+	"Key Encipherment" \
+	"DirName:/tcg-at-platformManufacturerStr=Fedora/tcg-at-platformModel=QEMU/tcg-at-platformVersion=2.1"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (platform cert; ec key)"
+
+###################### IAK Certificate #####################
+
+serial=1234:5678
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--type iak \
+	--pubkey "${PARAM_RSAPUBKEY}" \
+	--subject "serialNumber=${serial}" \
+	--tpm-serial-num "${serial}";
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"Subject: serialNumber[[:space:]]*=[[:space:]]*${serial}" \
+	"Public-Key: (2432 bit)" \
+	"DirName:/id-on-hardwareModuleName=0.*${serial}" \
+	"CA:FALSE" \
+	"Digital Signature"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (IAK)"
+
+###################### IDevID Certificate #####################
+
+serial=1234:5678
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--type idevid \
+	--pubkey "${PARAM_RSAPUBKEY}" \
+	--subject "serialNumber=${serial}" \
+	--tpm-serial-num "${serial}";
+then
+	echo "Error: ${SWTPM_CERT} returned error code."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number: 1 (0x1)" \
+	"Subject: serialNumber[[:space:]]*=[[:space:]]*${serial}" \
+	"Public-Key: (2432 bit)" \
+	"DirName:/id-on-hardwareModuleName=0.*${serial}" \
+	"CA:FALSE" \
+	"Digital Signature"
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (IDevID)"
+
+####################### max. serial number #####################
+
+# max. serial number -- must pass
+if ! ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--pubkey "${PARAM_RSAPUBKEY}" \
+	--serial 1461501637330902918203684832716283019655932542975;
+then
+	echo "Error: ${SWTPM_CERT} failed with max. serial number."
+	exit 1
+fi
+
+check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
+	"Serial Number:[[:space:]]*$" \
+	"ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff" \
+	"Public-Key: (2432 bit)" \
+	"CA:FALSE" \
+	"Key Encipherment"
+
+# max. serial number + 1 -- must fail
+if ${SWTPM_CERT} \
+	"${COMMON[@]}" \
+	--pubkey "${PARAM_RSAPUBKEY}" \
+	--serial 1461501637330902918203684832716283019655932542976;
+then
+	echo "Error: ${SWTPM_CERT} should have failed with max. serial number + 1."
+	exit 1
+fi
+
+# truncate result file
+echo -n > "${cert}"
+echo "Test ${TC}: OK (failed as expected)"

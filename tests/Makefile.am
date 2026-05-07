@@ -82,7 +82,6 @@ TESTS = \
 	test_tpm2_save_load_state_locking \
 	test_tpm2_setbuffersize \
 	test_tpm2_swtpm_cert \
-	test_tpm2_swtpm_cert_ecc \
 	test_tpm2_swtpm_localca \
 	test_tpm2_swtpm_localca_pkcs11.test \
 	test_tpm2_swtpm_setup_create_cert \
@@ -113,12 +112,6 @@ EXTRA_DIST = \
 	$(TEST_UTILS) \
 	swtpm_setup.conf \
 	create_certs.sh \
-	data/ecpubek.pem \
-	data/ecprivek.pem \
-	data/issuercert.pem \
-	data/pubek.pem \
-	data/signkey.pem \
-	data/signkey-encrypted.pem \
 	data/keyfile.txt \
 	data/keyfile256bit.txt \
 	data/pwdfile.txt \
@@ -189,6 +182,7 @@ EXTRA_DIST = \
 	_test_save_load_state \
 	_test_setbuffersize \
 	_test_swtpm_bios \
+	_test_swtpm_cert \
 	_test_tpm_probe \
 	_test_tpm2_avoid_da_lockout \
 	_test_tpm2_derived_keys \
@@ -213,6 +207,7 @@ EXTRA_DIST = \
 	_test_tpm2_save_load_state_locking \
 	_test_tpm2_setbuffersize \
 	_test_tpm2_swtpm_bios \
+	_test_tpm2_swtpm_cert \
 	_test_tpm2_volatilestate \
 	_test_tpm2_wrongorder \
 	_test_volatilestate \
