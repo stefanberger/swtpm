@@ -1,261 +1,95 @@
 #!/usr/bin/env bash
 
-# For the license, see the LICENSE file in the root directory.
+cd "$(dirname "$0")" || exit 1
 
-ROOT=${abs_top_builddir:-$(dirname "$0")/..}
-TESTDIR=${abs_top_testdir:-$(dirname "$0")}
-
-source "${TESTDIR}/common"
-
-cert="$(mktemp)" || exit 1
-
-trap "cleanup" SIGTERM EXIT
-
-
+TMPDIR=$(mktemp -d) || exit 1
 function cleanup()
 {
-	rm -f "${cert}"
+	rm -rf "${TMPDIR}"
 }
+trap "cleanup" SIGTERM EXIT
 
-function check_cert_size()
-{
-	local cert="$1"
-	local exp="$2"
+# CA:
+CACERT=${TMPDIR}/swtpm-localca-rootca-cert.pem
+CAKEY=${TMPDIR}/swtpm-localca-rootca-privkey.pem
 
-	local size
+# EK keys:
+RSAPRIVKEY=${TMPDIR}/rsaprivkey.pem
+RSAPUBKEY=${TMPDIR}/rsapubkey.pem
+EC256PRIVKEY=${TMPDIR}/ec256privkey.pem
+EC256PUBKEY=${TMPDIR}/ec256pubkey.pem
 
-	size=$(get_filesize "${cert}")
-	if [ "$size" -ne "$exp" ]; then
-		echo "Warning: Certificate file has unexpected size."
-		echo "         Expected: $exp;  found: $size"
-	fi
-}
+# secp521r1 key used for signing
+EC521PRIVKEY=${TMPDIR}/ec521privkey.pem
+EC521PUBKEY=${TMPDIR}/ec521pubkey.pem
+ISSUERCERT_EC521=${TMPDIR}/ec521-issuercert.pem
 
-if ! ${SWTPM_CERT} \
-	--tpm2 \
-	--allow-signing \
-	--signkey "${TESTDIR}/data/signkey.pem" \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--out-cert "${cert}" \
-	--modulus 'b9dda830729de58f9f5bed2b3b9394ad4ec5afb9c390b89a3337250cbc575cfc8f31f7ffd3f05f4155076f7d1605381cd281b7f147b801154e4f89ee529fe36eae50f79561850e5b63037edaacbb390ea3fcd037e674fb179e3c5afe31214d78a756ca44cc6cf25421b51420ede548310c92b08a513ccc62fd0ef45dcf6546f6e865be6a661d045d1c47b60b428d11dc97cb9f35ee7c385bb20320934b015f8014e8fb19851c2af307e1e64648c142175e40b60615dc494fdb09ea5d5a6f3273b65a241e3cf30cc449b9fb3f900d1ed4be967b32b16f95a1d732dbfa143eaa1c2017556117f70faee5d77f836705d05405361ad5871a32161fa5a1234cfab497' \
-	--days 3650 \
-	--pem \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
-	echo "Error: ${SWTPM_CERT} returned error code."
+# RSA 3072 key used for signing
+RSA3072PRIVKEY=${TMPDIR}/rsa3072privkey.pem
+RSA3072PUBKEY=${TMPDIR}/rsa3072pubkey.pem
+ISSUERCERT_RSA3072=${TMPDIR}/rsa3072-issuercert.pem
+
+if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
+   ! msg=$(openssl rsa -in "${RSAPRIVKEY}" -pubout -out "${RSAPUBKEY}" 2>&1) ||
+   ! msg=$(openssl ecparam -name prime256v1 -genkey -noout -out "${EC256PRIVKEY}" 2>&1) || \
+   ! msg=$(openssl ec -in "${EC256PRIVKEY}" -pubout -out "${EC256PUBKEY}" 2>&1) || \
+   ! msg=$(openssl req \
+	-x509 \
+	-new \
+	-noenc \
+	-keyout "${CAKEY}" \
+	-newkey rsa:3072 \
+	-sha256 \
+	-days 365 \
+	-out "${CACERT}" \
+	-subj "/CN=swtpm-localca-rootca" 2>&1) || \
+   ! msg=$(openssl ecparam -name secp521r1 -genkey -noout -out "${EC521PRIVKEY}" 2>&1) || \
+   ! msg=$(openssl ec -in "${EC521PRIVKEY}" -pubout -out "${EC521PUBKEY}" 2>&1) || \
+   ! msg=$(openssl req \
+	-x509 \
+	-key "${EC521PRIVKEY}" \
+	-out "${ISSUERCERT_EC521}" \
+	-days 1000 \
+	-subj "/CN=swtpm-localca" \
+	-CA "${CACERT}" \
+	-CAkey "${CAKEY}" 2>&1) || \
+   ! msg=$(openssl genrsa -out "${RSA3072PRIVKEY}" 3072 2>&1) || \
+   ! msg=$(openssl rsa     -in "${RSA3072PRIVKEY}" -pubout -out "${RSA3072PUBKEY}" 2>&1) || \
+   ! msg=$(openssl req \
+	-x509 \
+	-key "${RSA3072PRIVKEY}" \
+	-out "${ISSUERCERT_RSA3072}" \
+	-days 1000 \
+	-subj "/CN=swtpm-localca" \
+	-CA "${CACERT}" \
+	-CAkey "${CAKEY}" 2>&1) \
+; then
+	echo "Could not create the required keys"
+	echo "${msg}"
 	exit 1
 fi
 
-#expecting size to be constant
-check_cert_size "${cert}" 1395
+echo "Testing with RSA certificate signing key"
 
-# truncate result file
-echo -n > "${cert}"
-echo "Test 1: OK"
-
-if ! ${SWTPM_CERT} \
-	--tpm2 \
-	--signkey "${TESTDIR}/data/signkey.pem" \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--out-cert "${cert}" \
-	--modulus 'b9dda830729de58f9f5bed2b3b9394ad4ec5afb9c390b89a3337250cbc575cfc8f31f7ffd3f05f4155076f7d1605381cd281b7f147b801154e4f89ee529fe36eae50f79561850e5b63037edaacbb390ea3fcd037e674fb179e3c5afe31214d78a756ca44cc6cf25421b51420ede548310c92b08a513ccc62fd0ef45dcf6546f6e865be6a661d045d1c47b60b428d11dc97cb9f35ee7c385bb20320934b015f8014e8fb19851c2af307e1e64648c142175e40b60615dc494fdb09ea5d5a6f3273b65a241e3cf30cc449b9fb3f900d1ed4be967b32b16f95a1d732dbfa143eaa1c2017556117f70faee5d77f836705d05405361ad5871a32161fa5a1234cfab497' \
-	--days 3650 \
-	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
-	--pem \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
-	echo "Error: ${SWTPM_CERT} returned error code."
-	exit 1
-fi
-
-#expecting size to be constant
-check_cert_size "${cert}" 1472
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 2: OK"
-
-if ! ${SWTPM_CERT} \
-	--tpm2 \
-	--signkey "${TESTDIR}/data/signkey.pem" \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--out-cert "${cert}" \
-	--pubkey "${TESTDIR}/data/pubek.pem" \
-	--days 3650 \
-	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
-	--pem \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
-	echo "Error: ${SWTPM_CERT} returned error code."
-	exit 1
-fi
-
-#expecting size to be constant
-check_cert_size "${cert}" 1537
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 3: OK"
+PARAM_RSAPUBKEY="${RSAPUBKEY}" \
+PARAM_ECPUBKEY="${EC256PUBKEY}" \
+PARAM_SIGNKEY="${RSA3072PRIVKEY}" \
+PARAM_ISSUERCERT="${ISSUERCERT_RSA3072}" \
+PARAM_CERT_SIZES="1046 841 1092 841 1057 806 973 973 1112" \
+	./_test_tpm2_swtpm_cert
+ret=$?
+[ $ret -ne 0 ] && exit $ret
 
 
-###################### Platform Certificate #####################
+printf "\nTesting with secp521r1 certificate signing key\n"
 
-if ! ${SWTPM_CERT} \
-	--tpm2 \
-        --type platform \
-	--signkey "${TESTDIR}/data/signkey.pem" \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--pubkey "${TESTDIR}/data/pubek.pem" \
-	--out-cert "${cert}" \
-	--days 3650 \
-	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
-	--pem \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--platform-manufacturer Fedora \
-	--platform-model QEMU \
-	--platform-version 2.1; then
-	echo "Error: ${SWTPM_CERT} returned error code."
-	exit 1
-fi
+PARAM_RSAPUBKEY="${RSAPUBKEY}" \
+PARAM_ECPUBKEY="${EC256PUBKEY}" \
+PARAM_SIGNKEY="${EC521PRIVKEY}" \
+PARAM_ISSUERCERT="${ISSUERCERT_EC521}" \
+PARAM_CERT_SIZES="792-794 588-589 838-840 587-589 804-805 552-554 720-721 720-721 859-860" \
+	./_test_tpm2_swtpm_cert
+ret=$?
+[ $ret -ne 0 ] && exit $ret
 
-#expecting size to be constant
-check_cert_size "${cert}" 1484
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 4: OK"
-
-###################### IAK Certificate #####################
-
-serial=1234:5678
-if ! ${SWTPM_CERT} \
-	--tpm2 \
-        --type iak \
-	--signkey "${TESTDIR}/data/signkey.pem" \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--pubkey "${TESTDIR}/data/pubek.pem" \
-	--out-cert "${cert}" \
-	--days 3650 \
-	--subject "serialNumber=${serial}" \
-	--pem \
-	--tpm-serial-num "${serial}" \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 2; then
-	echo "Error: ${SWTPM_CERT} returned error code."
-	exit 1
-fi
-
-ac=$(openssl x509 -in "${cert}" -noout -text |
-     sed -n "s/.*Subject: serialNumber[[:space:]]*=[[:space:]]*\(.*\)$/\1/p")
-if [ "${ac}" != "${serial}" ]; then
-	echo "Error: Could not find serial number in Subject line"
-	echo "expected: ${serial}"
-	echo "actual  : ${ac}"
-	exit 1
-fi
-
-if ! openssl x509 -in "${cert}" -noout -text |
-     grep -A1 "Key Usage:" |
-     grep -q "Digital Signature"; then
-	echo "Error: IAK certificate must indicate Digital Signature"
-	exit 1
-fi
-
-#expecting size to be constant
-check_cert_size "${cert}" 1375
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 5: OK"
-
-###################### IDevID Certificate #####################
-
-serial=1234:5678
-if ! ${SWTPM_CERT} \
-	--tpm2 \
-        --type idevid \
-	--signkey "${TESTDIR}/data/signkey.pem" \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--pubkey "${TESTDIR}/data/pubek.pem" \
-	--out-cert "${cert}" \
-	--days 3650 \
-	--subject "serialNumber=${serial}" \
-	--pem \
-	--tpm-serial-num "${serial}" \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 2; then
-	echo "Error: ${SWTPM_CERT} returned error code."
-	exit 1
-fi
-
-ac=$(openssl x509 -in "${cert}" -noout -text |
-     sed -n "s/.*Subject: serialNumber[[:space:]]*=[[:space:]]*\(.*\)$/\1/p")
-if [ "${ac}" != "${serial}" ]; then
-	echo "Error: Could not find serial number in Subject line"
-	echo "expected: ${serial}"
-	echo "actual  : ${ac}"
-	exit 1
-fi
-
-if ! openssl x509 -in "${cert}" -noout -text |
-     grep -A1 "Key Usage:" |
-     grep -q "Digital Signature"; then
-	echo "Error: IDevID certificate must indicate Digital Signature"
-	exit 1
-fi
-
-#expecting size to be constant
-check_cert_size "${cert}" 1375
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 6: OK"
-
-####################### max. serial number #####################
-
-# max. serial number -- must pass
-if ! ${SWTPM_CERT} \
-	--tpm2 \
-	--signkey "${TESTDIR}/data/signkey.pem" \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--out-cert "${cert}" \
-	--pubkey "${TESTDIR}/data/pubek.pem" \
-	--days 3650 \
-	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
-	--pem \
-	--serial 1461501637330902918203684832716283019655932542975 \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
-	echo "Error: ${SWTPM_CERT} failed with max. serial number."
-	exit 1
-fi
-tmp=$(openssl x509 -in "${cert}" -noout -text |
-      grep -A1 "Serial Number:" |
-      tail -n1 |
-      sed -n 's/[[:space:]]*\([[:xdigit:]:]*\)/\1/p')
-exp="ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff:ff"
-if [ "${tmp}" != "${exp}" ]; then
-	echo "Error: unexpected serial number in cert"
-	echo "expected: ${exp}"
-	echo "actual  : ${tmp}"
-	exit 1
-fi
-
-# max. serial number + 1 -- must fail
-if ${SWTPM_CERT} \
-	--tpm2 \
-	--signkey "${TESTDIR}/data/signkey.pem" \
-	--issuercert "${TESTDIR}/data/issuercert.pem" \
-	--out-cert "${cert}" \
-	--pubkey "${TESTDIR}/data/pubek.pem" \
-	--days 3650 \
-	--subject "OU=foo,L=NewYork,ST=NY,C=US" \
-	--pem \
-	--serial 1461501637330902918203684832716283019655932542976 \
-	--tpm-manufacturer IBM --tpm-model swtpm-libtpms --tpm-version 1.2 \
-	--tpm-spec-family 2.0 --tpm-spec-revision 146 --tpm-spec-level 0; then
-	echo "Error: ${SWTPM_CERT} should have failed with max. serial number + 1."
-	exit 1
-fi
-
-# truncate result file
-echo -n > "${cert}"
-echo "Test 7: OK"
+exit 0
