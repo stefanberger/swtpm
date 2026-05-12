@@ -474,6 +474,8 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE 0x01c00017
 #define TPM2_NV_INDEX_ECC_SECP521R1_HI_EKCERT     0x01c00018
 #define TPM2_NV_INDEX_ECC_SECP521R1_HI_EKTEMPLATE 0x01c00019
+#define TPM2_NV_INDEX_ECC_ED25519_HI_EKCERT       0x01c00040 /* FIXME: TCG-undefined */
+#define TPM2_NV_INDEX_ECC_ED25519_HI_EKTEMPLATE   0x01c00041
 
 #define TPM2_NV_INDEX_IAK_CERT       0x01c90100
 #define TPM2_NV_INDEX_IDEVID_CERT    0x01c90200
@@ -484,6 +486,7 @@ static const struct swtpm_cops swtpm_cops = {
 #define TPM2_EK_ECC_SECP256R1_HANDLE 0x8101000a
 #define TPM2_EK_ECC_SECP384R1_HANDLE 0x81010016
 #define TPM2_EK_ECC_SECP521R1_HANDLE 0x81010018
+#define TPM2_EK_ECC_ED25519_HANDLE   0x81010040 /* FIXME: TCG-undefined */
 
 #define TPM2_EK_MLKEM512_HANDLE      0x81010060 // FIXME: correct?
 #define TPM2_EK_MLKEM768_HANDLE      0x81010062 // FIXME: correct?
@@ -717,6 +720,50 @@ static const struct ek_params {
         .keytype = "secp521r1",
         .nvindex_ekcert = TPM2_NV_INDEX_ECC_SECP521R1_HI_EKCERT,
         .nvindex_template = TPM2_NV_INDEX_ECC_SECP521R1_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_EDDSA,
+            .keyalgo_param = TPM2_ECC_CURVE_25519,
+            .keydescription = "Ed25519",
+            .nonce = NONCE_ECC_256,
+            .nonce_len = sizeof(NONCE_ECC_256),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = PolicyA_SHA256,
+            .authpolicy_len = sizeof(PolicyA_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_CURVE_25519), AS2BE(TPM2_ALG_NULL)
+             },
+            .schemedata_len = 6,
+            .symkey_len = 128,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = 32,
+        },
+        .ek_handle = TPM2_EK_ECC_ED25519_HANDLE,
+        .keytype = "Ed25519",
+        .nvindex_ekcert = TPM2_NV_INDEX_ECC_ED25519_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_ECC_ED25519_HI_EKTEMPLATE,
+    }, {
+        .pk = {
+            .keyalgo = KEYALGO_EDDSA,
+            .keyalgo_param = TPM2_ECC_CURVE_448,
+            .keydescription = "Ed448",
+            .nonce = NONCE_ECC_256,
+            .nonce_len = sizeof(NONCE_ECC_256),
+            .hashalg = TPM2_ALG_SHA256,
+            .authpolicy = PolicyA_SHA256,
+            .authpolicy_len = sizeof(PolicyA_SHA256),
+            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+                AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_CURVE_448), AS2BE(TPM2_ALG_NULL)
+             },
+            .schemedata_len = 6,
+            .symkey_len = 128,
+            .duration = TPM2_DURATION_LONG,
+            .keysize = 57,
+        },
+        .ek_handle = TPM2_EK_ECC_ED25519_HANDLE,
+        .keytype = "Ed25519",
+        .nvindex_ekcert = TPM2_NV_INDEX_ECC_ED25519_HI_EKCERT,
+        .nvindex_template = TPM2_NV_INDEX_ECC_ED25519_HI_EKTEMPLATE,
     }, {
         .pk = {
             .keyalgo = KEYALGO_RSA,
@@ -2443,6 +2490,10 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
         logerr(self->logfile, "ML-DSA key cannot be a SPK.\n");
         ret = 1;
         break;
+    case KEYALGO_EDDSA:
+        logerr(self->logfile, "EdDSA key cannot be a SPK.\n");
+        ret = 1;
+        break;
     case KEYALGO_NONE:
     default:
         ret = 1;
@@ -2485,6 +2536,7 @@ static int swtpm_tpm2_create_iak(struct swtpm *self,
                                            NULL, 0, keyparam, key_description);
         break;
     case KEYALGO_ECC:
+    case KEYALGO_EDDSA:
         ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, iaks->pk.keyflags,
                                            &iaks->pk, iaks->pk.off, &curr_handle,
                                            NULL, 0, keyparam, key_description);
@@ -2531,6 +2583,7 @@ static int swtpm_tpm2_create_idevid(struct swtpm *self,
                                            NULL, 0, keyparam, key_description);
         break;
     case KEYALGO_ECC:
+    case KEYALGO_EDDSA:
         ret = swtpm_tpm2_createprimary_ecc(self, TPM2_RH_ENDORSEMENT, idps->pk.keyflags,
                                            &idps->pk, idps->pk.off, &curr_handle,
                                            NULL, 0, keyparam, key_description);
@@ -2586,6 +2639,10 @@ static int swtpm_tpm2_createprimary_ek_ecc(struct swtpm *self, const struct ek_p
         off = 0x6a;
         keyflags = 0x40; // userWithAuth (high range)
         break;
+    case TPM2_ECC_CURVE_25519:
+        off = 0x4a;
+        keyflags = 0;
+        break;
     default:
         return 1;
     }
@@ -2638,6 +2695,7 @@ static int swtpm_tpm2_create_ek(struct swtpm *self, enum keyalgo keyalgo, unsign
 
     switch (keyalgo) {
     case KEYALGO_ECC:
+    case KEYALGO_EDDSA:
         ret = swtpm_tpm2_createprimary_ek_ecc(self, ekps,
                                               allowsigning, decryption,
                                               &curr_handle,
