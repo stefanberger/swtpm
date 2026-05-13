@@ -214,7 +214,8 @@ static void usage(const char *prg)
         "                            default: secp256r1\n"
         "--public <hex string>     : Public key component for ML-KEM or ML-DSA keys\n"
         "--keyalgo <name>          : ml-kem-512, ml-kem-768, ml-kem-1024,\n"
-        "                            ml-dsa-44, ml-dsa-65, or ml-dsa-87\n"
+        "                            ml-dsa-44, ml-dsa-65, ml-dsa-87, Ed25519,\n"
+        "                            or Ed448\n"
         "--serial <serial number>  : The certificate serial number\n"
         "--days <number>           : Number of days the cert is valid;\n"
         "                            -1 for no expiration\n"
@@ -1307,9 +1308,10 @@ int main(int argc, char *argv[])
                 goto cleanup;
             if (keychoice != NULL &&
                 strcmp(keychoice, "ML-KEM") &&
-                strcmp(keychoice, "ML-DSA")) {
+                strcmp(keychoice, "ML-DSA") &&
+                strcmp(keychoice, "EdDSA")) {
                 fprintf(stderr, "Already found options for keytype '%s'; "
-                                "cannot switch to ML-KEM or ML-DSA.\n",
+                                "cannot switch to ML-KEM, ML-DSA, or EdDSA.\n",
                         keychoice);
                 goto cleanup;
             }
@@ -1330,6 +1332,13 @@ int main(int argc, char *argv[])
                     !check_keychoice(&keychoice, "ML-DSA"))
                     goto cleanup;
                 keychoice = "ML-DSA";
+                keyalgo = optarg;
+            } else if (strcasecmp(optarg, "Ed25519") == 0  ||
+                       strcasecmp(optarg, "Ed448") == 0) {
+                if (keychoice &&
+                    !check_keychoice(&keychoice, "EdDSA"))
+                    goto cleanup;
+                keychoice = "EdDSA";
                 keyalgo = optarg;
             } else {
                 fprintf(stderr, "Unsupported key type '%s'.\n", optarg);
@@ -1516,7 +1525,9 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
-    if ((!strcmp(keychoice, "ML-KEM") || !strcmp(keychoice, "ML-DSA"))
+    if ((!strcmp(keychoice, "ML-KEM") ||
+         !strcmp(keychoice, "ML-DSA") ||
+         !strcmp(keychoice, "EdDSA"))
         && !public_bin) {
         fprintf(stderr, "Missing --public option for key type %s.\n",
                 keychoice);
@@ -1609,7 +1620,8 @@ int main(int argc, char *argv[])
             is_ecc = true;
         } else if (public_bin) {
             if (strncmp(keyalgo, "ml-kem-", 7) == 0 ||
-                strncmp(keyalgo, "ml-dsa-", 7) == 0) {
+                strncmp(keyalgo, "ml-dsa-", 7) == 0 ||
+                strncmp(keyalgo, "Ed", 2) == 0) {
                 pubkey = create_pubkey(public_bin, public_len, keyalgo);
             } else {
                 fprintf(stderr, "Internal error: Unhandled keyalgo '%s'.\n",
