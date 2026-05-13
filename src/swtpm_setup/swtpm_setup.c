@@ -114,6 +114,8 @@ static const struct {
     { .name = "secp256r1"    , .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P256 },
     { .name = "ecc_nist_p521", .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P521 },
     { .name = "secp521r1"    , .keyalgo = KEYALGO_ECC, .keyalgo_param = TPM2_ECC_NIST_P521 },
+    { .name = "ed25519"      , .keyalgo = KEYALGO_EDDSA, .keyalgo_param = TPM2_ECC_CURVE_25519 },
+    { .name = "ed448"        , .keyalgo = KEYALGO_EDDSA, .keyalgo_param = TPM2_ECC_CURVE_448 },
     { .name = "ml-kem-512"   , .keyalgo = KEYALGO_MLKEM, .keyalgo_param = TPM2_MLKEM_PARMS_512 },
     { .name = "ml-kem-768"   , .keyalgo = KEYALGO_MLKEM, .keyalgo_param = TPM2_MLKEM_PARMS_768 },
     { .name = "ml-kem-1024"  , .keyalgo = KEYALGO_MLKEM, .keyalgo_param = TPM2_MLKEM_PARMS_1024 },

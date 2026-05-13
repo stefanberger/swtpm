@@ -1642,6 +1642,12 @@ static const struct idevid_params {
     }
 };
 
+static int is_eddsa(uint16_t curveId)
+{
+    return (curveId == TPM2_ECC_CURVE_25519 ||
+            curveId == TPM2_ECC_CURVE_448);
+}
+
 static const struct ek_params *get_ek_params(struct swtpm *self,
                                              enum keyalgo keyalgo,
                                              unsigned int keyalgo_param)
@@ -2218,10 +2224,10 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
 {
     const char *tpm2_function = "TPM2_CreatePrimary(ECC)";
     g_autofree unsigned char *public = NULL;
+    uint16_t ksize1, ksize2, exp_keysize1;
     unsigned char tpmresp[2048];
     size_t tpmresp_len = sizeof(tpmresp);
     unsigned char symkeydata[6];
-    uint16_t ksize1, ksize2;
     size_t symkeydata_len;
     ssize_t public_len;
     size_t off2;
@@ -2270,7 +2276,8 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     memcpy(&ksize2, &tpmresp[off2], sizeof(ksize2));
     ksize2 = be16toh(ksize2);
 
-    if (ksize1 != pk_params->keysize || ksize2 != pk_params->keysize) {
+    exp_keysize1 = is_eddsa(pk_params->keyalgo_param) ? 0 : pk_params->keysize;
+    if (ksize1 != exp_keysize1 || ksize2 != pk_params->keysize) {
         logerr(self->logfile, "ECC: Getting key parameters from wrong offset\n");
         return 1;
     }
@@ -2278,13 +2285,23 @@ static int swtpm_tpm2_createprimary_ecc(struct swtpm *self, uint32_t primaryhand
     if (ekparam) {
         unsigned char *xparam = &tpmresp[off + 2];
         unsigned char *yparam = &tpmresp[off2 + 2];
+        g_autofree gchar *yparam_str = NULL;
+
         if (tpmresp_len < off + 2 + ksize1 || tpmresp_len < off2 + 2 + ksize2)
             goto err_too_short;
-        g_autofree gchar *xparam_str = print_as_hex(xparam, ksize1);
-        g_autofree gchar *yparam_str = print_as_hex(yparam, ksize2);
 
-        *ekparam = g_strdup_printf("x=%s,y=%s,id=%s", xparam_str, yparam_str,
-                                   pk_params->keydescription);
+        yparam_str = print_as_hex(yparam, ksize2);
+        if (exp_keysize1) {
+            /* ECDSA */
+            g_autofree gchar *xparam_str = print_as_hex(xparam, ksize1);
+
+            *ekparam = g_strdup_printf("x=%s,y=%s,id=%s", xparam_str, yparam_str,
+                                       pk_params->keydescription);
+        } else {
+            /* EdDSA: only y coordinate */
+            *ekparam = g_strdup_printf("pubkey=%s,algo=%s", yparam_str,
+                                       pk_params->keydescription);
+        }
     }
 
     return 0;
@@ -2641,7 +2658,11 @@ static int swtpm_tpm2_createprimary_ek_ecc(struct swtpm *self, const struct ek_p
         break;
     case TPM2_ECC_CURVE_25519:
         off = 0x4a;
-        keyflags = 0;
+        keyflags = 0x40; // userWithAuth (high range)
+        break;
+    case TPM2_ECC_CURVE_448:
+        off = 0x4a;
+        keyflags = 0x40; // userWithAuth (high range)
         break;
     default:
         return 1;
