@@ -735,7 +735,7 @@ function run_swtpm_bios()
 # @1: filename
 function get_filesize()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-|GNU) ]]; then
+	if stat --help &>/dev/null; then
 		stat -c%s "$1"
 	else
 		# OpenBSD
@@ -748,7 +748,7 @@ function get_filesize()
 # @1: filename
 function get_filemode()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+	if stat --help &>/dev/null; then
 		stat -c%a "$1"
 	else
 		# BSDs
@@ -761,7 +761,7 @@ function get_filemode()
 # @1: filename
 function get_fileowner()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-|GNU) ]]; then
+	if stat --help &>/dev/null; then
 		stat -c"%u %g" "$1"
 	else
 		# BSDs
@@ -774,7 +774,7 @@ function get_fileowner()
 # @1: filename
 function get_fileowner_names()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-|GNU) ]]; then
+	if stat --help &>/dev/null; then
 		stat -c"%U %G" "$1"
 	else
 		# BSDs

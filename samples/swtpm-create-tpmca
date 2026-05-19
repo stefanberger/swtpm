@@ -26,7 +26,7 @@ logerr()
 # @1: filename
 function get_filesize()
 {
-	if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+	if stat --help &>/dev/null; then
 		stat -c%s "$1"
 	else
 		# OpenBSD

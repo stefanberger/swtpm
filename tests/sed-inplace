@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-|GNU) ]]; then
+if sed --help &>/dev/null; then
 	sed -i "$1" "$2"
 else
 	sed -i '' "$1" "$2"
