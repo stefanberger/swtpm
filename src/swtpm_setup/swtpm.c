@@ -619,7 +619,7 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = PolicyA_SHA256,
             .authpolicy_len = sizeof(PolicyA_SHA256),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P256), AS2BE(TPM2_ALG_NULL)
              },
             .schemedata_len = 6,
@@ -641,7 +641,7 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = PolicyB_SHA384,
             .authpolicy_len = sizeof(PolicyB_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL)
              },
             .schemedata_len = 6,
@@ -663,7 +663,7 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA512,
             .authpolicy = PolicyB_SHA512,
             .authpolicy_len = sizeof(PolicyB_SHA512),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P521), AS2BE(TPM2_ALG_NULL)
              },
             .schemedata_len = 6,
@@ -685,7 +685,7 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = PolicyA_SHA256,
             .authpolicy_len = sizeof(PolicyA_SHA256),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(2048), AS4BE(0)
              },
             .schemedata_len = 8,
@@ -707,7 +707,7 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = PolicyB_SHA384,
             .authpolicy_len = sizeof(PolicyB_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(3072), AS4BE(0)
              },
             .schemedata_len = 8,
@@ -729,7 +729,7 @@ static const struct ek_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = PolicyB_SHA384,
             .authpolicy_len = sizeof(PolicyB_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(4096), AS4BE(0)
              },
             .schemedata_len = 8,
@@ -759,7 +759,7 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P256), AS2BE(TPM2_ALG_NULL)
              },
             .schemedata_len = 6,
@@ -783,7 +783,7 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL),
              },
             .schemedata_len = 6,
@@ -802,7 +802,7 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA512,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(TPM2_ECC_NIST_P521), AS2BE(TPM2_ALG_NULL)
              },
             .schemedata_len = 6,
@@ -821,7 +821,7 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(2048), AS4BE(0)
              },
             .schemedata_len = 8,
@@ -840,7 +840,7 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(3072), AS4BE(0)
              },
             .schemedata_len = 8,
@@ -859,7 +859,7 @@ static const struct spk_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = null_authpolicy,
             .authpolicy_len = 0,
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(4096), AS4BE(0)
              },
             .schemedata_len = 8,
@@ -916,7 +916,7 @@ static const struct iak_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = Attestation_PolicyIDevIDKey_SHA256,
             .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA256),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA256),
                 AS2BE(TPM2_ECC_NIST_P256), AS2BE(TPM2_ALG_NULL),
             },
@@ -940,7 +940,7 @@ static const struct iak_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = Attestation_PolicyIDevIDKey_SHA384,
             .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA384),
                 AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL),
             },
@@ -964,7 +964,7 @@ static const struct iak_params {
             .hashalg = TPM2_ALG_SHA512,
             .authpolicy = Attestation_PolicyIDevIDKey_SHA512,
             .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA512),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA512),
                 AS2BE(TPM2_ECC_NIST_P521), AS2BE(TPM2_ALG_NULL),
             },
@@ -986,7 +986,7 @@ static const struct iak_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = Attestation_PolicyIDevIDKey_SHA256,
             .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA256),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_RSAPSS), AS2BE(TPM2_ALG_SHA256),
                 AS2BE(2048), AS4BE(0),
             },
@@ -1008,7 +1008,7 @@ static const struct iak_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = Attestation_PolicyIDevIDKey_SHA384,
             .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_RSAPSS), AS2BE(TPM2_ALG_SHA384),
                 AS2BE(3072), AS4BE(0),
             },
@@ -1030,7 +1030,7 @@ static const struct iak_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = Attestation_PolicyIDevIDKey_SHA384,
             .authpolicy_len = sizeof(Attestation_PolicyIDevIDKey_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_RSAPSS), AS2BE(TPM2_ALG_SHA384),
                 AS2BE(4096), AS4BE(0),
             },
@@ -1088,7 +1088,7 @@ static const struct idevid_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = Signing_PolicyIDevIDKey_SHA256,
             .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA256),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA256),
                 AS2BE(TPM2_ECC_NIST_P256), AS2BE(TPM2_ALG_NULL),
             },
@@ -1112,7 +1112,7 @@ static const struct idevid_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = Signing_PolicyIDevIDKey_SHA384,
             .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA384),
                 AS2BE(TPM2_ECC_NIST_P384), AS2BE(TPM2_ALG_NULL),
             },
@@ -1136,7 +1136,7 @@ static const struct idevid_params {
             .hashalg = TPM2_ALG_SHA512,
             .authpolicy = Signing_PolicyIDevIDKey_SHA512,
             .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA512),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_ECDSA), AS2BE(TPM2_ALG_SHA512),
                 AS2BE(TPM2_ECC_NIST_P521), AS2BE(TPM2_ALG_NULL),
             },
@@ -1158,7 +1158,7 @@ static const struct idevid_params {
             .hashalg = TPM2_ALG_SHA256,
             .authpolicy = Signing_PolicyIDevIDKey_SHA256,
             .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA256),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(2048), AS4BE(0)
              },
             .schemedata_len = 8,
@@ -1179,7 +1179,7 @@ static const struct idevid_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = Signing_PolicyIDevIDKey_SHA384,
             .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(3072), AS4BE(0)
              },
             .schemedata_len = 8,
@@ -1200,7 +1200,7 @@ static const struct idevid_params {
             .hashalg = TPM2_ALG_SHA384,
             .authpolicy = Signing_PolicyIDevIDKey_SHA384,
             .authpolicy_len = sizeof(Signing_PolicyIDevIDKey_SHA384),
-            .schemedata = (unsigned char[SCHEMEDATA_SIZE]) {
+            .schemedata = {
                 AS2BE(TPM2_ALG_NULL), AS2BE(4096), AS4BE(0)
              },
             .schemedata_len = 8,
