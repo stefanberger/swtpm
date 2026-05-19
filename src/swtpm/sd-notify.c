@@ -51,7 +51,7 @@ int sd_notify(int unset_environment, const char *state)
 
     addr_len = offsetof(struct sockaddr_un, sun_path) + path_len;
 
-    fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    fd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (fd < 0)
         return -errno;
 
