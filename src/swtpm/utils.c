@@ -248,7 +248,7 @@ char *fd_to_filename(int fd)
         return NULL;
     }
     if (fcntl(fd, F_GETPATH, path) < 0) {
-        logprintf(STDERR_FILENO, "fcntl for F_GETPATH failed: %\n",
+        logprintf(STDERR_FILENO, "fcntl for F_GETPATH failed: %s\n",
                   strerror(errno));
         free(path);
         return NULL;
