@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [[ "$(uname -s)" =~ (Linux|CYGWIN_NT-) ]]; then
+if install --help &>/dev/null; then
 	install -D "$1" "$2"
 else
 	mkdir -p "$(dirname "$2")"
