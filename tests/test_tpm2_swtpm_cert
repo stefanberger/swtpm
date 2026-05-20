@@ -227,7 +227,7 @@ if ! ${SWTPM_CERT} \
 	echo "Error: ${SWTPM_CERT} failed with max. serial number."
 	exit 1
 fi
-tmp=$(openssl x509 --in "${cert}" -noout -text |
+tmp=$(openssl x509 -in "${cert}" -noout -text |
       grep -A1 "Serial Number:" |
       tail -n1 |
       sed -n 's/[[:space:]]*\([[:xdigit:]:]*\)/\1/p')
