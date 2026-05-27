@@ -40,7 +40,8 @@ allow virtqemud_t svirt_tcg_t:file { open read };
 allow virtqemud_t svirt_tcg_t:process { noatsecure rlimitinh setsched siginh signal signull transition };
 allow virtqemud_t svirt_tcg_t:unix_stream_socket { bind connectto create listen };
 allow virtqemud_t svirt_tcg_devpts_t:chr_file { ioctl open read write };
-allow virtqemud_t swtpm_t:process { noatsecure rlimitinh siginh signull };
+allow virtqemud_t swtpm_t:process { noatsecure rlimitinh siginh signull setsched };
+allow virtqemud_t swtpm_t:unix_stream_socket { bind connectto create listen };
 allow virtqemud_t urandom_device_t:chr_file setattr;
 
 # Some rules are due to swtpm-localca ( https://bugzilla.redhat.com/show_bug.cgi?id=2278905#c34 )
