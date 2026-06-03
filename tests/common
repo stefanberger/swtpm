@@ -94,6 +94,16 @@ function wait_process_gone()
     kill_quiet -0 "${pid}" || return 1
     sleep 0.1
   done
+
+  # Last attempt for (ubuntu:26.04) containers:
+  #   defunct process are considered terminated
+  if type -P ps &>/dev/null; then
+    if ps "${pid}" | grep -q defunct; then
+      echo "WARN: Process with PID ${pid} is <defunct>!"
+      return 1
+    fi
+  fi
+
   return 0
 }
 
