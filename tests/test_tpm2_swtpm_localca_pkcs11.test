@@ -77,6 +77,7 @@ fi
 
 pubkey="${workdir}/swtpm-localca-interm-pubkey.pem"
 
+# Some versions of pkcs11 provider + OpenSSL may get stuck here (Ubuntu 26.04 host)
 msg=$(timeout 5 openssl pkey \
            -provider pkcs11 \
            -in "${pkcs11uri}" -pubout -out "${pubkey}" 2>&1)
@@ -88,6 +89,11 @@ if [ "$rc" -ne 0 ]; then
         fi
 	echo "Could not get public key for pkcs11 uri key ($pkcs11uri}."
 	echo "${msg}"
+	if grep -q "Did you forget to load them?" <<< "${msg}"; then
+		# Error in ubuntu:26.04
+		echo "WARN: Something seems wrong with pkcs11 config."
+		exit 77
+	fi
 	exit 1
 fi
 
