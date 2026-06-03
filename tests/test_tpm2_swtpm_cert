@@ -22,6 +22,8 @@ MLKEM1024PRIVKEY=${TMPDIR}/mlkem1024privkey.pem
 MLKEM1024PUBKEY=${TMPDIR}/mlkem1024pubkey.pem
 MLDSA87PRIVKEY=${TMPDIR}/mldsa87privkey.pem
 MLDSA87PUBKEY=${TMPDIR}/mldsa87pubkey.pem
+ED448PRIVKEY=${TMPDIR}/ed448privkey.pem
+ED448PUBKEY=${TMPDIR}/ed448pubkey.pem
 
 # secp521r1 key used for signing
 EC521PRIVKEY=${TMPDIR}/ec521privkey.pem
@@ -36,6 +38,9 @@ ISSUERCERT_RSA3072=${TMPDIR}/rsa3072-issuercert.pem
 # ML-DSA-87 key used for signing
 ISSUERCERT_MLDSA87=${TMPDIR}/mldsa87-issuercert.pem
 
+# ED448 key used for signing
+ISSUERCERT_ED448=${TMPDIR}/ed448-issuercert.pem
+
 if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
    ! msg=$(openssl rsa -in "${RSAPRIVKEY}" -pubout -out "${RSAPUBKEY}" 2>&1) ||
    ! msg=$(openssl ecparam -name prime256v1 -genkey -noout -out "${EC256PRIVKEY}" 2>&1) || \
@@ -44,6 +49,8 @@ if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
    ! msg=$(openssl pkey -in "${MLKEM1024PRIVKEY}" -pubout -out "${MLKEM1024PUBKEY}" 2>&1) || \
    ! msg=$(openssl genpkey -algorithm ml-dsa-87 -out "${MLDSA87PRIVKEY}" 2>&1) || \
    ! msg=$(openssl pkey -in "${MLDSA87PRIVKEY}" -pubout -out "${MLDSA87PUBKEY}" 2>&1) || \
+   ! msg=$(openssl genpkey -algorithm ed448 -out "${ED448PRIVKEY}" 2>&1) || \
+   ! msg=$(openssl pkey -in "${ED448PRIVKEY}" -pubout -out "${ED448PUBKEY}" 2>&1) || \
    ! msg=$(openssl req \
 	-x509 \
 	-new \
@@ -78,6 +85,14 @@ if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
 	-x509 \
 	-key "${MLDSA87PRIVKEY}" \
 	-out "${ISSUERCERT_MLDSA87}" \
+	-days 1000 \
+	-subj "/CN=swtpm-localca" \
+	-CA "${CACERT}" \
+	-CAkey "${CAKEY}" 2>&1) || \
+   ! msg=$(openssl req \
+	-x509 \
+	-key "${ED448PRIVKEY}" \
+	-out "${ISSUERCERT_ED448}" \
 	-days 1000 \
 	-subj "/CN=swtpm-localca" \
 	-CA "${CACERT}" \
@@ -125,6 +140,20 @@ PARAM_MLDSA87PUBKEY="${MLDSA87PUBKEY}" \
 PARAM_SIGNKEY="${MLDSA87PRIVKEY}" \
 PARAM_ISSUERCERT="${ISSUERCERT_MLDSA87}" \
 PARAM_CERT_SIZES="5285 5080 5331 5080 6579 5811 7603 5296 5045 5212 7484 5212 5351" \
+	./_test_tpm2_swtpm_cert
+ret=$?
+[ $ret -ne 0 ] && exit $ret
+
+
+printf "\nTesting with Ed448 certificate signing key\n"
+
+PARAM_RSAPUBKEY="${RSAPUBKEY}" \
+PARAM_ECPUBKEY="${EC256PUBKEY}" \
+PARAM_MLKEM1024PUBKEY="${MLKEM1024PUBKEY}" \
+PARAM_MLDSA87PUBKEY="${MLDSA87PUBKEY}" \
+PARAM_SIGNKEY="${ED448PRIVKEY}" \
+PARAM_ISSUERCERT="${ISSUERCERT_ED448}" \
+PARAM_CERT_SIZES="758 553 804 553 2052 1284 3076 769 518 685 2957 685 824" \
 	./_test_tpm2_swtpm_cert
 ret=$?
 [ $ret -ne 0 ] && exit $ret
