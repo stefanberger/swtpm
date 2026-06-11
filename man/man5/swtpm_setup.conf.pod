@@ -131,7 +131,16 @@ Note that rsa4096 requires the default-v2 or a later profile.
 This keyword is similar to B<ek1keyalgo> but applies to the 2nd endorsement
 key. The same choices are available.
 
-=item B<>
+=item B<iakkeyalgo> (since v0.11)
+
+This keyword allows to choose the default key algorithm of the IAK key.
+Supported values are: ecc_nist_p256 or secp256r1, ecc_nist_p384 or secp384r1,
+ecc_nist_p521 or secp521r1, rsa2048, rsa3072, and rsa4096.
+
+=item B<idevidkeyalgo> (since v0.11)
+
+This keyword allows to choose the default key algorithm of the IDevID key.
+Supported values are the same as for iakkeyalgo.
 
 =back
 
