@@ -239,7 +239,7 @@ static gboolean extract_ecc_params(const gchar *key_params, gchar **ecc_x, gchar
     regex_t preg;
     int ret;
 
-    if (regcomp(&preg, "x=([0-9A-Fa-f]+),y=([0-9A-Fa-f]+)(,id=([^,]+))?",
+    if (regcomp(&preg, "^x=([0-9A-Fa-f]+),y=([0-9A-Fa-f]+)(,id=([^,]+))?$",
                 REG_EXTENDED) != 0) {
         logerr(gl_LOGFILE, "Internal error: Could not compile regex\n");
         return 1;
