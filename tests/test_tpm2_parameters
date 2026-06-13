@@ -44,6 +44,9 @@ PARAMETERS=(
 	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ecc_nist_p256 --ek2keyalgo secp256r1 --iakkeyalgo ecc_nist_p256 --idevidkeyalgo rsa2048"
 	"--profile-name null       --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo rsa3072   --iakkeyalgo rsa3072       --idevidkeyalgo secp521r1 --ecc"
 	"--profile-name default-v1 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo rsa2048       --ek2keyalgo ecc_nist_p384"
+	"--profile-name default-v2 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ml-kem-512    --ek2keyalgo rsa3072   --iakkeyalgo ml-dsa-44     --idevidkeyalgo ml-dsa-87"
+	"--profile-name default-v2 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ml-dsa-87     --ek2keyalgo rsa4096   --iakkeyalgo ml-dsa-65     --idevidkeyalgo ml-dsa-65"
+	"--profile-name default-v2 --create-spk --create-ek-cert --create-platform-cert --config ${TESTDIR}/swtpm_setup.conf --ek1keyalgo ml-dsa-44     --ek2keyalgo ml-dsa-44 --iakkeyalgo ml-dsa-87     --idevidkeyalgo ml-dsa-44"
 )
 
 # Tests for 3072 bit RSA keys to be appended to above array if RSA 3072 keys are supported
