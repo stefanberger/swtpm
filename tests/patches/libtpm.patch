@@ -150,6 +150,33 @@ index 0f7d0de..8ba9bea 100644
  				  ownerAuthPtr,
  				  retbuffer, &retbufferlen);
  	break;
+diff --git a/lib/delegation.c b/lib/delegation.c
+index d67845e..ac61ed5 100644
+--- a/lib/delegation.c
++++ b/lib/delegation.c
+@@ -697,6 +697,8 @@ TPM_BOOL TPM_FindDelegationBlob(uint32_t etype,
+ 	} else {
+ 		printf("NO entry found!\n");
+ 	}
++#else
++	(void)entry;
+ #endif
+ 	return rc;
+ }
+diff --git a/utils/sha.c b/utils/sha.c
+index 5f0df81..10af67e 100644
+--- a/utils/sha.c
++++ b/utils/sha.c
+@@ -256,7 +256,8 @@ int main(int argc, char * argv[]) {
+ 				}
+ 			}
+ 			total += n;
+-			
++			(void)total;
++
+ 			if (index >= 0) {
+ 				ret = TPM_SHA1CompleteExtend(&buf[offset],n,
+ 				                             index,
 diff --git a/utils/test_console.sh b/utils/test_console.sh
 index 3aabcb7..821da0f 100755
 --- a/utils/test_console.sh
