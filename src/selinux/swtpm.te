@@ -14,7 +14,6 @@ require {
 	type virtqemud_t;
 	type virtqemud_tmp_t;
 	class file map;
-	tunable virt_use_nfs;
 }
 
 attribute_role swtpm_roles;
