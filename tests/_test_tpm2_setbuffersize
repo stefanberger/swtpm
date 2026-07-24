@@ -122,6 +122,79 @@ if [ ! -e "$STATE_FILE" ]; then
 	exit 1
 fi
 
-echo "OK"
+printf "Test 1: OK\n\n"
+
+
+# libtpms must refuse to start with default-v2 profile and 5kb buffer size since
+# ML-KEM and ML-DSA require 8kb buffer size
+
+rm -f "$STATE_FILE" "$VOLATILE_STATE_FILE" 2>/dev/null
+
+TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2 --profile name="default-v2"
+
+if ! kill_quiet -0 "${SWTPM_PID}"; then
+	echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+	exit 1
+fi
+
+# set the buffer size to 5kb
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -b $((5 * 1024)) > "${OUTFILE}"; then
+	echo "Error: Could not set the buffersize of the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+cat "${OUTFILE}"
+
+if ! grep "TPM buffersize" "${OUTFILE}" | grep -q $((5 * 1024)); then
+	echo "Error: Could not set the buffersize of the ${SWTPM_INTERFACE} TPM to $((5 * 1024))."
+	exit 1
+fi
+
+# Init the TPM -- must fail
+if run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+	echo "Error: Could initialize the ${SWTPM_INTERFACE} TPM even though buffer is too small for default-v2 profile."
+	exit 1
+fi
+printf "INFO: Initialization failed as expected\n\n"
+
+# set the buffer size to 8kb
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -b $((8 * 1024)) > "${OUTFILE}"; then
+	echo "Error: Could not set the buffersize of the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+cat "${OUTFILE}"
+
+if ! grep "TPM buffersize" "${OUTFILE}" | grep -q $((8 * 1024)); then
+	echo "Error: Could not set the buffersize of the ${SWTPM_INTERFACE} TPM to $((8 * 1024))."
+	exit 1
+fi
+
+# Init the TPM -- must NOT fail
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+	echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM even though buffer is 8kb (default-v2 profile)."
+	exit 1
+fi
+
+# Startup the TPM2
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+exp=' 80 01 00 00 00 0a 00 00 00 00'
+if [ "$RES" != "$exp" ]; then
+	echo "Error: Did not get expected result from TPM2_Startup(SU_Clear)"
+	echo "expected: $exp"
+	echo "received: $RES"
+	exit 1
+fi
+printf "INFO: Successfully started TPM 2 with 8kb buffer and default-v2 profile"
+
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+	echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if wait_process_gone "${SWTPM_PID}" 4; then
+	echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+	exit 1
+fi
+
+printf "Test 2: OK\n\n"
 
 exit 0
