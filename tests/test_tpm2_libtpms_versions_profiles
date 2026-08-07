@@ -41,7 +41,7 @@ LIBTPMS_URL=https://github.com/stefanberger/libtpms
 LIBTPMS_INITIAL_BRANCH=master
 
 SWTPM_URL=https://github.com/stefanberger/swtpm
-SWTPM_DEFAULT_BRANCH=master   # during development change to local branch
+SWTPM_DEFAULT_BRANCH=stable-0.10   # during development change to local branch
 
 cat <<_EOF_ > "${workdir}/swtpm-localca.options"
 --tpm-manufacturer IBM
@@ -595,6 +595,12 @@ function build_libtpms_and_swtpm()
 	for ((maj=0; maj<=major; maj++)) {
 		min=0
 		[ "${maj}" = 0 ] && min=9  # start with v0.9
+
+		# only build a few versions of libtpms
+		case "${maj}.${min}" in
+		0.9|0.10)	;;
+		*)		continue;;
+		esac
 
 		for ((;; min++)) {
 			git checkout "origin/stable-${maj}.${min}" &>/dev/null || break
