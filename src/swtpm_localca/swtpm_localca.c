@@ -22,6 +22,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <openssl/opensslv.h>
+
 #include <glib.h>
 
 #include <gmp.h>
@@ -131,6 +133,55 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         }
 
         /* create root CA key and self-signed cert */
+#ifdef LIBRESSL_VERSION_NUMBER
+        g_autofree gchar *rootca_cnf = g_strdup_printf("%s-ext.conf", cacert);
+        FILE *rootca_cnf_file = fopen(rootca_cnf, "w");
+        if (!rootca_cnf_file) {
+            logerr(gl_LOGFILE, "Could not create %s: %s\n", rootca_cnf, strerror(errno));
+            goto error;
+        }
+        fprintf(rootca_cnf_file, "[req]\n"
+                "distinguished_name=dn\n"
+                "x509_extensions=v3_ca\n"
+                "prompt=no\n"
+                "\n"
+                "[dn]\n"
+                "CN = swtpm-localca-rootca\n"
+                "\n"
+                "[v3_ca]\n"
+                "basicConstraints=critical,CA:TRUE\n"
+                "keyUsage=critical,keyCertSign\n"
+                "subjectKeyIdentifier=hash\n");
+        fclose(rootca_cnf_file);
+
+        cmd = concat_arrays(NULL,
+                            (const gchar *[]) {
+                            openssl,
+                            "req",
+                            "-x509",
+                            "-newkey", NEWKEY_ALGO,
+                            "-keyout", cakey,
+                            "-out", cacert,
+                            "-days", CERT_DAYS,
+                            CERT_HASH,
+                            "-config", rootca_cnf,
+                            swtpm_rootca_password == NULL ? "-nodes" : NULL,
+                            NULL
+                            }, FALSE);
+        if (swtpm_rootca_password != NULL) {
+            cmd = concat_arrays(cmd, (const char*[]){
+                                   "-passout", "env:SWTPM_ROOTCA_PASSWORD", NULL
+                                }, TRUE);
+            openssl_env = g_environ_setenv(openssl_env,
+                                           "SWTPM_ROOTCA_PASSWORD", swtpm_rootca_password,
+                                           TRUE);
+        }
+
+        if (run_openssl(cmd, (const char **)openssl_env, "Could not create local-CA: "))
+            goto error;
+
+        unlink(rootca_cnf);
+#else
         cmd = concat_arrays(NULL,
                             (const gchar *[]) {
                                 openssl,
@@ -157,6 +208,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
         }
         if (run_openssl(cmd, (const char **)openssl_env, "Could not create root-CA: "))
             goto error;
+#endif
 
         if (chmod(cakey, S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
             logerr(gl_LOGFILE, "Could not chmod %s: %s\n", cakey, strerror(errno));
@@ -165,6 +217,80 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
 
         g_free(cmd);
         /* create intermediate CA's key and certificate */
+#ifdef LIBRESSL_VERSION_NUMBER
+        g_autofree gchar *csr = g_strdup_printf("%s-csr.pem", issuercert);
+        g_autofree gchar *ext = g_strdup_printf("%s-ext.conf", issuercert);
+
+        cmd = concat_arrays(NULL,
+                            (const gchar *[]) {
+                                openssl,
+                                "req",
+                                "-new",
+                                "-keyout", signkey,
+                                "-newkey", NEWKEY_ALGO,
+                                "-subj", "/CN=swtpm-localca",
+                                "-out", csr,
+                                signkey_password == NULL ? "-nodes" : NULL,
+                                NULL
+                            }, FALSE);
+        if (signkey_password != NULL) {
+            cmd = concat_arrays(cmd,
+                                (const gchar *[]) {
+                                    "-passout", "env:SWTPM_CA_PASSWORD",
+                                    NULL
+                                }, TRUE);
+            openssl_env = g_environ_setenv(openssl_env,
+                                           "SWTPM_CA_PASSWORD", signkey_password,
+                                           TRUE);
+        }
+
+        if (run_openssl(cmd, (const char **)openssl_env, "Could not create CSR: "))
+            goto error;
+
+        g_free(cmd);
+
+        FILE *ext_file = fopen(ext, "w");
+        if (!ext_file) {
+            logerr(gl_LOGFILE, "Could not create %s: %s\n", ext, strerror(errno));
+            goto error;
+        }
+        fprintf(ext_file, "[v3_ca]\n"
+                "basicConstraints=critical,CA:TRUE\n"
+                "keyUsage=critical,keyCertSign\n"
+                "subjectKeyIdentifier=hash\n"
+                "authorityKeyIdentifier=keyid,issuer\n");
+        fclose(ext_file);
+
+        cmd = concat_arrays(NULL,
+                            (const gchar *[]) {
+                                openssl,
+                                "x509",
+                                "-req",
+                                "-in", csr,
+                                "-out", issuercert,
+                                "-days", CERT_DAYS,
+                                CERT_HASH,
+                                "-CA", cacert,
+                                "-CAkey", cakey,
+                                "-set_serial", "1",
+                                "-extfile", ext,
+                                "-extensions", "v3_ca",
+                                NULL
+                            }, FALSE);
+        if (swtpm_rootca_password != NULL) {
+            cmd = concat_arrays(cmd,
+                                (const gchar *[]) {
+                                    "-passin", "env:SWTPM_ROOTCA_PASSWORD",
+                                    NULL
+                                }, TRUE);
+        }
+
+        if (run_openssl(cmd, (const char **)openssl_env, "Could not create local-CA: "))
+            goto error;
+
+        unlink(csr);
+        unlink(ext);
+#else
         cmd = concat_arrays(NULL,
                             (const gchar *[]) {
                                 openssl,
@@ -203,6 +329,7 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
 
         if (run_openssl(cmd, (const char **)openssl_env, "Could not create local-CA: "))
             goto error;
+#endif
 
         if (chmod(signkey, S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
             logerr(gl_LOGFILE, "Could not chmod %s: %s\n", signkey, strerror(errno));

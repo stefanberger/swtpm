@@ -408,6 +408,28 @@ static int read_certificate_file(const gchar *certsdir, const gchar *filename,
     return read_file(*certfile, filecontent, filecontent_len);
 }
 
+#ifdef LIBRESSL_VERSION_NUMBER
+/* leaks akid */
+const ASN1_OCTET_STRING *X509_get0_authority_key_id(X509 *);
+const ASN1_OCTET_STRING *X509_get0_authority_key_id(X509 *cert)
+{
+    AUTHORITY_KEYID *akid = NULL;
+
+    if (cert == NULL)
+        return NULL;
+
+    akid = (AUTHORITY_KEYID *)X509_get_ext_d2i(cert,
+                                               NID_authority_key_identifier,
+                                               NULL, NULL);
+    if (akid == NULL)
+        return NULL;
+
+    if (akid->keyid && akid->keyid->data && akid->keyid->length > 0)
+        return akid->keyid;
+    return NULL;
+}
+#endif
+
 static int tpm2_extract_certificate_data(const gchar *certdata, size_t certdata_len,
                                          struct ek_certificate_data *ecd)
 {
