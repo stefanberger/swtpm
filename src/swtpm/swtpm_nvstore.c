@@ -1115,7 +1115,7 @@ SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
     blobheader *bh = (blobheader *)data;
     uint16_t hdrsize;
 
-    if (length < sizeof(bh)) {
+    if (length < sizeof(*bh)) {
         if (!quiet)
             logprintf(STDERR_FILENO,
                       "not enough bytes for header: %u\n", length);
