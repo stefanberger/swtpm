@@ -182,7 +182,7 @@ SWTPM_NVRAM_GetFilepathForName(char *filepath,       /* output: rooted file path
                                             tpm_number, name, is_tempfile);
     if (rc == 0) {
         n = snprintf(filepath, bufsize, "%s/%s", tpm_state_path, filename);
-        if ((size_t) n > bufsize)
+        if ((size_t) n >= bufsize)
             rc = TPM_FAIL;
     }
 
@@ -299,7 +299,7 @@ SWTPM_NVRAM_CreateBackupFilename(const char *filepath,
     int        irc;
 
     irc = snprintf(bakfile, bakfile_len, "%s.%s", filepath, suffix);
-    if ((size_t)irc > bakfile_len) {
+    if ((size_t)irc >= bakfile_len) {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_StoreData: Name of backup file is too long\n");
         rc = TPM_FAIL;
