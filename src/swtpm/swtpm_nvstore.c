@@ -263,7 +263,7 @@ SWTPM_NVRAM_GetFilenameForName(char *filename,       /* output: filename */
     } else {
         n = snprintf(filename, bufsize, "tpm%s-%02lx.%s", suffix, (unsigned long)tpm_number, name);
     }
-    if ((size_t)n > bufsize) {
+    if ((size_t)n >= bufsize) {
         res = TPM_FAIL;
     }
 
