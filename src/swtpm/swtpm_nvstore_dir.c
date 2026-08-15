@@ -169,7 +169,7 @@ SWTPM_NVRAM_GetFilepathForName(char *filepath,       /* output: rooted file path
                                             tpm_number, name, is_tempfile);
     if (rc == 0) {
         n = snprintf(filepath, bufsize, "%s/%s", tpm_state_path, filename);
-        if ((size_t) n > bufsize)
+        if ((size_t) n >= bufsize)
             rc = TPM_FAIL;
     }
 
