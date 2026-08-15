@@ -513,7 +513,7 @@ ssize_t file_read(const char *filename, void **buffer,
 
     ret = read_eintr(fd, *buffer, buflen);
     if (ret < 0 || (size_t)ret != buflen)
-        goto err_close;
+        goto err_free;
 
     /* make sure file is always writable */
     if (!do_chmod && (statbuf.st_mode & 0200) == 0) {
@@ -524,7 +524,7 @@ ssize_t file_read(const char *filename, void **buffer,
     }
 
     if (do_chmod && fchmod(fd, mode) < 0)
-        goto err_close;
+        goto err_free;
 
     ret = buflen;
 
@@ -533,6 +533,12 @@ err_close:
         ret = -1;
 
     return ret;
+
+err_free:
+    free(*buffer);
+    *buffer = NULL;
+
+    goto err_close;
 }
 
 /*
