@@ -21,6 +21,7 @@
 #include "swtpm.h"
 #include "swtpm_debug.h"
 #include "swtpm_nvstore_linear.h"
+#include "swtpm_utils.h"
 #include "logging.h"
 #include "tpmstate.h"
 
@@ -179,6 +180,7 @@ SWTPM_NVRAM_LinearFile_DoOpenURI(const char *uri)
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_LinearFile_Open: Could not change mode bits: %s\n",
                   strerror(errno));
+        SWTPM_CLOSE(mmap_state.fd);
         return TPM_FAIL;
     }
     return 0;
