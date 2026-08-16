@@ -1126,7 +1126,7 @@ SWTPM_NVRAM_CheckHeader(unsigned char *data, uint32_t length,
         if (!quiet)
             logprintf(STDERR_FILENO,
                       "broken header: bh->totlen %u != %u\n",
-                      htonl(bh->totlen), length);
+                      ntohl(bh->totlen), length);
         return TPM_BAD_PARAMETER;
     }
 
