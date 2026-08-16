@@ -39,6 +39,8 @@
 
 #include "sys_dependencies.h"
 
+#include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <string.h>
@@ -111,25 +113,37 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
         }
         break;
     case OPT_TYPE_INT:
+        errno = 0;
         li = strtol(val, &endptr, 10);
-        if (*endptr != '\0') {
+        if (*endptr != '\0' || endptr == val) {
             option_error_set(error, "invalid number '%s'", val);
             return -1;
         }
-        if (li < INT_MIN || li > INT_MAX) {
+        if (errno == ERANGE || li < INT_MIN || li > INT_MAX) {
             option_error_set(error, "number %li outside valid range", li);
+            return -1;
         }
         ovs->options[idx].u.integer = li;
 
         break;
     case OPT_TYPE_UINT:
-        lui = strtol(val, &endptr, 10);
-        if (*endptr != '\0') {
+        errno = 0;
+
+        while (isspace(*(unsigned char *)val))
+            val++;
+        if (*val == '-') {
+            option_error_set(error, "invalid positive number '%s'", val);
+            return -1;
+        }
+
+        lui = strtoul(val, &endptr, 10);
+        if (*endptr != '\0' || endptr == val) {
             option_error_set(error, "invalid number '%s'", val);
             return -1;
         }
-        if (lui > UINT_MAX) {
-            option_error_set(error, "number %li outside valid range", lui);
+        if (errno == ERANGE || lui > UINT_MAX) {
+            option_error_set(error, "number %lu outside valid range", lui);
+            return -1;
         }
         ovs->options[idx].u.uinteger = lui;
 
