@@ -1224,8 +1224,12 @@ static int parse_server_options(const char *options, struct server **c)
             port = option_get_int(ovs, "port", -1);
             if (port == -1) {
                 const char *port_str = getenv("TPM_PORT");
-                if (!port_str || sscanf(port_str, "%d", &port) == -1)
-                    port = -1;
+
+                if (!port_str || sscanf(port_str, "%d", &port) != 1) {
+                    logprintf(STDERR_FILENO,
+                              "TPM_PORT is not set or contains an invalid integer value.\n");
+                    goto error;
+                }
             }
             if (port < 0) {
                 logprintf(STDERR_FILENO,
