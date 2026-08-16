@@ -318,7 +318,7 @@ ssize_t logprintfA(int fd, unsigned int indent, const char *format, ...)
             indent = sizeof(spaces) - 1;
         memset(spaces, ' ', indent);
         spaces[indent] = 0;
-        logprintfA(fd, 0, spaces, "");
+        logprintfA(fd, 0, "%s", spaces);
     }
 
     va_start(ap, format);
