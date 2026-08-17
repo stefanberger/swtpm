@@ -1446,7 +1446,7 @@ error:
  * Parse the 'seccomp' options.
  *
  * @options: the flags options to parse
- * @seccomp_action: the action to take when 
+ * @seccomp_action: the action to take when
  *
  * Returns 0 on success, -1 on failure.
  */
@@ -1663,7 +1663,7 @@ static int parse_pcap_options(const char *options, struct pcap_state *ps)
     checksums = option_get_int(ovs, "checksums", false);
 
     if (filename) {
-        flags = O_CREAT|O_WRONLY|O_NONBLOCK;
+        flags = O_CREAT|O_WRONLY|O_NONBLOCK|O_NOFOLLOW;
 
         if (truncate)
             flags |= O_TRUNC;
