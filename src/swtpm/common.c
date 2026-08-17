@@ -1540,6 +1540,8 @@ static int parse_profile_options(const char *options, char **json_profile)
             goto error;
         }
         *json_profile = strndup(buffer, buffer_len);
+        if (*json_profile == NULL)
+            goto oom_error;
     } else if (profilefd >= 0) {
         buffer_len = 10 * 1024;
         buffer = g_malloc(buffer_len);
