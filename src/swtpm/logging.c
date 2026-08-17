@@ -141,8 +141,6 @@ int log_set_level(unsigned int level)
     int ret = 0;
 
     if (level >= 5) {
-        TPMLIB_SetDebugLevel(level - 4);
-
         if (asprintf(&prefixbuf, "%s%s",
                      log_prefix ? log_prefix : "",
                      "    ") < 0) {
@@ -151,6 +149,7 @@ int log_set_level(unsigned int level)
         }
         TPMLIB_SetDebugPrefix(prefixbuf);
         free(prefixbuf);
+        TPMLIB_SetDebugLevel(level - 4);
     }
     log_level = level;
 
