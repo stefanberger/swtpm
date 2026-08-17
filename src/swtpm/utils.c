@@ -868,7 +868,8 @@ size_t strv_remove(gchar **array, const gchar *toremove, ssize_t len,
 size_t strv_dedup(gchar **array, gencmpstr_t gencmpstr, gboolean freethem)
 {
     gboolean free_cmp = false;
-    size_t num = 0, i = 0, j;
+    size_t num = 0, i = 0, j, k;
+    gboolean removed;
     ssize_t len = 0;
     gchar *cmp;
 
@@ -882,10 +883,10 @@ size_t strv_dedup(gchar **array, gencmpstr_t gencmpstr, gboolean freethem)
         }
 
         j = i + 1;
+        removed = false;
         while (array[j]) {
             if ((len < 0 && strcmp(array[j], cmp) == 0) ||
                 (len > 0 && strncmp(array[j], cmp, len) == 0)) {
-
                 num++;
                 if (freethem)
                     g_free(array[i]);
@@ -894,11 +895,14 @@ size_t strv_dedup(gchar **array, gencmpstr_t gencmpstr, gboolean freethem)
                  * Keep the later ones in the array since libtpms also keeps
                  * later items ones in string when deduplicating.
                  */
-                j = i;
+                k = i;
                 do {
-                    array[j] = array[j + 1];
-                    j++;
-                } while (array[j]);
+                    array[k] = array[k + 1];
+                    k++;
+                } while (array[k - 1]); /* until NULL appears */
+
+                removed = true;
+
                 break;
             }
             j++;
@@ -906,7 +910,9 @@ size_t strv_dedup(gchar **array, gencmpstr_t gencmpstr, gboolean freethem)
 
         if (free_cmp)
             g_free(cmp);
-        i++;
+
+        if (!removed)
+            i++;
     }
     return num;
 }
