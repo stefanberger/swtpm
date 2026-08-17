@@ -1382,8 +1382,9 @@ int SWTPM_NVRAM_PrintJson(void)
         TPM_SAVESTATE_NAME,
     };
     char state_str[200] = "";
-    size_t i, n, o, blobsize;
+    size_t i, o, blobsize;
     int ret = -1;
+    int n;
 
     rc = SWTPM_NVRAM_Init();
     if (rc == 0) {
@@ -1398,7 +1399,7 @@ int SWTPM_NVRAM_PrintJson(void)
                              "%s {\"name\": \"%s\", \"size\": %zu}",
                              (o > 0) ? "," : "",
                              states[i], blobsize);
-                if (n >= sizeof(state_str) - o)
+                if (n < 0 || (size_t)n >= sizeof(state_str) - o)
                     goto exit;
                 o += n;
             } else if (rc != TPM_RETRY) {
