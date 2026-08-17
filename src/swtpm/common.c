@@ -932,9 +932,9 @@ static int tcp_open_socket(unsigned short port, const char *bindaddr,
     } else {
         af = AF_INET;
 
+        memset(&si, 0, sizeof(si));
         si.sin_family = af;
         si.sin_port = htons(port);
-        memset(&si.sin_zero, 0, sizeof(si.sin_zero));
 
         dst = &si.sin_addr.s_addr;
         sa = (struct sockaddr *)&si;
