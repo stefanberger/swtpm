@@ -166,7 +166,7 @@ SWTPM_NVRAM_LinearFile_DoOpenURI(const char *uri)
     if (mmap_state.fd >= 0)
         return TPM_SUCCESS;
 
-    mmap_state.fd = open(path, O_RDWR|O_CREAT,
+    mmap_state.fd = open(path, O_RDWR|O_CREAT|O_NOFOLLOW,
                          tpmstate_get_mode(&mode_is_default));
     if (mmap_state.fd < 0) {
         logprintf(STDERR_FILENO,
