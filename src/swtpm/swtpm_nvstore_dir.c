@@ -122,6 +122,7 @@ SWTPM_NVRAM_Lock_Dir(const char *backend_uri, unsigned int retries)
         .l_start = 0,
         .l_len = 0,
     };
+    int s_errno;
 
     if (lock_fd >= 0)
         return 0;
@@ -148,7 +149,11 @@ SWTPM_NVRAM_Lock_Dir(const char *backend_uri, unsigned int retries)
             break;
         if (retries == 0) {
             rc = TPM_FAIL;
+
+            s_errno = errno; /* preserve errno */
             SWTPM_NVRAM_Unlock_Dir();
+            errno = s_errno;
+
             break;
         }
         retries--;
