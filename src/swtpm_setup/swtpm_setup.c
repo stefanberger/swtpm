@@ -202,7 +202,8 @@ static int tpm_get_specs_and_attributes(struct swtpm *swtpm, gchar ***params)
     if (ret) {
         g_strfreev(*params);
         *params = NULL;
-        g_object_unref(jr);
+        if (jr)
+            g_object_unref(jr);
     }
 error:
     g_object_unref(jp);
