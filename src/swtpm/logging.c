@@ -112,12 +112,8 @@ int log_init_fd(int fd)
 {
     int flags;
 
-    if (logfd != STDERR_FILENO && logfd != STDOUT_FILENO)
-        close(logfd);
-    logfd = fd;
-
-    if (logfd >= 0) {
-        flags = fcntl(logfd, F_GETFL);
+    if (fd >= 0) {
+        flags = fcntl(fd, F_GETFL);
         if (flags == -1)
             return -1;
         if ((flags & (O_RDWR|O_WRONLY)) == 0) {
@@ -125,6 +121,9 @@ int log_init_fd(int fd)
             return -1;
         }
     }
+    if (logfd != STDERR_FILENO && logfd != STDOUT_FILENO)
+        close(logfd);
+    logfd = fd;
 
     log_prefix_clear();
 
