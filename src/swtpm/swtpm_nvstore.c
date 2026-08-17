@@ -288,7 +288,7 @@ SWTPM_NVRAM_GetFilenameForName(char *filename,       /* output: filename */
 /* Load 'data' of 'length' from the 'name'.
 
    'data' must be freed after use.
-   
+
    Returns
         0 on success.
         TPM_RETRY and NULL,0 on non-existent file (non-fatal, first time start up)
@@ -401,7 +401,7 @@ SWTPM_NVRAM_StoreData_Intern(const unsigned char *data,
                           td[0].tlv.length);
             }
             flags |= BLOB_FLAG_ENCRYPTED;
-            if (SWTPM_NVRAM_FileKey_Size() == SWTPM_AES256_BLOCK_SIZE)
+            if (SWTPM_NVRAM_FileKey_Size() == SWTPM_AES256_KEY_SIZE)
                 flags |= BLOB_FLAG_ENCRYPTED_256BIT_KEY;
         } else {
             td_len = 1;
@@ -487,8 +487,8 @@ SWTPM_NVRAM_KeyParamCheck(uint32_t keylen,
 {
     TPM_RESULT rc = 0;
 
-    if (keylen != SWTPM_AES128_BLOCK_SIZE &&
-        keylen != SWTPM_AES256_BLOCK_SIZE) {
+    if (keylen != SWTPM_AES128_KEY_SIZE &&
+        keylen != SWTPM_AES256_KEY_SIZE) {
         rc = TPM_BAD_KEY_PROPERTY;
     }
     switch (encmode) {
@@ -931,7 +931,7 @@ SWTPM_NVRAM_DecryptData(const encryptionkey *key,
         break;
         case 2:
             keylen = (hdrflags & flag_256bitkey)
-                      ? SWTPM_AES256_BLOCK_SIZE : SWTPM_AES128_BLOCK_SIZE;
+                      ? SWTPM_AES256_KEY_SIZE : SWTPM_AES128_KEY_SIZE;
             if (keylen != key->symkey.userKeyLength) {
                 logprintf(STDERR_FILENO,
                           "Wrong decryption key. Need %zu bit key.\n",
@@ -1193,7 +1193,7 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
             goto err_exit;
 
         *is_encrypted = TRUE;
-        if (SWTPM_NVRAM_FileKey_Size() == SWTPM_AES256_BLOCK_SIZE)
+        if (SWTPM_NVRAM_FileKey_Size() == SWTPM_AES256_KEY_SIZE)
             flags |= BLOB_FLAG_ENCRYPTED_256BIT_KEY;
     } else {
         *is_encrypted = FALSE;
@@ -1213,7 +1213,7 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
     if (SWTPM_NVRAM_Has_MigrationKey()) {
         /* we have to encrypt it now with the migration key */
         flags |= BLOB_FLAG_MIGRATION_ENCRYPTED;
-        if (SWTPM_NVRAM_MigrationKey_Size() == SWTPM_AES256_BLOCK_SIZE)
+        if (SWTPM_NVRAM_MigrationKey_Size() == SWTPM_AES256_KEY_SIZE)
              flags |= BLOB_FLAG_MIGRATION_256BIT_KEY;
 
         td_len = 3;

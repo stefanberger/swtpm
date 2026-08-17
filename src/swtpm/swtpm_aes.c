@@ -86,7 +86,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
     TPM_RESULT          rc = 0;
     uint32_t            pad_length;
     unsigned char       *decrypt_data_pad;
-    unsigned char       ivec[SWTPM_AES256_BLOCK_SIZE];       /* initial chaining vector */
+    unsigned char       ivec[SWTPM_AES_BLOCK_SIZE];       /* initial chaining vector */
     TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_data =
 	(TPM_SYMMETRIC_KEY_DATA *)tpm_symmetric_key_token;
     size_t userKeyLength = tpm_symmetric_key_token->userKeyLength;
@@ -96,16 +96,16 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
     decrypt_data_pad = NULL;    /* freed @1 */
 
     if (rc == 0) {
-        if (u_ivec != NULL && u_ivec_length != userKeyLength) {
+        if (u_ivec != NULL && u_ivec_length < sizeof(ivec)) {
             logprintf(STDERR_FILENO,
                       "SWTPM_SymmetricKeyData_Encrypt: IV is %u bytes, "
                       "but expected %zu bytes\n", u_ivec_length,
-                      tpm_symmetric_key_token->userKeyLength);
+                      sizeof(ivec));
             rc = TPM_ENCRYPT_ERROR;
         } else {
             if (u_ivec) {
                 /* copy user-provided IV */
-                memcpy(ivec, u_ivec, u_ivec_length);
+                memcpy(ivec, u_ivec, sizeof(ivec));
             } else {
                 memset(ivec, 0, sizeof(ivec));
             }
@@ -197,7 +197,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
     uint32_t		pad_length;
     uint32_t		i;
     unsigned char       *pad_data;
-    unsigned char       ivec[SWTPM_AES256_BLOCK_SIZE];       /* initial chaining vector */
+    unsigned char       ivec[SWTPM_AES_BLOCK_SIZE];       /* initial chaining vector */
     TPM_SYMMETRIC_KEY_DATA *tpm_symmetric_key_data =
 	(TPM_SYMMETRIC_KEY_DATA *)tpm_symmetric_key_token;
     size_t userKeyLength = tpm_symmetric_key_token->userKeyLength;
@@ -213,15 +213,15 @@ TPM_RESULT SWTPM_SymmetricKeyData_Decrypt(unsigned char **decrypt_data,   /* out
         }
     }
     if (rc == 0) {
-        if (u_ivec != NULL && u_ivec_length != userKeyLength) {
+        if (u_ivec != NULL && u_ivec_length < sizeof(ivec)) {
             logprintf(STDERR_FILENO,
                       "SWTPM_SymmetricKeyData_Decrypt: IV is %u bytes, "
-                      "but expected %zu bytes\n", u_ivec_length, userKeyLength);
+                      "but expected %zu bytes\n", u_ivec_length, sizeof(ivec));
             rc = TPM_DECRYPT_ERROR;
         } else {
             if (u_ivec) {
                 /* copy user-provided IV */
-                memcpy(ivec, u_ivec, u_ivec_length);
+                memcpy(ivec, u_ivec, sizeof(ivec));
             } else {
                 memset(ivec, 0, sizeof(ivec));
             }
