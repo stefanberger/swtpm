@@ -1983,8 +1983,8 @@ int main(int argc, char *argv[])
             user_certsdir = g_strdup(optarg);
             flags |= SETUP_WRITE_EK_CERT_FILES_F;
             break;
-        case 'u':
-            if (optarg == NULL && optind < argc && argv[optind][0] != '0')
+        case 'u': /* --create-config-files */
+            if (optarg == NULL && optind < argc && argv[optind][0] != '-')
                 optarg = argv[optind++];
             ret = handle_create_config_files(optarg);
             goto out;
