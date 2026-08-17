@@ -67,7 +67,7 @@ int get_profile_names(const gchar *swtpm_capabilities_json, gchar ***profile_nam
     *profile_names = g_malloc0((num + 1) * sizeof(char *));
     for (i = 0; i < num; i++) {
         if (!json_reader_read_element(jr, i)) {
-            logerr(gl_LOGFILE, "Could not parse JSON list: %s\n", error->message);
+            logerr(gl_LOGFILE, "Could not parse JSON list\n");
             goto error_str_array_free;
         }
         (*profile_names)[i] = g_strdup(json_reader_get_string_value(jr));
