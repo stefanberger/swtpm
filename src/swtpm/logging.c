@@ -34,7 +34,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 #include "config.h"
 
 #include "sys_dependencies.h"
@@ -138,7 +138,6 @@ int log_init_fd(int fd)
  */
 int log_set_level(unsigned int level)
 {
-    log_level = level;
     char *prefixbuf = NULL;
     int ret = 0;
 
@@ -154,6 +153,7 @@ int log_set_level(unsigned int level)
         TPMLIB_SetDebugPrefix(prefixbuf);
         free(prefixbuf);
     }
+    log_level = level;
 
     if (logfd != SUPPRESS_LOGGING)
         TPMLIB_SetDebugFD(logfd);
