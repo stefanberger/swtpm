@@ -185,7 +185,7 @@ int create_config_files(gboolean overwrite, gboolean root_flag,
         if (!g_file_set_contents(configfiles[i], filedata[i], -1, &error)) {
             fprintf(stderr,
                     "Could not write to %s: %s\n",
-                    configfiles[i], strerror(errno));
+                    configfiles[i], error->message);
             delete_files = TRUE;
             goto error;
         }
