@@ -1799,6 +1799,7 @@ int main(int argc, char *argv[])
     const struct passwd *curr_user;
     struct group *curr_grp;
     char *endptr;
+    unsigned long long tmp_fd;
     gboolean swtpm_has_tpm12 = FALSE;
     gboolean swtpm_has_tpm2 = FALSE;
     int fds_to_pass[2] = { -1, -1 };
@@ -1925,23 +1926,27 @@ int main(int argc, char *argv[])
             g_free(keyfile);
             keyfile = g_strdup(optarg);
             break;
-        case 'X': /* --pwdfile-fd' */
-            keyfile_fd = strtoull(optarg, &endptr, 10);
-            if (*endptr != '\0' && keyfile_fd >= INT_MAX) {
+        case 'X': /* --keyfile-fd */
+            errno = 0;
+            tmp_fd = strtoull(optarg, &endptr, 10);
+            if (*endptr != '\0' || endptr == optarg || errno || tmp_fd >= INT_MAX) {
                 fprintf(stderr, "Invalid file descriptor '%s'\n", optarg);
                 goto error;
             }
+            keyfile_fd = tmp_fd;
             break;
         case 'k': /* --pwdfile */
             g_free(pwdfile);
             pwdfile = g_strdup(optarg);
             break;
-        case 'K': /* --pwdfile-fd' */
-            pwdfile_fd = strtoull(optarg, &endptr, 10);
-            if (*endptr != '\0' || pwdfile_fd >= INT_MAX) {
+        case 'K': /* --pwdfile-fd */
+            errno = 0;
+            tmp_fd = strtoull(optarg, &endptr, 10);
+            if (*endptr != '\0' || endptr == optarg || errno || tmp_fd >= INT_MAX) {
                 fprintf(stderr, "Invalid file descriptor '%s'\n", optarg);
                 goto error;
             }
+            pwdfile_fd = tmp_fd;
             break;
         case 'p': /* --cipher */
             g_free(cipher);
@@ -2014,11 +2019,13 @@ int main(int argc, char *argv[])
             json_profile_file = g_strdup(optarg);
             break;
         case 'G': /* --profile-file-fd */
-            json_profile_fd = strtoull(optarg, &endptr, 10);
-            if (*endptr != '\0' || json_profile_fd >= INT_MAX) {
+            errno = 0;
+            tmp_fd = strtoull(optarg, &endptr, 10);
+            if (*endptr != '\0' || endptr == optarg || errno || tmp_fd >= INT_MAX) {
                 fprintf(stderr, "Invalid file descriptor '%s'\n", optarg);
                 goto error;
             }
+            json_profile_fd = tmp_fd;
             break;
         case 'j': /* --profile-remove-disabled */
             if (strcmp(optarg, "fips-host") != 0 &&
