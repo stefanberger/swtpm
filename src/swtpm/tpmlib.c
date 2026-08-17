@@ -122,8 +122,10 @@ static int tpmlib_check_disabled_algorithms(unsigned int *fix_flags,
 
     ret = json_get_submap_value(info_data, "RuntimeAlgorithms", "Enabled",
                                 &enabled);
-    if (ret)
+    if (ret) {
+        ret = -1;
         goto error;
+    }
 
     algorithms = g_strsplit(enabled, ",", -1);
 
