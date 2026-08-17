@@ -549,16 +549,18 @@ SWTPM_NVRAM_RestoreBackup_Dir(const char *uri)
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_RestoreBackup_Dir: Error (fatal) renaming from backup file: %s\n",
                   strerror(errno));
-        if (access_res == 0)
+        if (access_res == 0) {
             if (rename(bakfile2, filepath) < 0) { /* revert rename @1 */
                 logprintf(STDERR_FILENO,
                           "SWTPM_NVRAM_RestoreBackup_Dir: Failed to revert file renaming: %s\n",
                           strerror(errno));
             }
+        }
         rc = TPM_FAIL;
     }
 
-    if (rc == 0) {
+    if (rc == 0 && access_res == 0) {
+        /* @1 only occurred if access_res == 0 */
         irc = rename(bakfile2, bakfile);
         if (irc < 0) {
             if (rename(filepath, bakfile) < 0 || /* revert @2 */
@@ -567,6 +569,7 @@ SWTPM_NVRAM_RestoreBackup_Dir(const char *uri)
                           "SWTPM_NVRAM_RestoreBackup_Dir: Failed to revert file renaming(s): %s\n",
                           strerror(errno));
             }
+            rc = TPM_FAIL;
         }
     }
 
