@@ -2897,7 +2897,7 @@ static int swtpm_tpm12_nv_write_value(struct swtpm *self, uint32_t nvindex,
 
     ((struct tpm_req_header *)req)->size = htobe32(req_len);
 
-    return transfer(self, req, req_len, "TPM_NV_DefineSpace", FALSE,
+    return transfer(self, req, req_len, "TPM_NV_WriteValue", FALSE,
                     NULL, NULL, TPM_DURATION_SHORT);
 }
 
