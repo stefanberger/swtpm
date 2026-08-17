@@ -330,6 +330,9 @@ key_from_pwdfile_fd(int fd, unsigned char *key, size_t *keylen,
         /* EOF ? */
         if ((size_t)len < filelen - offset) {
             len += offset;
+            if (len <= 6)
+                logprintf(STDERR_FILENO,
+                          "Warning: Passphrase is only %zd bytes long\n", len);
             break;
         }
         /* expecting more bytes */
