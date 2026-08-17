@@ -2200,7 +2200,7 @@ int main(int argc, char *argv[])
     if ((json_profile != NULL) +
         (json_profile_name != NULL) +
         (json_profile_file != NULL) +
-        (json_profile_fd > 0) > 1) {
+        (json_profile_fd >= 0) > 1) {
         logerr(gl_LOGFILE, "Only one of --profile, --profile-name, --profile-file, and --profile-file-fd may be given.\n");
         goto error;
     }
@@ -2209,7 +2209,7 @@ int main(int argc, char *argv[])
          (json_profile ||
           json_profile_name ||
           json_profile_file ||
-          json_profile_fd > 0)) {
+          json_profile_fd >= 0)) {
             logerr(gl_LOGFILE, "Reconfiguration does not accept a (new) profile.\n");
             goto error;
     }
