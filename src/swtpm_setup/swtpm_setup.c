@@ -2352,7 +2352,7 @@ int main(int argc, char *argv[])
             goto error;
 
         if ((iakkeyalgo != KEYALGO_NONE || idevidkeyalgo != KEYALGO_NONE) &&
-            (flags & SETUP_CREATE_EK_F)== 0 ) {
+            (flags & SETUP_EK_CERT_F) == 0 ) {
             fprintf(stderr, "When creating IAK and/or IDevID keys, then an EK certificate must be created as well.\n");
             goto error;
         }
