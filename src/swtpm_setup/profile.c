@@ -86,6 +86,7 @@ error_unref_jp:
 
 error_str_array_free:
     g_strfreev(*profile_names);
+    *profile_names = NULL;
 
     goto error_unref_jr;
 }
