@@ -757,7 +757,8 @@ int ctrlchannel_process_fd(int fd,
             if (!remain)
                 break;
 
-            n = read_eintr(fd, &data->u.req.data, sizeof(data->u.req.data));
+            n = read_eintr(fd, &data->u.req.data,
+                           min(remain, sizeof(data->u.req.data)));
             if (n <= 0) {
                 res = TPM_IOERROR;
                 break;
