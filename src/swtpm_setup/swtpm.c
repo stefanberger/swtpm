@@ -2397,6 +2397,13 @@ static int swtpm_tpm2_get_capability(struct swtpm *self, uint32_t cap, uint32_t 
     if (ret != 0)
         return 1;
 
+    if (tpmresp_len < 27) {
+        logerr(self->logfile,
+               "Response from TPM2_GetCapability is too short! %zu < 27\n",
+               tpmresp_len);
+        return 1;
+    }
+
     memcpy(&val, &tpmresp[23], sizeof(val));
     *res = be32toh(val);
 
