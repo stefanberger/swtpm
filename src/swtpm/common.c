@@ -914,7 +914,7 @@ static int tcp_open_socket(unsigned short port, const char *bindaddr,
     socklen_t sa_len;
     void *dst;
 
-    if (index(bindaddr, ':')) {
+    if (strchr(bindaddr, ':')) {
         af = AF_INET6;
 
         memset(&si6, 0, sizeof(si6));

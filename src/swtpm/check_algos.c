@@ -631,7 +631,7 @@ unsigned int check_ossl_algorithms_are_disabled(const gchar *const*algorithms,
 
 static gchar *algorithms_gencmpstr(gchar *input, ssize_t *len)
 {
-    char *equals = index(input, '=');
+    char *equals = strchr(input, '=');
 
     if (equals)
         *len = equals - input;
