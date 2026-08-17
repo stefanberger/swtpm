@@ -363,7 +363,7 @@ static int do_cmd_get_info(struct swtpm *self, uint64_t swtpm_info_flags,
     if (tpmresp_len < 8 + sizeof(length))
         goto err_too_short;
     memcpy(&length, &tpmresp[8], sizeof(length));
-    length = htobe32(length);
+    length = be32toh(length);
 
     if (tpmresp_len < 12 + length)
         goto err_too_short;
