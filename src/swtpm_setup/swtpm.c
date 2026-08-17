@@ -2220,7 +2220,7 @@ static int swtpm_tpm2_nv_writelock(struct swtpm *self, uint32_t nvindex)
 {
     struct tpm_req_header hdr = TPM_REQ_HEADER_INITIALIZER(TPM2_ST_SESSIONS, 0, TPM2_CC_NV_WRITELOCK);
     struct tpm2_authblock authblock = TPM2_AUTHBLOCK_INITIALIZER(TPM2_RS_PW);
-    g_autofree unsigned char *req;
+    g_autofree unsigned char *req = NULL;
     ssize_t req_len;
 
     req_len = memconcat(&req,
