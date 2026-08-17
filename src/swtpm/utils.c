@@ -418,6 +418,7 @@ ssize_t file_write(const char *filename, int flags, mode_t mode,
 {
     mode_t orig_umask = 0;
     ssize_t res;
+    int s_errno;
     int fd;
 
     if (clear_umask)
@@ -435,17 +436,25 @@ ssize_t file_write(const char *filename, int flags, mode_t mode,
     if (write_full(fd, buffer, buflen) != res)
         res = -1;
 
-    if (do_fsync && fsync_eintr(fd) < 0)
+    if (res == (ssize_t)buflen && do_fsync && fsync_eintr(fd) < 0)
         res = -1;
 
-    if (close(fd) < 0)
+    s_errno = errno;
+    if (close(fd) < 0) { /* clobbers errno */
+        if (res == (ssize_t)buflen)
+            s_errno = errno;
         res = -1;
+    }
+    errno = s_errno;
 
-    if (do_fsync && fsync_dir)
+    if (res == (ssize_t)buflen && do_fsync && fsync_dir)
         res = fsync_on_dir(fsync_dir);
 
-    if (res < 0)
-        unlink(filename);
+    if (res < 0) {
+        s_errno = errno;
+        unlink(filename); /* clobbers errno */
+        errno = s_errno;
+    }
 
     return res;
 }
