@@ -2531,7 +2531,7 @@ static int swtpm_tpm12_run_swtpm_bios(struct swtpm *self)
     return 0;
 }
 
-static int swptm_tpm12_create_endorsement_keypair(struct swtpm *self,
+static int swtpm_tpm12_create_endorsement_keypair(struct swtpm *self,
                                                   gchar **pubek, size_t *pubek_len)
 {
     unsigned char req[] = {
@@ -2949,7 +2949,7 @@ static int swtpm_tpm12_nv_lock(struct swtpm *self)
 
 static const struct swtpm12_ops swtpm_tpm12_ops = {
     .run_swtpm_bios = swtpm_tpm12_run_swtpm_bios,
-    .create_endorsement_key_pair = swptm_tpm12_create_endorsement_keypair,
+    .create_endorsement_key_pair = swtpm_tpm12_create_endorsement_keypair,
     .take_ownership = swtpm_tpm12_take_ownership,
     .write_ek_cert_nvram = swtpm_tpm12_write_ek_cert_nvram,
     .write_platform_cert_nvram = swtpm_tpm12_write_platform_cert_nvram,
