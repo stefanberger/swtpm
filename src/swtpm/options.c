@@ -69,6 +69,25 @@ option_error_set(char **error, const char *format, ...)
     (void)ret;
 }
 
+static int
+option_strtoul(const char *val, char **endptr, int base, long unsigned int *lui, char **error)
+{
+    const char *_val = val;
+
+    while (isspace(*(unsigned char *)_val))
+        _val++;
+    if (*_val == '-') {
+        option_error_set(error, "invalid required positive number '%s'", val);
+        return -1;
+    }
+
+    errno = 0;
+    /* must call with original 'val' */
+    *lui = strtoul(val, endptr, base);
+
+    return 0;
+}
+
 /*
  * option_value_add
  * Add a option's value that was parsed following a template to the collection
@@ -87,7 +106,7 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
     int ret = 0;
     char *endptr = NULL;
     long int li;
-    long unsigned int lui;
+    long unsigned int lui = 0;
     struct passwd *passwd;
     struct group *group;
     size_t idx = ovs->n_options;
@@ -127,21 +146,13 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
 
         break;
     case OPT_TYPE_UINT:
-        errno = 0;
-
-        while (isspace(*(unsigned char *)val))
-            val++;
-        if (*val == '-') {
-            option_error_set(error, "invalid positive number '%s'", val);
+        if (option_strtoul(val, &endptr, 10, &lui, error) < 0)
             return -1;
-        }
-
-        lui = strtoul(val, &endptr, 10);
         if (*endptr != '\0' || endptr == val) {
             option_error_set(error, "invalid number '%s'", val);
             return -1;
         }
-        if (errno == ERANGE || lui > UINT_MAX) {
+        if (errno || lui > UINT_MAX) {
             option_error_set(error, "number %lu outside valid range", lui);
             return -1;
         }
@@ -156,12 +167,13 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
         }
         break;
     case OPT_TYPE_MODE_T:
-        lui = strtol(val, &endptr, 8);
-        if (*endptr != '\0') {
+        if (option_strtoul(val, &endptr, 8, &lui, error) < 0)
+            return -1;
+        if (*endptr != '\0' || endptr == val) {
             option_error_set(error, "invalid mode type '%s'", val);
             return -1;
         }
-        if (lui > 0777) {
+        if (errno || lui > 0777) {
             option_error_set(error, "mode %s is invalid", val);
             return -1;
         }
@@ -169,9 +181,10 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
 
         break;
     case OPT_TYPE_UID_T:
-        lui = strtol(val, &endptr, 10);
-        if (*endptr == '\0') {
-            if (lui > UINT_MAX) {
+        if (option_strtoul(val, &endptr, 10, &lui, error) < 0)
+            return -1;
+        if (*endptr == '\0' && endptr != val) {
+            if (errno || lui > UINT_MAX) {
                 option_error_set(error, "uid %s outside valid range", val);
                 return -1;
             }
@@ -188,9 +201,10 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
 
         break;
     case OPT_TYPE_GID_T:
-        lui = strtol(val, &endptr, 10);
-        if (*endptr == '\0') {
-            if (lui > UINT_MAX) {
+        if (option_strtoul(val, &endptr, 10, &lui, error) < 0)
+            return -1;
+        if (*endptr == '\0' && endptr != val) {
+            if (errno || lui > UINT_MAX) {
                 option_error_set(error, "gid %s outside valid range", val);
                 return -1;
             }
@@ -203,7 +217,7 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
             }
             lui = group->gr_gid;
         }
-        ovs->options[idx].u.gid = (uid_t)lui;
+        ovs->options[idx].u.gid = (gid_t)lui;
 
         break;
     }
