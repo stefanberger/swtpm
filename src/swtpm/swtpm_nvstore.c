@@ -577,7 +577,7 @@ static int SWTPM_HMAC(unsigned char *md, unsigned int *md_len,
         !EVP_MAC_update(ctx, ivec, ivec_length))
         goto err;
 
-    if (!EVP_MAC_final(ctx, md, &outl, *md_len))
+    if (!EVP_MAC_final(ctx, md, &outl, (size_t)*md_len))
         goto err;
     *md_len = outl;
 
