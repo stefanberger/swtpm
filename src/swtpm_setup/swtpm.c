@@ -650,7 +650,7 @@ static const struct ek_params {
             .keysize = 48,
         },
         .ek_handle = TPM2_EK_ECC_SECP384R1_HANDLE,
-        .keytype = "rsa384r1",
+        .keytype = "secp384r1",
         .nvindex_ekcert = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKCERT,
         .nvindex_template = TPM2_NV_INDEX_ECC_SECP384R1_HI_EKTEMPLATE,
     }, {
