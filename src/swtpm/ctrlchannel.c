@@ -720,7 +720,7 @@ int ctrlchannel_process_fd(int fd,
         }
 
         *res_p = htobe32(res);
-        out_len = sizeof(re->u.resp);
+        out_len = sizeof(pl->u.resp);
         break;
 
     case CMD_HASH_START:
