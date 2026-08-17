@@ -1,5 +1,5 @@
 /*
- * utils.s -- utilities
+ * utils.c -- utilities
  *
  * (c) Copyright IBM Corporation 2014, 2015, 2019.
  *
