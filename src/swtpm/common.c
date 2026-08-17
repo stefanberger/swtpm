@@ -592,13 +592,14 @@ error:
 
 /*
  * parse_pid_options:
- * Parse and act upon the parsed 'pid' options.
+ * Parse the 'pid' options.
  *
  * @options: the 'pid' options to parse
  * @pidfile: Point to pointer for pidfile
  * @pidfilefd: Pointer to file descriptor for pidfile
  *
- * Returns 0 on success, -1 on failure.
+ * Returns 0 on success with either pidfile or pidfilefd holding a value;
+ * returns -1 on failure.
  */
 static int
 parse_pid_options(const char *options, char **pidfile, int *pidfilefd)
@@ -671,10 +672,14 @@ handle_pid_options(const char *options)
     if (parse_pid_options(options, &pidfile, &pidfilefd) < 0)
         return -1;
 
-    if (pidfile && pidfile_set(pidfile) < 0)
-        ret = -1;
-    else if (pidfile_set_fd(pidfilefd) < 0)
-        ret = -1;
+    if (pidfile) {
+        if (pidfile_set(pidfile) < 0)
+            ret = -1;
+        SWTPM_CLOSE(pidfilefd);
+    } else if (pidfilefd >= 0) {
+        if (pidfile_set_fd(pidfilefd) < 0)
+            ret = -1;
+    }
 
     free(pidfile);
 
