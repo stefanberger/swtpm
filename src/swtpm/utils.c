@@ -384,6 +384,7 @@ static int fsync_on_dir(const char *fsync_dir)
 {
     int dir_fd;
     int res = 0;
+    int s_errno;
 
     dir_fd = open(fsync_dir, O_RDONLY);
     if (dir_fd < 0)
@@ -392,8 +393,13 @@ static int fsync_on_dir(const char *fsync_dir)
     if (fsync_eintr(dir_fd) < 0)
         res = -1;
 
-    if (close(dir_fd) < 0)
+    s_errno = errno;
+    if (close(dir_fd) < 0) { /* clobbers errno */
+        if (res == 0)
+            s_errno = errno;
         res = -1;
+    }
+    errno = s_errno;
 
     return res;
 }
