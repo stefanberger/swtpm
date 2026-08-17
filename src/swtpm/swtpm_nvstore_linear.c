@@ -79,8 +79,9 @@ static uint32_t
 SWTPM_NVRAM_Linear_GetFileNr(const char *name)
 {
     uint32_t rc = 0;
+
     if (strcmp(name, TPM_PERMANENT_ALL_NAME) == 0) {
-        rc += 0;
+        /* rc += 0; */
     } else if (strcmp(name, TPM_VOLATILESTATE_NAME) == 0) {
         rc += 1;
     } else if (strcmp(name, TPM_SAVESTATE_NAME) == 0) {
