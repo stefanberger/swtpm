@@ -1920,6 +1920,9 @@ static int swtpm_tpm2_create_spk(struct swtpm *self, enum keyalgo keyalgo,
     if (ret == 0)
         logit(self->logfile,
               "Successfully created storage primary key with handle 0x%x.\n", TPM2_SPK_HANDLE);
+    else
+        logerr(self->logfile,
+               "Could not make storage primary key permanent.\n");
 
     ret = swtpm_tpm2_flushcontext(self, curr_handle);
     if (ret != 0) {
