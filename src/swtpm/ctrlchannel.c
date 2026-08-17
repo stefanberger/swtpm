@@ -292,7 +292,7 @@ static int ctrlchannel_receive_state(ptm_setstate_priv *pss, ssize_t n, int fd)
 err_send_resp:
     pss->u.resp.tpm_result = htobe32(res);
     n = write_full(fd, pss, sizeof(pss->u.resp.tpm_result));
-    if (n < 0) {
+    if (n < 0 || (size_t)n != sizeof(pss->u.resp.tpm_result)) {
         logprintf(STDERR_FILENO,
                   "Error: Could not send response: %s\n", strerror(errno));
         close(fd);
