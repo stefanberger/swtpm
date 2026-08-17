@@ -1974,7 +1974,7 @@ int main(int argc, char *argv[])
             break;
         case 'A': /* --rsa-keysize */
             g_free(rsa_keysize_str);
-            rsa_keysize_str = strdup(optarg);
+            rsa_keysize_str = g_strdup(optarg);
             flags |= SETUP_RSA_KEYSIZE_BY_USER_F;
             break;
         case '3': /* --write-ek-cert-files */
