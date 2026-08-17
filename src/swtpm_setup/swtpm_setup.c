@@ -759,7 +759,7 @@ static int get_default_profile_fd(gchar *const *config_file_lines)
 
     fd = open(profile_file, O_RDONLY);
     if (fd < 0) {
-        logerr(gl_LOGFILE, "Could not read default profile '%s': %s",
+        logerr(gl_LOGFILE, "Could not read default profile '%s': %s\n",
                profile_file, strerror(errno));
         return -2;
     }
@@ -2346,7 +2346,7 @@ int main(int argc, char *argv[])
 
         if ((iakkeyalgo != KEYALGO_NONE || idevidkeyalgo != KEYALGO_NONE) &&
             (flags & SETUP_CREATE_EK_F)== 0 ) {
-            fprintf(stderr, "When creaing IAK and/or IDevID keys, then an EK certificate must be created as well.\n");
+            fprintf(stderr, "When creating IAK and/or IDevID keys, then an EK certificate must be created as well.\n");
             goto error;
         }
     }
