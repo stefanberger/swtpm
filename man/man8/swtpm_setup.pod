@@ -165,7 +165,7 @@ Create an EK certificate; this implies --createek.
 
 =item B<--create-platform-cert>
 
-Create a platform certificate; this implies --create-ek-cert.
+Create a platform certificate; this implies --createek.
 
 =item B<--lock-nvram>
 

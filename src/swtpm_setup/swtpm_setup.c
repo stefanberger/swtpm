@@ -1234,7 +1234,7 @@ static void usage(const char *prgname, const char *default_config_file)
         "--create-ek-cert : Create an EK certificate; this implies --createek\n"
         "\n"
         "--create-platform-cert\n"
-        "                 : Create a platform certificate; this implies --create-ek-cert\n"
+        "                 : Create a platform certificate; this implies --createek\n"
         "\n"
         "--create-spk     : Create storage primary key; this requires --tpm2; deprecated\n"
         "\n"
