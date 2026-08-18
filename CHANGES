@@ -4,6 +4,26 @@ Note: Use swtpm >= 0.10.0 since it handles signing of SHA1 better.
       This version of swtpm requires OPENSSL_ENABLE_SHA1_SIGNATURES=1 env.
       variable to be set to be allowed to sign a SHA1!
 
+version 0.9.1:
+   - swtpm:
+     - Fix length check in SWTPM_NVRAM_CheckHeader() (CVE-2026-75900)
+     - Properly check for truncation following snprintf call
+     - Return TPM_FAIL from invalid header version case
+   - swtpm_setup:
+     - Initialize key_description with a default string
+   - selinux:
+     - Add rule for logging to svirt_image_t labeled files from swtpm_t
+     - Add rule for swtpm to be able to read password from pipe
+     - allow to map state file
+     - add NFS permissions for swtpm_t
+     - Add rule to allow swtpm_t opening of virt_log_t files (BZ 2278123)
+   - tests:
+     - Remove unnecessary include of openssl/engine.h
+     - Set OPENSSL_ENABLE_SHA1_SIGNATURES=1 for IBMTSS2 test
+     - Set OPENSSL_ENABLE_SHA1_SIGNATURES=1 on swtpm in IBMTSS2 test
+     - Extend regex to allow for optional RSA-4096 keys
+     - Retry NVWrite command after 0x922 return code and inc lockout counter
+
 version 0.9.0:
   Note: The SElinux policy for swtpm was completely redone. For systems
         with an SELinux policy the same policy (>= 40.17) as used in
