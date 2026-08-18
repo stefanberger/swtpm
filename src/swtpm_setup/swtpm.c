@@ -2961,7 +2961,6 @@ static const struct swtpm12_ops swtpm_tpm12_ops = {
 static void swtpm_init(struct swtpm *swtpm,
                        gchar **swtpm_exec_l, const gchar *state_path,
                        const gchar *keyopts, const gchar *logfile,
-                       int *fds_to_pass, size_t n_fds_to_pass,
                        gboolean is_tpm2, const gchar *json_profile,
                        int json_profile_fd,
                        const gchar *profile_remove_disabled_param)
@@ -2971,8 +2970,6 @@ static void swtpm_init(struct swtpm *swtpm,
     swtpm->state_path = state_path;
     swtpm->keyopts = keyopts;
     swtpm->logfile = logfile;
-    swtpm->fds_to_pass = fds_to_pass;
-    swtpm->n_fds_to_pass = n_fds_to_pass;
     swtpm->is_tpm2 = is_tpm2;
     swtpm->json_profile = json_profile;
     swtpm->json_profile_fd = json_profile_fd;
@@ -2984,13 +2981,12 @@ static void swtpm_init(struct swtpm *swtpm,
 }
 
 struct swtpm12 *swtpm12_new(gchar **swtpm_exec_l, const gchar *state_path,
-                            const gchar *keyopts, const gchar *logfile,
-                            int *fds_to_pass, size_t n_fds_to_pass)
+                            const gchar *keyopts, const gchar *logfile)
 {
     struct swtpm12 *swtpm12 = g_malloc0(sizeof(struct swtpm12));
 
     swtpm_init(&swtpm12->swtpm, swtpm_exec_l, state_path, keyopts, logfile,
-               fds_to_pass, n_fds_to_pass, FALSE, NULL, 0, NULL);
+               FALSE, NULL, 0, NULL);
     swtpm12->ops = &swtpm_tpm12_ops;
 
     return swtpm12;
@@ -2998,15 +2994,13 @@ struct swtpm12 *swtpm12_new(gchar **swtpm_exec_l, const gchar *state_path,
 
 struct swtpm2 *swtpm2_new(gchar **swtpm_exec_l, const gchar *state_path,
                          const gchar *keyopts, const gchar *logfile,
-                         int *fds_to_pass, size_t n_fds_to_pass,
                          const gchar *json_profile, int json_profile_fd,
                          const gchar *profile_remove_disabled_param)
 {
     struct swtpm2 *swtpm2 = g_malloc0(sizeof(struct swtpm2));
 
     swtpm_init(&swtpm2->swtpm, swtpm_exec_l, state_path, keyopts, logfile,
-               fds_to_pass, n_fds_to_pass, TRUE, json_profile, json_profile_fd,
-               profile_remove_disabled_param);
+               TRUE, json_profile, json_profile_fd, profile_remove_disabled_param);
     swtpm2->ops = &swtpm_tpm2_ops;
 
     return swtpm2;

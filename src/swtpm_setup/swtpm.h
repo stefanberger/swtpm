@@ -91,8 +91,6 @@ struct swtpm {
     const gchar *state_path;
     const gchar *keyopts;
     const gchar *logfile;
-    const int *fds_to_pass;
-    size_t n_fds_to_pass;
     gboolean is_tpm2;
     const char *json_profile;
     int json_profile_fd;
@@ -114,12 +112,10 @@ struct swtpm2 {
 };
 
 struct swtpm12 *swtpm12_new(gchar **swtpm_prg_l, const gchar *tpm_state_path,
-                            const gchar *swtpm_keyopts, const gchar *logfile,
-                            int *fds_to_pass, size_t n_fds_to_pass);
+                            const gchar *swtpm_keyopts, const gchar *logfile);
 
 struct swtpm2 *swtpm2_new(gchar **swtpm_prg_l, const gchar *tpm_state_path,
                          const gchar *swtpm_keyopts, const gchar *logfile,
-                         int *fds_to_pass, size_t n_fds_to_pass,
                          const gchar *json_profile, int json_profile_fd,
                          const gchar *profile_remove_disabled_param);
 

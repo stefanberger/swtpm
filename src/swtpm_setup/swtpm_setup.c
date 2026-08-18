@@ -830,7 +830,7 @@ malformatted:
 /* Simulate manufacturing a TPM 2: create keys and certificates */
 static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                      const gchar *tpm2_state_path, const gchar *vmid, const gchar *pcr_banks,
-                     const gchar *swtpm_keyopt, int *fds_to_pass, size_t n_fds_to_pass,
+                     const gchar *swtpm_keyopt,
                      enum keyalgo ek1keyalgo, unsigned int ek1keyalgo_param,
                      enum keyalgo ek2keyalgo, unsigned int ek2keyalgo_param,
                      enum keyalgo iakkeyalgo, unsigned int iakkeyalgo_param,
@@ -849,8 +849,7 @@ static int init_tpm2(unsigned long flags, gchar **swtpm_prg_l, const gchar *conf
     int ret;
 
     swtpm2 = swtpm2_new(swtpm_prg_l, tpm2_state_path, swtpm_keyopt, gl_LOGFILE,
-                        fds_to_pass, n_fds_to_pass, json_profile, json_profile_fd,
-                        profile_remove_disabled_param);
+                        json_profile, json_profile_fd, profile_remove_disabled_param);
     if (swtpm2 == NULL)
         return 1;
     swtpm = &swtpm2->swtpm;
@@ -1030,8 +1029,7 @@ static int tpm12_create_certs(unsigned long flags, const gchar *config_file,
 static int init_tpm(unsigned long flags, gchar **swtpm_prg_l, const gchar *config_file,
                     const gchar *tpm_state_path, const gchar *ownerpass, const gchar *srkpass,
                     const gchar *vmid, const gchar *swtpm_keyopt,
-                    int *fds_to_pass, size_t n_fds_to_pass, const gchar *certsdir,
-                    const gchar *user_certsdir)
+                    const gchar *certsdir, const gchar *user_certsdir)
 {
     struct swtpm12 *swtpm12;
     struct swtpm *swtpm;
@@ -1039,8 +1037,7 @@ static int init_tpm(unsigned long flags, gchar **swtpm_prg_l, const gchar *confi
     size_t pubek_len = 0;
     int ret = 1;
 
-    swtpm12 = swtpm12_new(swtpm_prg_l, tpm_state_path, swtpm_keyopt, gl_LOGFILE,
-                          fds_to_pass, n_fds_to_pass);
+    swtpm12 = swtpm12_new(swtpm_prg_l, tpm_state_path, swtpm_keyopt, gl_LOGFILE);
     if (swtpm12 == NULL)
         return 1;
     swtpm = &swtpm12->swtpm;
@@ -1803,8 +1800,6 @@ int main(int argc, char *argv[])
     unsigned long long tmp_fd;
     gboolean swtpm_has_tpm12 = FALSE;
     gboolean swtpm_has_tpm2 = FALSE;
-    int fds_to_pass[2] = { -1, -1 };
-    unsigned n_fds_to_pass = 0;
     char tmpbuffer[200];
     gboolean no_iak = FALSE;
     time_t now;
@@ -2263,9 +2258,6 @@ int main(int argc, char *argv[])
             json_profile = get_default_profile(config_file_lines);
     }
 
-    if (json_profile_fd >= 0)
-        fds_to_pass[n_fds_to_pass++] = json_profile_fd;
-
     if ((flags & SETUP_TPM2_F) != 0 && json_profile) {
         if (validate_json_profile((const char **)swtpm_prg_l, json_profile) != 0)
             goto error;
@@ -2303,11 +2295,9 @@ int main(int argc, char *argv[])
         swtpm_keyopt = g_strdup_printf("pwdfile=%s%s", pwdfile, cipher);
         logit(gl_LOGFILE, "  The TPM's state will be encrypted using a key derived from a passphrase.\n");
     } else if (keyfile_fd >= 0) {
-        fds_to_pass[n_fds_to_pass++] = keyfile_fd;
         swtpm_keyopt = g_strdup_printf("fd=%ld%s", keyfile_fd, cipher);
         logit(gl_LOGFILE, "  The TPM's state will be encrypted with a provided key (fd).\n");
     } else if (pwdfile_fd >= 0) {
-        fds_to_pass[n_fds_to_pass++] = pwdfile_fd;
         swtpm_keyopt = g_strdup_printf("pwdfd=%ld%s", pwdfile_fd, cipher);
         logit(gl_LOGFILE, "  The TPM's state will be encrypted using a key derived from a passphrase (fd).\n");
     }
@@ -2392,7 +2382,7 @@ int main(int argc, char *argv[])
 
     if ((flags & SETUP_TPM2_F) == 0) {
         ret = init_tpm(flags, swtpm_prg_l, config_file, tpm_state_path, ownerpass, srkpass, vmid,
-                       swtpm_keyopt, fds_to_pass, n_fds_to_pass, certsdir, user_certsdir);
+                       swtpm_keyopt, certsdir, user_certsdir);
     } else {
         if (ek1keyalgo_param == 0)
             ek1keyalgo_param = rsa_keysize; // default
@@ -2400,7 +2390,7 @@ int main(int argc, char *argv[])
             ek2keyalgo_param = TPM2_ECC_NIST_P384; // default
 
         ret = init_tpm2(flags, swtpm_prg_l, config_file, tpm_state_path, vmid, pcr_banks,
-                       swtpm_keyopt, fds_to_pass, n_fds_to_pass,
+                       swtpm_keyopt,
                        ek1keyalgo, ek1keyalgo_param,
                        ek2keyalgo, ek2keyalgo_param,
                        iakkeyalgo, iakkeyalgo_param,
