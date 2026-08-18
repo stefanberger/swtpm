@@ -293,9 +293,9 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
 
         s = g_strrstr(create_certs_tool, G_DIR_SEPARATOR_S);
         if (s)
-            prgname = strdup(&s[1]);
+            prgname = g_strdup(&s[1]);
         else
-            prgname = strdup(create_certs_tool);
+            prgname = g_strdup(create_certs_tool);
 
         for (idx = 0; flags_to_certfiles[idx].filename != NULL; idx++) {
             if (cert_flags & flags_to_certfiles[idx].flag) {
