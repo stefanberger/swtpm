@@ -2690,6 +2690,8 @@ static int swtpm_tpm12_take_ownership(struct swtpm *self, const unsigned char ow
         logerr(self->logfile, "Could not create public RSA key!\n");
         goto error_free_bn;
     }
+    /* ownership of mod and exp is with rsakey now */
+    mod = exp = NULL;
 # endif
     if (EVP_PKEY_assign_RSA(pkey, rsakey) != 1) {
         logerr(self->logfile, "Could not create public RSA key!\n");
