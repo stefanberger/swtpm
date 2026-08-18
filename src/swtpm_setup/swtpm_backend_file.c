@@ -73,7 +73,7 @@ static int delete_state(void *state) {
         }
         /* writing less bytes than requested is bad, but won't set errno */
         errno = 0;
-        if (write(fd, zerobuf, sizeof(zerobuf)) < (long)sizeof(zerobuf)) {
+        if (write(fd, zerobuf, sizeof(zerobuf)) < (ssize_t)sizeof(zerobuf)) {
             logerr(gl_LOGFILE, "Couldn't write file for clearing %s: %s\n",
                    fstate->path, strerror(errno));
             close(fd);
