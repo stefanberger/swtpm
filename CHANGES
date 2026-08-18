@@ -1,5 +1,16 @@
 CHANGES - changes for swtpm
 
+version 0.10.2:
+   - swtpm:
+     - Fix length check in SWTPM_NVRAM_CheckHeader() (CVE-2026-75900)
+     - Properly check for truncation following snprintf call
+   - selinux:
+     - Fix policy loading with 3.11 SElinux toolchain (bsc#1271417)
+     - Add SELinux policy for virtqemud_t swtpm_t setsched process and unix socket interactions.
+   - tests:
+     - Retry NVWrite command after 0x922 return code and inc lockout counter
+     - Extend regex to allow for optional RSA-4096 keys
+
 version 0.10.1:
    - swtpm:
      - Fix build error on 32bit systems due to inconsistent _FILE_OFFSET_BITS
