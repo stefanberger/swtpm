@@ -1,5 +1,15 @@
 CHANGES - changes for swtpm
 
+verison 0.7.5:
+  - swtpm:
+    - Fix length check in SWTPM_NVRAM_CheckHeader() (CVE-2026-75900)
+    - Properly check for truncation following snprintf call
+    - Return TPM_FAIL from invalid header version case
+  - swtpm_setup:
+    - Initialize key_description with a default string
+  - tests:
+    - Extend regex to allow for optional RSA-4096 keys
+
 version 0.7.4:
   - swtpm:
     - Restore logging to stderr on log open failure
