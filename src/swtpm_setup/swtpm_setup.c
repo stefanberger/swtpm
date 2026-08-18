@@ -416,7 +416,6 @@ static int tpm2_extract_certificate_data(const gchar *certdata, size_t certdata_
     const ASN1_INTEGER *serial;
     X509 *cert = NULL;
     BIGNUM *bn = NULL;
-    BIO *bio = NULL;
     int ret = 1;
 
     if (!ecd->needed)
@@ -458,7 +457,6 @@ static int tpm2_extract_certificate_data(const gchar *certdata, size_t certdata_
 cleanup:
     BN_free(bn);
     X509_free(cert);
-    BIO_free(bio);
 
     return ret;
 }
