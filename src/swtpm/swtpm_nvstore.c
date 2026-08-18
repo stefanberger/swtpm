@@ -481,6 +481,37 @@ TPM_RESULT SWTPM_NVRAM_Store_Volatile(void)
     return rc;
 }
 
+/*
+ * Flush libtpms's in-memory PERMANENT state to disk so that the next
+ * SWTPM_NVRAM_GetStateBlob(PERMANENT) returns a blob consistent with what
+ * libtpms is actually running. Counterpart to SWTPM_NVRAM_Store_Volatile().
+ *
+ * Without this, GET_STATEBLOB(PERMANENT) on the migration-out path reads a
+ * file that may be missing, empty, or stale relative to libtpms RAM (the
+ * file is only written by _plat__NvCommit() on UT_NV-class commands), and
+ * an empty/short-read blob then poisons the destination's state restore.
+ */
+TPM_RESULT SWTPM_NVRAM_Store_Permanent(void)
+{
+    TPM_RESULT     rc = 0;
+    char           *name = TPM_PERMANENT_ALL_NAME;
+    uint32_t       tpm_number = 0;
+    unsigned char  *buffer = NULL;
+    uint32_t       buflen = 0;
+
+    TPM_DEBUG(" SWTPM_Store_Permanent: Name %s\n", name);
+    if (rc == 0) {
+        rc = TPMLIB_GetState(TPMLIB_STATE_PERMANENT, &buffer, &buflen);
+    }
+    if (rc == 0 && buflen > 0) {
+        rc = SWTPM_NVRAM_StoreData(buffer, buflen, tpm_number, name);
+    }
+
+    free(buffer);
+
+    return rc;
+}
+
 static TPM_RESULT
 SWTPM_NVRAM_KeyParamCheck(uint32_t keylen,
                           enum encryption_mode encmode)
