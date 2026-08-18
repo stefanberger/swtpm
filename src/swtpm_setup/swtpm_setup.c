@@ -1491,6 +1491,9 @@ static unsigned int parse_rsa_keysize(unsigned long flags, char **rsa_keysize_st
     size_t n_keysizes;
     int ret;
 
+    if (rsa_keysize_str == NULL || *rsa_keysize_str == NULL)
+        return 0;
+
     if (strcmp(*rsa_keysize_str, "max") == 0) {
         ret = get_rsa_keysizes(flags, (const char **)swtpm_prg_l, &keysizes, &n_keysizes);
         if (ret)
