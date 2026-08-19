@@ -357,6 +357,7 @@ SWTPM_NVRAM_LoadData(unsigned char **data,     /* freed by caller */
         *length = decrypt_length;
     } else {
         *data = NULL;
+        free(decrypt_data);
     }
 
     return rc;
