@@ -6,7 +6,9 @@ on:
 
 jobs:
   coverity:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:26.04
     env:
       LIBTPMS_CONFIG: "--without-tpm1"
       PREFIX:         "/usr"
