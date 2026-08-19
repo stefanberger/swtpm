@@ -667,7 +667,9 @@ static TPM_RESULT SWTPM_RollAndSetGlobalIvec(tlv_data *td,
 
     if (RAND_bytes(g_ivec, g_ivec_length) != 1) {
         /* random data from stack to the rescue */
-        SHA256(g_ivec, g_ivec_length, hashbuf);
+        logprintf(STDERR_FILENO,
+                  "Warning: RAND_bytes failed to return %u random bytes.\n",
+                  g_ivec_length);
         SHA256(data, sizeof(data), hashbuf);
         memcpy(g_ivec, hashbuf,
                g_ivec_length < sizeof(hashbuf)
