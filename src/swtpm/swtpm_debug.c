@@ -114,22 +114,24 @@ void SWTPM_PrintAll(const char *string, const char *indentation,
             if (i && !( i % 16 )) {
                 SWTPM_AppendPrintf(&linebuffer, "\n");
 
-                logprintfA(STDERR_FILENO, 0, "%s", linebuffer);
+                if (linebuffer) {
+                    logprintfA(STDERR_FILENO, 0, "%s", linebuffer);
 
-                free(linebuffer);
-                linebuffer = NULL;
+                    free(linebuffer);
+                    linebuffer = NULL;
+                }
                 SWTPM_AppendPrintf(&linebuffer, "%s", indentation);
             }
-
             SWTPM_AppendPrintf(&linebuffer, "%.2X ", buff[i]);
         }
         SWTPM_AppendPrintf(&linebuffer, "\n");
-        logprintf(STDERR_FILENO, "%s", linebuffer);
-        free(linebuffer);
+        if (linebuffer) {
+            logprintf(STDERR_FILENO, "%s", linebuffer);
+            free(linebuffer);
+        }
     }
     else {
         logprintf(STDERR_FILENO, "%s null\n", string);
     }
     return;
 }
-
