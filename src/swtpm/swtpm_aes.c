@@ -93,6 +93,7 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
     EVP_CIPHER_CTX *ctx = NULL;
     evpfunc evpfn;
 
+    *encrypt_data = NULL;
     decrypt_data_pad = NULL;    /* freed @1 */
 
     if (rc == 0) {
@@ -170,6 +171,12 @@ TPM_RESULT SWTPM_SymmetricKeyData_Encrypt(unsigned char **encrypt_data,   /* out
         }
         //TPM_PrintFour("  SWTPM_SymmetricKeyData_Encrypt: Output", *encrypt_data);
     }
+
+    if (rc) {
+        free(*encrypt_data);
+        *encrypt_data = NULL;
+    }
+
     free(decrypt_data_pad);     /* @1 */
     EVP_CIPHER_CTX_free(ctx);
 
