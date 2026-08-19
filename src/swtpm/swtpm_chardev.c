@@ -533,8 +533,16 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
                           "Cannot parse info value '%s'.\n", optarg);
                 exit(EXIT_FAILURE);
             }
-            if (mlp.fd < 0)
+            /* Need mlp.fd to be any valid file descriptor */
+            if (mlp.fd < 0) {
                 mlp.fd = open("/dev/zero", O_RDWR);
+                if (mlp.fd < 0 && (mlp.fd = open("/dev/null", O_RDWR)) < 0) {
+                    logprintf(STDERR_FILENO,
+                              "Could neither open /dev/zero nor /dev/null: %s\n",
+                              strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+            }
             break;
 
         default:
