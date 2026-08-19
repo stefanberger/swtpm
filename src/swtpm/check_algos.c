@@ -221,9 +221,10 @@ static int check_cipher(const char *ciphername,
 {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     EVP_CIPHER *c = EVP_CIPHER_fetch(NULL, ciphername, NULL);
+    int ret = (c == NULL);
 
     EVP_CIPHER_free(c);
-    return c == NULL;
+    return ret;
 #else
     const unsigned char key[] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
                                   0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
