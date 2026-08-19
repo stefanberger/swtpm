@@ -101,10 +101,6 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
     int lockfd;
     int ret = 1;
     struct stat statbuf;
-    int template1_file_fd = -1;
-    int template2_file_fd = -1;
-    g_autofree gchar *template1_file = NULL;
-    g_autofree gchar *template2_file = NULL;
     gchar **openssl_env = NULL;
 
     lockfd = lock_file(lockfile);
@@ -213,15 +209,6 @@ static int create_localca_cert(const gchar *lockfile, const gchar *statedir,
     ret = 0;
 
 error:
-    if (template1_file_fd >= 0)
-        close(template1_file_fd);
-    if (template1_file != NULL)
-        unlink(template1_file);
-
-    if (template2_file_fd >= 0)
-        close(template2_file_fd);
-    if (template2_file != NULL)
-        unlink(template2_file);
     g_strfreev(openssl_env);
 
     unlock_file(lockfd);
