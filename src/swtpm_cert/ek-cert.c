@@ -257,9 +257,9 @@ static void usage(const char *prg)
         , prg);
 }
 
-static char hex_to_str(char digit)
+static int hex_to_val(char digit)
 {
-    char value = -1;
+    int value = -1;
 
     if (digit >= '0' && digit <= '9') {
         value = digit - '0';
@@ -277,7 +277,7 @@ static unsigned char *hex_str_to_bin(const char *hexstr, int *modulus_len)
     int len;
     unsigned char *result;
     int i = 0, j = 0;
-    char val1, val2;
+    int val1, val2;
 
     len = strlen(hexstr);
     if (len > MAX_HEX_STRING_SIZE) {
@@ -300,14 +300,14 @@ static unsigned char *hex_str_to_bin(const char *hexstr, int *modulus_len)
     j = 0;
 
     while (i < len) {
-        val1 = hex_to_str(hexstr[i]);
+        val1 = hex_to_val(hexstr[i]);
         if (val1 < 0) {
             fprintf(stderr, "Illegal hex character '%c'.\n", hexstr[i]);
             free(result);
             return NULL;
         }
         i++;
-        val2 = hex_to_str(hexstr[i]);
+        val2 = hex_to_val(hexstr[i]);
         if (val2 < 0) {
             fprintf(stderr, "Illegal hex character '%c'.\n", hexstr[i]);
             free(result);
