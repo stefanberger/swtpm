@@ -1375,7 +1375,7 @@ int main(int argc, char *argv[])
                         optarg);
                 goto cleanup;
             }
-            if (days > INT_MAX) {
+            if (days > INT_MAX || days < -1 /* -1 is for no-expiration */) {
                 fprintf(stderr, "Days value of '%s' is outside valid range.\n",
                         optarg);
                 goto cleanup;
