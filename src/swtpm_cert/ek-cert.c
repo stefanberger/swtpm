@@ -1818,7 +1818,7 @@ int main(int argc, char *argv[])
     case CERT_TYPE_IDEVID:
         err = create_iak_info(&datum, tpm_serial_num);
         if (err) {
-            fprintf(stderr, "Could not create IAK info");
+            fprintf(stderr, "Could not create IAK info.\n");
             goto cleanup;
         }
         critical = 0;
