@@ -1017,7 +1017,12 @@ readfd:
 
 static int password_cb(char *buf, int buflen, int rwflag, void *userdata)
 {
-    size_t to_copy = strlen(userdata);
+    size_t to_copy;
+
+    if (!userdata)
+        return 0;
+
+    to_copy = strlen(userdata);
     if (buflen < 0 || to_copy > (size_t)buflen)
         return 0;
 
