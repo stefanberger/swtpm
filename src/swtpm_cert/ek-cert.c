@@ -1176,7 +1176,7 @@ int main(int argc, char *argv[])
     long days = 365;
     char *sigkeypass = NULL;
     unsigned char ser_number[20];
-    size_t ser_number_len;
+    size_t ser_number_len = 0;
     long int exponent = 0x10001;
     bool write_pem = false;
     enum cert_type_t certtype = CERT_TYPE_EK;
