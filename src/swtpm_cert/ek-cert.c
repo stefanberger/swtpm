@@ -1721,7 +1721,7 @@ int main(int argc, char *argv[])
         ASN1_TIME_set_string(asn1_time, "99991231235959Z");
     } else {
         CHECK_OSSL_NULLPTR(X509_time_adj_ex(asn1_time, days, 0, &now),
-                           "Days '%lu' may be too far in the future.\n",
+                           "Days '%ld' may be too far in the future.\n",
                            days);
     }
     CHECK_OSSL_RETURN1(X509_set1_notAfter(crt, asn1_time) != 1,
