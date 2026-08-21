@@ -318,9 +318,14 @@ static int call_create_certs(unsigned long flags, unsigned int cert_flags,
                     g_error_free(error);
                     ret = 1;
                     break;
-                } else if (exit_status != 0) {
+                } else if (WIFEXITED(exit_status) && WEXITSTATUS(exit_status) != 0) {
                     logerr(gl_LOGFILE, "%s exit with status %d: %s\n",
                            prgname, WEXITSTATUS(exit_status), standard_error);
+                    ret = 1;
+                    break;
+                } else if (WIFSIGNALED(exit_status)) {
+                    logerr(gl_LOGFILE, "%s terminated_by_signal %d\n",
+                           prgname, WTERMSIG(exit_status));
                     ret = 1;
                     break;
                 }
@@ -1134,9 +1139,13 @@ static int check_state_overwrite(const gchar **swtpm_prg_l, unsigned int flags,
         return 1;
     }
 
-    if (exit_status != 0) {
+    if (WIFEXITED(exit_status) && WEXITSTATUS(exit_status) != 0) {
         logerr(gl_LOGFILE, "%s exit with status %d: %s\n",
-               swtpm_prg_l[0], exit_status, standard_output);
+               swtpm_prg_l[0], WEXITSTATUS(exit_status), standard_output);
+        return 1;
+    } else if (WIFSIGNALED(exit_status)) {
+        logerr(gl_LOGFILE, "%s terminated by signal %d\n",
+               swtpm_prg_l[0], WTERMSIG(exit_status));
         return 1;
     }
 
