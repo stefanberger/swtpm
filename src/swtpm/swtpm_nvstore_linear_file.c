@@ -246,7 +246,7 @@ SWTPM_NVRAM_LinearFile_Flush(const char* uri SWTPM_ATTR_UNUSED,
     /* Cygwin uses Win API FlushViewOfFile, which we call with len = 0 */
     msync_count = 0;
 #else
-    /* msync_count = count + (pagesize - 1) & ~(pagesize - 1); */
+    /* msync_count = (count + (pagesize - 1)) & ~(pagesize - 1); */
     if (__builtin_add_overflow(count, pagesize - 1, &msync_count)) {
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_LinearFile_Flush: Integer overflow with count %u and pagesize %u\n",
