@@ -248,20 +248,27 @@ static int ctrlchannel_receive_state(ptm_setstate_priv *pss, ssize_t n, int fd)
         goto err_send_resp;
     }
 
-    blob = malloc(blob_length);
-    if (!blob) {
-        logprintf(STDERR_FILENO,
-                  "Could not allocate %u bytes.\n", blob_length);
-        res = TPM_FAIL;
-        goto err_send_resp;
+    if (blob_length > 0) {
+        blob = malloc(blob_length);
+        if (!blob) {
+            logprintf(STDERR_FILENO,
+                      "Could not allocate %u bytes.\n", blob_length);
+            res = TPM_FAIL;
+            goto err_send_resp;
+        }
     }
 
     n -= offsetof(ptm_setstate, u.req.data);
     /* n holds the number of available data bytes */
-    if (n < 0 || (size_t)n > sizeof(pss->u.req.data)) {
+    if (n < 0 ||
+        (size_t)n > sizeof(pss->u.req.data) ||
+        (blob_length == 0 && n != 0)) {
         res = TPM_BAD_PARAMETER;
         goto err_send_resp;
     }
+
+    if (blob_length == 0)
+        goto set_state;
 
     while (true) {
         if ((uint32_t)n > remain) {
@@ -286,6 +293,7 @@ static int ctrlchannel_receive_state(ptm_setstate_priv *pss, ssize_t n, int fd)
         }
     }
 
+set_state:
     res = SWTPM_NVRAM_SetStateBlob(blob, blob_length, is_encrypted,
                                    tpm_number, blobtype);
 
