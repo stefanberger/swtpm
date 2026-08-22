@@ -1210,6 +1210,7 @@ TPM_RESULT SWTPM_NVRAM_GetStateBlob(unsigned char **data,
         goto err_exit;
 
     tlv_data_free(td, td_len);
+    td_len = 0;
 
     /* @buffer contains tlv data */
 

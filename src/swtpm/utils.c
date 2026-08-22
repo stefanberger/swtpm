@@ -509,6 +509,7 @@ ssize_t file_read(const char *filename, void **buffer,
     struct stat statbuf;
     ssize_t ret = -1;
     size_t buflen;
+    int s_errno;
     int n, fd;
 
     fd = open(filename, O_RDONLY);
@@ -544,8 +545,9 @@ ssize_t file_read(const char *filename, void **buffer,
     ret = buflen;
 
 err_close:
-    if (close(fd) < 0)
-        ret = -1;
+    s_errno = errno;
+    close(fd);/* ignore errors on close */
+    errno = s_errno;
 
     return ret;
 
