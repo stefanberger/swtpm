@@ -35,10 +35,11 @@ man8_MANS = \
 	$(man8_generated_MANS) \
 	$(man8_static_MANS)
 
-%.8 : %.pod
+SUFFIXES: .pod .8
+.pod.8:
 	@pod2man -r "swtpm" \
 		-c "" \
-		-n $(basename $@) \
+		-n $(<:.pod=) \
 		--section=8 $< > $@
 
 EXTRA_DIST = $(man8_static_MANS) $(man8_PODS)

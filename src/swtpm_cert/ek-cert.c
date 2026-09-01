@@ -61,13 +61,21 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <openssl/core_names.h>
-#include <openssl/param_build.h>
+#ifndef LIBRESSL_VERSION_NUMBER
+# include <openssl/core_names.h>
+# include <openssl/param_build.h>
+#endif
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
-#include <openssl/provider.h>
+#ifndef LIBRESSL_VERSION_NUMBER
+# include <openssl/provider.h>
+#else
+# include <openssl/engine.h>
+#endif
 #include <openssl/ui.h>
-#include <openssl/store.h>
+#ifndef LIBRESSL_VERSION_NUMBER
+# include <openssl/store.h>
+#endif
 
 #include <gmp.h>
 
@@ -176,11 +184,15 @@ typedef struct TCG_PCCLIENT_STORED_FULL_CERT_HEADER {
 
 static bool uses_hashless_signing(const EVP_PKEY *key)
 {
+#ifndef LIBRESSL_VERSION_NUMBER
     return EVP_PKEY_is_a(key, "ml-dsa-44") ||
            EVP_PKEY_is_a(key, "ml-dsa-65") ||
            EVP_PKEY_is_a(key, "ml-dsa-87") ||
            EVP_PKEY_is_a(key, "ED25519") ||
            EVP_PKEY_is_a(key, "ED448");
+#else
+    return EVP_PKEY_base_id(key) == EVP_PKEY_ED25519;
+#endif
 }
 
 static void versioninfo(void)
@@ -321,6 +333,7 @@ static unsigned char *hex_str_to_bin(const char *hexstr, int *modulus_len)
     return result;
 }
 
+#ifndef LIBRESSL_VERSION_NUMBER
 static EVP_PKEY *
 create_rsa_from_modulus(unsigned char *modulus, unsigned int modulus_len,
                         uint32_t exponent)
@@ -362,7 +375,41 @@ cleanup:
 
     return pubkey;
 }
+#else
+static EVP_PKEY *
+create_rsa_from_modulus(unsigned char *modulus, unsigned int modulus_len,
+                        uint32_t exponent)
+{
+    RSA *rsa = RSA_new();
+    EVP_PKEY *pubkey = EVP_PKEY_new();
+    BIGNUM *n = BN_bin2bn(modulus, modulus_len, NULL);
+    BIGNUM *e = BN_new();
 
+    if (!rsa || !pubkey || !e || !n) {
+        fprintf(stderr, "Out of memory.\n");
+        goto cleanup;
+    }
+
+    CHECK_OSSL_RETURN1(!BN_set_word(e, exponent),
+                       "Could not set exponent.\n");
+    CHECK_OSSL_RETURN1(!RSA_set0_key(rsa, n, e, NULL),
+                       "Could not push BN.\n");
+    n = NULL;
+    e = NULL;
+    CHECK_OSSL_RETURN1(!EVP_PKEY_assign_RSA(pubkey, rsa),
+                       "Could not create RSA public key.\n");
+    return pubkey;
+
+cleanup:
+    EVP_PKEY_free(pubkey);
+    RSA_free(rsa);
+    BN_free(e);
+    BN_free(n);
+    return NULL;
+}
+#endif
+
+#ifndef LIBRESSL_VERSION_NUMBER
 static EVP_PKEY *
 create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
                         unsigned char *ecc_y, unsigned int ecc_y_len,
@@ -423,7 +470,81 @@ cleanup:
 
     return pubkey;
 }
+#else
+static EVP_PKEY *
+create_ecc_from_x_and_y(unsigned char *ecc_x, unsigned int ecc_x_len,
+                        unsigned char *ecc_y, unsigned int ecc_y_len,
+                        const char *ecc_curveid)
+{
+    EVP_PKEY *pubkey = NULL;
+    EC_KEY *ec_key = NULL;
+    EC_GROUP *group = NULL;
+    EC_POINT *point = NULL;
+    BIGNUM *x = NULL;
+    BIGNUM *y = NULL;
+    size_t exp_len;
+    int nid;
 
+    if (ecc_curveid == NULL || !strcmp(ecc_curveid, "secp256r1")) {
+        nid = NID_X9_62_prime256v1;
+        exp_len = BITS_TO_BYTES(256);
+    } else if (!strcmp(ecc_curveid, "secp384r1")) {
+        nid = NID_secp384r1;
+        exp_len = BITS_TO_BYTES(384);
+    } else if (!strcmp(ecc_curveid, "secp521r1")) {
+        nid = NID_secp521r1;
+        exp_len = BITS_TO_BYTES(521);
+    } else {
+        fprintf(stderr, "Unsupported ECC curve id: %s\n", ecc_curveid);
+        goto cleanup;
+    }
+
+    if (ecc_x_len > exp_len || ecc_y_len > exp_len) {
+        fprintf(stderr,
+                "EC X or Y parameter exceeds expected size of %zu bytes\n",
+                exp_len);
+        goto cleanup;
+    }
+
+    x = BN_bin2bn(ecc_x, ecc_x_len, NULL);
+    y = BN_bin2bn(ecc_y, ecc_y_len, NULL);
+    group = EC_GROUP_new_by_curve_name(nid);
+    ec_key = EC_KEY_new();
+    pubkey = EVP_PKEY_new();
+    if (!x || !y || !group || !ec_key || !pubkey) {
+        fprintf(stderr, "Out of memory.\n");
+        goto cleanup;
+    }
+
+    CHECK_OSSL_RETURN1(!EC_KEY_set_group(ec_key, group),
+                       "Could not set EC group.\n");
+    point = EC_POINT_new(group);
+    CHECK_OSSL_NULLPTR1(point, "Could not create EC point.\n");
+    CHECK_OSSL_RETURN1(!EC_POINT_set_affine_coordinates(group, point,
+                                                            x, y, NULL),
+                       "Could not set EC point coordinates.\n");
+    CHECK_OSSL_RETURN1(!EC_KEY_set_public_key(ec_key, point),
+                       "Could not set EC public key.\n");
+    CHECK_OSSL_RETURN1(!EVP_PKEY_assign_EC_KEY(pubkey, ec_key),
+                       "Could not assign EC key.\n");
+    EC_POINT_free(point);
+    EC_GROUP_free(group);
+    BN_free(x);
+    BN_free(y);
+    return pubkey;
+
+cleanup:
+    EVP_PKEY_free(pubkey);
+    EC_KEY_free(ec_key);
+    EC_POINT_free(point);
+    EC_GROUP_free(group);
+    BN_free(x);
+    BN_free(y);
+    return NULL;
+}
+#endif
+
+#ifndef LIBRESSL_VERSION_NUMBER
 static EVP_PKEY *create_pubkey(unsigned char *public_bin, size_t public_len,
                                const char *keyalgo)
 {
@@ -455,6 +576,7 @@ cleanup:
 
     return pubkey;
 }
+#endif
 
 static int
 asn_init(void)
@@ -1038,6 +1160,7 @@ static int ui_get_pin(UI *ui, UI_STRING *uis)
     return 1;
 }
 
+#ifndef LIBRESSL_VERSION_NUMBER
 static EVP_PKEY *get_key_pkcs11(OSSL_PROVIDER *provider, const char *pkcs11uri)
 {
     OSSL_STORE_CTX *store = NULL;
@@ -1082,15 +1205,72 @@ cleanup:
 
     return sigkey;
 }
+#else
+static EVP_PKEY *
+get_key_pkcs11(const char *key_id)
+{
+    EVP_PKEY *sigkey = NULL;
+    ENGINE *engine = NULL;
+    UI_METHOD *ui_method = NULL;
+
+    if (getenv("SWTPM_PKCS11_PIN")) {
+        ui_method = UI_create_method("PIN reader");
+        CHECK_OSSL_NULLPTR1(ui_method, "Could not create the PIN reader.\n");
+
+        CHECK_OSSL_RETURN1(UI_method_set_reader(ui_method, ui_get_pin) != 0,
+                           "Could not set the PIN reader.\n");
+    }
+
+    ENGINE_load_builtin_engines();
+
+    engine = ENGINE_by_id("pkcs11");
+    if (!engine) {
+        fprintf(stderr, "Could not find pkcs11 engine.\n");
+        ERR_print_errors_fp(stderr);
+        goto cleanup;
+    }
+
+    if (!ENGINE_init(engine)) {
+        fprintf(stderr, "Could not initialize pkcs11 engine.\n");
+        ERR_print_errors_fp(stderr);
+        goto cleanup;
+    }
+
+    if (!ENGINE_set_default(engine, ENGINE_METHOD_ALL)) {
+        fprintf(stderr, "Could not set pkcs11 engine as default.\n");
+        ERR_print_errors_fp(stderr);
+        goto cleanup;
+    }
+
+    sigkey = ENGINE_load_private_key(engine, key_id, ui_method, NULL);
+    CHECK_OSSL_NULLPTR1(sigkey, "Could not get access to private key.\n");
+
+cleanup:
+    if (engine) {
+        ENGINE_finish(engine);
+        ENGINE_free(engine);
+    }
+    UI_destroy_method(ui_method);
+    return sigkey;
+}
+#endif
 
 static const EVP_MD *get_hashalg_for_signing(EVP_PKEY *signingkey)
 {
+#ifndef LIBRESSL_VERSION_NUMBER
     int bits = EVP_PKEY_get_bits(signingkey);
+#else
+    int bits = EVP_PKEY_bits(signingkey);
+#endif
     const EVP_MD *md;
 
     if (uses_hashless_signing(signingkey)) {
         md = NULL;
+#ifndef LIBRESSL_VERSION_NUMBER
     } else if (EVP_PKEY_is_a(signingkey, "RSA")) {
+#else
+    } else if (EVP_PKEY_base_id(signingkey) == EVP_PKEY_RSA) {
+#endif
         switch (bits) {
         case 2048:
             md = EVP_sha256();
@@ -1099,7 +1279,11 @@ static const EVP_MD *get_hashalg_for_signing(EVP_PKEY *signingkey)
             md = EVP_sha384();
             break;
         }
+#ifndef LIBRESSL_VERSION_NUMBER
     } else if (EVP_PKEY_is_a(signingkey, "EC")) {
+#else
+    } else if (EVP_PKEY_base_id(signingkey) == EVP_PKEY_EC) {
+#endif
         if (bits >= 512)
             md = EVP_sha512();
         else if (bits >= 384)
@@ -1157,7 +1341,10 @@ int main(int argc, char *argv[])
     X509_EXTENSION *ext = NULL;
     const X509_NAME *issuer_name = NULL;
     X509V3_CTX x509v3_ctx;
+#ifndef LIBRESSL_VERSION_NUMBER
     OSSL_PROVIDER *provider = NULL;
+#else
+#endif
     const EVP_MD *md;
     const char *pubkey_filename = NULL;
     const char *sigkey_filename = NULL;
@@ -1613,9 +1800,13 @@ int main(int argc, char *argv[])
 
             is_ecc = true;
         } else if (public_bin) {
+#ifndef LIBRESSL_VERSION_NUMBER
             if (strncmp(keyalgo, "ml-kem-", 7) == 0 ||
                 strncmp(keyalgo, "ml-dsa-", 7) == 0) {
                 pubkey = create_pubkey(public_bin, public_len, keyalgo);
+#else
+            if (0) {
+#endif
             } else {
                 fprintf(stderr, "Internal error: Unhandled keyalgo '%s'.\n",
                         keyalgo);
@@ -1638,11 +1829,16 @@ int main(int argc, char *argv[])
     }
 
     if (strstr(sigkey_filename, "pkcs11:") == sigkey_filename) {
+#ifndef LIBRESSL_VERSION_NUMBER
         provider = OSSL_PROVIDER_try_load(NULL, "pkcs11", 1);
         CHECK_OSSL_NULLPTR1(provider, "Could not load provider 'pkcs11'.\n");
 
         if (!(sigkey = get_key_pkcs11(provider, sigkey_filename)))
             goto cleanup;
+#else
+        if (!(sigkey = get_key_pkcs11(sigkey_filename)))
+            goto cleanup;
+#endif
     } else {
         if (!(fp = fopen(sigkey_filename, "r"))) {
             fprintf(stderr, "Could not open signing key file: %s\n",
@@ -1682,15 +1878,24 @@ int main(int argc, char *argv[])
     FCLOSE(fp);
 
     /* Build the certificate */
+#ifndef LIBRESSL_VERSION_NUMBER
     crt = X509_new_ex(NULL, NULL);
+#else
+    crt = X509_new();
+#endif
     CHECK_OSSL_NULLPTR1(crt, "Out of memory.\n");
 
     oct = ASN1_OCTET_STRING_new();
     CHECK_OSSL_NULLPTR1(oct, "Out of memory.\n");
 
     /* Version */
+#ifndef LIBRESSL_VERSION_NUMBER
     CHECK_OSSL_RETURN1(X509_set_version(crt, X509_VERSION_3) != 1,
                        "Could not set version on CRT.\n");
+#else
+    CHECK_OSSL_RETURN1(X509_set_version(crt, 2) != 1,
+                       "Could not set version on CRT.\n");
+#endif
 
     /* Serial Number */
     bn_serial = BN_bin2bn(ser_number, ser_number_len, NULL);
@@ -1707,8 +1912,13 @@ int main(int argc, char *argv[])
     CHECK_OSSL_NULLPTR1(issuer_name,
                         "Could not get subject name from signer cert.\n");
 
+#ifndef LIBRESSL_VERSION_NUMBER
     CHECK_OSSL_RETURN1(!X509_set_issuer_name(crt, issuer_name),
                        "Could not set issuer name on CRT.\n");
+#else
+    CHECK_OSSL_RETURN1(!X509_set_issuer_name(crt, (X509_NAME *)issuer_name),
+                       "Could not set issuer name on CRT.\n");
+#endif
 
     /* Validity */
     now = time(NULL);
@@ -2074,7 +2284,9 @@ cleanup:
     X509_EXTENSION_free(ext);
     X509_free(sigcert);
     X509_free(crt);
+#ifndef LIBRESSL_VERSION_NUMBER
     OSSL_PROVIDER_unload(provider);
+#endif
     if (fp)
         fclose(fp);
 
