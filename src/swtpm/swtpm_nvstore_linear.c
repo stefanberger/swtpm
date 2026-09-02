@@ -17,6 +17,8 @@
 #include "logging.h"
 #include "utils.h"
 
+static void SWTPM_NVRAM_Cleanup_Linear(void);
+
 static struct {
     TPM_BOOL      initialized;
     char          *loaded_uri;
@@ -118,6 +120,12 @@ SWTPM_NVRAM_Linear_AllocFile(const char *uri, uint32_t file_nr, uint32_t size)
     uint32_t cur_end;
     uint32_t i;
     uint32_t section_size = size;
+
+    if (section_size == 0 || section_size > (UINT32_MAX / 2) + 1) {
+        /* size 0 has nothing to round; a size this large can't be rounded
+           up to the next power of 2 without overflowing */
+        return TPM_SIZE;
+    }
     ROUND_TO_NEXT_POWER_OF_2_32(section_size);
 
     /* find end of current last file */
@@ -127,13 +135,21 @@ SWTPM_NVRAM_Linear_AllocFile(const char *uri, uint32_t file_nr, uint32_t size)
             continue;
         }
 
-        cur_end = le32toh(file->offset) + le32toh(file->section_length);
+        if (__builtin_add_overflow(le32toh(file->offset),
+                                   le32toh(file->section_length), &cur_end)) {
+            /* a slot with an inconsistent offset/section_length made it
+               into the header (e.g. via a bug elsewhere); don't propagate
+               the corruption into a new allocation */
+            return TPM_FAIL;
+        }
         if (cur_end > new_offset) {
             new_offset = cur_end;
         }
     }
 
-    new_size = new_offset + section_size;
+    if (__builtin_add_overflow(new_offset, section_size, &new_size)) {
+        return TPM_SIZE;
+    }
     rc = SWTPM_NVRAM_Linear_SafeResize(uri, new_size);
     if (rc) {
         return rc;
@@ -197,9 +213,19 @@ SWTPM_NVRAM_Linear_RemoveFile(const char *uri,
             if (cur_offset < next_offset) {
                 next_offset = cur_offset;
             }
-            cur_end = cur_offset + le32toh(file->section_length);
+            if (__builtin_add_overflow(cur_offset,
+                                       le32toh(file->section_length),
+                                       &cur_end)) {
+                return TPM_FAIL;
+            }
             if (cur_end > state_end) {
                 state_end = cur_end;
+            }
+            if (cur_offset < le32toh(old_file.section_length)) {
+                /* would underflow: this file claims to start after the one
+                   being removed, but is closer to the start of the store
+                   than that file's size -- the header is inconsistent */
+                return TPM_FAIL;
             }
             file->offset = htole32(cur_offset -
                                    le32toh(old_file.section_length));
@@ -207,6 +233,11 @@ SWTPM_NVRAM_Linear_RemoveFile(const char *uri,
     }
 
     if (next_offset != 0xffffffff) {
+        if (next_offset > state_end || state_end > state.length) {
+            /* the header we just walked is inconsistent with the mapped
+               store size; refuse to move data around based on it */
+            return TPM_FAIL;
+        }
         TPM_DEBUG("SWTPM_NVRAM_Linear_RemoveFile: compacting\n");
         /* if we weren't the end, compact by moving following files forward */
         memmove(state.data + le32toh(old_file.offset),
@@ -223,6 +254,102 @@ SWTPM_NVRAM_Linear_RemoveFile(const char *uri,
     }
 
     return rc;
+}
+
+/*
+    Validates every file slot's offset/data_length/section_length in the
+    loaded header against the actual size of the mapped store.
+
+    The header is untrusted input (it comes from the on-disk/mmap'd state
+    file, which may be corrupted or maliciously crafted, e.g. when the
+    backend-uri points at shared/attacker-influenced storage). Every
+    consumer of file->offset/data_length/section_length
+    (SWTPM_NVRAM_LoadData_Linear, SWTPM_NVRAM_StoreData_Linear) relies on
+    these fields being consistent with the store's real size; validating
+    them once here, with overflow-safe arithmetic, avoids having each
+    caller re-derive (or, in the store path, omit) that trust boundary
+    check itself.
+*/
+static TPM_RESULT
+SWTPM_NVRAM_Linear_ValidateFiles(void)
+{
+    unsigned int i, j;
+    uint32_t offset[SWTPM_NVSTORE_LINEAR_MAX_STATES];
+    uint32_t end[SWTPM_NVSTORE_LINEAR_MAX_STATES];
+    TPM_BOOL allocated[SWTPM_NVSTORE_LINEAR_MAX_STATES];
+    uint32_t data_length, section_length;
+    uint16_t hdrsize;
+
+    /*
+     * hdrsize is untrusted (read from the on-disk header) and is later
+     * trusted as-is by SWTPM_NVRAM_Linear_AllocFile() as the baseline
+     * offset for newly allocated slots, and by SWTPM_NVRAM_Linear_FlushHeader()
+     * as the number of header bytes to flush. A too-small hdrsize would let
+     * AllocFile place a new slot's data inside the real header (there is
+     * no other check on freshly-allocated slots, since ValidateFiles only
+     * runs once at prepare time against the header found on disk). This
+     * format has no header versioning that would call for anything other
+     * than the current fixed header size, so require an exact match.
+     */
+    hdrsize = le16toh(state.hdr->hdrsize);
+    if (hdrsize != sizeof(struct nvram_linear_hdr)) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_Linear_ValidateFiles: Corrupt linear NVRAM "
+                  "header: hdrsize=%u does not match expected size %zu\n",
+                  hdrsize, sizeof(struct nvram_linear_hdr));
+        return TPM_FAIL;
+    }
+
+    for (i = 0; i < SWTPM_NVSTORE_LINEAR_MAX_STATES; i++) {
+        struct nvram_linear_hdr_file *file = &state.hdr->files[i];
+
+        allocated[i] = FALSE;
+        offset[i] = le32toh(file->offset);
+        if (!offset[i]) {
+            /* unallocated slot */
+            continue;
+        }
+
+        data_length = le32toh(file->data_length);
+        section_length = le32toh(file->section_length);
+
+        /* The slot must start after the header (not overlap it) and its
+           end (offset + section_length, computed overflow-safely) must
+           not exceed the mapped store. */
+        if (offset[i] < sizeof(struct nvram_linear_hdr) ||
+            data_length > section_length ||
+            __builtin_add_overflow(offset[i], section_length, &end[i]) ||
+            end[i] > state.length) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_Linear_ValidateFiles: Corrupt linear NVRAM "
+                      "header: file[%u] offset=%u data_length=%u "
+                      "section_length=%u is inconsistent with store size %u\n",
+                      i, offset[i], data_length, section_length, state.length);
+            return TPM_FAIL;
+        }
+        allocated[i] = TRUE;
+    }
+
+    /* Reject slots whose [offset, offset + section_length) ranges overlap;
+       an attacker-crafted header could otherwise let one file's data alias
+       another's, corrupting it on the next store. */
+    for (i = 0; i < SWTPM_NVSTORE_LINEAR_MAX_STATES; i++) {
+        if (!allocated[i])
+            continue;
+        for (j = i + 1; j < SWTPM_NVSTORE_LINEAR_MAX_STATES; j++) {
+            if (!allocated[j])
+                continue;
+            if (offset[i] < end[j] && offset[j] < end[i]) {
+                logprintf(STDERR_FILENO,
+                          "SWTPM_NVRAM_Linear_ValidateFiles: Corrupt linear "
+                          "NVRAM header: file[%u] and file[%u] overlap\n",
+                          i, j);
+                return TPM_FAIL;
+            }
+        }
+    }
+
+    return 0;
 }
 
 static TPM_RESULT
@@ -289,7 +416,14 @@ SWTPM_NVRAM_Prepare_Linear(const char *uri)
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_PrepareLinear: Unknown format version: %d\n",
                       state.hdr->version);
+            SWTPM_NVRAM_Cleanup_Linear();
             return TPM_FAIL;
+        }
+
+        rc = SWTPM_NVRAM_Linear_ValidateFiles();
+        if (rc) {
+            SWTPM_NVRAM_Cleanup_Linear();
+            return rc;
         }
     }
 
@@ -320,6 +454,7 @@ SWTPM_NVRAM_LoadData_Linear(unsigned char **data,
     uint32_t file_nr;
     uint32_t file_offset;
     uint32_t file_data_len;
+    uint32_t file_end;
     struct nvram_linear_hdr_file *file;
 
     TPM_DEBUG("SWTPM_NVRAM_LoadData_Linear: request for %s:%d\n",
@@ -338,7 +473,8 @@ SWTPM_NVRAM_LoadData_Linear(unsigned char **data,
         return TPM_RETRY;
     }
 
-    if (file_offset + file_data_len > state.length) {
+    if (__builtin_add_overflow(file_offset, file_data_len, &file_end) ||
+        file_end > state.length) {
         /* shouldn't happen, but just to be safe */
         return TPM_FAIL;
     }
@@ -412,6 +548,19 @@ SWTPM_NVRAM_StoreData_Linear(unsigned char *filedata,
     /* resize might have changed pointer */
     file = &state.hdr->files[file_nr];
     file_offset = le32toh(file->offset);
+
+    {
+        uint32_t file_end;
+
+        if (__builtin_add_overflow(file_offset, filedata_length, &file_end) ||
+            file_end > state.length) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_StoreData_Linear: file offset=%u length=%u "
+                      "would exceed store size %u\n",
+                      file_offset, filedata_length, state.length);
+            return TPM_FAIL;
+        }
+    }
 
     if (filedata_length != le32toh(file->data_length)) {
         file->data_length = htole32(filedata_length);
