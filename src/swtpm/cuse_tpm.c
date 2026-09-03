@@ -544,9 +544,18 @@ static int tpm_start(uint32_t flags, TPMLIB_TPMVersion l_tpmversion,
 {
     DIR *dir;
     const char *uri = tpmstate_get_backend_uri();
-    const char *tpmdir = uri + strlen("dir://");
+    const char *tpmdir;
 
     *res = TPM_FAIL;
+
+    /* uri is untrusted; must have the "dir://" prefix before advancing past it */
+    if (uri == NULL || strncmp(uri, "dir://", strlen("dir://")) != 0) {
+        logprintf(STDERR_FILENO,
+                  "Error: swtpm_cuse only supports the dir:// backend URI, "
+                  "got: %s\n", uri ? uri : "(null)");
+        return -1;
+    }
+    tpmdir = uri + strlen("dir://");
 
     dir = opendir(tpmdir);
     if (dir) {
