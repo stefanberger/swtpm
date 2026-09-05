@@ -428,7 +428,11 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
                      offsetof(struct ptm_hdata, u.req.data);
             if (recvd >= needed) {
                 phd = (struct ptm_hdata *)&input->body;
-                needed += be32toh(phd->u.req.length);
+                if (__builtin_add_overflow(needed, be32toh(phd->u.req.length),
+                                           &needed)) {
+                    errno = EOVERFLOW;
+                    return -1;
+                }
             }
             break;
         case CMD_HASH_END:
@@ -450,7 +454,11 @@ static ssize_t ctrlchannel_recv_cmd(int fd,
                      offsetof(struct ptm_setstate, u.req.data);
             if (recvd >= needed) {
                 pss = (struct ptm_setstate_priv *)&input->body;
-                needed += be32toh(pss->u.req.length);
+                if (__builtin_add_overflow(needed, be32toh(pss->u.req.length),
+                                           &needed)) {
+                    errno = EOVERFLOW;
+                    return -1;
+                }
             }
             break;
         case CMD_STOP:
