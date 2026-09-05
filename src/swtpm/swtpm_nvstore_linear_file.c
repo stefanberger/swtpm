@@ -61,6 +61,14 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
         goto fail;
     }
 
+    if ((uint64_t)st.st_size > UINT32_MAX) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_LinearFile_Mmap: Unsupported file size: %lu\n",
+                  st.st_size);
+        rc = TPM_FAIL;
+        goto fail;
+    }
+
     if (st.st_size >= (off_t)sizeof(struct nvram_linear_hdr)) {
         /* valid regular file-ish */
         mmap_state.size = st.st_size;
@@ -95,10 +103,18 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
         if (ioctl(mmap_state.fd, BLKGETSIZE64, &bd_size)) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_LinearFile_Mmap: Could not get block device "
-                      "size): %s\n",
+                      "size: %s\n",
                       strerror(errno));
             rc = TPM_FAIL;
             goto fail;
+        }
+
+        if (bd_size > UINT32_MAX) {
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LinearFile_Mmap: Restricting usage of block device "
+                      "to %u bytes out of possible %lu\n",
+                      UINT32_MAX, bd_size);
+            bd_size = UINT32_MAX;
         }
 
         mmap_state.size = bd_size;
