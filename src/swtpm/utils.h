@@ -102,4 +102,6 @@ size_t strv_dedup(gchar **array, gencmpstr_t strtrafo, gboolean freethem);
 
 gchar **strv_extend(gchar **array, const gchar *const*append);
 
+uint32_t get_pagesize(void);
+
 #endif /* _SWTPM_UTILS_H_ */

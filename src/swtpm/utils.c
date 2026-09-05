@@ -941,3 +941,19 @@ gchar **strv_extend(gchar **array, const gchar *const*append)
 
     return array;
 }
+
+uint32_t get_pagesize(void)
+{
+    long n = sysconf(_SC_PAGESIZE);
+
+    if (n < 0) {
+        logprintf(STDERR_FILENO, "%s: sysconf failed: %s\n",
+                  __func__, strerror(errno));
+        return 0;
+    } else if (n == 0 || (unsigned long)n > UINT32_MAX) {
+        logprintf(STDERR_FILENO, "%s: sysconf returned bad value for _SC_PAGESIZE: %ld\n",
+                  __func__, n);
+        return 0;
+    }
+    return (uint32_t)n;
+}
