@@ -984,7 +984,10 @@ SWTPM_NVRAM_GetPlainData(unsigned char **plain, uint32_t *plain_length,
 
     switch (hdrversion) {
     case 1:
-        *plain = malloc(length);
+        *plain = NULL;
+        /* length == 0 is treated as error - should not be passed */
+        if (length > 0)
+            *plain = malloc(length);
         if (*plain) {
             memcpy(*plain, data, length);
             *plain_length = length;
