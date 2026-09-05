@@ -1,6 +1,7 @@
 #include "config.h"
 
 #define _GNU_SOURCE
+#include <inttypes.h>
 #include <limits.h>
 #include <unistd.h>
 #include <string.h>
@@ -24,6 +25,7 @@
 #include "swtpm_utils.h"
 #include "logging.h"
 #include "tpmstate.h"
+#include "utils.h"
 
 /*
     Provides a linear backend based on memory-mapping a filesystem path.
@@ -48,6 +50,7 @@ static struct {
 static TPM_RESULT
 SWTPM_NVRAM_LinearFile_Mmap(void)
 {
+    uint32_t pagesize;
     TPM_RESULT rc = 0;
     struct stat st;
 
@@ -57,6 +60,14 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
         logprintf(STDERR_FILENO,
                   "SWTPM_NVRAM_LinearFile_Mmap: Could not stat file: %s\n",
                   strerror(errno));
+        rc = TPM_FAIL;
+        goto fail;
+    }
+
+    if ((uint64_t)st.st_size > UINT32_MAX) {
+        logprintf(STDERR_FILENO,
+                  "SWTPM_NVRAM_LinearFile_Mmap: Unsupported file size: %" PRIuMAX "\n",
+                  (uintmax_t)st.st_size);
         rc = TPM_FAIL;
         goto fail;
     }
@@ -95,10 +106,24 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
         if (ioctl(mmap_state.fd, BLKGETSIZE64, &bd_size)) {
             logprintf(STDERR_FILENO,
                       "SWTPM_NVRAM_LinearFile_Mmap: Could not get block device "
-                      "size): %s\n",
+                      "size: %s\n",
                       strerror(errno));
             rc = TPM_FAIL;
             goto fail;
+        }
+
+        if (bd_size > UINT32_MAX) {
+            pagesize = get_pagesize();
+
+            if (!pagesize) {
+                rc = TPM_FAIL;
+                goto fail;
+            }
+            logprintf(STDERR_FILENO,
+                      "SWTPM_NVRAM_LinearFile_Mmap: Restricting usage of block device "
+                      "to 0x%x bytes out of possible 0x%" PRIxMAX "\n",
+                      UINT32_MAX & ~(pagesize - 1), (uintmax_t)bd_size);
+            bd_size = UINT32_MAX & ~(pagesize - 1);
         }
 
         mmap_state.size = bd_size;
@@ -222,7 +247,6 @@ SWTPM_NVRAM_LinearFile_Flush(const char* uri SWTPM_ATTR_UNUSED,
     uint8_t *msync_offset;
     uint32_t msync_count;
     uint32_t pagesize;
-    long n;
 
     if (!mmap_state.mapped) {
         logprintf(STDERR_FILENO, "%s: Nothing mapped\n", __func__);
@@ -230,17 +254,10 @@ SWTPM_NVRAM_LinearFile_Flush(const char* uri SWTPM_ATTR_UNUSED,
     }
 
     /* msync parameters must be page-aligned */
-    n = sysconf(_SC_PAGESIZE);
-    if (n < 0) {
-        logprintf(STDERR_FILENO, "%s: sysconf failed: %s\n",
-                  __func__, strerror(errno));
+    pagesize = get_pagesize();
+    if (!pagesize)
         return TPM_FAIL;
-    } else if (n == 0 || (unsigned long)n > UINT32_MAX) {
-        logprintf(STDERR_FILENO, "%s: sysconf returned bad value for _SC_PAGESIZE: %ld\n",
-                  __func__, n);
-        return TPM_FAIL;
-    }
-    pagesize = (uint32_t)n;
+
     msync_offset = mmap_state.ptr + (offset & ~(pagesize - 1));
 #if defined(__CYGWIN__)
     /* Cygwin uses Win API FlushViewOfFile, which we call with len = 0 */
