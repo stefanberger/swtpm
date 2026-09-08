@@ -1076,15 +1076,22 @@ SWTPM_NVRAM_PrependHeader(unsigned char **data, uint32_t *length,
                           uint16_t flags)
 {
     unsigned char *out = NULL;
-    uint32_t out_len = sizeof(blobheader) + *length;
+    uint32_t out_len;
     blobheader bh = {
         .version = BLOB_HEADER_VERSION,
         .min_version = 1,
         .hdrsize = htons(sizeof(bh)),
         .flags = htons(flags),
-        .totlen = htonl(out_len),
     };
     TPM_RESULT res;
+
+    if (__builtin_add_overflow(sizeof(blobheader), *length, &out_len)) {
+        logprintf(STDERR_FILENO, "SWTPM_NVRAM_PrependHeader: length is too big: 0x%x\n",
+                  out_len);
+        res = TPM_FAIL;
+        goto error;
+    }
+    bh.totlen = htonl(out_len);
 
     out = malloc(out_len);
     if (!out) {
