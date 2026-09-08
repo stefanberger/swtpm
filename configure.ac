@@ -115,7 +115,7 @@ AC_ARG_WITH([openssl],
             [])
 
 AS_CASE([$cryptolib],[openssl],
-    [PKG_CHECK_MODULES([LIBCRYPTO],[libcrypto >= 3.5])
+    [PKG_CHECK_MODULES([LIBCRYPTO],[libcrypto >= 0.0])
     AC_CHECK_HEADERS([openssl/obj_mac.h],[],
         AC_MSG_ERROR(Is openssl-devel/libssl-dev installed?))
     AC_MSG_RESULT([Building with openssl crypto library])
@@ -139,7 +139,7 @@ AS_IF([test "$OPENSSL_CLITOOL" != "yes"],
 
 PKG_CHECK_MODULES([LIBTASN1],[libtasn1])
 
-PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.11])
+PKG_CHECK_MODULES([LIBTPMS],[libtpms >= 0.10])
 
 
 AC_CHECK_LIB(c, clock_gettime, LIBRT_LIBS="", LIBRT_LIBS="-lrt")

@@ -103,7 +103,7 @@ do
   for u in $usage; do
     echo "$u"
     if ! openssl x509 -inform der -in "${workdir}/ek.cert" -text -noout | \
-            grep "Key Usage" -A1 | \
+            grep -A1 "Key Usage" | \
             grep -q "$u"; then
       echo "Error: Could not find key usage $u in key created " \
            "with $params."
@@ -115,12 +115,29 @@ do
 
   IFS="$OIFS"
 
+  if openssl version | grep -qi "LibreSSL"; then
+    if ! openssl x509 \
+           -inform DER \
+           -in "${workdir}/ek.cert" \
+           -out "${workdir}/ek.cert.pem"; then
+      echo "Error: Could not convert DER certificate chain."
+      exit 1
+    fi
+    if ! openssl verify \
+           -CAfile "${workdir}/swtpm-localca-rootca-cert.pem" \
+           -untrusted "${ISSUERCERT}" \
+         "${workdir}/ek.cert.pem"; then
+      echo "Error: Could not verify certificate chain."
+      exit 1
+    fi
+  else # no LibreSSL
   if ! openssl verify \
          -CAfile "${workdir}/swtpm-localca-rootca-cert.pem" \
          -untrusted "${ISSUERCERT}" \
          "${workdir}/ek.cert"; then
     echo "Error: Could not verify certificate chain."
     exit 1
+  fi
   fi
 
   # Delete all keys to have CA re-created

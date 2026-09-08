@@ -143,7 +143,7 @@ for keysize in ${keysizes}; do
 		openssl x509 -inform der -in "${certfile}" -noout -text
 		exit 1
 	fi
-	if ! openssl x509 -inform der -in "${certfile}" -noout -text | grep "Key Usage" -A1 | \
+	if ! openssl x509 -inform der -in "${certfile}" -noout -text | grep -A1 "Key Usage" | \
 		grep -q "Digital Signature"; then
 		echo "Error: EK file '${certfile}' does not have key usage flag 'Digitial Signature' set."
 		openssl x509 -inform der -in "${certfile}" -noout -text
@@ -265,7 +265,7 @@ for pwdfile in "" "${PWDFILE}"; do
 		fi
 		# IAK and IDevID need serialNumber to match <company>:<ek cert akid>:<ek cert serial num>
 		if [[ ${certfile} =~ (iak|idevid) ]]; then
-			cert_vmid=$(openssl x509 -inform der --in "${certfile}" -noout -text \
+			cert_vmid=$(openssl x509 -inform der -in "${certfile}" -noout -text \
 				| sed -n 's/.*Subject:.*serialNumber[[:space:]]*=[[:space:]]*//p')
 			if [ "${cert_vmid}" != "${vmid}" ]; then
 				echo "Error: The subject serialNumber in the cert is wrong"
@@ -274,8 +274,8 @@ for pwdfile in "" "${PWDFILE}"; do
 				exit 1
 			fi
 			# The serial number in the SAN is not display 'nicely'...
-			serial=$(openssl x509 -inform der --in "${certfile}" -noout -text \
-			          | grep "Subject Alternative Name:" -A1 \
+			serial=$(openssl x509 -inform der -in "${certfile}" -noout -text \
+			          | grep -A1 "Subject Alternative Name:" \
 			          | tail -n1 \
 				  | sed -n "s/.*\(IBM[[:print:]]*\)/\1/p")
 			if [ -z "$serial" ] || \
@@ -285,8 +285,8 @@ for pwdfile in "" "${PWDFILE}"; do
 			then
 				echo "Error: serial Number does not seem to be properly formatted"
 				echo "  serial: ${serial}"
-				openssl x509 -inform der --in "${certfile}" -noout -text \
-				    | grep "Subject Alternative Name:" -A1
+				openssl x509 -inform der -in "${certfile}" -noout -text \
+				    | grep -A1 "Subject Alternative Name:"
 				exit 1
 			fi
 		fi

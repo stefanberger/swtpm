@@ -11,10 +11,10 @@
 #include <stdint.h>
 #include <time.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <sys/uio.h>
-#include <arpa/inet.h>
 
 #include <glib.h>
 
@@ -74,6 +74,10 @@ struct packet {
     struct ip     iphdr; // Cygwin has 'struct ip' but not 'struct iphdr'
     struct tcphdr tcphdr;
 } __attribute__((packed));
+#define PACKET_ETHHDR_OFF	(sizeof(struct enhanced_packet_block_hdr))
+#define PACKET_IPHDR_OFF	(PACKET_ETHHDR_OFF + sizeof(struct ethhdr))
+#define PACKET_TCPHDR_OFF	(PACKET_IPHDR_OFF + sizeof(struct ip))
+#define PACKET_DATA_OFF		(PACKET_TCPHDR_OFF + sizeof(struct tcphdr))
 
 static __attribute__((noinline)) uint32_t calc_checksum(void *array, size_t array_len)
 {
@@ -93,21 +97,31 @@ static __attribute__((noinline)) uint32_t calc_checksum(void *array, size_t arra
      return check;
 }
 
-static void calc_ip_checksum(struct packet *packet)
+static void calc_ip_checksum(char *packet)
 {
+    struct ip iphdr;
+    struct ip *packet_iphdr = (struct ip *)&packet[PACKET_IPHDR_OFF];
     uint32_t check = 0;
 
-    packet->iphdr.ip_sum = 0;
+    memcpy(&iphdr, packet_iphdr, sizeof(iphdr));
+    iphdr.ip_sum = 0;
 
-    check = calc_checksum(&packet->iphdr, sizeof(packet->iphdr));
+    check = calc_checksum(&iphdr, sizeof(iphdr));
     check = (check & 0xffff) + (check >> 16);
+    check = htons(~check);
 
-    packet->iphdr.ip_sum = htons(~check);
+    memcpy(&packet_iphdr->ip_sum, &check, sizeof(check));
 }
 
-static void calc_tcp_checksum(struct packet *packet,
+static void calc_tcp_checksum(char *packet,
                               void *payload, size_t payload_len)
 {
+    struct ip iphdr;
+    struct tcphdr tcphdr;
+    struct ip *packet_iphdr = (struct ip *)&packet[PACKET_IPHDR_OFF];
+    struct tcphdr *packet_tcphdr = (struct tcphdr *)&packet[PACKET_TCPHDR_OFF];
+    memcpy(&iphdr, packet_iphdr, sizeof(iphdr));
+    memcpy(&tcphdr, packet_tcphdr, sizeof(tcphdr));
     struct {
         uint32_t saddr;
         uint32_t daddr;
@@ -115,26 +129,27 @@ static void calc_tcp_checksum(struct packet *packet,
         uint8_t  protocol;
         uint16_t tcpseglength;
     } pseudo = {
-        .saddr = packet->iphdr.ip_src.s_addr,
-        .daddr = packet->iphdr.ip_dst.s_addr,
+        .saddr = iphdr.ip_src.s_addr,
+        .daddr = iphdr.ip_dst.s_addr,
         .reserved = 0,
-        .protocol = packet->iphdr.ip_p,
+        .protocol = iphdr.ip_p,
         .tcpseglength = htons(sizeof(struct tcphdr) + payload_len),
     };
     uint32_t check;
 
-    packet->tcphdr.th_sum = 0;
+    tcphdr.th_sum = 0;
 
     check = calc_checksum(&pseudo, sizeof(pseudo)) +
-            calc_checksum(&packet->tcphdr, sizeof(packet->tcphdr)) +
+            calc_checksum(&tcphdr, sizeof(tcphdr)) +
             calc_checksum(payload, payload_len);
 
     check = (check & 0xffff) + (check >> 16);
-    packet->tcphdr.th_sum = htons(~check);
+    check = htons(~check);
+    memcpy(&packet_tcphdr->th_sum, &check, sizeof(check));
 }
 
 /* Calculate TCP and IP checksums on a packet */
-static void calc_checksums(struct packet *packet,
+static void calc_checksums(char *packet,
                            void *payload, size_t payload_len,
                            struct pcap_state *ps)
 {
@@ -179,10 +194,13 @@ static int pcap_file_header_write(int fd)
     return write_full(fd, &shb, sizeof(shb));
 }
 
-static int pcap_packet_fill(struct packet *packet, bool to_tpm,
+static int pcap_packet_fill(char *packet, bool to_tpm,
                             uint32_t tpm_packet_len, uint32_t orig_len,
                             struct pcap_state *ps)
 {
+    struct ethhdr *packet_ethhdr = (struct ethhdr *)&packet[PACKET_ETHHDR_OFF];
+    struct ip *packet_iphdr = (struct ip *)&packet[PACKET_IPHDR_OFF];
+    struct tcphdr *packet_tcphdr = (struct tcphdr *)&packet[PACKET_TCPHDR_OFF];
     struct timespec ts;
     size_t hdrs_len;
     uint64_t ms;
@@ -193,41 +211,43 @@ static int pcap_packet_fill(struct packet *packet, bool to_tpm,
     ms = ts.tv_sec * 1000 * 1000 + ts.tv_nsec / 1000;
     hdrs_len = sizeof(struct ethhdr) + sizeof(struct ip) + sizeof(struct tcphdr);
 
-    *packet = (struct packet){
-        .epb_hdr = {
-            .block_type = BLOCK_TYPE_EPB,
-            .ts_hi = ms >> 32,
-            .ts_lo = ms,
-            .capture_len = hdrs_len + tpm_packet_len,
-            .original_len = hdrs_len + orig_len,
-        },
-        .ethhdr = {
-            .eth_type = htons(ETHERTYPE_IP),
-        },
-        .iphdr = {
-            .ip_hl = sizeof(struct ip) >> 2,
-            .ip_v = 4,
-            .ip_tos = 0x10,
-            .ip_len = htons(sizeof(struct ip) +
-                            sizeof(struct tcphdr) +
-                            tpm_packet_len),
-            .ip_id = htons(0x069b),
-            .ip_off = htons(IP_DF),
-            .ip_ttl = 64,
-            .ip_p = 6, /* TCP */
-            .ip_sum = 0,
-            .ip_src.s_addr = htonl(0x7f000001),
-            .ip_dst.s_addr = htonl(0x7f000001),
-        },
-        .tcphdr =  {
-            .th_sport = to_tpm ? htons(ps->cport) : htons(ps->tpmport),
-            .th_dport = to_tpm ? htons(ps->tpmport) : htons(ps->cport),
-            .th_seq = to_tpm ? htonl(ps->cseq) : htonl(ps->sseq),
-            .th_ack = to_tpm ? htonl(ps->sseq) : htonl(ps->cseq),
-            .th_off = sizeof(struct tcphdr) >> 2,
-            .th_win = htons(0xffc4),
-        },
+    struct enhanced_packet_block_hdr epb_hdr = {
+        .block_type = BLOCK_TYPE_EPB,
+        .ts_hi = ms >> 32,
+        .ts_lo = ms,
+        .capture_len = hdrs_len + tpm_packet_len,
+        .original_len = hdrs_len + orig_len,
     };
+    struct ethhdr ethhdr = {
+        .eth_type = htons(ETHERTYPE_IP),
+    };
+    struct ip iphdr = {
+        .ip_hl = sizeof(struct ip) >> 2,
+        .ip_v = 4,
+        .ip_tos = 0x10,
+        .ip_len = htons(sizeof(struct ip) +
+                        sizeof(struct tcphdr) +
+                        tpm_packet_len),
+        .ip_id = htons(0x069b),
+        .ip_off = htons(IP_DF),
+        .ip_ttl = 64,
+        .ip_p = 6, /* TCP */
+        .ip_sum = 0,
+        .ip_src.s_addr = htonl(0x7f000001),
+        .ip_dst.s_addr = htonl(0x7f000001),
+    };
+    struct tcphdr tcphdr =  {
+        .th_sport = to_tpm ? htons(ps->cport) : htons(ps->tpmport),
+        .th_dport = to_tpm ? htons(ps->tpmport) : htons(ps->cport),
+        .th_seq = to_tpm ? htonl(ps->cseq) : htonl(ps->sseq),
+        .th_ack = to_tpm ? htonl(ps->sseq) : htonl(ps->cseq),
+        .th_off = sizeof(struct tcphdr) >> 2,
+        .th_win = htons(0xffc4),
+    };
+    memcpy(packet, &epb_hdr, sizeof(epb_hdr));
+    memcpy(packet_ethhdr, &ethhdr, sizeof(ethhdr));
+    memcpy(packet_iphdr, &iphdr, sizeof(iphdr));
+    memcpy(packet_tcphdr, &tcphdr, sizeof(tcphdr));
     return 0;
 }
 
@@ -235,10 +255,12 @@ static int pcap_packet_fill(struct packet *packet, bool to_tpm,
  * Write a packet to the file. Take care of unaligned packets to due unaligned
  * overall size (32bit alignment). Also write a block_total_len at the end.
  */
-static int pcap_write(int fd, struct packet *packet,
+static int pcap_write(int fd, char *packet,
                       void *tpm_packet, uint32_t tpm_packet_len)
 {
-    size_t packet_len = sizeof(*packet);
+    struct enhanced_packet_block_hdr *packet_epb_hdr =
+        (struct enhanced_packet_block_hdr *)packet;
+    size_t packet_len = PACKET_DATA_OFF;
     size_t filler_len = 4 - ((packet_len + tpm_packet_len) & 3);
     uint32_t block_total_len;
     uint8_t filler[3] = { 0, };
@@ -258,7 +280,8 @@ static int pcap_write(int fd, struct packet *packet,
     }
 
     block_total_len = packet_len + tpm_packet_len + filler_len + sizeof(uint32_t);
-    packet->epb_hdr.block_total_length = block_total_len;
+    memcpy(&packet_epb_hdr->block_total_length, &block_total_len,
+           sizeof(block_total_len));
 
     return writev_full(fd, iov, num_iov);
 }
@@ -278,33 +301,40 @@ static int pcap_file_write_idb(struct pcap_state *ps)
 /* Write a simulated TCP SYN/SYN+ACK/ACK or FIN/FIN+ACK/ACK exchange */
 static int pcap_file_tcp_flags(struct pcap_state *ps, uint8_t flag)
 {
-    struct packet packet;
+    char buf[PACKET_TCPHDR_OFF];
+    struct ip iphdr;
+    struct tcphdr tcphdr;
+    char *packet = buf;
+    struct ip *packet_iphdr = (struct ip *)&packet[PACKET_IPHDR_OFF];
+    struct tcphdr *packet_tcphdr = (struct tcphdr *)&packet[PACKET_TCPHDR_OFF];
+    memcpy(&iphdr, packet_iphdr, sizeof(iphdr));
+    memcpy(&tcphdr, packet_tcphdr, sizeof(tcphdr));
 
-    pcap_packet_fill(&packet, true, 0, 0, ps);
-    packet.tcphdr.th_flags = flag;
+    pcap_packet_fill(packet, true, 0, 0, ps);
+    packet_tcphdr->th_flags = flag;
     if (flag == TH_SYN)
-        packet.tcphdr.th_ack = 0;
-    calc_checksums(&packet, NULL, 0, ps);
+        memset(&packet_tcphdr->th_ack, 0, sizeof(packet_tcphdr->th_ack));
+    calc_checksums(packet, NULL, 0, ps);
 
-    if (pcap_write(ps->fd, &packet, NULL, 0) < 0)
+    if (pcap_write(ps->fd, packet, NULL, 0) < 0)
         return -1;
 
     ps->cseq++;
 
-    pcap_packet_fill(&packet, false, 0, 0, ps);
-    packet.tcphdr.th_flags = flag | TH_ACK;
-    calc_checksums(&packet, NULL, 0, ps);
+    pcap_packet_fill(packet, false, 0, 0, ps);
+    packet_tcphdr->th_flags = flag | TH_ACK;
+    calc_checksums(packet, NULL, 0, ps);
 
-    if (pcap_write(ps->fd, &packet, NULL, 0) < 0)
+    if (pcap_write(ps->fd, packet, NULL, 0) < 0)
         return -1;
 
     ps->sseq++;
 
-    pcap_packet_fill(&packet, true, 0, 0, ps);
-    packet.tcphdr.th_flags = TH_ACK;
-    calc_checksums(&packet, NULL, 0, ps);
+    pcap_packet_fill(packet, true, 0, 0, ps);
+    packet_tcphdr->th_flags = TH_ACK;
+    calc_checksums(packet, NULL, 0, ps);
 
-    if (pcap_write(ps->fd, &packet, NULL, 0) < 0)
+    if (pcap_write(ps->fd, packet, NULL, 0) < 0)
         return -1;
 
     return 0;
@@ -361,19 +391,20 @@ int pcap_packet_record_write(struct pcap_state *ps,
                              void *tpm_packet, uint32_t tpm_packet_len,
                              bool to_tpm)
 {
-    struct packet packet;
+    char buf[PACKET_TCPHDR_OFF];
+    char *packet = buf;
     int ret;
 
     if (ps->fd < 0)
         return 0;
 
-    if (pcap_packet_fill(&packet, to_tpm,
+    if (pcap_packet_fill(packet, to_tpm,
                          tpm_packet_len, tpm_packet_len, ps) < 0)
         return -1;
 
-    calc_checksums(&packet, tpm_packet, tpm_packet_len, ps);
+    calc_checksums(packet, tpm_packet, tpm_packet_len, ps);
 
-    ret = pcap_write(ps->fd, &packet, tpm_packet, tpm_packet_len);
+    ret = pcap_write(ps->fd, packet, tpm_packet, tpm_packet_len);
     if (ret < 0)
         return ret;
 
