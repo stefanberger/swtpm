@@ -11,10 +11,11 @@ man3_PODS = \
 man3_MANS = \
 	swtpm_ioctls.3
 
-%.3 : %.pod
+SUFFIXES: .pod .3
+.pod.3:
 	@pod2man -r "swtpm" \
 		-c "" \
-		-n $(basename $@) \
+		-n $(<:.pod=) \
 		--section=3 $< > $@
 
 EXTRA_DIST = $(man3_MANS) $(man3_PODS)
