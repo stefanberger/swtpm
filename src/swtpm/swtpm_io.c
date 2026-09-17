@@ -53,9 +53,10 @@
 #include <errno.h>
 #include <limits.h>
 #include <arpa/inet.h>
-#include <netinet/in.h> /* BSD: sockaddr_in */
-#include <sys/socket.h> /* BSD: accept() */
-#include <sys/select.h> /* BSD: select() */
+#include <netinet/in.h>  /* BSD: sockaddr_in */
+#include <netinet/tcp.h> /* BSD: TCP_NODELAY*/
+#include <sys/socket.h>  /* BSD: accept() */
+#include <sys/select.h>  /* BSD: select() */
 #include <sys/uio.h>
 
 #include <libtpms/tpm_error.h>
@@ -76,7 +77,6 @@
 /* platform dependent */
 
 static int      sock_fd = -1;
-
 
 /* SWTPM_IO_Read() reads a TPM command packet from the host
 
@@ -208,6 +208,33 @@ TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write 
     }
 
     return rc;
+}
+
+/* SWTPM_IO_Accept() accepts an incoming client connection from the specified server socket.
+
+   This is the Unix platform dependent socket version.
+*/
+
+static TPM_RESULT setsockopt_nodelay(int sockfd)
+{
+    int flag = 1;
+
+    if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) < 0) {
+        return TPM_IOERROR;
+    }
+
+    return 0;
+}
+
+int SWTPM_IO_Accept(int server_fd)
+{
+    int connection_fd;
+
+    if ((connection_fd = accept(server_fd, NULL, 0)) >= 0) {
+        setsockopt_nodelay(connection_fd); /* ignore potential setsockopt() error */
+    }
+
+    return connection_fd;
 }
 
 /* SWTPM_IO_Write() writes 'buffer_length' bytes to the host.

@@ -261,10 +261,10 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
             }
 
             if (pollfds[DATA_SERVER_FD].revents & POLLIN)
-                connection_fd.fd = accept(pollfds[DATA_SERVER_FD].fd, NULL, 0);
+                connection_fd.fd = SWTPM_IO_Accept(pollfds[DATA_SERVER_FD].fd);
 
             if (pollfds[CTRL_SERVER_FD].revents & POLLIN)
-                ctrlclntfd = accept(ctrlfd, NULL, 0);
+                ctrlclntfd = SWTPM_IO_Accept(ctrlfd);
 
             if (pollfds[CTRL_CLIENT_FD].revents & POLLIN) {
                 ctrlclntfd = ctrlchannel_process_fd(ctrlclntfd,
