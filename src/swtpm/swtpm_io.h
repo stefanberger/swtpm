@@ -49,6 +49,7 @@ struct pcap_state;
 TPM_RESULT SWTPM_IO_Init(void);
 TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,
                             int notify_fd);
+int SWTPM_IO_Accept(int server_fd);
 TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,
                          unsigned char *buffer,
                          uint32_t *paramSize,
