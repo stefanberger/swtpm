@@ -387,8 +387,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             mlp.flags |= MAIN_LOOP_FLAG_TERMINATE | MAIN_LOOP_FLAG_USE_FD |
                          MAIN_LOOP_FLAG_KEEP_CONNECTION;
 
-            SWTPM_IO_SetSocketFD(mlp.fd);
-
             break;
 
         case 'c':
@@ -575,7 +573,6 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
     if (server) {
         if (server_get_fd(server) >= 0) {
             mlp.fd = server_set_fd(server, -1);
-            SWTPM_IO_SetSocketFD(mlp.fd);
         }
 
         mlp.flags |= MAIN_LOOP_FLAG_KEEP_CONNECTION;

@@ -70,14 +70,6 @@
 #include "utils.h"
 #include "pcap.h"
 
-/*
-  global variables
-*/
-
-/* platform dependent */
-
-static int      sock_fd = -1;
-
 /* SWTPM_IO_Read() reads a TPM command packet from the host
 
    Puts the result in 'buffer' up to 'bufferSize' bytes.
@@ -129,22 +121,6 @@ TPM_RESULT SWTPM_IO_Read(TPM_CONNECTION_FD *connection_fd,   /* read/write file 
 
     return 0;
 }
-
-
-/* SWTPM_IO_SetSocketFD tells the IO layer that it's not necessary to open
-   a server socket.
- */
-TPM_RESULT SWTPM_IO_SetSocketFD(int fd)
-{
-    sock_fd = fd;
-    return 0;
-}
-
-int SWTPM_IO_GetSocketFD(void)
-{
-    return sock_fd;
-}
-
 
 /* SWTPM_IO_Init initializes the TPM to host interface.
 

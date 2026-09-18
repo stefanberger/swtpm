@@ -170,7 +170,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
     ctrlfd = ctrlchannel_get_fd(mlp->cc);
     ctrlclntfd = ctrlchannel_get_client_fd(mlp->cc);
 
-    sockfd = SWTPM_IO_GetSocketFD();
+    sockfd = mlp->fd;
 
     if (mlp->startupType != _TPM_ST_NONE) {
         command_length = tpmlib_create_startup_cmd(
