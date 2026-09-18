@@ -158,58 +158,6 @@ TPM_RESULT SWTPM_IO_Init(void)
     return 0;
 }
 
-
-/* SWTPM_IO_Connect() establishes a connection between the TPM server and the host client
-
-   This is the Unix platform dependent socket version.
-*/
-
-TPM_RESULT SWTPM_IO_Connect(TPM_CONNECTION_FD *connection_fd,     /* read/write file descriptor */
-                            int notify_fd)
-{
-    TPM_RESULT          rc = 0;
-    socklen_t           cli_len;
-    struct sockaddr_in  cli_addr;       /* Internet version of sockaddr */
-    int                 max_fd = -1;
-    fd_set              readfds;
-    int                 n;
-
-    while (rc == 0) {
-        FD_ZERO(&readfds);
-
-        FD_SET(sock_fd, &readfds);
-        max_fd = sock_fd;
-
-        FD_SET(notify_fd, &readfds);
-        max_fd = (notify_fd > max_fd) ? notify_fd : max_fd;
-
-        TPM_DEBUG("SWTPM_IO_Connect: Waiting for connections\n");
-
-        n = select(max_fd + 1, &readfds, NULL, NULL, NULL);
-
-        if (n > 0 && FD_ISSET(notify_fd, &readfds)) {
-            rc = TPM_IOERROR;
-            break;
-        }
-
-        if (n > 0 && FD_ISSET(sock_fd, &readfds)) {
-            cli_len = sizeof(cli_addr);
-            /* block until connection from client */
-            TPM_DEBUG("\n SWTPM_IO_Connect: Accepting connection ...\n");
-            connection_fd->fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
-            if (connection_fd->fd < 0) {
-                logprintf(STDERR_FILENO,
-                          "SWTPM_IO_Connect: Error, accept() %d %s\n",
-                          errno, strerror(errno));
-                rc = TPM_IOERROR;
-            }
-            break;
-        }
-    }
-
-    return rc;
-}
-
 /* SWTPM_IO_Accept() accepts an incoming client connection from the specified server socket.
 
    This is the Unix platform dependent socket version.
