@@ -24,6 +24,11 @@ if [ "${SWTPM_TEST_IBMTSS2:-0}" -eq 0 ]; then
 	exit 77
 fi
 
+if [ -v SWTPM_TEST_SECCOMP_OPT ]; then
+	echo "Warning: Unsetting SWTPM_TEST_SECCOMP_OPT since not supported by test."
+	unset SWTPM_TEST_SECCOMP_OPT
+fi
+
 ROOT=${abs_top_builddir:-$(dirname "$0")/..}
 TESTDIR=${abs_top_testdir:-$(dirname "$0")}
 SRCDIR=${abs_top_srcdir:-$(dirname "$0")/..}
