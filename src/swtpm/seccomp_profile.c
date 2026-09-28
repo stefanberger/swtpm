@@ -131,8 +131,8 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
         SCMP_SYS(delete_module), 
         SCMP_SYS(seccomp),
         SCMP_SYS(kexec_file_load),
-#ifdef __SNR_sysctl
-        SCMP_SYS(sysctl),
+#ifdef __SNR__sysctl
+        SCMP_SYS(_sysctl),
 #endif
         /* semaphores and messages queues */
         SCMP_SYS(semget),
@@ -205,8 +205,8 @@ int create_seccomp_profile(bool cusetpm, unsigned int action)
 #ifdef __SNR_bpf
         SCMP_SYS(bpf),
 #endif
-#ifdef __SNR_copy_filerange
-        SCMP_SYS(copy_filerange),
+#ifdef __SNR_copy_file_range
+        SCMP_SYS(copy_file_range),
 #endif
         /* xattrs */
         SCMP_SYS(setxattr),
