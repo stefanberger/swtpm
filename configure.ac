@@ -340,6 +340,11 @@ AS_IF([test "x$enable_sanitizers" = "xyes"],
     ]
 )
 
+AC_ARG_ENABLE([docs],
+    [AS_HELP_STRING([--disable-docs], [Disable building documentation])],,
+    [enable_docs=yes])
+AM_CONDITIONAL(ENABLE_DOCS, [test "$enable_docs" = "yes"])
+
 AC_ARG_WITH([tss-user],
             AS_HELP_STRING([--with-tss-user=TSS_USER],[The tss user to use]),
             [TSS_USER="$withval"],
@@ -467,6 +472,7 @@ printf "TPM 2 profile support : yes\n"
 echo
 echo "Version to build  : $PACKAGE_VERSION"
 echo "Crypto library    : $cryptolib"
+echo "Documentation     : $enable_docs"
 echo
 echo "        MY_CFLAGS = $MY_CFLAGS"
 echo " HARDENING_CFLAGS = $HARDENING_CFLAGS"
