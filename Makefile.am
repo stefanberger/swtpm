@@ -6,10 +6,13 @@
 
 SUBDIRS   = \
 	include \
-	man \
 	samples \
 	src \
 	tests
+
+if ENABLE_DOCS
+SUBDIRS += man
+endif # ENABLE_DOCS
 
 ACLOCAL_AMFLAGS = -I m4
 
