@@ -15,10 +15,11 @@ man5_MANS = \
 	swtpm-localca.options.5 \
 	swtpm-localca.conf.5
 
-%.5 : %.pod
+SUFFIXES: .pod .5
+.pod.5:
 	@pod2man -r "swtpm" \
 		-c "" \
-		-n $(basename $@) \
+		-n $(<:.pod=) \
 		--section=5 $< > $@
 
 EXTRA_DIST = $(man5_MANS) $(man5_PODS)
