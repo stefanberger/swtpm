@@ -175,6 +175,9 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd,
     if (!blobname)
         res = TPM_FAIL;
 
+    if (res == 0 && blobtype == PTM_BLOB_TYPE_PERMANENT)
+        res = SWTPM_NVRAM_Store_Permanent();
+
     if (res == 0 && blobtype == PTM_BLOB_TYPE_VOLATILE)
         res = SWTPM_NVRAM_Store_Volatile();
 
