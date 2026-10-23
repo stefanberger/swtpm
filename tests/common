@@ -313,8 +313,8 @@ function run_swtpm_ioctl()
 			echo "SWTPM_SERVER_NAME not defined"
 			exit 1
 		}
-		[ -z "${SWTPM_SERVER_PORT}" ] && {
-			echo "SWTPM_SERVER_PORT not defined"
+		[ -z "${SWTPM_CTRL_PORT}" ] && {
+			echo "SWTPM_CTRL_PORT not defined"
 			exit 1
 		}
 		${SWTPM_IOCTL} \
