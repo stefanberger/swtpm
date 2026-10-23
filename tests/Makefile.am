@@ -153,6 +153,19 @@ EXTRA_DIST = \
 	data/tpm2state5/signature.bin \
 	data/tpm2state5/tpm2-00.permall \
 	data/tpm2state6/tpm2-00.permall \
+	data/tpm2state7/tpm2-00.permall \
+	data/tpm2state8/encrypted-v0.10-default-v1.bin \
+	data/tpm2state8/encrypted-v0.10-null.bin \
+	data/tpm2state8/encrypted-v0.9-null.bin \
+	data/tpm2state8/signature-v0.10-default-v1.bin \
+	data/tpm2state8/signature-v0.10-null.bin \
+	data/tpm2state8/signature-v0.9-null.bin \
+	data/tpm2state8/toencrypt.txt \
+	data/tpm2state8/tosign.txt \
+	data/tpm2state8/tpmstate-v0.10-default-v1.bin \
+	data/tpm2state8/tpmstate-v0.10-null.bin \
+	data/tpm2state8/tpmstate-v0.9-null.bin \
+	data/tpm2state8/Readme.txt \
 	fileinstall \
 	patches/0001-Deactivate-test-cases-accessing-rootcerts.txt.patch \
 	patches/0002-Implement-powerup-for-swtpm.patch \
