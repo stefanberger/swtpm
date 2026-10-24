@@ -1,0 +1,32 @@
+option('cuse', type: 'feature', value: 'auto',
+       description: 'Build with CUSE interface')
+
+option('gnutls', type: 'feature', value: 'auto',
+       description: 'Build with gnutls library')
+
+option('selinux', type: 'feature', value: 'auto',
+       description: 'Add SELinux policy extensions')
+
+option('chardev', type: 'feature', value: 'auto',
+       description: 'Add Linux chardev interface')
+
+option('vtpm_proxy', type: 'feature', value: 'auto',
+       description: 'Add Linux vtpm proxy support')
+
+option('seccomp', type: 'feature', value: 'auto',
+       description: 'Build with seccomp profile (Linux only)')
+
+option('tests', type: 'boolean', value: true,
+       description: 'Enable tests (disable if test tools are not needed)')
+
+option('hardening', type: 'boolean', value: true,
+       description: 'Enable hardening flags')
+
+option('default_pcr_banks', type: 'array', value: ['sha256'],
+       description: 'Default PCR banks to activate', choices: ['sha1', 'sha256', 'sha384', 'sha512'])
+
+option('tss_user', type: 'string', value: 'tss',
+       description: 'The tss user to use')
+
+option('tss_group', type: 'string', value: 'tss',
+       description: 'The tss group to use')
