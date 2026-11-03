@@ -207,6 +207,47 @@ create_localca_cert() {
 		return 1
 	fi
 
+	if openssl version | grep -qi "LibreSSL"; then
+		csr="${workdir}/swtpm-localca-interm-csr.pem"
+		ext="${workdir}/swtpm-localca-interm-ext.conf"
+		template="${workdir}/swtpm-localca-interm-csr-template.txt"
+	
+		cat > "${template}" << EOF
+cn = "swtpm-tpmca"
+signing_key = "${tpmkeyurl}"
+EOF
+		msg=$(certtool --generate-request --template "${template}" \
+			--outfile "${csr}" 2>&1)
+		rc=$?
+		rm -f "${template}"
+		if [ "$rc" -ne 0 ]; then
+			logerr "ERROR: Could not create CSR"
+			logerr "${msg}"
+			retturn 1
+		fi
+	
+		cat > "${ext}" << EOF
+[v3_ca]
+keyUsage=critical,keyCertSign
+basicContsraints=critical,CA:TRUE
+EOF
+		if ! msg=$(openssl x509 \
+			-req -in "${csr}" -CA "${cacert}" -CAkey "${cakey}" \
+			-key "${pkcs11uri}" \
+			-CAcreateserial -CAserial "${dir}/certserial" \
+			-days 3650 \
+			-extfile "${ext}" \
+			-extensions "v3_ca" \
+			-out "${tpmca}" \
+			-out "${ISSUERCERT}" \
+			2>&1); then
+			logerr "Could not create TPM CA"
+			logerr "${msg}"
+			exit 1
+		fi
+		rm -f "${csr}" "${ext}" 
+	else # not LibreSSL
+
 	if ! providerpath=$(get_provider_path "pkcs11.so"); then
 		return 1
 	fi
@@ -236,6 +277,7 @@ create_localca_cert() {
 		return 1
 	fi
 	rm -f "${pinfile}"
+	fi # not LibreSSL
 
 	output="statedir = ${dir}
 signingkey = $(escape_pkcs11_url "${tpmkeyurl//%00/}")

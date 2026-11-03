@@ -22,6 +22,43 @@ RSA3072ENCRYPTED_PRIVKEY=${TMPDIR}/rsa3072privkey.pem
 RSA3072ENCRYPTED_PUBKEY=${TMPDIR}/rsa3072pubkey.pem
 ISSUERCERT_RSA3072ENCRYPTED_PRIVKEY=${TMPDIR}/rsa3072privkeyissuercert.pem
 
+if openssl version | grep -qi "LibreSSL"; then
+if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
+   ! msg=$(openssl rsa -in "${RSAPRIVKEY}" -pubout -out "${RSAPUBKEY}" 2>&1) ||
+   ! msg=$(openssl req \
+        -new \
+        -x509 \
+        -nodes \
+        -newkey rsa:3072 \
+        -keyout "${CAKEY}" \
+        -sha256 \
+        -days 365 \
+        -out "${CACERT}" \
+        -subj "/CN=swtpm-localca-rootca" 2>&1) ||
+   ! msg=$(openssl genrsa -out "${RSA3072ENCRYPTED_PRIVKEY}" -aes256 -passout pass:password 3072 2>&1) ||
+   ! msg=$(openssl rsa -in "${RSA3072ENCRYPTED_PRIVKEY}" -pubout -passin pass:password -out "${RSA3072ENCRYPTED_PUBKEY}" 2>&1) ||
+   ! msg=$(openssl req \
+        -new \
+        -key "${RSA3072ENCRYPTED_PRIVKEY}" \
+        -passin pass:password \
+        -out "${ISSUERCERT_RSA3072ENCRYPTED_PRIVKEY}.csr" \
+        -subj "/CN=swtpm-localca" 2>&1) ||
+   ! msg=$(openssl x509 \
+        -req \
+        -in "${ISSUERCERT_RSA3072ENCRYPTED_PRIVKEY}.csr" \
+        -CA "${CACERT}" \
+        -CAkey "${CAKEY}" \
+        -CAcreateserial \
+        -passin pass:password \
+        -sha256 \
+        -days 1000 \
+        -out "${ISSUERCERT_RSA3072ENCRYPTED_PRIVKEY}" 2>&1);
+then
+	echo "Could not create the required keys"
+	echo "${msg}"
+	exit 1
+fi
+else # no LibreSSL
 if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
    ! msg=$(openssl rsa -in "${RSAPRIVKEY}" -pubout -out "${RSAPUBKEY}" 2>&1) ||
    ! msg=$(openssl req \
@@ -49,6 +86,7 @@ then
 	echo "Could not create the required keys"
 	echo "${msg}"
 	exit 1
+fi
 fi
 
 PARAM_RSAPUBKEY="${RSAPUBKEY}" \

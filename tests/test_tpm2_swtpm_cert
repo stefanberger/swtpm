@@ -41,6 +41,71 @@ ISSUERCERT_MLDSA87=${TMPDIR}/mldsa87-issuercert.pem
 # ED448 key used for signing
 ISSUERCERT_ED448=${TMPDIR}/ed448-issuercert.pem
 
+if openssl version 2>/dev/null | grep -qi 'LibreSSL'; then
+    EC521CSR=${TMPDIR}/ec521-signing.csr
+    RSA3072CSR=${TMPDIR}/rsa3072-signing.csr
+    ISSUER_EXTFILE=${TMPDIR}/issuer-ext.cnf
+    cat > "${ISSUER_EXTFILE}" <<EOF
+[v3_ca]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,keyCertSign,cRLSign
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+EOF
+    if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
+       ! msg=$(openssl rsa -in "${RSAPRIVKEY}" -pubout -out "${RSAPUBKEY}" 2>&1) ||
+       ! msg=$(openssl ecparam -name prime256v1 -genkey -noout -out "${EC256PRIVKEY}" 2>&1) ||
+       ! msg=$(openssl ec -in "${EC256PRIVKEY}" -pubout -out "${EC256PUBKEY}" 2>&1) ||
+       ! msg=$(openssl req \
+            -x509 \
+            -new \
+            -nodes \
+            -keyout "${CAKEY}" \
+            -newkey rsa:3072 \
+            -sha256 \
+            -days 365 \
+            -out "${CACERT}" \
+            -subj "/CN=swtpm-localca-rootca" 2>&1) ||
+       ! msg=$(openssl ecparam -name secp521r1 -genkey -noout -out "${EC521PRIVKEY}" 2>&1) ||
+       ! msg=$(openssl ec -in "${EC521PRIVKEY}" -pubout -out "${EC521PUBKEY}" 2>&1) ||
+       ! msg=$(openssl genrsa -out "${RSA3072PRIVKEY}" 3072 2>&1) ||
+       ! msg=$(openssl rsa -in "${RSA3072PRIVKEY}" -pubout -out "${RSA3072PUBKEY}" 2>&1) ||
+       ! msg=$(openssl req \
+            -new \
+            -key "${EC521PRIVKEY}" \
+            -out "${EC521CSR}" \
+            -subj "/CN=swtpm-localca" 2>&1) ||
+       ! msg=$(openssl x509 \
+            -req \
+            -in "${EC521CSR}" \
+            -CA "${CACERT}" \
+            -CAkey "${CAKEY}" \
+            -CAcreateserial \
+            -days 1000 \
+            -extfile "${ISSUER_EXTFILE}" \
+            -extensions v3_ca \
+            -out "${ISSUERCERT_EC521}" 2>&1) ||
+       ! msg=$(openssl req \
+            -new \
+            -key "${RSA3072PRIVKEY}" \
+            -out "${RSA3072CSR}" \
+            -subj "/CN=swtpm-localca" 2>&1) ||
+       ! msg=$(openssl x509 \
+            -req \
+            -in "${RSA3072CSR}" \
+            -CA "${CACERT}" \
+            -CAkey "${CAKEY}" \
+            -CAcreateserial \
+            -days 1000 \
+            -extfile "${ISSUER_EXTFILE}" \
+            -extensions v3_ca \
+            -out "${ISSUERCERT_RSA3072}" 2>&1) \
+; then
+        echo "Could not create the required keys"
+        echo "${msg}"
+        exit 1
+    fi
+else
 if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
    ! msg=$(openssl rsa -in "${RSAPRIVKEY}" -pubout -out "${RSAPUBKEY}" 2>&1) ||
    ! msg=$(openssl ecparam -name prime256v1 -genkey -noout -out "${EC256PRIVKEY}" 2>&1) || \
@@ -102,6 +167,7 @@ if ! msg=$(openssl genrsa -out "${RSAPRIVKEY}" 2432 2>&1) ||
 	echo "${msg}"
 	exit 1
 fi
+fi
 
 echo "Testing with RSA certificate signing key"
 
@@ -111,6 +177,7 @@ PARAM_MLKEM1024PUBKEY="${MLKEM1024PUBKEY}" \
 PARAM_MLDSA87PUBKEY="${MLDSA87PUBKEY}" \
 PARAM_SIGNKEY="${RSA3072PRIVKEY}" \
 PARAM_ISSUERCERT="${ISSUERCERT_RSA3072}" \
+PARAM_CACERT="${CACERT}" \
 PARAM_CERT_SIZES="1046 841 1092 841 2340 1572 3364 1057 806 973 3245 973 1112" \
 	./_test_tpm2_swtpm_cert
 ret=$?
@@ -125,12 +192,17 @@ PARAM_MLKEM1024PUBKEY="${MLKEM1024PUBKEY}" \
 PARAM_MLDSA87PUBKEY="${MLDSA87PUBKEY}" \
 PARAM_SIGNKEY="${EC521PRIVKEY}" \
 PARAM_ISSUERCERT="${ISSUERCERT_EC521}" \
+PARAM_CACERT="${CACERT}" \
 PARAM_CERT_SIZES="792-794 587-589 838-840 587-589 2086-2088 1318-1320 3110-3112 804-805 552-554 719-721 2991-2993 720-721 858-860" \
 	./_test_tpm2_swtpm_cert
 ret=$?
 [ $ret -ne 0 ] && exit $ret
 
 
+if openssl version 2>/dev/null | grep -qi 'LibreSSL'; then
+printf "\nWarning: ml-dsa-87 and Ed448 are not yet supported with LibreSSL\n"
+	exit 0
+fi
 printf "\nTesting with ml-dsa-87 certificate signing key\n"
 
 PARAM_RSAPUBKEY="${RSAPUBKEY}" \
@@ -157,6 +229,5 @@ PARAM_CERT_SIZES="758 553 804 553 2052 1284 3076 769 518 685 2957 685 824" \
 	./_test_tpm2_swtpm_cert
 ret=$?
 [ $ret -ne 0 ] && exit $ret
-
 
 exit 0

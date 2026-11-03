@@ -76,6 +76,51 @@ fi
 # And now create the intermediate CA with the pkcs11 URI key
 
 pubkey="${workdir}/swtpm-localca-interm-pubkey.pem"
+if openssl version | grep -qi "LibreSSL"; then
+	csr="${workdir}/swtpm-localca-interm-csr.pem"
+	ext="${workdir}/swtpm-localca-interm-ext.conf"
+	template="${workdir}/swtpm-localca-interm-csr-template.txt"
+
+	if ! msg=$(timeout 5 p11tool --export-pubkey "${pkcs11uri}" \
+		--outfile "${pubkey}" 2>&1"); then
+		echo "Could not get public key for pkcs11 uri key ($pkcs11uri}."
+		echo "${msg}"
+		exit 1
+	fi
+
+	cat > "${template}" << EOF
+cn = "swtpm-localca"
+signing_key = "${pkcs11uri}"
+EOF
+	msg=$(certtool --generate-request --template "${template}" \
+		--outfile "${csr}" 2>&1)
+	rc=$?
+	rm -f "${template}"
+	if [ "$rc" -ne 0 ]; then
+		echo "Could not generate request for pkcs11 uri key ($pkcs11uri}."
+		echo "${msg}"
+		exit 1
+	fi
+
+	cat > "${ext}" << EOF
+[v3_ca]
+keyUsage=critical,keyCertSign
+basicContsraints=critical,CA:TRUE
+EOF
+	if ! msg=$(openssl x509 \
+		-req -in "${csr}" -CA "${cacert}" -CAkey "${cakey}" \
+		-key "${pkcs11uri}" \
+		-CAcreateserial -CAserial "${CERTSERIAL}" \
+		-days 3650 \
+		-extfile "${ext}" \
+		-extensions "v3_ca" \
+		-out "${ISSUERCERT}" 2>&1); then
+		echo "Could not create intermediate CA"
+		echo "${msg}"
+		exit 1
+	fi
+	rm -f "${csr}" "${ext}" 
+else # not LibreSSL
 
 # Some versions of pkcs11 provider + OpenSSL may get stuck here (Ubuntu 26.04 host)
 msg=$(timeout 5 openssl pkey \
@@ -109,6 +154,7 @@ if ! msg=$(openssl req \
 fi
 
 echo -n 1 > "${CERTSERIAL}"
+fi # not LibreSSL
 
 # Now we can create the config files
 cat <<_EOF_ > "${workdir}/swtpm-localca.conf"
