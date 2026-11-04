@@ -69,6 +69,7 @@ TPM_RESULT SWTPM_NVRAM_DeleteName(uint32_t tpm_number,
 				  const char *name,
                                   TPM_BOOL mustExist);
 TPM_RESULT SWTPM_NVRAM_Store_Volatile(void);
+TPM_RESULT SWTPM_NVRAM_Store_Permanent(void);
 
 TPM_RESULT SWTPM_NVRAM_Set_FileKey(const unsigned char *data,
                                    uint32_t length,
