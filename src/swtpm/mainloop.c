@@ -147,8 +147,13 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
 
     TPM_DEBUG("mainLoop:\n");
 
-    max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX) +
-                         sizeof(struct tpm2_send_command_prefix);
+    /* if we are running with libtpms >= v0.11, then use 8kb buffer */
+    if (TPMLIB_GetVersion() >= TPM_LIBRARY_VERSION_GEN(0, 11, 0)) {
+        max_command_length = 8 * 1024;
+    } else {
+        max_command_length = tpmlib_get_tpm_property(TPMPROP_TPM_BUFFER_MAX);
+    }
+    max_command_length += sizeof(struct tpm2_send_command_prefix);
 
     command = malloc(max_command_length);
     if (!command) {
