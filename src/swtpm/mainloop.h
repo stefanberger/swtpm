@@ -64,6 +64,7 @@ struct mainLoopParams {
     uint16_t startupType; /* use TPM 1.2 types */
     uint32_t lastCommand; /* last Command sent to TPM */
     bool disable_auto_shutdown;   /* TPM2_Shutdown() will NOT be sent by swtpm */
+    bool state_handed_over;       /* state retrieved, TPM not used since */
     /* whether to defer locking NVRAM storage due to incoming migration */
     bool incoming_migration;
     /* whether storage is is currently locked */

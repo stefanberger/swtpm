@@ -338,6 +338,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
                                            command_length - cmd_offset);
                 if (lastCommand != TPM_ORDINAL_NONE)
                     mlp->lastCommand = lastCommand;
+                mlp->state_handed_over = false;
             }
 
             if (rc == 0) {
@@ -387,7 +388,7 @@ skip_process:
             break;
     }
 
-    if (tpm_running && !mlp->disable_auto_shutdown)
+    if (tpm_running && !mlp->disable_auto_shutdown && !mlp->state_handed_over)
         tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion, &mlp->lastCommand,
                                         &mlp->ps);
 

@@ -124,6 +124,9 @@ static uint32_t g_lastCommand = TPM_ORDINAL_NONE;
 /* TPM2_Shutdown() will NOT be sent by swtpm */
 static bool g_disable_auto_shutdown = false;
 
+/* state retrieved, TPM not used since */
+static bool g_state_handed_over;
+
 /* whether to defer locking NVRAM storage due to incoming migration */
 static bool g_incoming_migration;
 
@@ -462,8 +465,12 @@ static TPM_RESULT cached_stateblob_load(uint32_t blobtype, TPM_BOOL decrypt)
         cached_stateblob.decrypt = decrypt;
     }
 
-    if (blobtype == PTM_BLOB_TYPE_SAVESTATE)
+    if (blobtype == PTM_BLOB_TYPE_SAVESTATE) {
         unlock_nvram(DEFAULT_LOCKING_RETRIES);
+        /* see ctrlchannel_return_state() */
+        if (res == TPM_SUCCESS || res == TPM_RETRY)
+            g_state_handed_over = true;
+    }
 
     return res;
 }
@@ -606,11 +613,12 @@ error_del_pool:
     return -1;
 }
 
-static void tpm_end(void)
+static void tpm_end(bool terminate)
 {
     worker_thread_end();
 
-    if (tpm_running && !g_disable_auto_shutdown)
+    if (tpm_running && !g_disable_auto_shutdown &&
+        !(terminate && g_state_handed_over))
         tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand, &g_ps);
 
     TPMLIB_Terminate();
@@ -1046,6 +1054,7 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
         lastCommand = tpmlib_get_cmd_ordinal((unsigned char *)buf, ptm_req_len);
         if (lastCommand != TPM_ORDINAL_NONE)
             g_lastCommand = lastCommand;
+        g_state_handed_over = false;
 
         if (tpmlib_is_request_cancelable(l_tpmversion,
                                          (const unsigned char*)buf,
@@ -1235,7 +1244,8 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         } else {
             init_p = (ptm_init *)in_buf;
 
-            tpm_end();
+            tpm_end(false);
+            g_state_handed_over = false;
 
             if (tpm_start(init_p->u.req.init_flags, tpmversion,
                           g_json_profile, &res) < 0) {
@@ -1251,7 +1261,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         break;
 
     case PTM_STOP:
-        tpm_end();
+        tpm_end(false);
 
         res = TPM_SUCCESS;
 
@@ -1263,7 +1273,7 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
         break;
 
     case PTM_SHUTDOWN:
-        tpm_end();
+        tpm_end(true);
 
         res = TPM_SUCCESS;
 
@@ -1505,10 +1515,13 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
             g_locking_retries = in_pls->u.req.retries;
 
-            if (!ensure_locked_storage())
+            if (!ensure_locked_storage()) {
                 out_pls.u.resp.tpm_result = TPM_FAIL;
-            else
+            } else {
                 out_pls.u.resp.tpm_result = TPM_SUCCESS;
+                /* see ctrlchannel_process_fd() */
+                g_state_handed_over = false;
+            }
             fuse_reply_ioctl(req, 0, &out_pls, sizeof(out_pls));
         }
 
