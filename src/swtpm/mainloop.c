@@ -355,6 +355,7 @@ int mainLoop(struct mainLoopParams *mlp, int notify_fd, bool tpm_running)
             }
 
             if (rc == 0) {
+                mlp->state_not_owned = false;
                 rlength = 0;                                /* clear the response buffer */
                 rc = TPMLIB_Process(&rbuffer,
                                     &rlength,
@@ -389,7 +390,7 @@ skip_process:
 
     if (tpm_running && !mlp->disable_auto_shutdown)
         tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion, &mlp->lastCommand,
-                                        &mlp->ps);
+                                        &mlp->ps, mlp->state_not_owned);
 
     free(rbuffer);
     free(command);
