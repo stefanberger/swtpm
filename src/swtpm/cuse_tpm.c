@@ -116,6 +116,9 @@ static uint32_t g_lastCommand = TPM_ORDINAL_NONE;
 /* TPM2_Shutdown() will NOT be sent by swtpm */
 static bool g_disable_auto_shutdown = false;
 
+/* state handed over, TPM not used since */
+static bool g_state_not_owned;
+
 /* whether to defer locking NVRAM storage due to incoming migration */
 static bool g_incoming_migration;
 
@@ -558,7 +561,8 @@ static void tpm_end(void)
     worker_thread_end();
 
     if (tpm_running && !g_disable_auto_shutdown)
-        tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand);
+        tpmlib_maybe_send_tpm2_shutdown(tpmversion, &g_lastCommand,
+                                        g_state_not_owned);
 
     TPMLIB_Terminate();
 
@@ -852,6 +856,11 @@ ptm_get_stateblob_part(uint32_t blobtype,
         res = cached_stateblob_load(blobtype, decrypt);
     }
 
+    /* QEMU retrieves this blob last, so the state was handed over */
+    if (blobtype == PTM_BLOB_TYPE_SAVESTATE &&
+        (res == TPM_SUCCESS || res == TPM_RETRY))
+        g_state_not_owned = true;
+
     if (res == 0) {
         cached_stateblob_copy(buffer, buffer_size,
                               offset, copied, is_encrypted);
@@ -987,6 +996,7 @@ static void ptm_write_cmd(fuse_req_t req, const char *buf, size_t size,
         lastCommand = tpmlib_get_cmd_ordinal((unsigned char *)buf, ptm_req_len);
         if (lastCommand != TPM_ORDINAL_NONE)
             g_lastCommand = lastCommand;
+        g_state_not_owned = false;
 
         if (tpmlib_is_request_cancelable(l_tpmversion,
                                          (const unsigned char*)buf,
@@ -1180,6 +1190,11 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
                           "Error: Could not initialize the TPM.\n");
             } else {
                 tpm_running = true;
+                /*
+                 * cleared only once the TPM uses the state it loaded, so
+                 * tpm_end() above leaves a handed-over state alone
+                 */
+                g_state_not_owned = false;
             }
             init_p->u.resp.tpm_result = res;
             fuse_reply_ioctl(req, 0, init_p, sizeof(*init_p));
@@ -1441,10 +1456,18 @@ static void ptm_ioctl(fuse_req_t req, int cmd, void *arg,
 
             g_locking_retries = in_pls->u.req.retries;
 
-            if (!ensure_locked_storage())
+            if (!ensure_locked_storage()) {
                 out_pls.u.resp.tpm_result = TPM_FAIL;
-            else
+            } else {
                 out_pls.u.resp.tpm_result = TPM_SUCCESS;
+                /* sent by QEMU when the VM runs again after the handover */
+                g_state_not_owned = false;
+                /*
+                 * a cached blob gets stale once the TPM runs again, and only
+                 * loading the savestate blob unlocks the storage again
+                 */
+                cached_stateblob_free();
+            }
             fuse_reply_ioctl(req, 0, &out_pls, sizeof(out_pls));
         }
 

@@ -82,7 +82,8 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
                                    uint32_t buffersize);
 
 void tpmlib_maybe_send_tpm2_shutdown(TPMLIB_TPMVersion tpmversion,
-                                     uint32_t *lastCommand);
+                                     uint32_t *lastCommand,
+                                     bool state_not_owned);
 
 struct tpm_req_header {
     uint16_t tag;
