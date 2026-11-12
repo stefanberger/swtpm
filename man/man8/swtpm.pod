@@ -837,7 +837,10 @@ increase is the omission of a password when trying to access a
 password-protected object or NVRAM location that has the DA attribute set,
 followed by termination of swtpm without sending TPM2_Shutdown(). To avoid
 a DA lockout swtpm will make a best-effort and send a TPM2_Shutdown(SU_STATE)
-or TPM2_Shutdown(SU_CLEAR) if found necessary.
+or TPM2_Shutdown(SU_CLEAR) if found necessary. After the 'savestate' blob was
+retrieved, for example for a migration, swtpm skips this until the TPM 2
+processes a command, is initialized again, or its storage is locked again, as
+another instance may use the state in the meantime.
 
 =head1 SEE ALSO
 

@@ -310,6 +310,11 @@ If necessary, subsequent state blob transfers must be done using this
 ioctl or using the read() call on the file descriptor. All state
 must be transferred before the TPM will accept commands again.
 
+Once the B<PTM_BLOB_TYPE_SAVESTATE> blob was retrieved, which QEMU does last
+when migrating the state, another instance may use the state. swtpm then does
+not automatically send a TPM2_Shutdown() until the TPM processes a command, is
+initialized again, or the storage is locked again with B<PTM_LOCK_STORAGE>.
+
 =item B<PTM_SET_STATEBLOB / CMD_SET_STATEBLOB, ptm_setstate>
 
 This command is used to transfer one of the TPM's stateblob to the TPM.
