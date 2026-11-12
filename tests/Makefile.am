@@ -60,6 +60,7 @@ TESTS = \
 	test_tpm2_file_permissions \
 	test_tpm2_getcap \
 	test_tpm2_locality \
+	test_tpm2_handover_state \
 	test_tpm2_hashing \
 	test_tpm2_hashing2 \
 	test_tpm2_hashing3 \
@@ -202,6 +203,7 @@ EXTRA_DIST = \
 	_test_tpm2_encrypted_state \
 	_test_tpm2_file_permissions \
 	_test_tpm2_getcap \
+	_test_tpm2_handover_state \
 	_test_tpm2_hashing \
 	_test_tpm2_hashing2 \
 	_test_tpm2_hashing3 \
