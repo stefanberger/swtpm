@@ -1,0 +1,26 @@
+runs:
+  using: "composite"
+  steps:
+    - name: Build and test
+      shell: bash
+      run: |
+        sudo apt-get -y update
+        sudo apt-get -y install meson ninja-build libssl-dev sed make gawk \
+          sed bash dh-exec python3-pip libfuse-dev libglib2.0-dev libjson-glib-dev \
+          libgmp-dev expect libtasn1-bin libtasn1-dev socat findutils gnutls-dev gnutls-bin softhsm2 \
+          libseccomp-dev tss2 autoconf automake libtool ${PACKAGES}
+        if [ ! -d libtpms ]; then
+          git clone https://github.com/stefanberger/libtpms;
+        fi
+        pushd libtpms
+          if [ -n "${LIBTPMS_GIT_CHECKOUT}" ]; then
+            git checkout "${LIBTPMS_GIT_CHECKOUT}" -b testing;
+          fi
+          CFLAGS="${LIBTPMS_CFLAGS:--g -O2}" LDFLAGS="${LIBTPMS_LDFLAGS}" \
+            ./autogen.sh --with-openssl --prefix=${LIBTPMS_PREFIX:-/usr} --with-tpm2 ${LIBTPMS_CONFIG}
+          make -j$(${NPROC:-nproc})
+          sudo make install
+        popd
+        meson setup builddir
+        meson compile -C builddir
+        meson test -C builddir --print-errorlogs
