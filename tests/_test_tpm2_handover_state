@@ -1,0 +1,154 @@
+#!/bin/bash
+
+# For the license, see the LICENSE file in the root directory.
+#set -x
+
+# Check that shutting down or terminating the TPM does not modify the stored state
+# after all state blobs were retrieved, unless a TPM command or CMD_LOCK_STORAGE
+# followed.
+
+ROOT=${abs_top_builddir:-$(pwd)/..}
+TESTDIR=${abs_top_testdir:-$(dirname "$0")}
+
+VTPM_NAME="vtpm-test-tpm2-handover-state"
+SWTPM_DEV_NAME="/dev/${VTPM_NAME}"
+TPM_PATH="$(mktemp -d)" || exit 1
+STATE_FILE=$TPM_PATH/tpm2-00.permall
+BLOB_PREFIX=$TPM_PATH/blob
+SWTPM_INTERFACE=${SWTPM_INTERFACE:-cuse}
+SWTPM_CMD_UNIX_PATH=${TPM_PATH}/unix-cmd.sock
+SWTPM_CTRL_UNIX_PATH=${TPM_PATH}/unix-ctrl.sock
+
+function cleanup()
+{
+	pid=${SWTPM_PID}
+	if [ -n "$pid" ]; then
+		kill_quiet -9 "$pid"
+	fi
+	rm -rf "$TPM_PATH"
+}
+
+trap "cleanup" EXIT
+
+source "${TESTDIR}/common"
+[ "${SWTPM_INTERFACE}" == "cuse" ] && source "${TESTDIR}/test_cuse"
+
+function start_tpm2()
+{
+	TPM_PATH=$TPM_PATH run_swtpm "${SWTPM_INTERFACE}" --tpm2
+
+	if ! kill_quiet -0 "${SWTPM_PID}"; then
+		echo "Error: ${SWTPM_INTERFACE} TPM did not start."
+		exit 1
+	fi
+
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -i; then
+		echo "Error: Could not initialize the ${SWTPM_INTERFACE} TPM."
+		exit 1
+	fi
+
+	RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00')
+	exp=' 80 01 00 00 00 0a 00 00 00 00'
+	if [ "$RES" != "$exp" ]; then
+		echo "Error: Did not get expected result from TPM2_Startup(SU_Clear)"
+		echo "expected: $exp"
+		echo "received: $RES"
+		exit 1
+	fi
+}
+
+# Retrieve the state blobs in the order QEMU uses for a migration
+function get_state_blobs()
+{
+	local blobtype
+
+	for blobtype in permanent volatile savestate; do
+		if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" \
+			--save "${blobtype}" "${BLOB_PREFIX}.${blobtype}"; then
+			echo "Error: Could not get the ${blobtype} state blob."
+			exit 1
+		fi
+	done
+}
+
+function shutdown_tpm()
+{
+	if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -s; then
+		echo "Error: Could not shut down the ${SWTPM_INTERFACE} TPM."
+		exit 1
+	fi
+
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+		exit 1
+	fi
+}
+
+# Shut down the TPM; succeeds if this modified the stored state
+function shutdown_modifies_state()
+{
+	local hash_before
+
+	hash_before=$(get_sha1_file "${STATE_FILE}")
+	shutdown_tpm
+	[ "${hash_before}" != "$(get_sha1_file "${STATE_FILE}")" ]
+}
+
+start_tpm2
+get_state_blobs
+
+if shutdown_modifies_state; then
+	echo "Error: The state was modified after all state blobs were retrieved."
+	exit 1
+fi
+
+# Termination by a signal; only the socket interface sends TPM2_Shutdown there
+if [ "${SWTPM_INTERFACE}" != "cuse" ]; then
+	start_tpm2
+	get_state_blobs
+
+	hash_before=$(get_sha1_file "${STATE_FILE}")
+	kill_quiet -TERM "${SWTPM_PID}"
+	if wait_process_gone "${SWTPM_PID}" 4; then
+		echo "Error: ${SWTPM_INTERFACE} TPM should not be running anymore."
+		exit 1
+	fi
+	if [ "${hash_before}" != "$(get_sha1_file "${STATE_FILE}")" ]; then
+		echo "Error: The state was modified on termination by a signal."
+		exit 1
+	fi
+fi
+
+start_tpm2
+get_state_blobs
+
+# TPM2_GetRandom, e.g. from the VM after a failed migration
+RES=$(swtpm_cmd_tx "${SWTPM_INTERFACE}" '\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x7b\x00\x08')
+if [ "${RES:0:30}" != ' 80 01 00 00 00 14 00 00 00 00' ]; then
+	echo "Error: Did not get expected result from TPM2_GetRandom"
+	echo "received: $RES"
+	exit 1
+fi
+
+if ! shutdown_modifies_state; then
+	echo "Error: The state was not modified after a TPM command."
+	exit 1
+fi
+
+start_tpm2
+get_state_blobs
+
+# sent by QEMU when the VM runs again, e.g. after a snapshot
+if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" --lock-storage 0; then
+	echo "Error: Could not lock the storage of the ${SWTPM_INTERFACE} TPM."
+	exit 1
+fi
+
+if ! shutdown_modifies_state; then
+	echo "Error: The state was not modified after CMD_LOCK_STORAGE."
+	exit 1
+fi
+
+echo "OK"
+
+exit 0

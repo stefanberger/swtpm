@@ -224,8 +224,17 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd,
 
     free(blob);
 
-    if (fd >= 0 && blobtype == PTM_BLOB_TYPE_SAVESTATE)
+    if (fd >= 0 && blobtype == PTM_BLOB_TYPE_SAVESTATE) {
         mainloop_unlock_nvram(mlp, DEFAULT_LOCKING_RETRIES);
+        /*
+         * QEMU retrieves the savestate blob last, so once it was exported or
+         * found absent (TPM_RETRY), the state was handed over, e.g. to a
+         * migration target that may share the storage. An automatic
+         * TPM2_Shutdown on termination could then overwrite the target's state.
+         */
+        if (res == TPM_SUCCESS || res == TPM_RETRY)
+            mlp->state_handed_over = true;
+    }
 
     return fd;
 }
@@ -628,6 +637,7 @@ int ctrlchannel_process_fd(int fd,
         TPMLIB_Terminate();
 
         *tpm_running = false;
+        mlp->state_handed_over = false;
 
         mlp->storage_locked = !mlp->incoming_migration;
 
@@ -667,7 +677,8 @@ int ctrlchannel_process_fd(int fd,
         if (n != 0) /* wo */
             goto err_bad_input;
 
-        if (*tpm_running && !mlp->disable_auto_shutdown)
+        if (*tpm_running && !mlp->disable_auto_shutdown &&
+            !mlp->state_handed_over)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
                                             &mlp->lastCommand,
                                             &mlp->ps);
@@ -962,10 +973,13 @@ int ctrlchannel_process_fd(int fd,
         pls = (ptm_lockstorage *)&output.body;
         out_len = sizeof(pls->u.resp);
 
-        if (!mainloop_ensure_locked_storage(mlp))
+        if (!mainloop_ensure_locked_storage(mlp)) {
             pls->u.resp.tpm_result = htobe32(TPM_FAIL);
-        else
+        } else {
             pls->u.resp.tpm_result = htobe32(TPM_SUCCESS);
+            /* sent by QEMU when the VM runs again after handing over the state */
+            mlp->state_handed_over = false;
+        }
 
         break;
 
