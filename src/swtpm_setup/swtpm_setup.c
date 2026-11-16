@@ -828,7 +828,7 @@ static int log_active_profile(struct swtpm2 *swtpm2)
     return 0;
 
 malformatted:
-    logerr(gl_LOGFILE, "Malformatted active profile");
+    logerr(gl_LOGFILE, "Malformatted active profile\n");
     return 1;
 }
 
@@ -1856,7 +1856,7 @@ int main(int argc, char *argv[])
             swtpm_prg = g_strdup(optarg);
             break;
         case '_': /* --swtpm_ioctl */
-            fprintf(stdout, "Warning: --swtpm_ioctl is deprecated and has no effect.");
+            fprintf(stdout, "Warning: --swtpm_ioctl is deprecated and has no effect.\n");
             break;
         case '2': /* --tpm2 */
             flags |= SETUP_TPM2_F;
@@ -1999,7 +1999,7 @@ int main(int argc, char *argv[])
             ret = handle_create_config_files(optarg);
             goto out;
         case 'F': /* --tcsd-system-ps-file */
-            printf("Warning: --tcsd-system-ps-file is deprecated and has no effect.");
+            printf("Warning: --tcsd-system-ps-file is deprecated and has no effect.\n");
             break;
         case '1': /* --version */
             versioninfo();
