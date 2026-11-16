@@ -293,7 +293,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
     int file_fd;
     ptm_res res;
     ptm_getstate pgs;
-    uint16_t offset;
+    uint32_t offset;
     ssize_t numbytes, remain = -1;
     bool had_error;
     int n;
