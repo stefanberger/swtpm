@@ -21,7 +21,7 @@ I<PTM> and control commands are prefixed with I<CMD>.
 
 In case of the ioctl interface, the pointer to a command's data structure is
 passed as the 2nd parameter to the ioctl() function. The fields in the command's
-data structure are to be fill out in host endianness format.
+data structure are to be filled out in host endianness format.
 
 In case of control commands, the command code must be encoded as a 4 byte
 integer preceding the command's data structure. Command code and data must be
