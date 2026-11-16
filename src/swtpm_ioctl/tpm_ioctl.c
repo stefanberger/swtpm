@@ -1369,10 +1369,10 @@ int main(int argc, char *argv[])
             goto exit;
         }
         res = devtoh32(is_chardev, pls.u.resp.tpm_result);
-        if (devtoh32(is_chardev, res) != 0) {
+        if (res != 0) {
             fprintf(stderr,
                     "TPM result from PTM_LOCK_STORAGE: 0x%x\n",
-                    devtoh32(is_chardev, res));
+                    res);
             goto exit;
         }
 
