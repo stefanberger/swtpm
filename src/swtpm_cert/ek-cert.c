@@ -1253,7 +1253,7 @@ int main(int argc, char *argv[])
 
 #ifdef __NetBSD__
     while ((opt = getopt_long(argc, argv,
-                    "p:q:m:x:y:z:e:s:R:S:T:i:o:u:d:r:1:2:3:4:5:6:7:8:9:MaXADcvh",
+                    "p:q:m:x:y:z:e:s:t:R:S:T:i:o:u:d:r:0:1:2:3:4:5:6:7:8:9:MaXADcvh",
                     long_options, &option_index)) != -1) {
 #else
     while ((opt = getopt_long_only(argc, argv, "", long_options,
