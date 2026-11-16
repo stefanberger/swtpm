@@ -355,7 +355,7 @@ static JsonArray *profile_gather_builtin(const gchar **swtpm_prg_l)
  * to stdout.
  *
  * @swtpm_prg_l: Array of strings to invoke swtpm (e.g., 'swtpm socket')
- * @config_file_line: Lines of the configuratin file
+ * @config_file_lines: Lines of the configuration file
  *
  * Returns the number of bytes printed.
  */

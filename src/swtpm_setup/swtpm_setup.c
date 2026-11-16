@@ -1064,7 +1064,7 @@ static int init_tpm(unsigned long flags, gchar **swtpm_prg_l, const gchar *confi
 
         logit(gl_LOGFILE, "Successfully created EK.\n");
 
-        /* can only take owernship if created an EK */
+        /* can only take ownership if created an EK */
         if ((flags & SETUP_TAKEOWN_F)) {
             ret = tpm12_take_ownership(flags, ownerpass, srkpass, pubek, pubek_len, swtpm12);
             if (ret != 0)

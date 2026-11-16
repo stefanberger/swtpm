@@ -17,4 +17,4 @@ gchar *get_config_value(gchar *const *config_file_lines,
 int create_config_files(gboolean overwrite, gboolean root_flag,
                         gboolean skip_if_exist);
 
-#endif /* SWPTM_SETUP_UTILS_H */
+#endif /* SWTPM_SETUP_UTILS_H */
