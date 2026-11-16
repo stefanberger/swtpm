@@ -143,6 +143,11 @@ static int ctrlcmd(int fd, unsigned long cmd, void *msg, size_t msg_len_in,
                 n = poll(&fds, 1, DEFAULT_POLL_TIMEOUT);
                 if (n == 1) {
                     n = read(fd, msg, msg_len_out);
+                    /* make sure at least 4 bytes for tpm_result returned */
+                    if (n > 0 && (size_t)n < 4) {
+                        n = -1;
+                        errno = ENOMSG;
+                    }
                 } else if (n == 0) {
                     n = -1;
                     errno = ETIMEDOUT;
