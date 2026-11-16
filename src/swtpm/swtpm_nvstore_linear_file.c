@@ -50,7 +50,6 @@ static struct {
 static TPM_RESULT
 SWTPM_NVRAM_LinearFile_Mmap(void)
 {
-    uint32_t pagesize;
     TPM_RESULT rc = 0;
     struct stat st;
 
@@ -100,6 +99,7 @@ SWTPM_NVRAM_LinearFile_Mmap(void)
         mmap_state.can_truncate = true;
     } else if (S_ISBLK(st.st_mode)) {
 #if defined(BLKGETSIZE64)
+        uint32_t pagesize;
         uint64_t bd_size;
 
         /* valid block device, can't resize, but can use as is */
