@@ -1533,7 +1533,7 @@ static int swtpm_tpm2_flushcontext(struct swtpm *self, uint32_t handle)
                     NULL, NULL, TPM2_DURATION_SHORT);
 }
 
-/* Make object at the curr_handler permanent with the perm_handle */
+/* Make object at the curr_handle permanent with the perm_handle */
 static int swtpm_tpm2_evictcontrol(struct swtpm *self, uint32_t curr_handle, uint32_t perm_handle)
 {
     struct tpm2_evictcontrol_req {
@@ -1674,21 +1674,21 @@ static int swtpm_tpm2_createprimary_ek_rsa(struct swtpm *self, unsigned int rsa_
     }
 
     if (allowsigning && decryption) {
-        // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+        // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
         // adminWithPolicy, sign, decrypt; restricted CANNOT be set
         keyflags |= 0x000600b2;
         // symmetric: TPM_ALG_NULL
         pkps.symkey_len = 0;
         off = 72 + addlen;
     } else if (allowsigning) {
-        // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+        // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
         // adminWithPolicy, sign; restricted CANNOT be set
         keyflags |= 0x000400b2;
         // symmetric: TPM_ALG_NULL
         pkps.symkey_len = 0;
         off = 72 + addlen;
     } else {
-        // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+        // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
         // adminWithPolicy, restricted, decrypt
         keyflags |= 0x000300b2;
         // symmetric: TPM_ALG_AES, 128bit or 256bit, TPM_ALG_CFB
@@ -2046,21 +2046,21 @@ static int swtpm_tpm2_createprimary_ek_ecc(struct swtpm *self, const struct ek_p
     }
 
     if (allowsigning && decryption) {
-        // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+        // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
         // userWithAuth, adminWithPolicy, sign, decrypt; restricted CANNOT be set
         keyflags |= 0x000600b2;
         // symmetric: TPM_ALG_NULL
         pkps.symkey_len = 0;
         off -= 4;
     } else if (allowsigning) {
-        // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+        // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
         // userWithAuth, adminWithPolicy, sign; restricted CANNOT be set
         keyflags |= 0x000400b2;
         // symmetric: TPM_ALG_NULL
         pkps.symkey_len = 0;
         off -= 4;
     } else {
-        // keyflags: fixedTPM, fixedParent, sensitiveDatOrigin,
+        // keyflags: fixedTPM, fixedParent, sensitiveDataOrigin,
         // userWithAuth, adminWithPolicy, restricted, decrypt
         keyflags |= 0x000300b2;
         // symmetric: TPM_ALG_AES, 256bit, TPM_ALG_CFB
