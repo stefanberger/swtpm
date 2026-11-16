@@ -1913,8 +1913,8 @@ int main(int argc, char *argv[])
     free_datum(&datum);
 
     /* Authority Key Id */
-    X509V3_set_ctx_nodb(&x509v3_ctx);
     X509V3_set_ctx(&x509v3_ctx, sigcert, NULL, NULL, NULL, 0);
+    X509V3_set_ctx_nodb(&x509v3_ctx);
     ext = X509V3_EXT_conf_nid(NULL, &x509v3_ctx,
                               NID_authority_key_identifier, "keyid");
     CHECK_OSSL_NULLPTR1(ext, "Out of memory.\n");
