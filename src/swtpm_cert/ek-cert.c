@@ -1536,7 +1536,12 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
-    if ((ecc_x_bin && !ecc_y_bin) || (ecc_y_bin && !ecc_x_bin)) {
+    if (!strcmp(keychoice, "RSA") && !modulus_bin) {
+        fprintf(stderr, "Missing --modulus option for key type RSA.\n");
+        goto cleanup;
+    }
+
+    if (!strcmp(keychoice, "EC") && (!ecc_x_bin || !ecc_y_bin)) {
         fprintf(stderr, "ECC x and y parameters must both be given.\n");
         goto cleanup;
     }
