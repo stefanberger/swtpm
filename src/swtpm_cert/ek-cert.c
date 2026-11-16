@@ -1386,8 +1386,12 @@ int main(int argc, char *argv[])
             }
             break;
         case 'r': /* --serial */
-            if (gmp_sscanf(optarg, "%Zd", serial) != 1) {
+            if (mpz_set_str(serial, optarg, 10) != 0) {
                 fprintf(stderr, "Serial number is invalid.\n");
+                goto cleanup;
+            }
+            if (mpz_sgn(serial) < 0) {
+                fprintf(stderr, "Serial number must not be negative.\n");
                 goto cleanup;
             }
             break;
