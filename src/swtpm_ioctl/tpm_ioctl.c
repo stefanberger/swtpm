@@ -967,7 +967,7 @@ int main(int argc, char *argv[])
     unsigned int locality = 0;
     unsigned int tpmbuffersize = 0;
     unsigned int tcp_port = 0;
-    unsigned int retries;
+    unsigned int retries = 0;
     bool is_chardev;
     unsigned long int info_flags = 0;
     char *endptr = NULL;
@@ -1358,7 +1358,7 @@ int main(int argc, char *argv[])
         printf("\n");
     } else if (!strcmp(command, "--lock-storage")) {
         memset(&pls, 0, sizeof(pls));
-        pls.u.req.retries = htodev32(is_chardev, 0);
+        pls.u.req.retries = htodev32(is_chardev, retries);
 
         n = ctrlcmd(fd, PTM_LOCK_STORAGE, &pls,
                     sizeof(pls.u.req), sizeof(pls.u.resp));
