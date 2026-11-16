@@ -1159,6 +1159,7 @@ int main(int argc, char *argv[])
     ASN1_OCTET_STRING *oct = NULL;
     X509_EXTENSION *ext = NULL;
     const X509_NAME *issuer_name = NULL;
+    X509_NAME *name = NULL;
     X509V3_CTX x509v3_ctx;
     OSSL_PROVIDER *provider = NULL;
     const EVP_MD *md;
@@ -1662,7 +1663,7 @@ int main(int argc, char *argv[])
     /* The signing hash algorithm depends on the key */
     if (flags & CERT_TYPE_TPM2_F) {
         md = get_hashalg_for_signing(sigkey);
-    }else {
+    } else {
         /* TPM 1.2 had to be signed with SHA1 */
         if (uses_hashless_signing(sigkey)) {
             fprintf(stderr,
@@ -1733,7 +1734,6 @@ int main(int argc, char *argv[])
     /* Subject -- must be empty for TPM 1.2 */
     if ((flags & CERT_TYPE_TPM2_F)) {
         g_autofree char *s = NULL;
-        X509_NAME *name = NULL;
         char *token, *equal;
 
         switch (certtype) {
@@ -1773,7 +1773,6 @@ int main(int argc, char *argv[])
         if (name) {
             CHECK_OSSL_RETURN1(X509_set_subject_name(crt, name) != 1,
                                "Could not set subject name.\n");
-            X509_NAME_free(name);
         }
     }
 
@@ -2074,6 +2073,7 @@ cleanup:
     ASN1_OCTET_STRING_free(oct);
     BN_free(bn_serial);
     EVP_PKEY_free(sigkey);
+    X509_NAME_free(name);
     X509_EXTENSION_free(ext);
     X509_free(sigcert);
     X509_free(crt);
@@ -2082,6 +2082,7 @@ cleanup:
         fclose(fp);
 
     g_string_free(key_usage, TRUE);
+    free_datum(&datum);
     free(sigkeypass);
     free(modulus_bin);
     free(ecc_x_bin);
