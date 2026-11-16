@@ -1749,6 +1749,8 @@ int main(int argc, char *argv[])
             name = X509_NAME_new();
             CHECK_OSSL_NULLPTR1(name, "Out of memory");
             token = strtok(s, ",");
+            if (!token)
+                break;
             do {
                 while (isspace((int)*token))
                     token++;
