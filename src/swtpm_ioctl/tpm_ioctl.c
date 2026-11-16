@@ -855,7 +855,7 @@ static int parse_tcp_optarg(char *opt_arg, char **tcp_hostname,
         }
         if (*tcp_port >= 65536) {
             fprintf(stderr, "Port '%s' outside valid range.\n",
-                &opt_arg[1]);
+                    &pos[1]);
             return -1;
         }
 
