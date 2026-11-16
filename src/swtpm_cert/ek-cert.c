@@ -1599,6 +1599,7 @@ int main(int argc, char *argv[])
         CHECK_OSSL_NULLPTR(pubkey,
                            "Could not read PEM public key from %s.\n",
                            pubkey_filename);
+        is_ecc = EVP_PKEY_is_a(pubkey, "EC");
         FCLOSE(fp);
     } else {
         if (modulus_bin) {
