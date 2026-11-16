@@ -1756,12 +1756,12 @@ int main(int argc, char *argv[])
 
             s = g_strdup(subject);
             name = X509_NAME_new();
-            CHECK_OSSL_NULLPTR1(name, "Out of memory");
+            CHECK_OSSL_NULLPTR1(name, "Out of memory.\n");
             token = strtok(s, ",");
             if (!token)
                 break;
             do {
-                while (isspace((int)*token))
+                while (isspace((unsigned char)*token))
                     token++;
                 equal = strchr(token, '=');
                 if (equal) {
@@ -2070,7 +2070,7 @@ int main(int argc, char *argv[])
         }
         close(cert_file_fd);
     } else if (write_pem) {
-        fprintf(stdout, "%.*s\n", out.size, out.data);
+        fprintf(stdout, "%.*s\n", (int)out.size, out.data);
     }
 
     ret = 0;
