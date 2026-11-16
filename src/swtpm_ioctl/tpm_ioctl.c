@@ -796,7 +796,7 @@ static int open_connection(const char *devname, char *tcp_hostname,
         }
 
         fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (fd > 0) {
+        if (fd >= 0) {
             addr.sun_family = AF_UNIX;
             strncpy(addr.sun_path, unix_path, unix_path_len);
             if (connect_nonblock(fd, (struct sockaddr*)&addr,
