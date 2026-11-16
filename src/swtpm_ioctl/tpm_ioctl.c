@@ -103,7 +103,7 @@ static unsigned long ioctl_to_cmd(unsigned long ioctlnum)
 /*
  * ctrlcmd - send a control command
  *
- * This function returns -1 on on error with errno indicating the error.
+ * This function returns -1 on error with errno indicating the error.
  * In case an ioctl is used, it returns 0 on success; otherwise
  * it returns the number of bytes received in the response.
  */
@@ -586,7 +586,7 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
                 goto cleanup;
             }
             if (n != write(fd, buffer, n)) {
-                fprintf(stderr, "Could not write to file: %s\n",
+                fprintf(stderr, "Could not write to TPM: %s\n",
                         strerror(errno));
                 had_error = 1;
                 goto cleanup;
@@ -892,7 +892,7 @@ static void usage(const char *prgname)
 "                        it will resume the TPM with it and delete it\n"
 "                        afterwards\n"
 "--stop                : stop the TPM without exiting\n"
-"-s                    : shutdown the TPM; stops and exists\n"
+"-s                    : shutdown the TPM; stops and exits\n"
 "-e                    : get the tpmEstablished bit\n"
 "-r <loc>              : reset the tpmEstablished bit; use the given locality\n"
 "-v                    : store the TPM's volatile data\n"
