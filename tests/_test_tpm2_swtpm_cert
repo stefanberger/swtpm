@@ -161,7 +161,7 @@ check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
 	"Public-Key: (256 bit)" \
 	"CA:FALSE" \
 	"Endorsement Key Certificate" \
-	"Key Encipherment" \
+	"Key Agreement" \
 	"DirName:/tcg-at-tpmManufacturer=IBM/tcg-at-tpmModel=swtpm-libtpms/tcg-at-tpmVersion=2"
 
 # truncate result file
@@ -278,7 +278,7 @@ check_cert "${cert}" "${PARAM_CERT_SIZES[$((TC++))]}" \
 	"Public-Key: (256 bit)" \
 	"CA:FALSE" \
 	"Platform Attribute Certificate" \
-	"Key Encipherment" \
+	"Key Agreement" \
 	"DirName:/tcg-at-platformManufacturerStr=Fedora/tcg-at-platformModel=QEMU/tcg-at-platformVersion=2.1"
 
 # truncate result file
