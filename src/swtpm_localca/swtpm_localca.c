@@ -257,9 +257,9 @@ static void get_random_serial(char *buffer, size_t length)
     GRand *grand = g_rand_new();
     size_t i;
 
-    buffer[0] = '0' + g_rand_int_range(grand, 1, 9);
+    buffer[0] = '0' + g_rand_int_range(grand, 1, 10);
     for (i = 1; i < length; i++)
-        buffer[i] = '0' + g_rand_int_range(grand, 0, 9);
+        buffer[i] = '0' + g_rand_int_range(grand, 0, 10);
 
     g_rand_free(grand);
 }
