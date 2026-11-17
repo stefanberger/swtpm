@@ -784,7 +784,7 @@ int main(int argc, char *argv[])
 
         if (signkey_password != NULL) {
             swtpm_cert_env = g_environ_setenv(swtpm_cert_env,
-                                              "SWTPM_PKCS11_PIN", g_strdup(signkey_password), TRUE);
+                                              "SWTPM_PKCS11_PIN", signkey_password, TRUE);
             logit(gl_LOGFILE, "CA uses a PKCS#11 key; using SWTPM_PKCS11_PIN\n");
         } else {
             g_autofree gchar *swtpm_pkcs11_pin = NULL;
