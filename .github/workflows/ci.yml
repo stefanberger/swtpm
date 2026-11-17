@@ -5,6 +5,35 @@ on:
     branches: [ "master", "stable-*" ]
 
 jobs:
+  syntax-check:
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run make syntax-check
+        shell: bash
+        run: |
+          apt-get -y update
+          apt-get -y install automake autoconf libtool pkg-config libssl-dev \
+            sed make gawk bash openssl libtasn1-dev libglib2.0-dev \
+            libjson-glib-dev libgmp-dev libseccomp-dev socat net-tools \
+            findutils coreutils codespell shellcheck
+          # configure only needs libtpms' version and crypto library via
+          # pkg-config; the syntax checks do not need the real library.
+          mkdir -p /tmp/pkgconfig
+          cat > /tmp/pkgconfig/libtpms.pc <<EOF
+          cryptolib=openssl
+          Name: libtpms
+          Description: libtpms stub for syntax-check
+          Version: 0.11.0
+          EOF
+          export PKG_CONFIG_PATH=/tmp/pkgconfig
+          ./autogen.sh --with-openssl --prefix=/usr
+          make syntax-check
+
   test-distcheck:
     runs-on: ubuntu-24.04
     container:
