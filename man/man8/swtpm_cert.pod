@@ -137,7 +137,7 @@ The platform's version.
 
 Subject to for example provide the location of the TPM in the format of
 C=<country>,ST=<state>,L=<location>.
-Note that the location must no contain any spaces.
+Note that the location must not contain any spaces.
 
 =item B<--tpm2>
 

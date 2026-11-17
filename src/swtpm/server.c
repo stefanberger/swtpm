@@ -53,7 +53,7 @@ struct server *server_new(int fd, unsigned int flags,
     struct server *c = calloc(1, sizeof(struct server));
 
     if (!c) {
-        logprintf(STDERR_FILENO, "Out of memory");
+        logprintf(STDERR_FILENO, "Out of memory.\n");
         return NULL;
     }
 
@@ -63,7 +63,7 @@ struct server *server_new(int fd, unsigned int flags,
     if (sockpath) {
         c->sockpath = strdup(sockpath);
         if (!c->sockpath) {
-            logprintf(STDERR_FILENO, "Out of memory");
+            logprintf(STDERR_FILENO, "Out of memory.\n");
             free(c);
             c = NULL;
         }

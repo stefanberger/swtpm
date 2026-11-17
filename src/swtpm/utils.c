@@ -765,7 +765,7 @@ int json_get_array_entry_value(const char *json_input,
                 json_reader_end_member(jr);
                 if (!json_reader_read_member(jr, field2_name)) {
                     logprintf(STDERR_FILENO,
-                              "Found map entry in '%s' but could not find field '%s'",
+                              "Found map entry in '%s' but could not find field '%s'\n",
                               json_input, field2_name);
                     return -1;
                 }

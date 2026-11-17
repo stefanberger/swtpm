@@ -220,7 +220,7 @@ static int tpmlib_check_need_modify_ossl_config(unsigned int *fix_flags,
                                              false);
 }
 
-/* Determine wheter FIPS mode is enabled in the crypto library. If FIPS mode is
+/* Determine whether FIPS mode is enabled in the crypto library. If FIPS mode is
  * enabled check whether any of the algorithms that the TPM 2 uses would need
  * OpenSSL FIPS mode to be disabled for the TPM 2 to work and then try to disable
  * it.
@@ -671,7 +671,7 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
 }
 
 /*
- * tpmlib_maybe_send_tpm2_shutdown: Send a TPM2_Shutdown() if necesssary
+ * tpmlib_maybe_send_tpm2_shutdown: Send a TPM2_Shutdown() if necessary
  *
  * @tpmversion: version of TPM
  * @lastCommand: last command that was sent to the TPM 2 before

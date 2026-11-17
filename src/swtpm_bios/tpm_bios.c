@@ -716,7 +716,7 @@ int main(int argc, char *argv[])
 			free(g_tpm_device);
 			g_tpm_device = strdup(optarg);
 			if (!g_tpm_device) {
-				fprintf(stderr, "Out of memory.");
+				fprintf(stderr, "Out of memory.\n");
 				return EXIT_FAILURE;
 			}
 			break;
@@ -779,7 +779,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-		fprintf(stderr, "Could not install signal handler for SIGPIPE.");
+		fprintf(stderr, "Could not install signal handler for SIGPIPE.\n");
 		return EXIT_FAILURE;
 	}
 

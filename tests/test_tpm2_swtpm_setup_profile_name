@@ -53,7 +53,7 @@ test_swtpm_setup_profile()
 	local workdir="${1}"
 	local profilename="${2}"
 	local exp_response="${3}"	# expected 'ActiveProfile' response; optional
-	local exp_fail="${4}"		# swtpm_setup is expexted to fail when '1'
+	local exp_fail="${4}"		# swtpm_setup is expected to fail when '1'
 
 	local response
 

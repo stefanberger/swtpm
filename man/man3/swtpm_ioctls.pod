@@ -148,7 +148,7 @@ A TPM result code is returned in ptm_res.
 
 This ioctl is used to check whether the TPM established flag is set.
 
-The tpm_est data structure looks as follows:
+The ptm_est data structure looks as follows:
 
  struct ptm_est {
     union {

@@ -96,7 +96,7 @@ version 0.9.0:
     - Pass key_type to function creating filename for key
     - Add scheme parameter before curveid to createprimary_ecc
     - Rename is_ek to preserve for future extension
-    - Mask-out EK and plaform certificate flags and set cert_flags
+    - Mask-out EK and platform certificate flags and set cert_flags
     - Move common code into new function read_certificate_file()
     - Exit with '0' upon --version rather than '1'
     - Close file descriptors passed to swtpm process on parent side
@@ -186,7 +186,7 @@ version 0.7.0:
     - Only activate SHA256 PCR bank, not SHA1 bank anymore by default
     - Support for linear file storage backend (file://)
     - Implement option --create-config-files to create config files
-    - Use non-deprecated APIs to contruct RSA key (OSSL 3)
+    - Use non-deprecated APIs to construct RSA key (OSSL 3)
     - Report stderr as returned by external tool (swtpm-localcal)
     - Replace '+' and ',' characters in VMId's to make work with
       common name in X509 subject
@@ -204,7 +204,7 @@ version 0.7.0:
   - build-sys:
     - Introduce --enable-sanitizers to configure
     - Remove check for pip3 that was used by python swtpm_setup
-    - Allow passing of aditional CFLAGS during build
+    - Allow passing of additional CFLAGS during build
 
 version 0.6.0:
   - swtpm:

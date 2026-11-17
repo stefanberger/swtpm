@@ -153,7 +153,7 @@ The control channel enables out-of-band control of the TPM, such as resetting th
 
 =head1 Options for all interfaces
 
-The following options are support by all interfaces:
+The following options are supported by all interfaces:
 
 =over 4
 
@@ -302,7 +302,7 @@ or PBKDF2. By default PBKDF2 is used.
 
 =item B<--pid file=E<lt>pidfileE<gt>|fd=E<lt>filedescriptorE<gt>>
 
-This options allows a user to set the name of file where the process ID (pid) of the TPM
+This option allows a user to set the name of file where the process ID (pid) of the TPM
 will be written into. It is also possible to pass a file descriptor to a file that
 has been opened for writing.
 
@@ -341,7 +341,7 @@ this can be changed with this option.
 
 The I<disable-auto-shutdown> flag prevents swtpm from automatically sending a
 TPM2_Shutdown() before the reset of a TPM 2 or before the swtpm process
-is terminated. When this flag is not provide swtpm will send this command to
+is terminated. When this flag is not provided, swtpm will send this command to
 avoid increasing the dictionary attack (DA) lockout counter and ultimately
 a DA lockout by the TPM 2 due to omission of sending a required TPM2_Shutdown()
 before TPM 2 reset or swtpm process termination.
@@ -468,7 +468,7 @@ The option I<--print-profiles> is supported.
 The I<--profile> option supports the I<remove-disabled> option
 parameter.
 
-=item B<cmdard-print-info> (since v0.10)
+=item B<cmdarg-print-info> (since v0.10)
 
 The option I<--print-info> is supported.
 
