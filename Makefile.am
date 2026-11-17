@@ -31,6 +31,8 @@ selinux-install selinux-uninstall:
 endif
 
 syntax-check:
+	cd $(srcdir) && codespell -L addresse,alog,daa,filp,ody,parm,te \
+		$$(find include man src \( -name '*.pod' -o -name '*.c' -o -name '*.h' \) -not -path '*/.libs/*')
 	@cd samples && $(MAKE) syntax-check
 	@cd tests && $(MAKE) syntax-check
 
