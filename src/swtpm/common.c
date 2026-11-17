@@ -376,7 +376,7 @@ handle_log_options(const char *options)
                   logfd, strerror(errno));
         goto error;
     }
-    if ((logfile || logfd) && !loglevel)
+    if (!loglevel)
         loglevel = 1;
 
     if (log_set_prefix(logprefix) < 0) {

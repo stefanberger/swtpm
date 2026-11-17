@@ -121,7 +121,7 @@ int log_init_fd(int fd)
             return -1;
         }
     }
-    if (logfd != STDERR_FILENO && logfd != STDOUT_FILENO)
+    if (logfd >= 0 && logfd != STDERR_FILENO && logfd != STDOUT_FILENO)
         close(logfd);
     logfd = fd;
 
@@ -240,7 +240,7 @@ static ssize_t _logprintf(int fd, const char *format, va_list ap, bool check_ind
     if (logfd == SUPPRESS_INFO_LOGGING && fd == STDOUT_FILENO)
         return 0;
 
-    if (logfd > 0)
+    if (logfd >= 0)
         fd = logfd;
 
     ret = vasprintf(&buf, format, ap);
