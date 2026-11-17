@@ -311,7 +311,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
     bt = get_blobtype(blobtype);
     if (!bt) {
         fprintf(stderr,
-                "Unknown TPM state type '%s'", blobtype);
+                "Unknown TPM state type '%s'\n", blobtype);
         return 1;
     }
 
@@ -361,7 +361,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
             recvd_bytes = n - offsetof(ptm_getstate, u.resp.data);
             if ((int32_t)recvd_bytes < 0) {
                 fprintf(stderr,
-                        "Too few bytes in response");
+                        "Too few bytes in response\n");
                 had_error = true;
                 break;
             }
@@ -390,7 +390,7 @@ static int do_save_state_blob(int fd, bool is_chardev, const char *blobtype,
             buffer = malloc(buffersize);
             if (!buffer) {
                 fprintf(stderr,
-                        "Could not allocate buffer with %zu bytes.",
+                        "Could not allocate buffer with %zu bytes.\n",
                         buffersize);
                 had_error = true;
                 break;
@@ -467,7 +467,7 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
     bt = get_blobtype(blobtype);
     if (!bt) {
         fprintf(stderr,
-                "Unknown TPM state type '%s'", blobtype);
+                "Unknown TPM state type '%s'\n", blobtype);
         return 1;
     }
 
@@ -547,7 +547,7 @@ static int do_load_state_blob(int fd, bool is_chardev, const char *blobtype,
         buffer = malloc(buffersize);
         if (!buffer) {
             fprintf(stderr,
-                    "Could not allocate buffer with %zu bytes.",
+                    "Could not allocate buffer with %zu bytes.\n",
                     buffersize);
             had_error = true;
             goto cleanup;
@@ -1115,7 +1115,7 @@ int main(int argc, char *argv[])
         }
     } else {
         if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-            fprintf(stderr, "Could not install signal handler for SIGPIPE.");
+            fprintf(stderr, "Could not install signal handler for SIGPIPE.\n");
             goto exit;
         }
     }

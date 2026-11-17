@@ -23,7 +23,7 @@
  * sizes disabled by FIPS (in OpenSSL).
  *
  * @json_profile: Pointer to the string with the JSON profile
- * @check: Whether to check wheter the 'candidate' algorithms are actually
+ * @check: Whether to check whether the 'candidate' algorithms are actually
  *         disabled and only remove from profile if disabled.
  *
  * Return values:

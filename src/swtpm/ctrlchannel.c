@@ -83,7 +83,7 @@ struct ptm_setstate_priv {
         } req; /* request */
         struct {
             ptm_res tpm_result;
-        } resp; /* reponse */
+        } resp; /* response */
     } u;
 };
 typedef struct ptm_setstate_priv ptm_setstate_priv;
@@ -102,14 +102,14 @@ struct ctrlchannel *ctrlchannel_new(int fd, bool is_client,
     struct ctrlchannel *cc = calloc(1, sizeof(struct ctrlchannel));
 
     if (!cc) {
-        logprintf(STDERR_FILENO, "Out of memory");
+        logprintf(STDERR_FILENO, "Out of memory.\n");
         return NULL;
     }
 
     if (sockpath) {
         cc->sockpath = strdup(sockpath);
         if (!cc->sockpath) {
-            logprintf(STDERR_FILENO, "Out of memory");
+            logprintf(STDERR_FILENO, "Out of memory.\n");
             free(cc);
             return NULL;
         }
@@ -880,7 +880,7 @@ int ctrlchannel_process_fd(int fd,
              !(data_fd = (int *)CMSG_DATA(cmsg)) ||
              *data_fd < 0) {
             logprintf(STDERR_FILENO, "no valid data socket in message; cmsg = "
-                                     "%p", cmsg);
+                                     "%p\n", cmsg);
             goto err_bad_input;
         }
 

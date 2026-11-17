@@ -238,7 +238,7 @@ option_value_add(OptionValues *ovs, const OptionDesc optdesc, const char *val,
  * @saveptr: A pointer to a pointer where this function stores the address
  *           to continue parsing next time
  * @tok: The function returns the pointer to the beginning of the token here;
- *       The token lies withing the given @str and @str may be modified for
+ *       The token lies within the given @str and @str may be modified for
  *       NUL-terminating the token
  * @char: A pointer where to store a string pointer in case of error
  *

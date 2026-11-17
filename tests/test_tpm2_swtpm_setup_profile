@@ -60,7 +60,7 @@ test_swtpm_setup_profile()
 	local disabled_algos="${4}"	# disabled algorithms; optional
 	local tpm2request="${5}"	# TPM 2 request to send; optional
 	local exp_tpm2response="${6}"	# expected response; optional
-	local exp_fail="${7}"		# swtpm_setup is expexted to fail when '1'
+	local exp_fail="${7}"		# swtpm_setup is expected to fail when '1'
 
 	local response
 

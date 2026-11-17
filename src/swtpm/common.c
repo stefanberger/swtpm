@@ -386,7 +386,7 @@ handle_log_options(const char *options)
     }
     if (log_set_level(loglevel) < 0) {
         logprintf(STDERR_FILENO,
-                  "Could not set log level. Out of memory?");
+                  "Could not set log level. Out of memory?\n");
         goto error;
     }
 
@@ -627,7 +627,7 @@ parse_pid_options(const char *options, char **pidfile, int *pidfilefd)
     if (filename) {
         *pidfile = strdup(filename);
         if (!*pidfile) {
-            logprintf(STDERR_FILENO, "Out of memory.");
+            logprintf(STDERR_FILENO, "Out of memory.\n");
             goto error;
         }
     } else {
@@ -734,13 +734,13 @@ parse_tpmstate_options(const char *options, char **tpmstatedir, mode_t *mode,
     if (directory) {
         *tpmstatedir = strdup(directory);
         if (!*tpmstatedir) {
-            logprintf(STDERR_FILENO, "Out of memory.");
+            logprintf(STDERR_FILENO, "Out of memory.\n");
             goto error;
         }
     } else if (backend_uri) {
         *tpmbackend_uri = strdup(backend_uri);
         if (!*tpmbackend_uri) {
-            logprintf(STDERR_FILENO, "Out of memory.");
+            logprintf(STDERR_FILENO, "Out of memory.\n");
             goto error;
         }
         if (strncmp(*tpmbackend_uri, "file://", 7) == 0)
