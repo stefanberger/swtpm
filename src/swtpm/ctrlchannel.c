@@ -199,8 +199,17 @@ static int ctrlchannel_return_state(ptm_getstate *pgs, int fd,
 
     free(blob);
 
-    if (fd >= 0 && blobtype == PTM_BLOB_TYPE_SAVESTATE)
+    if (fd >= 0 && blobtype == PTM_BLOB_TYPE_SAVESTATE) {
         mainloop_unlock_nvram(mlp, DEFAULT_LOCKING_RETRIES);
+        /*
+         * QEMU retrieves the savestate blob last, so once it was exported or
+         * found absent (TPM_RETRY), the state was handed over, e.g. to a
+         * migration target that may share the storage. An automatic
+         * TPM2_Shutdown could then overwrite the target's state.
+         */
+        if (res == TPM_SUCCESS || res == TPM_RETRY)
+            mlp->state_not_owned = true;
+    }
 
     return fd;
 }
@@ -565,7 +574,8 @@ int ctrlchannel_process_fd(int fd,
 
         if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
-                                            &mlp->lastCommand);
+                                            &mlp->lastCommand,
+                                            mlp->state_not_owned);
 
         init_p = (ptm_init *)input.body;
 
@@ -584,6 +594,11 @@ int ctrlchannel_process_fd(int fd,
         } else {
             *tpm_running = true;
             SWTPM_G_FREE(mlp->json_profile);
+            /*
+             * cleared only once the TPM uses the state it loaded, so the
+             * shutdown above leaves a handed-over state alone
+             */
+            mlp->state_not_owned = false;
         }
 
         *res_p = htobe32(res);
@@ -596,7 +611,8 @@ int ctrlchannel_process_fd(int fd,
 
         if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
-                                            &mlp->lastCommand);
+                                            &mlp->lastCommand,
+                                            mlp->state_not_owned);
 
         TPMLIB_Terminate();
 
@@ -612,7 +628,8 @@ int ctrlchannel_process_fd(int fd,
 
         if (*tpm_running && !mlp->disable_auto_shutdown)
             tpmlib_maybe_send_tpm2_shutdown(mlp->tpmversion,
-                                            &mlp->lastCommand);
+                                            &mlp->lastCommand,
+                                            mlp->state_not_owned);
 
         TPMLIB_Terminate();
 
@@ -901,10 +918,13 @@ int ctrlchannel_process_fd(int fd,
         pls = (ptm_lockstorage *)&output.body;
         out_len = sizeof(pls->u.resp);
 
-        if (!mainloop_ensure_locked_storage(mlp))
+        if (!mainloop_ensure_locked_storage(mlp)) {
             pls->u.resp.tpm_result = htobe32(TPM_FAIL);
-        else
+        } else {
             pls->u.resp.tpm_result = htobe32(TPM_SUCCESS);
+            /* sent by QEMU when the VM runs again after handing over the state */
+            mlp->state_not_owned = false;
+        }
 
         break;
 
