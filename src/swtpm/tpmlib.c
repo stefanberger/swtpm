@@ -473,12 +473,17 @@ uint32_t tpmlib_create_startup_cmd(uint16_t startupType,
  * @tpmversion: version of TPM
  * @lastCommand: last command that was sent to the TPM 2 before
  *               this will be updated if TPM2_Shutdown was sent
+ * @state_not_owned: whether another instance may own the state
  *
  * Send a TPM2_Shutdown(SU_STATE) to a TPM 2 if the last-processed command was
  * not TPM2_Shutdown. If the command fails, send TPM2_Shutdown(SU_CLEAR).
+ * Send nothing if another instance, like the target of a migration, may own
+ * the state, since writing it could overwrite that instance's state on shared
+ * storage.
  */
 void tpmlib_maybe_send_tpm2_shutdown(TPMLIB_TPMVersion tpmversion,
-                                     uint32_t *lastCommand)
+                                     uint32_t *lastCommand,
+                                     bool state_not_owned)
 {
     TPM_RESULT res;
     unsigned char *rbuffer = NULL;
@@ -500,6 +505,9 @@ void tpmlib_maybe_send_tpm2_shutdown(TPMLIB_TPMVersion tpmversion,
     struct tpm_resp_header *rsp;
     uint32_t errcode;
     size_t i;
+
+    if (state_not_owned)
+        return;
 
     /* Only send TPM2_Shutdown for a TPM 2 and only if TPM2_Shutdown()
      * was not already sent. Send a TPM2_Shutdown(SU_STATE) first since
