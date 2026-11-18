@@ -96,6 +96,9 @@ Note that this command can be executed at any time. However, to retrieve
 the latest volatile state, the I<-v> command should have been run
 immediately before running this command. The savestate blob will only be
 returned if a TPM_SaveState command was executed in the TPM (TPM 1.2).
+Saving the savestate blob, even if none is returned, makes swtpm skip its
+automatic TPM2_Shutdown() until the TPM processes a command, is initialized
+again with I<-i>, or its storage is locked again with I<--lock-storage>.
 
 =item B<--load E<lt>TPM state blob nameE<gt> E<lt>filenameE<gt>>
 
