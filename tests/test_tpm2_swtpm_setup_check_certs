@@ -72,7 +72,7 @@ function check_cert() {
 	local output data tmp pubkey1 pubkey2 line1 line2
 
 	case "${keyalgo}" in
-	rsa*)
+	rsa*|ml-dsa-*|ml-kem-*)
 		output=$(openssl x509 -inform der -in "${user_certsdir}/ek-${keyalgo}.crt" \
 			-noout -pubkey | openssl pkey -pubin -inform pem -text_pub)
 		;;
@@ -162,10 +162,11 @@ function swtpm_setup_run() {
 	local workdir="$1"
 	local user_certsdir="$2"
 	local tpm2_createek="$3"
-	local ek1keyalgo="$4"
-	local ek1pattern="$5"
-	local ek2keyalgo="$6"
-	local ek2pattern="$7"
+	local profile_name="$4"
+	local ek1keyalgo="$5"
+	local ek1pattern="$6"
+	local ek2keyalgo="$7"
+	local ek2pattern="$8"
 
 	local ek1file ek2file
 
@@ -183,6 +184,7 @@ function swtpm_setup_run() {
 		--logfile "${workdir}/logfile" \
 		--tpm "${SWTPM_EXE} socket ${SWTPM_TEST_SECCOMP_OPT}" \
 		--overwrite \
+		--profile-name "${profile_name}" \
 		--ek1keyalgo "${ek1keyalgo}" \
 		--ek2keyalgo "${ek2keyalgo}" \
 		--write-ek-cert-files "${user_certsdir}";
@@ -241,18 +243,40 @@ if [ -n "${TPM2_CREATEEK}" ]; then
 fi
 
 swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"null" \
 	"rsa2048" "Public-Key: (2048 bit)" \
 	"ecc_nist_p256" "Public-Key: (256 bit)"
 echo -e "Test 1: OK\n"
 
 swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"null" \
 	"ecc_nist_p384" "Public-Key: (384 bit)" \
 	"ecc_nist_p521" "Public-Key: (521 bit)"
 echo -e "Test 2: OK\n"
 
 swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"null" \
 	"rsa3072" "Public-Key: (3072 bit)" \
 	"rsa2048" "Public-Key: (2048 bit)"
 echo -e "Test 3: OK\n"
+
+swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"default-v2" \
+	"ml-kem-512" "ML-KEM-512" \
+	"ml-dsa-44"  "ML-DSA-44"
+echo -e "Test 4: OK\n"
+
+swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"default-v2" \
+	"ml-kem-768" "ML-KEM-768" \
+	"ml-dsa-65"  "ML-DSA-65"
+echo -e "Test 5: OK\n"
+
+swtpm_setup_run "${WORKDIR}" "${USER_CERTSDIR}" "${TPM2_CREATEEK}" \
+	"default-v2" \
+	"ml-kem-1024" "ML-KEM-1024" \
+	"ml-dsa-87"  "ML-DSA-87"
+
+echo -e "Test 6: OK\n"
 
 exit 0
