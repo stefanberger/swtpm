@@ -46,8 +46,8 @@ if ! run_swtpm_ioctl "${SWTPM_INTERFACE}" -b 0 > "${OUTFILE}"; then
 fi
 cat "${OUTFILE}"
 
-if ! grep "TPM buffersize" "${OUTFILE}" | grep -q 4096; then
-	echo "Error: The TPM buffersize of the ${SWTPM_INTERFACE} TPM is not 4096."
+if ! grep "TPM buffersize" "${OUTFILE}" | grep -q -E "(4096|8192)$"; then
+	echo "Error: The TPM buffersize of the ${SWTPM_INTERFACE} TPM is not 4096 or 8192."
 	exit 1
 fi
 
